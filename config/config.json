@@ -1,0 +1,22 @@
+{
+  "data_dir": "./data",
+  "timeframe": "1d",
+  "tickers": ["BTC-USD"],
+  "renko": {
+    "period_count": 9
+  },
+  "ma": {
+    "sma": {
+      "periods": [3, 5, 10, 20]
+    },
+    "ema": {
+      "periods": [12, 26, 50]
+    }
+  },
+  "sr_zones": {
+    "pivot_lookback_period": 5,
+    "zone_tolerance": 0.02,
+    "min_touches": 3,
+    "max_price_deviation": 0.2
+  }
+}
