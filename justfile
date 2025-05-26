@@ -13,7 +13,7 @@ run:
     just renko
 
 asta:
-    python src/main.py --config config/config.yaml
+    python src/main.py --config config/config.json
 
 renko:
-    python src/renko_chart.py --data-dir data --ticker BTC-USD --timeframe 1d
+    python src/renko_chart.py --data-dir data --ticker ETH-USD --timeframe 1d
