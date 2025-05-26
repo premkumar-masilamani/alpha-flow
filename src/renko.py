@@ -32,27 +32,50 @@ def remove_consecutive_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     ]
 
 
+def get_zone_from_trend(trend: int) -> int:
+    if trend <= 3:
+        return 0
+    elif trend <= 9:
+        return 1
+    elif trend <= 27:
+        return 2
+    elif trend <= 81:
+        return 3
+    else:
+        return 4
+
+
 def calculate_zone_trend(df: pd.DataFrame) -> pd.DataFrame:
     current_dir = "up"  # The first renko brick is always up.
+    previous_uptrend = 0
+    previous_downtrend = 0
     trend = 0
-    zone = 0
+
     for i, row in df.iterrows():
+        # Bricks moving in the same direction
         if row["direction"] == current_dir:
             trend += 1
-            if trend <= 3:
-                zone = 0
-            elif trend <= 9:
-                zone = 1
-            elif trend <= 27:
-                zone = 2
-            elif trend <= 81:
-                zone = 3
+        # Brick changes the direction
         else:
             current_dir = row["direction"]
-            trend = 1
-            zone = 0
+            # Preserve the previous trend
+            if row["direction"] == "down":
+                previous_uptrend = trend
+            elif row["direction"] == "up":
+                previous_downtrend = trend
+
+            # Check if the current trend should resume from previous trend
+            if row["direction"] == "up":
+                if trend <= get_zone_from_trend(previous_uptrend):
+                    trend = (previous_uptrend - trend)+1
+                else:
+                    trend = 1
+            elif row["direction"] == "down":
+                if trend <= get_zone_from_trend(previous_downtrend):
+                    trend = (previous_downtrend - trend)+1
+                else:
+                    trend = 1
         df.at[i, "trend"] = trend
-        df.at[i, "zone"] = zone
 
     print(f"[INFO] Generated {len(df)} Renko bricks")
     return df
@@ -75,7 +98,6 @@ def generate_renko_chart_data(df: pd.DataFrame, period_count: int) -> pd.DataFra
                     "brick_low": current_price - brick_size,
                     "brick_high": current_price,
                     "direction": "up",
-                    "zone": 0,
                     "trend": 0,
                 }
             )
@@ -88,7 +110,6 @@ def generate_renko_chart_data(df: pd.DataFrame, period_count: int) -> pd.DataFra
                     "brick_low": current_price,
                     "brick_high": current_price + brick_size,
                     "direction": "down",
-                    "zone": 0,
                     "trend": 0,
                 }
             )
@@ -97,8 +118,6 @@ def generate_renko_chart_data(df: pd.DataFrame, period_count: int) -> pd.DataFra
         print("[WARN] No Renko bricks generated.")
         return pd.DataFrame()
 
-    renko_df = calculate_zone_trend(
-        remove_consecutive_duplicates(pd.DataFrame(renko_data))
-    )
+    renko_df = calculate_zone_trend(remove_consecutive_duplicates(pd.DataFrame(renko_data)))
 
     return renko_df

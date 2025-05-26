@@ -35,7 +35,6 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
     for i, row in df.iterrows():
         color = "green" if row["direction"] == "up" else "red"
         trend = row["trend"]
-        zone = row["zone"]
         y_low = row["brick_low"]
 
         rect = patches.Rectangle(
@@ -53,7 +52,7 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
         ax.text(
             text_x,
             text_y,
-            f"{zone},{trend}",
+            f"{trend}",
             ha="center",
             va="center",
             color=text_color,
