@@ -7,11 +7,11 @@ from helpers import load_timeseries_data, get_renko_file_path, parse_chart_args
 
 logger = logging.getLogger(__name__)
 
-CHART_WIDTH_INCHES = 16.0
-CHART_HEIGHT_INCHES = 8.0
-CHART_BRICKS_COUNT = 180  # 6 Months Data
-SHOW_TREND_NUMBER = True  # Display the trend number inside the bricks
-TREND_FONT_SIZE = 5
+CHART_WIDTH_INCHES: float = 16.0
+CHART_HEIGHT_INCHES: float = 8.0
+CHART_BRICKS_COUNT: int = 180  # 6 Months Data
+SHOW_TREND_NUMBER: bool = True  # Display the trend number inside the bricks
+TREND_FONT_SIZE: int = 5
 
 
 def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):

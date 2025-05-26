@@ -8,6 +8,10 @@ show:
 	@echo "Listing dependencies..."
 	pipenv graph
 
+.PHONY: run
+run:
+	make asta
+	make renko
 
 .PHONY: asta
 asta:
