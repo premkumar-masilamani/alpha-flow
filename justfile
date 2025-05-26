@@ -1,14 +1,19 @@
 setup:
     # Creating virtual environment...
-    powershell -Command "pipenv shell"
-    powershell -Command "pipenv install"
+    pipenv shell
+    pipenv install
 
 show:
     # Listing dependencies...
-    powershell -Command "pipenv graph"
+    pipenv graph
+
+run:
+    clear
+    just asta
+    just renko
 
 asta:
-    powershell -Command "python src/main.py --config config/config.yaml"
+    python src/main.py --config config/config.yaml
 
 renko:
-    powershell -Command "python src/renko_chart.py --data-dir data --ticker BTC-USD --timeframe 1d"
+    python src/renko_chart.py --data-dir data --ticker BTC-USD --timeframe 1d
