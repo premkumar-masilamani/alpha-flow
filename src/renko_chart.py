@@ -1,17 +1,20 @@
 import logging
+from ntpath import curdir
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as mticker
-from helpers import load_timeseries_data, get_renko_file_path, parse_chart_args
+from helpers import load_timeseries_data, get_renko_file_path, parse_chart_args, get_zone_from_trend
 
 logger = logging.getLogger(__name__)
 
-CHART_WIDTH_INCHES = 16.0
-CHART_HEIGHT_INCHES = 8.0
-CHART_BRICKS_COUNT = 180  # 6 Months Data
-SHOW_TREND_NUMBER = True  # Display the trend number inside the bricks
-TREND_FONT_SIZE = 5
+CHART_WIDTH_INCHES: float = 16.0
+CHART_HEIGHT_INCHES: float = 8.0
+CHART_BRICKS_COUNT: int = 180  # 6 Months Data
+SHOW_TREND_NUMBER: bool = True  # Display the trend number inside the bricks
+TREND_FONT_SIZE: int = 5
+CURRENT_PRICE_LINE_COLOR: str = "blue"
+SL_PRICE_LINE_COLOR: str = "red"
 
 
 def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
@@ -70,6 +73,29 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
     ax.set_xlim(0, len(df) * brick_size + x_padding)
     ax.set_ylim(df["brick_low"].min() - y_padding, df["brick_high"].max() + y_padding)
 
+    # Current Brick and SL Brick
+    current_price, sl_price = get_prices(df)
+    ax.axhline(
+        y=current_price, color=CURRENT_PRICE_LINE_COLOR, linestyle="-", linewidth=0.5
+    )
+    ax.text(
+        0.5,
+        current_price,
+        f" Current - ${current_price:,.2f}",
+        ha="left",
+        va="bottom",
+        color=CURRENT_PRICE_LINE_COLOR,
+    )
+    ax.axhline(y=sl_price, color=SL_PRICE_LINE_COLOR, linestyle="-", linewidth=0.5)
+    ax.text(
+        0.5,
+        sl_price,
+        f" SL - ${sl_price:,.2f}",
+        ha="left",
+        va="bottom",
+        color=SL_PRICE_LINE_COLOR,
+    )
+
     plt.tight_layout()
     plt.show()
 
@@ -80,10 +106,56 @@ def format_coord(df, brick_size, x_hover, y_hover):
     if 0 <= i < len(df):
         row = df.iloc[i]
         date = pd.to_datetime(row["date"]).strftime("%d-%b-%Y")
-        price = f"${row['brick_high']:,.2f} - ${row['brick_low']:,.2f}"
+        price = f"${row['brick_low']:,.2f} - ${row['brick_high']:,.2f}"
         return f"Date: {date}, Price: {price}"
     else:
         return f"x={x_hover:.2f}, y={y_hover:.2f}"
+
+
+def get_prices(df: pd.DataFrame) -> tuple[float, float]:
+    """
+    Calculates the current price and stop loss (SL) price based on Renko chart trends.
+
+    Args:
+        df (pd.DataFrame): The Renko chart DataFrame.
+
+    Returns:
+        tuple[float, float]: A tuple containing the current price and SL price.
+    """
+    current_price = 0.0
+    sl_price = 0.0
+    current_brick = None
+    sl_brick = None
+
+    # Get latest brick
+    latest_brick = df.iloc[-1]
+    latest_direction = latest_brick['direction']
+
+    # Get latest brick with opposite direction
+    opposite_direction = 'down' if latest_direction == 'up' else 'up'
+    latest_opposite_brick = df[df['direction'] == opposite_direction].iloc[-1]
+
+    # Find the current trend by checking if the latest brick's trend is greater than
+    # the opposite brick's zone (i.e.) a new trend has started
+    latest_brick_trend = latest_brick['trend']
+    latest_opposite_brick_zone = get_zone_from_trend(latest_opposite_brick['trend'])
+    if latest_brick_trend > (latest_opposite_brick_zone + 1):
+        current_brick = latest_brick
+    else:
+        current_brick = latest_opposite_brick
+
+    current_idx = df.index.get_loc(current_brick.name)
+    current_brick_zone = get_zone_from_trend(current_brick['trend'])
+    sl_brick = df.iloc[current_idx - (current_brick_zone + 1)]
+
+    if current_brick['direction'] == 'up':
+        current_price = current_brick['brick_high']
+        sl_price = sl_brick['brick_low']
+    else:
+        current_price = current_brick['brick_low']
+        sl_price = sl_brick['brick_high']
+
+    return current_price, sl_price
 
 
 if __name__ == "__main__":
@@ -97,5 +169,9 @@ if __name__ == "__main__":
 
     if len(renko_df) > CHART_BRICKS_COUNT:
         renko_df = renko_df.iloc[-CHART_BRICKS_COUNT:]
+
+    # Get current price and SL price
+    current_price, sl_price = get_prices(renko_df)
+    logger.info(f"Calculated Current Price: {current_price}, SL Price: {sl_price}")
 
     plot_renko(renko_df, ticker, timeframe)

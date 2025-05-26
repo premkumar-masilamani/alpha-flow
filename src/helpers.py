@@ -100,3 +100,15 @@ def parse_chart_args() -> argparse.Namespace:
     parser.add_argument("--ticker", required=True, help="Ticker symbol (e.g. AAPL)")
     parser.add_argument("--timeframe", required=True, help="Timeframe (e.g. 1d, 1h)")
     return parser.parse_args()
+
+def get_zone_from_trend(trend: int) -> int:
+    if trend <= 3:
+        return 0
+    elif trend <= 9:
+        return 1
+    elif trend <= 27:
+        return 2
+    elif trend <= 81:
+        return 3
+    else:
+        return 4
