@@ -12,6 +12,8 @@ CHART_HEIGHT_INCHES: float = 8.0
 CHART_BRICKS_COUNT: int = 180  # 6 Months Data
 SHOW_TREND_NUMBER: bool = True  # Display the trend number inside the bricks
 TREND_FONT_SIZE: int = 5
+CURRENT_PRICE_LINE_COLOR: str = "blue"
+SL_PRICE_LINE_COLOR: str = "red"
 
 
 def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
@@ -70,6 +72,30 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
     ax.set_xlim(0, len(df) * brick_size + x_padding)
     ax.set_ylim(df["brick_low"].min() - y_padding, df["brick_high"].max() + y_padding)
 
+    # Current Brick and SL Brick
+    current_price = 110707.15
+    sl_price = 104315.85
+    ax.axhline(
+        y=current_price, color=CURRENT_PRICE_LINE_COLOR, linestyle="-", linewidth=0.5
+    )
+    ax.text(
+        0.5,
+        current_price,
+        f" Current - ${current_price:,.2f}",
+        ha="left",
+        va="bottom",
+        color=CURRENT_PRICE_LINE_COLOR,
+    )
+    ax.axhline(y=sl_price, color=SL_PRICE_LINE_COLOR, linestyle="-", linewidth=0.5)
+    ax.text(
+        0.5,
+        sl_price,
+        f" SL - ${sl_price:,.2f}",
+        ha="left",
+        va="bottom",
+        color=SL_PRICE_LINE_COLOR,
+    )
+
     plt.tight_layout()
     plt.show()
 
@@ -80,7 +106,7 @@ def format_coord(df, brick_size, x_hover, y_hover):
     if 0 <= i < len(df):
         row = df.iloc[i]
         date = pd.to_datetime(row["date"]).strftime("%d-%b-%Y")
-        price = f"${row['brick_high']:,.2f} - ${row['brick_low']:,.2f}"
+        price = f"${row['brick_low']:,.2f} - ${row['brick_high']:,.2f}"
         return f"Date: {date}, Price: {price}"
     else:
         return f"x={x_hover:.2f}, y={y_hover:.2f}"
