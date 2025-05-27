@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -129,3 +130,91 @@ def get_zone_from_trend(trend: int) -> int:
         return 3
     else:
         return 4
+
+
+def calculate_moving_averages(ticker: str, timeframe: str, config_path: str = "technical-analysis/config/config.json") -> None:
+    """
+    Calculates Simple Moving Averages (SMA) and Exponential Moving Averages (EMA) for Renko data
+    and saves the results to a CSV file.
+
+    Args:
+        ticker (str): The ticker symbol (e.g., "BTC-USD").
+        timeframe (str): The timeframe for the data (e.g., "1d").
+        config_path (str, optional): The path to the configuration file.
+            Defaults to "technical-analysis/config/config.json".
+    """
+
+    try:
+        # Load configuration
+        with open(config_path, "r") as f:
+            config = json.load(f)
+
+        data_dir = config["data_dir"]
+        sma_periods = config["ma"]["sma"]["periods"]
+        ema_periods = config["ma"]["ema"]["periods"]
+
+        # Construct file paths
+        renko_file_path = get_renko_file_path(data_dir, ticker, timeframe)
+        output_file_path = get_renko_ma_file_path(data_dir, ticker, timeframe)
+
+        # Load Renko data
+        renko_df = load_timeseries_data(renko_file_path)
+        if renko_df.empty:
+            logger.warning(
+                f"No data loaded for {ticker} {timeframe} from {renko_file_path}.  Exiting."
+            )
+            return
+
+        # Use brick_high for up bricks and brick_low for down bricks as closing price
+        renko_df["close"] = renko_df.apply(
+            lambda row: row["brick_high"]
+            if row["direction"] == "up"
+            else row["brick_low"],
+            axis=1,
+        )
+
+        # Calculate SMA
+        for period in sma_periods:
+            renko_df[f"sma_{period}"] = renko_df["close"].rolling(window=period).mean()
+
+        # Calculate EMA
+        for period in ema_periods:
+            renko_df[f"ema_{period}"] = renko_df["close"].ewm(span=period).mean()
+
+        # Select and reorder columns for output
+        output_columns = ["date"]
+        output_columns.extend([f"sma_{period}" for period in sma_periods])
+        output_columns.extend([f"ema_{period}" for period in ema_periods])
+
+        output_df = renko_df[output_columns]
+
+        # Save the results
+        write_to_file(output_df, output_file_path)
+
+    except FileNotFoundError:
+        logger.error(f"Config file not found at {config_path}")
+    except KeyError as e:
+        logger.error(f"Missing key in config file: {e}")
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Calculate SMA and EMA for Renko charts."
+    )
+    parser.add_argument("--ticker", required=True, help="Ticker symbol (e.g., BTC-USD)")
+    parser.add_argument("--timeframe", required=True, help="Timeframe (e.g., 1d)")
+    parser.add_argument(
+        "--config", default="technical-analysis/config/config.json", help="Path to config.json"
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+
+    calculate_moving_averages(args.ticker, args.timeframe, args.config)

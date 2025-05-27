@@ -1,16 +1,16 @@
 {
   "data_dir": "./data",
   "timeframe": "1d",
-  "tickers": ["BTC-USD", "ETH-USD"],
+  "tickers": ["BTC-USD"],
   "renko": {
     "period_count": 9
   },
   "ma": {
     "sma": {
-      "periods": [3, 5, 10, 20]
+      "periods": [3, 5, 8, 10, 12, 15, 30, 35, 40, 45, 50, 60]
     },
     "ema": {
-      "periods": [12, 26, 50]
+      "periods": [3, 5, 8, 10, 12, 15, 30, 35, 40, 45, 50, 60]
     }
   },
   "sr_zones": {

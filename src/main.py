@@ -4,9 +4,10 @@ from pathlib import Path
 import json
 
 import logging
-from ohlcv import get_next_timeframe, process_ticker
-from renko import generate_renko_chart_data
+from candle_data import get_next_timeframe, process_ticker
+from renko_data import generate_renko_chart_data
 from helpers import get_ohlcv_file_path, get_renko_file_path, write_to_file
+from renko_ma import calculate_moving_averages
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +102,8 @@ def run(config_path: str = "config/config.yaml"):
             write_to_file(renko_df, get_renko_file_path(data_dir, ticker, timeframe))
 
             # Step 2: Compute Moving Averages
-
+            config_path = "config/config.json"  # Relative to the project root
+            calculate_moving_averages(ticker, timeframe, config_path)
 
             logger.info(f"Processed {ticker} at {timeframe} timeframe ")
         except Exception as e:
