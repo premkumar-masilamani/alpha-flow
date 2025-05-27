@@ -8,7 +8,7 @@ from functools import lru_cache
 
 from helpers import (
     load_timeseries_data,
-    get_ohlcv_file_path,
+    get_candle_file_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,7 +124,7 @@ def process_ticker(data_dir: str, ticker: str, timeframe: str) -> pd.DataFrame:
     Loads existing data, downloads new data if needed, and combines them.
     Returns True if new data was added, False otherwise.
     """
-    file_path = get_ohlcv_file_path(data_dir, ticker, timeframe)
+    file_path = get_candle_file_path(data_dir, ticker, timeframe)
     existing_df = load_timeseries_data(file_path)
 
     next_start_date = get_next_start_date(existing_df, timeframe)

@@ -39,7 +39,7 @@ def write_to_file(df: pd.DataFrame, file_path: Path) -> None:
         logger.error(f"Failed to write data to {file_path}: {str(e)}")
 
 
-def get_ohlcv_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
+def get_candle_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
     """Generate path for OHLCV data file.
 
     Args:
@@ -73,6 +73,23 @@ def get_renko_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
     return ticker_dir / f"{ticker}_{timeframe}_renko.csv"
 
 
+def get_renko_ma_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
+    """Generate path for Renko data with moving averages file.
+
+    Args:
+        data_dir (str): Base directory for data storage
+        ticker (str): Trading symbol
+        timeframe (str): Time interval for the data
+
+    Returns:
+        Path: Full path to the Renko data with moving averages file
+    """
+    data_path = Path(data_dir).expanduser().resolve()
+    ticker_dir = data_path / ticker
+    ticker_dir.mkdir(parents=True, exist_ok=True)
+    return ticker_dir / f"{ticker}_{timeframe}_renko_ma.csv"
+
+
 def get_sr_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
     """Generate path for Support/Resistance data file.
 
@@ -91,23 +108,6 @@ def get_sr_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
     return sr_dir / f"{ticker}_{timeframe}_sr.csv"
 
 
-def get_renko_ma_file_path(data_dir: str, ticker: str, timeframe: str) -> Path:
-    """Generate path for Renko data with moving averages file.
-
-    Args:
-        data_dir (str): Base directory for data storage
-        ticker (str): Trading symbol
-        timeframe (str): Time interval for the data
-
-    Returns:
-        Path: Full path to the Renko data with moving averages file
-    """
-    data_path = Path(data_dir).expanduser().resolve()
-    ticker_dir = data_path / ticker
-    ticker_dir.mkdir(parents=True, exist_ok=True)
-    return ticker_dir / f"{ticker}_{timeframe}_renko_ma.csv"
-
-
 def parse_chart_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -117,6 +117,9 @@ def parse_chart_args() -> argparse.Namespace:
     parser.add_argument("--ticker", required=True, help="Ticker symbol (e.g. AAPL)")
     parser.add_argument("--timeframe", required=True, help="Timeframe (e.g. 1d, 1h)")
     return parser.parse_args()
+
+
+
 
 def get_zone_from_trend(trend: int) -> int:
     if trend <= 3:

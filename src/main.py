@@ -6,7 +6,7 @@ import json
 import logging
 from candle_data import get_next_timeframe, process_ticker
 from renko_data import generate_renko_chart_data
-from helpers import get_ohlcv_file_path, get_renko_file_path, write_to_file
+from helpers import get_candle_file_path, get_renko_file_path, get_renko_ma_file_path, write_to_file
 from renko_ma import calculate_moving_averages
 
 logger = logging.getLogger(__name__)
@@ -88,22 +88,28 @@ def run(config_path: str = "config/config.yaml"):
         try:
             # Step 1a: Download OHLCV Data for current timeframe (wave)
             current_df = process_ticker(data_dir, ticker, timeframe)
-            write_to_file(current_df, get_ohlcv_file_path(data_dir, ticker, timeframe))
+            write_to_file(current_df, get_candle_file_path(data_dir, ticker, timeframe))
 
             # Step 1b: Download OHLCV Data for next timeframe (tide)
             if next_timeframe:
                 next_df = process_ticker(data_dir, ticker, next_timeframe)
                 write_to_file(
-                    next_df, get_ohlcv_file_path(data_dir, ticker, next_timeframe)
+                    next_df, get_candle_file_path(data_dir, ticker, next_timeframe)
                 )
 
             # Step 1c: Compute Renko Bricks for current timeframe (wave)
             renko_df = generate_renko_chart_data(current_df, renko_period_count)
             write_to_file(renko_df, get_renko_file_path(data_dir, ticker, timeframe))
 
-            # Step 2: Compute Moving Averages
-            config_path = "config/config.json"  # Relative to the project root
-            calculate_moving_averages(ticker, timeframe, config_path)
+            # Step 2b: Compute Moving Averages for OHLCV data
+            # TODO: Write the code to compute moving averages for OHLCV data
+
+            # Step 2b: Compute Moving Averages for Renko
+            sma_periods = config["ma"]["sma"]["periods"]
+            ema_periods = config["ma"]["ema"]["periods"]
+            print(f"type = {type(sma_periods)}")
+            renko_ma_df = calculate_moving_averages(renko_df, sma_periods, ema_periods)
+            write_to_file(renko_ma_df, get_renko_ma_file_path(data_dir, ticker, timeframe))
 
             logger.info(f"Processed {ticker} at {timeframe} timeframe ")
         except Exception as e:
