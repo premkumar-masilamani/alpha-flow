@@ -15,7 +15,7 @@ run:
 
 .PHONY: asta
 asta:
-	python3 src/main.py --config config/config.yaml
+	python3 src/main.py --config config/config.json
 
 .PHONY: renko
 renko:

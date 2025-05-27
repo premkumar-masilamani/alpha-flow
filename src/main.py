@@ -1,18 +1,20 @@
 import argparse
 from typing import List, Dict, Any
 from pathlib import Path
-import yaml
+import json
+
 import logging
-from ohlcv import get_next_timeframe, process_ticker
-from renko import generate_renko_chart_data
-from helpers import get_ohlcv_file_path, get_renko_file_path, write_to_file
+from candle_data import get_next_timeframe, process_ticker
+from renko_data import generate_renko_chart_data
+from helpers import get_candle_file_path, get_renko_file_path, get_renko_ma_file_path, write_to_file
+from renko_ma import calculate_moving_averages
 
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: str = "config/config.yaml") -> Dict[str, Any]:
+def load_config(config_path: str) -> Dict[str, Any]:
     """
-    Load and validate configuration from a YAML file.
+    Load and validate configuration from a JSON file.
 
     Args:
         config_path: Path to the configuration file
@@ -23,7 +25,7 @@ def load_config(config_path: str = "config/config.yaml") -> Dict[str, Any]:
     Raises:
         FileNotFoundError: If the config file doesn't exist
         ValueError: If required fields are missing
-        yaml.YAMLError: If the YAML is malformed
+        json.JSONDecodeError: If the JSON is malformed
     """
     config_file = Path(config_path).expanduser().resolve()
 
@@ -32,14 +34,14 @@ def load_config(config_path: str = "config/config.yaml") -> Dict[str, Any]:
 
     try:
         with open(config_file, "r") as f:
-            config = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        raise ValueError(f"Invalid YAML in config file: {e}")
+            config = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in config file: {e}")
 
     return config
 
 
-def run(config_path: str = "config/config.yaml"):
+def run(config_path: str):
     """
     Main execution function for the application.
 
@@ -51,7 +53,7 @@ def run(config_path: str = "config/config.yaml"):
     """
     # Load the configurations
     try:
-        config = load_config(config_path) if config_path else load_config()
+        config = load_config(config_path)
     except Exception as e:
         logger.error(f"Failed to load config: {str(e)}")
         return False
@@ -86,20 +88,28 @@ def run(config_path: str = "config/config.yaml"):
         try:
             # Step 1a: Download OHLCV Data for current timeframe (wave)
             current_df = process_ticker(data_dir, ticker, timeframe)
-            write_to_file(current_df, get_ohlcv_file_path(data_dir, ticker, timeframe))
+            write_to_file(current_df, get_candle_file_path(data_dir, ticker, timeframe))
 
             # Step 1b: Download OHLCV Data for next timeframe (tide)
             if next_timeframe:
                 next_df = process_ticker(data_dir, ticker, next_timeframe)
                 write_to_file(
-                    next_df, get_ohlcv_file_path(data_dir, ticker, next_timeframe)
+                    next_df, get_candle_file_path(data_dir, ticker, next_timeframe)
                 )
 
             # Step 1c: Compute Renko Bricks for current timeframe (wave)
             renko_df = generate_renko_chart_data(current_df, renko_period_count)
             write_to_file(renko_df, get_renko_file_path(data_dir, ticker, timeframe))
 
-            # Step 2: Calculate Support / Resistance Zones
+            # Step 2b: Compute Moving Averages for OHLCV data
+            # TODO: Write the code to compute moving averages for OHLCV data
+
+            # Step 2b: Compute Moving Averages for Renko
+            sma_periods = config["ma"]["sma"]["periods"]
+            ema_periods = config["ma"]["ema"]["periods"]
+            print(f"type = {type(sma_periods)}")
+            renko_ma_df = calculate_moving_averages(renko_df, sma_periods, ema_periods)
+            write_to_file(renko_ma_df, get_renko_ma_file_path(data_dir, ticker, timeframe))
 
             logger.info(f"Processed {ticker} at {timeframe} timeframe ")
         except Exception as e:
