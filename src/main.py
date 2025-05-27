@@ -12,7 +12,7 @@ from renko_ma import calculate_moving_averages
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: str = "config/config.json") -> Dict[str, Any]:
+def load_config(config_path: str) -> Dict[str, Any]:
     """
     Load and validate configuration from a JSON file.
 
@@ -41,7 +41,7 @@ def load_config(config_path: str = "config/config.json") -> Dict[str, Any]:
     return config
 
 
-def run(config_path: str = "config/config.yaml"):
+def run(config_path: str):
     """
     Main execution function for the application.
 

@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as mticker
-from helpers import load_timeseries_data, get_renko_file_path, parse_chart_args, get_zone_from_trend
+from helpers import load_timeseries_data, get_renko_file_path,get_renko_ma_file_path, parse_chart_args, get_zone_from_trend
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +166,7 @@ if __name__ == "__main__":
     timeframe = args.timeframe.lower()
 
     renko_df = load_timeseries_data(get_renko_file_path(data_dir, ticker, timeframe))
+    renko_ma_df = load_timeseries_data(get_renko_ma_file_path(data_dir, ticker, timeframe))
 
     if len(renko_df) > CHART_BRICKS_COUNT:
         renko_df = renko_df.iloc[-CHART_BRICKS_COUNT:]
@@ -174,4 +175,7 @@ if __name__ == "__main__":
     current_price, sl_price = get_prices(renko_df)
     logger.info(f"Calculated Current Price: {current_price}, SL Price: {sl_price}")
 
-    plot_renko(renko_df, ticker, timeframe)
+    # TODO: Plot Renko chart with GMMA using the specific EMA values
+    # Short term EMAs, plotted in green color with line width 1 [3, 5, 8, 10, 12, 15]
+    # Long term EMAs, plotted in red color with line width 1 [30, 35, 40, 45, 50, 60]
+    plot_renko_with_ma(renko_df, renko_ma_df, ticker, timeframe)
