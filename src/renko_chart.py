@@ -178,4 +178,4 @@ if __name__ == "__main__":
     # TODO: Plot Renko chart with GMMA using the specific EMA values
     # Short term EMAs, plotted in green color with line width 1 [3, 5, 8, 10, 12, 15]
     # Long term EMAs, plotted in red color with line width 1 [30, 35, 40, 45, 50, 60]
-    plot_renko_with_ma(renko_df, renko_ma_df, ticker, timeframe)
+    plot_renko(renko_df, ticker, timeframe)
