@@ -11,17 +11,29 @@ logger = logging.getLogger(__name__)
 CHART_WIDTH_INCHES: float = 16.0
 CHART_HEIGHT_INCHES: float = 8.0
 CHART_BRICKS_COUNT: int = 180  # 6 Months Data
+COLOR_CHART_BACKGROUND: str = "#EEEEEE" # Light Gray
+
 SHOW_TREND_NUMBER: bool = True  # Display the trend number inside the bricks
-TREND_FONT_SIZE: int = 5
-CURRENT_PRICE_LINE_COLOR: str = "blue"
-SL_PRICE_LINE_COLOR: str = "red"
+BRICK_TEXT_FONT_SIZE: int = 5
+COLOR_BRICK_TEXT: str = "black"
+
+COLOR_CURRENT_PRICE: str = "blue"
+COLOR_SL_PRICE: str = "red"
+
+COLOR_GMMA_SHORT_EMA: str = "green"
+COLOR_GMMA_LONG_EMA: str = "red"
 
 
-def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
+def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str):
     logger.info(f"Plotting Renko chart for {ticker} ({timeframe})")
+
+    # #################
+    # Base Renko Chart
+    # #################
+
     fig, ax = plt.subplots()
     fig.set_size_inches(CHART_WIDTH_INCHES, CHART_HEIGHT_INCHES)
-    ax.set_facecolor("#EEEEEE")  # Light gray background
+    ax.set_facecolor(COLOR_CHART_BACKGROUND)
     ax.set_title(f"Renko Chart - {ticker} ({timeframe})")
     ax.set_xlabel("Date")
     ax.set_ylabel("Price in USD")
@@ -29,13 +41,14 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
     ax.yaxis.set_label_position("right")
     ax.yaxis.set_major_formatter(mticker.StrMethodFormatter("${x:,.2f}"))
     ax.grid(True)
-    ax.format_coord = lambda x, y: format_coord(df, brick_size, x, y)
+    ax.format_coord = lambda x, y: format_coord(renko_df, brick_size, x, y)
 
+    date_to_x = {}
     x = 0  # X-coordinate for bricks
-    first_row = df.iloc[0]
+    first_row = renko_df.iloc[0]
     brick_size = first_row["brick_high"] - first_row["brick_low"]
 
-    for i, row in df.iterrows():
+    for i, row in renko_df.iterrows():
         color = "green" if row["direction"] == "up" else "red"
         trend = row["trend"]
         y_low = row["brick_low"]
@@ -51,7 +64,7 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
         # Add trend text
         text_x = x + brick_size / 2
         text_y = y_low + brick_size / 2
-        text_color = "black" if SHOW_TREND_NUMBER else color
+        text_color = COLOR_BRICK_TEXT if SHOW_TREND_NUMBER else color
         ax.text(
             text_x,
             text_y,
@@ -59,24 +72,22 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
             ha="center",
             va="center",
             color=text_color,
-            fontsize=TREND_FONT_SIZE,
+            fontsize=BRICK_TEXT_FONT_SIZE,
         )
         logger.debug(
             f"Brick {i}: x={x}, y_low={y_low}, height={brick_size}, color={color}, trend={trend}"
         )
-
+        # Used for plotting GMMA
+        date_to_x[row['date']] = x
         # Move next brick by brick size
         x += brick_size
 
-    x_padding = brick_size * 10
-    y_padding = df["brick_high"].max() * 0.10
-    ax.set_xlim(0, len(df) * brick_size + x_padding)
-    ax.set_ylim(df["brick_low"].min() - y_padding, df["brick_high"].max() + y_padding)
-
-    # Current Brick and SL Brick
-    current_price, sl_price = get_prices(df)
+    # ###################
+    # Current / SL Lines
+    # ###################
+    current_price, sl_price = get_prices(renko_df)
     ax.axhline(
-        y=current_price, color=CURRENT_PRICE_LINE_COLOR, linestyle="-", linewidth=0.5
+        y=current_price, color=COLOR_CURRENT_PRICE, linestyle="-", linewidth=0.5
     )
     ax.text(
         0.5,
@@ -84,18 +95,64 @@ def plot_renko(df: pd.DataFrame, ticker: str, timeframe: str):
         f" Current - ${current_price:,.2f}",
         ha="left",
         va="bottom",
-        color=CURRENT_PRICE_LINE_COLOR,
+        color=COLOR_CURRENT_PRICE,
     )
-    ax.axhline(y=sl_price, color=SL_PRICE_LINE_COLOR, linestyle="-", linewidth=0.5)
+    ax.axhline(y=sl_price, color=COLOR_SL_PRICE, linestyle="-", linewidth=0.5)
     ax.text(
         0.5,
         sl_price,
         f" SL - ${sl_price:,.2f}",
         ha="left",
         va="bottom",
-        color=SL_PRICE_LINE_COLOR,
+        color=COLOR_SL_PRICE,
     )
 
+    # ###############
+    # GMMA Indicator
+    # ###############
+
+    short_emas = [3, 5, 8, 10, 12, 15]
+    for ema in short_emas:
+        x_coords = []
+        y_coords = []
+        for date in renko_ma_df['date']:
+            if date in date_to_x:
+                x = date_to_x[date] + brick_size / 2
+                try:
+                    y = renko_ma_df.loc[renko_ma_df['date'] == date, f'ema_{ema}'].iloc[0]
+                    if not pd.isna(y):
+                        x_coords.append(x)
+                        y_coords.append(y)
+                except (KeyError, IndexError) as e:
+                    logger.debug(f"Skipping {date} for ema_{ema} due to error: {e}")
+                    continue
+        ax.plot(x_coords, y_coords, color=COLOR_GMMA_SHORT_EMA, linewidth=0.5)
+
+    long_emas = [30, 35, 40, 45, 50, 60]
+    for ema in long_emas:
+        x_coords = []
+        y_coords = []
+        for date in renko_ma_df['date']:
+            if date in date_to_x:
+                x = date_to_x[date] + brick_size / 2
+                try:
+                    y = renko_ma_df.loc[renko_ma_df['date'] == date, f'ema_{ema}'].iloc[0]
+                    if not pd.isna(y):
+                        x_coords.append(x)
+                        y_coords.append(y)
+                except (KeyError, IndexError) as e:
+                    logger.debug(f"Skipping {date} for ema_{ema} due to error: {e}")
+                    continue
+        ax.plot(x_coords, y_coords, color=COLOR_GMMA_LONG_EMA, linewidth=0.5)
+
+    # #################
+    # Base Renko Chart
+    # #################
+
+    x_padding = brick_size * 10
+    y_padding = renko_df["brick_high"].max() * 0.10
+    ax.set_xlim(0, len(renko_df) * brick_size + x_padding)
+    ax.set_ylim(renko_df["brick_low"].min() - y_padding, renko_df["brick_high"].max() + y_padding)
     plt.tight_layout()
     plt.show()
 
@@ -175,7 +232,5 @@ if __name__ == "__main__":
     current_price, sl_price = get_prices(renko_df)
     logger.info(f"Calculated Current Price: {current_price}, SL Price: {sl_price}")
 
-    # TODO: Plot Renko chart with GMMA using the specific EMA values
-    # Short term EMAs, plotted in green color with line width 1 [3, 5, 8, 10, 12, 15]
-    # Long term EMAs, plotted in red color with line width 1 [30, 35, 40, 45, 50, 60]
-    plot_renko(renko_df, ticker, timeframe)
+    # Plot Renko Chart wth GMMA Indicator
+    plot_renko(renko_df, renko_ma_df, ticker, timeframe)
