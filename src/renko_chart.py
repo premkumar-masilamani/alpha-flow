@@ -201,16 +201,25 @@ def get_prices(df: pd.DataFrame) -> tuple[float, float]:
     else:
         current_brick = latest_opposite_brick
 
-    current_idx = df.index.get_loc(current_brick.name)
     current_brick_zone = get_zone_from_trend(current_brick['trend'])
-    sl_brick = df.iloc[current_idx - (current_brick_zone + 1)]
+    brick_size = current_brick['brick_high'] - current_brick['brick_low']
 
     if current_brick['direction'] == 'up':
         current_price = current_brick['brick_high']
-        sl_price = sl_brick['brick_low']
+        # Allowed Bricks = Zone Count
+        # Stop Loss Price = Brick at the top + Zone Count + Brick at the bottom
+        # Example: Zone Count = 2, Brick Size = 10, Brick High at the top = 100. SL should be 4 bricks apart
+        # Stop Loss Price = 100 - (10 + (2 * 10) + 10) = 60
+        # Same is expressed as 100 - (10 * (2 + 2)) = 60
+        sl_price = current_price - (brick_size * (current_brick_zone + 2)) - brick_size
     else:
         current_price = current_brick['brick_low']
-        sl_price = sl_brick['brick_high']
+        # Allowed Bricks = Zone Count
+        # Stop Loss Price = Brick at the bottom + Zone Count + Brick at the top
+        # Example: Zone Count = 2, Brick Size = 10, Brick Low at the bottom = 60. SL should be 4 bricks apart
+        # Stop Loss Price = 60 + (10 + (2 * 10) + 10) = 100
+        # Same is expressed as 60 + (10 * (2 + 2)) = 100
+        sl_price = current_price + (brick_size * (current_brick_zone + 2))
 
     return current_price, sl_price
 
