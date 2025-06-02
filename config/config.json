@@ -1,7 +1,7 @@
 {
   "data_dir": "./data",
   "timeframe": "1d",
-  "tickers": ["BTC-USD"],
+  "tickers": ["BTC-USD", "ETH-USD"],
   "renko": {
     "period_count": 9
   },
