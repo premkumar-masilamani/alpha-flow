@@ -4,14 +4,20 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.ticker as mticker
-from helpers import load_timeseries_data, get_renko_file_path,get_renko_ma_file_path, parse_chart_args, get_zone_from_trend
+from helpers import (
+    load_timeseries_data,
+    get_renko_file_path,
+    get_renko_ma_file_path,
+    parse_chart_args,
+    get_zone_from_trend,
+)
 
 logger = logging.getLogger(__name__)
 
 CHART_WIDTH_INCHES: float = 16.0
 CHART_HEIGHT_INCHES: float = 8.0
 CHART_BRICKS_COUNT: int = 180  # 6 Months Data
-COLOR_CHART_BACKGROUND: str = "#EEEEEE" # Light Gray
+COLOR_CHART_BACKGROUND: str = "#EEEEEE"  # Light Gray
 
 SHOW_TREND_NUMBER: bool = True  # Display the trend number inside the bricks
 BRICK_TEXT_FONT_SIZE: int = 5
@@ -24,7 +30,9 @@ COLOR_GMMA_SHORT_EMA: str = "green"
 COLOR_GMMA_LONG_EMA: str = "red"
 
 
-def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str):
+def plot_renko(
+    renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str
+):
     logger.info(f"Plotting Renko chart for {ticker} ({timeframe})")
 
     # #################
@@ -78,7 +86,7 @@ def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, t
             f"Brick {i}: x={x}, y_low={y_low}, height={brick_size}, color={color}, trend={trend}"
         )
         # Used for plotting GMMA
-        date_to_x[row['date']] = x
+        date_to_x[row["date"]] = x
         # Move next brick by brick size
         x += brick_size
 
@@ -86,9 +94,7 @@ def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, t
     # Current / SL Lines
     # ###################
     current_price, sl_price = get_prices(renko_df)
-    ax.axhline(
-        y=current_price, color=COLOR_CURRENT_PRICE, linestyle="-", linewidth=0.5
-    )
+    ax.axhline(y=current_price, color=COLOR_CURRENT_PRICE, linestyle="-", linewidth=0.5)
     ax.text(
         0.5,
         current_price,
@@ -115,11 +121,13 @@ def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, t
     for ema in short_emas:
         x_coords = []
         y_coords = []
-        for date in renko_ma_df['date']:
+        for date in renko_ma_df["date"]:
             if date in date_to_x:
                 x = date_to_x[date] + brick_size / 2
                 try:
-                    y = renko_ma_df.loc[renko_ma_df['date'] == date, f'ema_{ema}'].iloc[0]
+                    y = renko_ma_df.loc[renko_ma_df["date"] == date, f"ema_{ema}"].iloc[
+                        0
+                    ]
                     if not pd.isna(y):
                         x_coords.append(x)
                         y_coords.append(y)
@@ -132,11 +140,13 @@ def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, t
     for ema in long_emas:
         x_coords = []
         y_coords = []
-        for date in renko_ma_df['date']:
+        for date in renko_ma_df["date"]:
             if date in date_to_x:
                 x = date_to_x[date] + brick_size / 2
                 try:
-                    y = renko_ma_df.loc[renko_ma_df['date'] == date, f'ema_{ema}'].iloc[0]
+                    y = renko_ma_df.loc[renko_ma_df["date"] == date, f"ema_{ema}"].iloc[
+                        0
+                    ]
                     if not pd.isna(y):
                         x_coords.append(x)
                         y_coords.append(y)
@@ -152,7 +162,10 @@ def plot_renko(renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, t
     x_padding = brick_size * 10
     y_padding = renko_df["brick_high"].max() * 0.10
     ax.set_xlim(0, len(renko_df) * brick_size + x_padding)
-    ax.set_ylim(renko_df["brick_low"].min() - y_padding, renko_df["brick_high"].max() + y_padding)
+    ax.set_ylim(
+        renko_df["brick_low"].min() - y_padding,
+        renko_df["brick_high"].max() + y_padding,
+    )
     plt.tight_layout()
     plt.show()
 
@@ -186,34 +199,34 @@ def get_prices(df: pd.DataFrame) -> tuple[float, float]:
 
     # Get latest brick
     latest_brick = df.iloc[-1]
-    latest_direction = latest_brick['direction']
+    latest_direction = latest_brick["direction"]
 
     # Get latest brick with opposite direction
-    opposite_direction = 'down' if latest_direction == 'up' else 'up'
-    latest_opposite_brick = df[df['direction'] == opposite_direction].iloc[-1]
+    opposite_direction = "down" if latest_direction == "up" else "up"
+    latest_opposite_brick = df[df["direction"] == opposite_direction].iloc[-1]
 
     # Find the current trend by checking if the latest brick's trend is greater than
     # the opposite brick's zone (i.e.) a new trend has started
-    latest_brick_trend = latest_brick['trend']
-    latest_opposite_brick_zone = get_zone_from_trend(latest_opposite_brick['trend'])
+    latest_brick_trend = latest_brick["trend"]
+    latest_opposite_brick_zone = get_zone_from_trend(latest_opposite_brick["trend"])
     if latest_brick_trend > (latest_opposite_brick_zone + 1):
         current_brick = latest_brick
     else:
         current_brick = latest_opposite_brick
 
-    current_brick_zone = get_zone_from_trend(current_brick['trend'])
-    brick_size = current_brick['brick_high'] - current_brick['brick_low']
+    current_brick_zone = get_zone_from_trend(current_brick["trend"])
+    brick_size = current_brick["brick_high"] - current_brick["brick_low"]
 
-    if current_brick['direction'] == 'up':
-        current_price = current_brick['brick_high']
+    if current_brick["direction"] == "up":
+        current_price = current_brick["brick_high"]
         # Allowed Bricks = Zone Count
         # Stop Loss Price = Brick at the top + Zone Count + Brick at the bottom
         # Example: Zone Count = 2, Brick Size = 10, Brick High at the top = 100. SL should be 4 bricks apart
         # Stop Loss Price = 100 - (10 + (2 * 10) + 10) = 60
         # Same is expressed as 100 - (10 * (2 + 2)) = 60
-        sl_price = current_price - (brick_size * (current_brick_zone + 2)) - brick_size
+        sl_price = current_price - (brick_size * (current_brick_zone + 2))
     else:
-        current_price = current_brick['brick_low']
+        current_price = current_brick["brick_low"]
         # Allowed Bricks = Zone Count
         # Stop Loss Price = Brick at the bottom + Zone Count + Brick at the top
         # Example: Zone Count = 2, Brick Size = 10, Brick Low at the bottom = 60. SL should be 4 bricks apart
@@ -232,7 +245,9 @@ if __name__ == "__main__":
     timeframe = args.timeframe.lower()
 
     renko_df = load_timeseries_data(get_renko_file_path(data_dir, ticker, timeframe))
-    renko_ma_df = load_timeseries_data(get_renko_ma_file_path(data_dir, ticker, timeframe))
+    renko_ma_df = load_timeseries_data(
+        get_renko_ma_file_path(data_dir, ticker, timeframe)
+    )
 
     if len(renko_df) > CHART_BRICKS_COUNT:
         renko_df = renko_df.iloc[-CHART_BRICKS_COUNT:]
