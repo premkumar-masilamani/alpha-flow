@@ -1,8 +1,5 @@
 package com.prem.ta.config;
 
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -18,10 +15,7 @@ public class ApplicationProperties {
      */
     private String downloadDir;
 
-    /**
-     * Map of ticker → start date.
-     */
-    private Map<String, LocalDate> tickers = new HashMap<>();
+    private final Binance binance = new Binance();
 
     public String getDownloadDir() {
         return downloadDir;
@@ -31,11 +25,7 @@ public class ApplicationProperties {
         this.downloadDir = downloadDir;
     }
 
-    public Map<String, LocalDate> getTickers() {
-        return tickers;
-    }
-
-    public void setTickers(Map<String, LocalDate> tickers) {
-        this.tickers = tickers;
+    public Binance getBinance() {
+        return binance;
     }
 }

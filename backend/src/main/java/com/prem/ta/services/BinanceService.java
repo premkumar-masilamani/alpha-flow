@@ -29,11 +29,12 @@ public class BinanceService {
 
     public void run() {
         if (
-            properties.getTickers() == null || properties.getTickers().isEmpty()
+            properties.getBinance().getTickers() == null ||
+            properties.getBinance().getTickers().isEmpty()
         ) {
             throw new IllegalStateException(
                 "No tickers configured. " +
-                "Set app.tickers.<TICKER>=<date> in application.properties"
+                "Set app.binance.tickers.<TICKER>=<date> in application.properties"
             );
         }
 
@@ -41,6 +42,7 @@ public class BinanceService {
             "Download directory: " + properties.getDownloadDir()
         );
         properties
+            .getBinance()
             .getTickers()
             .forEach((ticker, startDate) -> {
                 System.out.println(
