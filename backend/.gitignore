@@ -1,6 +1,7 @@
-.gradle
+.gradle/
+bin/
 build/
-binance-data/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+.settings/
+.factorypath
+.project
+.classpath
