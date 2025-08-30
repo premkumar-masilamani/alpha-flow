@@ -1,4 +1,4 @@
-package com.prem.ta.config;
+package com.prem.ta.configs;
 
 import java.time.LocalDate;
 import java.util.HashMap;

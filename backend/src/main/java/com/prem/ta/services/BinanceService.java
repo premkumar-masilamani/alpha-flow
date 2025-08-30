@@ -1,10 +1,10 @@
 package com.prem.ta.services;
 
-import com.prem.ta.config.ApplicationProperties;
+import com.prem.ta.configs.ApplicationProperties;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,11 +13,16 @@ import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class BinanceService {
 
+    private static final Logger log = LoggerFactory.getLogger(
+        BinanceService.class
+    );
     private final ApplicationProperties properties;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
         "yyyy-MM-dd"
@@ -27,7 +32,7 @@ public class BinanceService {
         this.properties = properties;
     }
 
-    public void run() {
+    public void downloadTickData() {
         if (
             properties.getBinance().getTickers() == null ||
             properties.getBinance().getTickers().isEmpty()
@@ -38,21 +43,22 @@ public class BinanceService {
             );
         }
 
-        System.out.println(
-            "Download directory: " + properties.getDownloadDir()
-        );
+        log.info("Download directory: {}", properties.getDownloadDir());
         properties
             .getBinance()
             .getTickers()
             .forEach((ticker, startDate) -> {
-                System.out.println(
-                    "Syncing ticker " + ticker + " starting from " + startDate
+                log.info(
+                    "Syncing ticker {} starting from {}",
+                    ticker,
+                    startDate
                 );
-                syncTicker(ticker, startDate);
+                downloadTicker(ticker, startDate);
             });
+        log.info("All Downloads completed!");
     }
 
-    private void syncTicker(String ticker, LocalDate startDate) {
+    private void downloadTicker(String ticker, LocalDate startDate) {
         try {
             Path outDir = Path.of(properties.getDownloadDir(), ticker);
             Files.createDirectories(outDir);
@@ -75,7 +81,7 @@ public class BinanceService {
                 Path checksumFile = outDir.resolve(baseFileName + ".CHECKSUM");
 
                 if (Files.exists(localFile)) {
-                    System.out.println("Already downloaded: " + localFile);
+                    log.info("Already downloaded: {}", localFile);
                     continue;
                 }
 
@@ -86,14 +92,15 @@ public class BinanceService {
                     checksumFile
                 );
                 if (expectedHash == null) {
-                    System.err.println(
-                        "Checksum missing for " + baseFileName + " — skipping"
+                    log.warn(
+                        "Checksum missing for {} — skipping",
+                        baseFileName
                     );
                     continue;
                 }
 
                 // Step 2: download actual file
-                System.out.println("Downloading " + baseUrl);
+                log.info("Downloading {}", baseUrl);
                 downloadFileWithChecksum(baseUrl, localFile, expectedHash);
             }
         } catch (Exception e) {
@@ -102,7 +109,7 @@ public class BinanceService {
     }
 
     private String downloadAndSaveChecksum(String url, Path checksumFile) {
-        try (InputStream in = new URL(url).openStream()) {
+        try (InputStream in = URI.create(url).toURL().openStream()) {
             String content = new String(
                 in.readAllBytes(),
                 StandardCharsets.UTF_8
@@ -113,12 +120,10 @@ public class BinanceService {
             String[] parts = content.split("\s+");
             return parts[0];
         } catch (IOException e) {
-            System.err.println(
-                "Failed to download checksum: " +
-                url +
-                " (" +
-                e.getMessage() +
-                ")"
+            log.error(
+                "Failed to download checksum: {} ({})",
+                url,
+                e.getMessage()
             );
             return null;
         }
@@ -132,7 +137,7 @@ public class BinanceService {
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
         try (
             DigestInputStream in = new DigestInputStream(
-                new URL(fileUrl).openStream(),
+                URI.create(fileUrl).toURL().openStream(),
                 sha256
             );
             FileOutputStream out = new FileOutputStream(outputPath.toFile())
@@ -158,6 +163,6 @@ public class BinanceService {
             );
         }
 
-        System.out.println("Verified checksum OK: " + outputPath.getFileName());
+        log.info("Verified checksum OK: {}", outputPath.getFileName());
     }
 }

@@ -1,4 +1,4 @@
-package com.prem.ta.config;
+package com.prem.ta.configs;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

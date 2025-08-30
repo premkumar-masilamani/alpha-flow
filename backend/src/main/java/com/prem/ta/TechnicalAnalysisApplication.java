@@ -16,7 +16,7 @@ public class TechnicalAnalysisApplication {
     @Bean
     CommandLineRunner runner(BinanceService binanceService) {
         return args -> {
-            binanceService.run();
+            binanceService.downloadTickData();
         };
     }
 }
