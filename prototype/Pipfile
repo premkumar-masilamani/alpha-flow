@@ -5,9 +5,9 @@ name = "pypi"
 
 [packages]
 pyyaml = "*"
-pandas = "*"
 yfinance = "*"
 matplotlib = "*"
+pandas = "*"
 
 [dev-packages]
 

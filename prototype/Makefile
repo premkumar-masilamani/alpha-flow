@@ -20,3 +20,7 @@ asta:
 .PHONY: renko
 renko:
 	python3 src/renko_chart.py --data-dir data --ticker BTC-USD --timeframe 1d
+
+.PHONY: proto
+proto:
+	python3 src/proto.py
