@@ -49,56 +49,31 @@ public class BinanceService {
     }
 
     public void downloadData() {
-        if (
-            properties.getBinance().getTickers() == null ||
-            properties.getBinance().getTickers().isEmpty()
-        ) {
-            throw new IllegalStateException(
-                "No tickers configured. " +
-                "Set app.binance.tickers.<TICKER>=<date> in application.properties"
-            );
-        }
-
         log.info("Download directory: {}", properties.getDownloadDir());
-        properties
-            .getBinance()
-            .getTickers()
-            .forEach((ticker, startDate) -> {
+        tickerRepository.findAll()
+            .forEach(ticker -> {
                 log.info(
                     "Syncing ticker {} starting from {}",
-                    ticker,
-                    startDate
+                    ticker.getSymbol(),
+                    ticker.getStartDate()
                 );
-                downloadTickerData(ticker, startDate);
+                downloadTickerData(ticker);
             });
         log.info("All Downloads completed!");
     }
 
     @Transactional
     public void downloadTickerData(
-        String tickerSymbol,
-        LocalDate startDateFromConfig
+        Ticker ticker
     ) {
-        Ticker ticker = tickerRepository
-            .findBySymbol(tickerSymbol)
-            .orElseGet(() -> {
-                log.warn(
-                    "Ticker {} not found in database. Creating it.",
-                    tickerSymbol
-                );
-                Ticker newTicker = new Ticker();
-                newTicker.setSymbol(tickerSymbol);
-                newTicker.setName(tickerSymbol); // Use symbol as name for now
-                return tickerRepository.save(newTicker);
-            });
-
         Optional<File> latestFile =
             FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
-            .map(File -> File.getFileDate().toLocalDate().plusDays(1))
-            .orElse(startDateFromConfig);
+            .map(file -> file.getFileDate().toLocalDate().plusDays(1))
+            .orElse(ticker.getStartDate().toLocalDate());
 
         try {
+            String tickerSymbol = ticker.getSymbol();
             Path outDir = Path.of(properties.getDownloadDir(), tickerSymbol);
             Files.createDirectories(outDir);
 
@@ -111,11 +86,11 @@ public class BinanceService {
                 String dateStr = date.format(dateFormatter);
                 String baseFileName =
                     tickerSymbol + "-trades-" + dateStr + ".zip";
-                String baseUrl =
-                    "https://data.binance.vision/data/spot/daily/trades/" +
-                    tickerSymbol +
-                    "/" +
-                    baseFileName;
+                String baseUrl = properties
+                    .getBinance()
+                    .getDownloadUrl()
+                    .replace("{ticker}", tickerSymbol)
+                    .replace("{filename}", baseFileName);
 
                 Path localFile = outDir.resolve(baseFileName);
                 Path checksumFile = outDir.resolve(baseFileName + ".CHECKSUM");
@@ -149,7 +124,7 @@ public class BinanceService {
                 saveFileRecord(ticker, date, true);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error syncing " + tickerSymbol, e);
+            throw new RuntimeException("Error syncing " + ticker.getSymbol(), e);
         }
     }
 

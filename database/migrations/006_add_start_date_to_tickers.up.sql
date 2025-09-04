@@ -1,0 +1,2 @@
+ALTER TABLE tickers
+ADD COLUMN start_date TIMESTAMPTZ;

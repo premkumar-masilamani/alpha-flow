@@ -1,21 +1,18 @@
 package com.prem.ta.configs;
 
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
-
 public class Binance {
 
     /**
-     * Map of ticker → start date.
+     * URL template for downloading daily trade data.
+     * Must contain {ticker} and {filename} placeholders.
      */
-    private Map<String, LocalDate> tickers = new HashMap<>();
+    private String downloadUrl;
 
-    public Map<String, LocalDate> getTickers() {
-        return tickers;
+    public String getDownloadUrl() {
+        return downloadUrl;
     }
 
-    public void setTickers(Map<String, LocalDate> tickers) {
-        this.tickers = tickers;
+    public void setDownloadUrl(String downloadUrl) {
+        this.downloadUrl = downloadUrl;
     }
 }

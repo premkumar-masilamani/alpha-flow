@@ -1,6 +1,7 @@
 package com.prem.ta.entities;
 
 import jakarta.persistence.*;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "tickers")
@@ -16,6 +17,9 @@ public class Ticker {
 
     @Column(name = "name", nullable = false)
     private String name;
+
+    @Column(name = "start_date")
+    private OffsetDateTime startDate;
 
     public Long getTickerId() {
         return tickerId;
@@ -39,5 +43,13 @@ public class Ticker {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public OffsetDateTime getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(OffsetDateTime startDate) {
+        this.startDate = startDate;
     }
 }
