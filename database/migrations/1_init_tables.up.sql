@@ -23,7 +23,6 @@ CREATE TABLE files (
 
 -- Partitioned table
 CREATE TABLE trade_data (
-    trade_data_id BIGSERIAL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     ticker_id BIGINT NOT NULL,
     interval_id SMALLINT NOT NULL,
     trade_time TIMESTAMPTZ NOT NULL,
