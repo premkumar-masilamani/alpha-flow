@@ -1,7 +1,8 @@
 CREATE TABLE tickers (
     ticker_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     symbol VARCHAR(20) NOT NULL UNIQUE,
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL,
+    start_date TIMESTAMPTZ
 );
 
 CREATE TABLE intervals (

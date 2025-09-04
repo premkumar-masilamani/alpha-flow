@@ -1,6 +1,6 @@
 package com.prem.ta.services;
 
-import com.prem.ta.configs.ApplicationProperties;
+import com.prem.ta.configs.BinanceProperties;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
@@ -31,7 +31,7 @@ public class BinanceService {
     private static final Logger log = LoggerFactory.getLogger(
         BinanceService.class
     );
-    private final ApplicationProperties properties;
+    private final BinanceProperties binanceProperties;
     private final TickerRepository tickerRepository;
     private final FileRepository FileRepository;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
@@ -39,67 +39,45 @@ public class BinanceService {
     );
 
     public BinanceService(
-        ApplicationProperties properties,
+        BinanceProperties binanceProperties,
         TickerRepository tickerRepository,
         FileRepository FileRepository
     ) {
-        this.properties = properties;
+        this.binanceProperties = binanceProperties;
         this.tickerRepository = tickerRepository;
         this.FileRepository = FileRepository;
     }
 
     public void downloadData() {
-        if (
-            properties.getBinance().getTickers() == null ||
-            properties.getBinance().getTickers().isEmpty()
-        ) {
-            throw new IllegalStateException(
-                "No tickers configured. " +
-                "Set app.binance.tickers.<TICKER>=<date> in application.properties"
-            );
-        }
-
-        log.info("Download directory: {}", properties.getDownloadDir());
-        properties
-            .getBinance()
-            .getTickers()
-            .forEach((ticker, startDate) -> {
+        log.info("Download URL: {}", binanceProperties.getDownloadUrl());
+        log.info("Download directory: {}", binanceProperties.getDownloadDir());
+        tickerRepository
+            .findAll()
+            .forEach(ticker -> {
                 log.info(
                     "Syncing ticker {} starting from {}",
-                    ticker,
-                    startDate
+                    ticker.getSymbol(),
+                    ticker.getStartDate()
                 );
-                downloadTickerData(ticker, startDate);
+                downloadTickerData(ticker);
             });
         log.info("All Downloads completed!");
     }
 
     @Transactional
-    public void downloadTickerData(
-        String tickerSymbol,
-        LocalDate startDateFromConfig
-    ) {
-        Ticker ticker = tickerRepository
-            .findBySymbol(tickerSymbol)
-            .orElseGet(() -> {
-                log.warn(
-                    "Ticker {} not found in database. Creating it.",
-                    tickerSymbol
-                );
-                Ticker newTicker = new Ticker();
-                newTicker.setSymbol(tickerSymbol);
-                newTicker.setName(tickerSymbol); // Use symbol as name for now
-                return tickerRepository.save(newTicker);
-            });
-
+    public void downloadTickerData(Ticker ticker) {
         Optional<File> latestFile =
             FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
-            .map(File -> File.getFileDate().toLocalDate().plusDays(1))
-            .orElse(startDateFromConfig);
+            .map(file -> file.getFileDate().toLocalDate().plusDays(1))
+            .orElse(ticker.getStartDate().toLocalDate());
 
         try {
-            Path outDir = Path.of(properties.getDownloadDir(), tickerSymbol);
+            String tickerSymbol = ticker.getSymbol();
+            Path outDir = Path.of(
+                binanceProperties.getDownloadDir(),
+                tickerSymbol
+            );
             Files.createDirectories(outDir);
 
             LocalDate today = LocalDate.now();
@@ -111,11 +89,10 @@ public class BinanceService {
                 String dateStr = date.format(dateFormatter);
                 String baseFileName =
                     tickerSymbol + "-trades-" + dateStr + ".zip";
-                String baseUrl =
-                    "https://data.binance.vision/data/spot/daily/trades/" +
-                    tickerSymbol +
-                    "/" +
-                    baseFileName;
+                String baseUrl = binanceProperties
+                    .getDownloadUrl()
+                    .replace("{ticker}", tickerSymbol)
+                    .replace("{filename}", baseFileName);
 
                 Path localFile = outDir.resolve(baseFileName);
                 Path checksumFile = outDir.resolve(baseFileName + ".CHECKSUM");
@@ -149,7 +126,10 @@ public class BinanceService {
                 saveFileRecord(ticker, date, true);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error syncing " + tickerSymbol, e);
+            throw new RuntimeException(
+                "Error syncing " + ticker.getSymbol(),
+                e
+            );
         }
     }
 
