@@ -1,8 +1,13 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.ApplicationProperties;
+import com.prem.ta.domain.CryptoFile;
+import com.prem.ta.domain.Ticker;
+import com.prem.ta.repo.CryptoFileRepository;
+import com.prem.ta.repo.TickerRepository;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -11,8 +16,11 @@ import java.nio.file.Path;
 import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,12 +32,20 @@ public class BinanceService {
         BinanceService.class
     );
     private final ApplicationProperties properties;
+    private final TickerRepository tickerRepository;
+    private final CryptoFileRepository cryptoFileRepository;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
         "yyyy-MM-dd"
     );
 
-    public BinanceService(ApplicationProperties properties) {
+    public BinanceService(
+        ApplicationProperties properties,
+        TickerRepository tickerRepository,
+        CryptoFileRepository cryptoFileRepository
+    ) {
         this.properties = properties;
+        this.tickerRepository = tickerRepository;
+        this.cryptoFileRepository = cryptoFileRepository;
     }
 
     public void downloadTickData() {
@@ -58,9 +74,30 @@ public class BinanceService {
         log.info("All Downloads completed!");
     }
 
-    private void downloadTicker(String ticker, LocalDate startDate) {
+    @Transactional
+    public void downloadTicker(String tickerSymbol, LocalDate startDateFromConfig) {
+        Ticker ticker = tickerRepository
+            .findBySymbol(tickerSymbol)
+            .orElseGet(() -> {
+                log.warn(
+                    "Ticker {} not found in database. Creating it.",
+                    tickerSymbol
+                );
+                Ticker newTicker = new Ticker();
+                newTicker.setSymbol(tickerSymbol);
+                newTicker.setName(tickerSymbol); // Use symbol as name for now
+                return tickerRepository.save(newTicker);
+            });
+
+        Optional<CryptoFile> latestFile = cryptoFileRepository.findTopByTickerOrderByFileDateDesc(
+            ticker
+        );
+        LocalDate startDate = latestFile
+            .map(cryptoFile -> cryptoFile.getFileDate().toLocalDate().plusDays(1))
+            .orElse(startDateFromConfig);
+
         try {
-            Path outDir = Path.of(properties.getDownloadDir(), ticker);
+            Path outDir = Path.of(properties.getDownloadDir(), tickerSymbol);
             Files.createDirectories(outDir);
 
             LocalDate today = LocalDate.now();
@@ -70,10 +107,11 @@ public class BinanceService {
                 date = date.plusDays(1)
             ) {
                 String dateStr = date.format(dateFormatter);
-                String baseFileName = ticker + "-trades-" + dateStr + ".zip";
+                String baseFileName =
+                    tickerSymbol + "-trades-" + dateStr + ".zip";
                 String baseUrl =
                     "https://data.binance.vision/data/spot/daily/trades/" +
-                    ticker +
+                    tickerSymbol +
                     "/" +
                     baseFileName;
 
@@ -82,6 +120,8 @@ public class BinanceService {
 
                 if (Files.exists(localFile)) {
                     log.info("Already downloaded: {}", localFile);
+                    // Still record in DB if it's not there
+                    saveFileRecord(ticker, date, true);
                     continue;
                 }
 
@@ -102,10 +142,38 @@ public class BinanceService {
                 // Step 2: download actual file
                 log.info("Downloading {}", baseUrl);
                 downloadFileWithChecksum(baseUrl, localFile, expectedHash);
+
+                // Step 3: Save record to database
+                saveFileRecord(ticker, date, true);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error syncing " + ticker, e);
+            throw new RuntimeException("Error syncing " + tickerSymbol, e);
         }
+    }
+
+    private void saveFileRecord(
+        Ticker ticker,
+        LocalDate date,
+        boolean downloaded
+    ) {
+        OffsetDateTime fileDate = date.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+        Optional<CryptoFile> existingFile = cryptoFileRepository.findByTickerAndFileDate(ticker, fileDate);
+
+        if (existingFile.isPresent()) {
+            log.debug("File record for {} on {} already exists. Skipping.", ticker.getSymbol(), date);
+            return;
+        }
+
+        CryptoFile cryptoFile = new CryptoFile();
+        cryptoFile.setTicker(ticker);
+        cryptoFile.setFileDate(fileDate);
+        cryptoFile.setSource("Binance");
+        cryptoFile.setDownloaded(downloaded);
+        cryptoFile.setProcessed(false);
+        cryptoFile.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        cryptoFile.setUpdatedBy("BinanceService");
+        cryptoFileRepository.save(cryptoFile);
+        log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
     }
 
     private String downloadAndSaveChecksum(String url, Path checksumFile) {
