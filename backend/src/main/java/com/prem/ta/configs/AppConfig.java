@@ -8,14 +8,18 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConfigurationProperties(prefix = "app")
-public class ApplicationProperties {
+public class AppConfig {
 
     /**
      * Directory where Binance files will be stored.
      */
     private String downloadDir;
 
-    private final Binance binance = new Binance();
+    /**
+     * URL template for downloading daily trade data from Binance.
+     * Must contain {ticker} and {filename} placeholders.
+     */
+    private String binanceDownloadUrl;
 
     public String getDownloadDir() {
         return downloadDir;
@@ -25,7 +29,11 @@ public class ApplicationProperties {
         this.downloadDir = downloadDir;
     }
 
-    public Binance getBinance() {
-        return binance;
+    public String getBinanceDownloadUrl() {
+        return binanceDownloadUrl;
+    }
+
+    public void setBinanceDownloadUrl(String binanceDownloadUrl) {
+        this.binanceDownloadUrl = binanceDownloadUrl;
     }
 }

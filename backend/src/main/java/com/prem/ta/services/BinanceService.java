@@ -1,6 +1,6 @@
 package com.prem.ta.services;
 
-import com.prem.ta.configs.ApplicationProperties;
+import com.prem.ta.configs.AppConfig;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
@@ -31,7 +31,7 @@ public class BinanceService {
     private static final Logger log = LoggerFactory.getLogger(
         BinanceService.class
     );
-    private final ApplicationProperties properties;
+    private final AppConfig properties;
     private final TickerRepository tickerRepository;
     private final FileRepository FileRepository;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
@@ -39,7 +39,7 @@ public class BinanceService {
     );
 
     public BinanceService(
-        ApplicationProperties properties,
+        AppConfig properties,
         TickerRepository tickerRepository,
         FileRepository FileRepository
     ) {
@@ -87,8 +87,7 @@ public class BinanceService {
                 String baseFileName =
                     tickerSymbol + "-trades-" + dateStr + ".zip";
                 String baseUrl = properties
-                    .getBinance()
-                    .getDownloadUrl()
+                    .getBinanceDownloadUrl()
                     .replace("{ticker}", tickerSymbol)
                     .replace("{filename}", baseFileName);
 
