@@ -4,10 +4,7 @@ DECLARE
   tbl TEXT;
 BEGIN
   FOR tbl IN
-    SELECT unnest(ARRAY[
-      'zones', 'districts', 'ulbs',
-      'schemes', 'components', 'financial_years', 'component_works'
-    ])
+    SELECT unnest(ARRAY['files'])
   LOOP
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_set_timestamp ON %I;', tbl, tbl);
   END LOOP;
