@@ -1,75 +1,41 @@
--- Zones
-CREATE TABLE zones (
-    zone_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    zone_name VARCHAR(100) NOT NULL,
-    updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
+CREATE TABLE tickers (
+    ticker_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    symbol VARCHAR(20) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL
 );
 
--- Districts
-CREATE TABLE districts (
-    district_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    district_name VARCHAR(100) NOT NULL,
-    zone_id INT NOT NULL,
-    updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
+CREATE TABLE intervals (
+    interval_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    label VARCHAR(10) NOT NULL UNIQUE,   -- e.g., '1m', '5m', '1h', '1d'
+    duration INTERVAL NOT NULL           -- e.g., '1 minute', '5 minutes', '1 hour'
 );
 
--- Urban Local Bodies
-CREATE TABLE ulbs (
-    ulb_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    ulb_name VARCHAR(150) NOT NULL,
-    ulb_code VARCHAR(6) NOT NULL,
-    district_id INT NOT NULL,
+CREATE TABLE files (
+    file_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ticker_id BIGINT NOT NULL,
+    file_date TIMESTAMPTZ NOT NULL,
+    source VARCHAR(50) NOT NULL,
+    is_downloaded BOOLEAN DEFAULT FALSE,
+    is_processed BOOLEAN DEFAULT FALSE,
     updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
--- Schemes
-CREATE TABLE schemes (
-    scheme_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    scheme_name VARCHAR(150) UNIQUE NOT NULL,
-    scheme_abbr VARCHAR(15),
-    updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
-);
+-- Partitioned table
+CREATE TABLE trade_data (
+    trade_data_id BIGSERIAL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ticker_id BIGINT NOT NULL,
+    interval_id SMALLINT NOT NULL,
+    trade_time TIMESTAMPTZ NOT NULL,
 
--- Components
-CREATE TABLE components (
-    component_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    component_name VARCHAR(150) NOT NULL,
-    scheme_id INT NOT NULL,
-    updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
-);
-
--- Financial Years
-CREATE TABLE financial_years (
-    financial_year_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    financial_year_name VARCHAR(10) UNIQUE NOT NULL,
-    updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
-);
-
--- Component Works
-CREATE TABLE component_works (
-    component_work_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    component_work_name VARCHAR(200) NOT NULL,
-    is_announced BOOLEAN DEFAULT FALSE,
-    administrative_sanction_date DATE,
-    technical_sanction_date DATE,
-    tender_date DATE,
-    work_order_date DATE,
-    completion_date DATE,
-    estimate_amount NUMERIC(12, 2),
-    expenditure_amount NUMERIC(12, 2),
-    completion_percent NUMERIC,
-    road_length NUMERIC,
-    current_phase_remarks TEXT,
-    overall_remarks TEXT,
-    component_id INT NOT NULL,
-    ulb_id INT NOT NULL,
-    financial_year_id INT NOT NULL,
-    updated_by VARCHAR(50) DEFAULT 'admin',
-    updated_at TIMESTAMP DEFAULT now() NOT NULL
-);
+    price_open DOUBLE PRECISION,
+    price_high DOUBLE PRECISION,
+    price_low DOUBLE PRECISION,
+    price_close DOUBLE PRECISION,
+    volume DOUBLE PRECISION,
+    vwap DOUBLE PRECISION,
+    buyer_capital_ratio DOUBLE PRECISION,
+    buyer_participation_ratio DOUBLE PRECISION,
+    buyer_volume_ratio DOUBLE PRECISION,
+    whale_impact DOUBLE PRECISION
+) PARTITION BY RANGE (trade_time);

@@ -1,8 +1,6 @@
-ALTER TABLE component_works DROP CONSTRAINT uq_ulb_id_component_id_financial_year_id;
-ALTER TABLE components DROP CONSTRAINT uq_scheme_id_component_name;
-ALTER TABLE component_works DROP CONSTRAINT fk_component_works_ulbs;
-ALTER TABLE component_works DROP CONSTRAINT fk_component_works_financial_years;
-ALTER TABLE component_works DROP CONSTRAINT fk_component_works_components;
-ALTER TABLE components DROP CONSTRAINT fk_components_schemes;
-ALTER TABLE ulbs DROP CONSTRAINT fk_ulbs_districts;
-ALTER TABLE districts DROP CONSTRAINT fk_districts_zones;
+-- Drop Unique Constraints
+ALTER TABLE trade_data DROP CONSTRAINT uq_trade_data;
+ALTER TABLE files DROP CONSTRAINT uq_files;
+ALTER TABLE trade_data DROP CONSTRAINT fk_trade_data_interval;
+ALTER TABLE trade_data DROP CONSTRAINT fk_trade_data_ticker;
+ALTER TABLE files DROP CONSTRAINT fk_files_ticker;
