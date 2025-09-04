@@ -24,3 +24,6 @@ Thumbs.db
 *.jar
 *.war
 *.ear
+
+# Exception for Gradle wrapper
+!gradle/wrapper/gradle-wrapper.jar
