@@ -1,6 +1,6 @@
 package com.prem.ta.services;
 
-import com.prem.ta.configs.AppConfig;
+import com.prem.ta.configs.BinanceProperties;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
@@ -31,7 +31,7 @@ public class BinanceService {
     private static final Logger log = LoggerFactory.getLogger(
         BinanceService.class
     );
-    private final AppConfig properties;
+    private final BinanceProperties binanceProperties;
     private final TickerRepository tickerRepository;
     private final FileRepository FileRepository;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
@@ -39,18 +39,20 @@ public class BinanceService {
     );
 
     public BinanceService(
-        AppConfig properties,
+        BinanceProperties binanceProperties,
         TickerRepository tickerRepository,
         FileRepository FileRepository
     ) {
-        this.properties = properties;
+        this.binanceProperties = binanceProperties;
         this.tickerRepository = tickerRepository;
         this.FileRepository = FileRepository;
     }
 
     public void downloadData() {
-        log.info("Download directory: {}", properties.getDownloadDir());
-        tickerRepository.findAll()
+        log.info("Download URL: {}", binanceProperties.getDownloadUrl());
+        log.info("Download directory: {}", binanceProperties.getDownloadDir());
+        tickerRepository
+            .findAll()
             .forEach(ticker -> {
                 log.info(
                     "Syncing ticker {} starting from {}",
@@ -63,9 +65,7 @@ public class BinanceService {
     }
 
     @Transactional
-    public void downloadTickerData(
-        Ticker ticker
-    ) {
+    public void downloadTickerData(Ticker ticker) {
         Optional<File> latestFile =
             FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
@@ -74,7 +74,10 @@ public class BinanceService {
 
         try {
             String tickerSymbol = ticker.getSymbol();
-            Path outDir = Path.of(properties.getDownloadDir(), tickerSymbol);
+            Path outDir = Path.of(
+                binanceProperties.getDownloadDir(),
+                tickerSymbol
+            );
             Files.createDirectories(outDir);
 
             LocalDate today = LocalDate.now();
@@ -86,8 +89,8 @@ public class BinanceService {
                 String dateStr = date.format(dateFormatter);
                 String baseFileName =
                     tickerSymbol + "-trades-" + dateStr + ".zip";
-                String baseUrl = properties
-                    .getBinanceDownloadUrl()
+                String baseUrl = binanceProperties
+                    .getDownloadUrl()
                     .replace("{ticker}", tickerSymbol)
                     .replace("{filename}", baseFileName);
 
@@ -123,7 +126,10 @@ public class BinanceService {
                 saveFileRecord(ticker, date, true);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error syncing " + ticker.getSymbol(), e);
+            throw new RuntimeException(
+                "Error syncing " + ticker.getSymbol(),
+                e
+            );
         }
     }
 
