@@ -1,13 +1,12 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.ApplicationProperties;
-import com.prem.ta.domain.CryptoFile;
-import com.prem.ta.domain.Ticker;
-import com.prem.ta.repo.CryptoFileRepository;
-import com.prem.ta.repo.TickerRepository;
+import com.prem.ta.entities.File;
+import com.prem.ta.entities.Ticker;
+import com.prem.ta.repositories.FileRepository;
+import com.prem.ta.repositories.TickerRepository;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -24,6 +23,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BinanceService {
@@ -33,7 +33,7 @@ public class BinanceService {
     );
     private final ApplicationProperties properties;
     private final TickerRepository tickerRepository;
-    private final CryptoFileRepository cryptoFileRepository;
+    private final FileRepository FileRepository;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
         "yyyy-MM-dd"
     );
@@ -41,14 +41,14 @@ public class BinanceService {
     public BinanceService(
         ApplicationProperties properties,
         TickerRepository tickerRepository,
-        CryptoFileRepository cryptoFileRepository
+        FileRepository FileRepository
     ) {
         this.properties = properties;
         this.tickerRepository = tickerRepository;
-        this.cryptoFileRepository = cryptoFileRepository;
+        this.FileRepository = FileRepository;
     }
 
-    public void downloadTickData() {
+    public void downloadData() {
         if (
             properties.getBinance().getTickers() == null ||
             properties.getBinance().getTickers().isEmpty()
@@ -69,13 +69,16 @@ public class BinanceService {
                     ticker,
                     startDate
                 );
-                downloadTicker(ticker, startDate);
+                downloadTickerData(ticker, startDate);
             });
         log.info("All Downloads completed!");
     }
 
     @Transactional
-    public void downloadTicker(String tickerSymbol, LocalDate startDateFromConfig) {
+    public void downloadTickerData(
+        String tickerSymbol,
+        LocalDate startDateFromConfig
+    ) {
         Ticker ticker = tickerRepository
             .findBySymbol(tickerSymbol)
             .orElseGet(() -> {
@@ -89,11 +92,10 @@ public class BinanceService {
                 return tickerRepository.save(newTicker);
             });
 
-        Optional<CryptoFile> latestFile = cryptoFileRepository.findTopByTickerOrderByFileDateDesc(
-            ticker
-        );
+        Optional<File> latestFile =
+            FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
-            .map(cryptoFile -> cryptoFile.getFileDate().toLocalDate().plusDays(1))
+            .map(File -> File.getFileDate().toLocalDate().plusDays(1))
             .orElse(startDateFromConfig);
 
         try {
@@ -156,23 +158,32 @@ public class BinanceService {
         LocalDate date,
         boolean downloaded
     ) {
-        OffsetDateTime fileDate = date.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
-        Optional<CryptoFile> existingFile = cryptoFileRepository.findByTickerAndFileDate(ticker, fileDate);
+        OffsetDateTime fileDate = date
+            .atStartOfDay(ZoneOffset.UTC)
+            .toOffsetDateTime();
+        Optional<File> existingFile = FileRepository.findByTickerAndFileDate(
+            ticker,
+            fileDate
+        );
 
         if (existingFile.isPresent()) {
-            log.debug("File record for {} on {} already exists. Skipping.", ticker.getSymbol(), date);
+            log.debug(
+                "File record for {} on {} already exists. Skipping.",
+                ticker.getSymbol(),
+                date
+            );
             return;
         }
 
-        CryptoFile cryptoFile = new CryptoFile();
-        cryptoFile.setTicker(ticker);
-        cryptoFile.setFileDate(fileDate);
-        cryptoFile.setSource("Binance");
-        cryptoFile.setDownloaded(downloaded);
-        cryptoFile.setProcessed(false);
-        cryptoFile.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        cryptoFile.setUpdatedBy("BinanceService");
-        cryptoFileRepository.save(cryptoFile);
+        File File = new File();
+        File.setTicker(ticker);
+        File.setFileDate(fileDate);
+        File.setSource("Binance");
+        File.setDownloaded(downloaded);
+        File.setProcessed(false);
+        File.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        File.setUpdatedBy("BinanceService");
+        FileRepository.save(File);
         log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
     }
 

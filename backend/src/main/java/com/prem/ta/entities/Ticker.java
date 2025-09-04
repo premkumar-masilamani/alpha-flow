@@ -1,4 +1,4 @@
-package com.prem.ta.domain;
+package com.prem.ta.entities;
 
 import jakarta.persistence.*;
 

@@ -1,11 +1,11 @@
-package com.prem.ta.domain;
+package com.prem.ta.entities;
 
 import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "files")
-public class CryptoFile {
+public class File {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

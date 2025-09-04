@@ -1,10 +1,9 @@
-package com.prem.ta.repo;
+package com.prem.ta.repositories;
 
-import com.prem.ta.domain.Ticker;
+import com.prem.ta.entities.Ticker;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
-import java.util.Optional;
 
 @Repository
 public interface TickerRepository extends JpaRepository<Ticker, Long> {
