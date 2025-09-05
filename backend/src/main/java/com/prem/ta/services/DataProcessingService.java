@@ -3,16 +3,21 @@ package com.prem.ta.services;
 import com.prem.ta.entities.File;
 import com.prem.ta.repositories.FileRepository;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DataProcessingService {
+public class DataProcessingService implements DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(DataProcessingService.class);
     private final FileRepository fileRepository;
     private final FileProcessingWorker fileProcessingWorker;
+    private final ExecutorService executor;
 
     public DataProcessingService(
         FileRepository fileRepository,
@@ -20,13 +25,37 @@ public class DataProcessingService {
     ) {
         this.fileRepository = fileRepository;
         this.fileProcessingWorker = fileProcessingWorker;
+        int cores = Runtime.getRuntime().availableProcessors();
+        log.info("Initializing DataProcessingService with {} cores.", cores);
+        this.executor = Executors.newFixedThreadPool(cores);
     }
 
     public void processData() {
         log.info("Starting data processing...");
         List<File> filesToProcess = fileRepository.findByDownloadedTrueAndProcessedFalse();
         log.info("Found {} files to process.", filesToProcess.size());
-        filesToProcess.forEach(fileProcessingWorker::processFile);
+        CountDownLatch latch = new CountDownLatch(filesToProcess.size());
+        filesToProcess.forEach(file -> {
+            executor.submit(() -> {
+                try {
+                    fileProcessingWorker.processFile(file);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Data processing was interrupted.", e);
+        }
         log.info("Data processing completed.");
+    }
+
+    @Override
+    public void destroy() {
+        log.info("Shutting down data processing executor.");
+        executor.shutdown();
     }
 }
