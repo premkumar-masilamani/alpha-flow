@@ -1,6 +1,7 @@
 package com.prem.ta;
 
-import com.prem.ta.services.BinanceService;
+import com.prem.ta.services.DataIngestionService;
+import com.prem.ta.services.DataProcessingService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -14,9 +15,13 @@ public class TechnicalAnalysisApplication {
     }
 
     @Bean
-    CommandLineRunner runner(BinanceService binanceService) {
+    CommandLineRunner runner(
+        DataIngestionService dataIngestionService,
+        DataProcessingService dataProcessingService
+    ) {
         return args -> {
-            binanceService.downloadData();
+            dataIngestionService.downloadData();
+            dataProcessingService.processData();
         };
     }
 }

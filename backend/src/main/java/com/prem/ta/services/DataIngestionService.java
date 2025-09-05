@@ -26,10 +26,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class BinanceService {
+public class DataIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(
-        BinanceService.class
+        DataIngestionService.class
     );
     private final BinanceProperties binanceProperties;
     private final TickerRepository tickerRepository;
@@ -38,7 +38,7 @@ public class BinanceService {
         "yyyy-MM-dd"
     );
 
-    public BinanceService(
+    public DataIngestionService(
         BinanceProperties binanceProperties,
         TickerRepository tickerRepository,
         FileRepository FileRepository
@@ -162,7 +162,7 @@ public class BinanceService {
         File.setDownloaded(downloaded);
         File.setProcessed(false);
         File.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        File.setUpdatedBy("BinanceService");
+        File.setUpdatedBy("DataIngestionService");
         FileRepository.save(File);
         log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
     }
