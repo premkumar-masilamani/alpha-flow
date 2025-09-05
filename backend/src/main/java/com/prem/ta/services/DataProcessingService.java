@@ -25,7 +25,7 @@ public class DataProcessingService implements DisposableBean {
     ) {
         this.fileRepository = fileRepository;
         this.fileProcessingWorker = fileProcessingWorker;
-        this.executor = Executors.newFixedThreadPool(8);
+        this.executor = Executors.newFixedThreadPool(10);
     }
 
     public void processData() {
