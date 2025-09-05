@@ -17,6 +17,7 @@ public class DataProcessingService implements DisposableBean {
     private final FileRepository fileRepository;
     private final FileProcessingWorker fileProcessingWorker;
     private final ExecutorService executor;
+    private static final int BATCH_SIZE = 100;
 
     public DataProcessingService(
         FileRepository fileRepository,
@@ -32,29 +33,23 @@ public class DataProcessingService implements DisposableBean {
         List<File> filesToProcess = fileRepository.findByDownloadedTrueAndProcessedFalse();
         log.info("Found {} files to process.", filesToProcess.size());
 
-        if (filesToProcess.isEmpty()) {
-            log.info("No files to process.");
-            return;
+        for (int i = 0; i < filesToProcess.size(); i += BATCH_SIZE) {
+            List<File> batch = filesToProcess.subList(i, Math.min(i + BATCH_SIZE, filesToProcess.size()));
+            log.info("Processing batch of {} files (from index {} to {}).", batch.size(), i, i + batch.size() - 1);
+
+            List<CompletableFuture<Void>> futures = batch.stream()
+                    .map(file -> CompletableFuture.runAsync(() -> {
+                        try {
+                            fileProcessingWorker.processFile(file);
+                        } catch (Exception e) {
+                            log.error("Error processing file {}", file, e);
+                        }
+                    }, executor))
+                    .toList();
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         }
 
-        // Submit all tasks asynchronously using the executor
-        List<CompletableFuture<Void>> futures = filesToProcess.stream()
-                .map(file -> CompletableFuture.runAsync(() -> {
-                    try {
-                        fileProcessingWorker.processFile(file);
-                    } catch (Exception e) {
-                        log.error("Error processing file {}", file, e);
-                    }
-                }, executor))
-                .toList();
-
-        // Wait for all tasks to finish
-        CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
-        try {
-            allDone.join();
-        } catch (CompletionException e) {
-            log.error("One or more files failed during processing.", e);
-        }
         log.info("Data processing completed.");
     }
 
