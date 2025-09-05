@@ -15,6 +15,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import net.lingala.zip4j.ZipFile;
 import org.slf4j.Logger;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,9 @@ public class FileProcessingWorker {
     private final TradeDataRepository tradeDataRepository;
     private final BinanceProperties binanceProperties;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public FileProcessingWorker(
         FileRepository fileRepository,
@@ -110,6 +115,7 @@ public class FileProcessingWorker {
                 tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
                 tradeData.setWhaleImpact(whaleImpact);
 
+                ensurePartitionExists(file.getFileDate());
                 tradeDataRepository.save(tradeData);
             }
 
@@ -121,5 +127,18 @@ public class FileProcessingWorker {
         } catch (Exception e) {
             log.error("Error processing file: " + filePath, e);
         }
+    }
+
+    private void ensurePartitionExists(OffsetDateTime tradeTime) {
+        int year = tradeTime.getYear();
+        String partitionTableName = "trade_data_y" + year;
+        String sql = String.format(
+            "CREATE TABLE IF NOT EXISTS %s PARTITION OF trade_data FOR VALUES FROM ('%s-01-01 00:00:00 UTC') TO ('%s-01-01 00:00:00 UTC')",
+            partitionTableName,
+            year,
+            year + 1
+        );
+        log.info("Ensuring partition exists for year {}: {}", year, partitionTableName);
+        entityManager.createNativeQuery(sql).executeUpdate();
     }
 }
