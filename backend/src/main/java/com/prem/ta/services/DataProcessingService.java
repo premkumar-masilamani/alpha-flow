@@ -26,7 +26,7 @@ public class DataProcessingService implements DisposableBean {
         this.fileRepository = fileRepository;
         this.fileProcessingWorker = fileProcessingWorker;
         int cores = Runtime.getRuntime().availableProcessors();
-        log.info("Initializing DataProcessingService with {} cores.", cores);
+        log.info("Initializing DataProcessingService with {} cores.", 8);
         this.executor = Executors.newFixedThreadPool(cores);
     }
 
