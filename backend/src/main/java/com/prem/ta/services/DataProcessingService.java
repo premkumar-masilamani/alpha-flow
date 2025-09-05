@@ -3,9 +3,8 @@ package com.prem.ta.services;
 import com.prem.ta.entities.File;
 import com.prem.ta.repositories.FileRepository;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
@@ -25,7 +24,7 @@ public class DataProcessingService implements DisposableBean {
     ) {
         this.fileRepository = fileRepository;
         this.fileProcessingWorker = fileProcessingWorker;
-        this.executor = Executors.newFixedThreadPool(10);
+        this.executor = Executors.newFixedThreadPool(5);
     }
 
     public void processData() {
@@ -33,26 +32,28 @@ public class DataProcessingService implements DisposableBean {
         List<File> filesToProcess = fileRepository.findByDownloadedTrueAndProcessedFalse();
         log.info("Found {} files to process.", filesToProcess.size());
 
-        int batchSize = 10;
-        for (int i = 0; i < filesToProcess.size(); i += batchSize) {
-            List<File> batch = filesToProcess.subList(i, Math.min(i + batchSize, filesToProcess.size()));
-            log.info("Processing batch of {} files (from index {} to {}).", batch.size(), i, i + batch.size() -1);
-            CountDownLatch latch = new CountDownLatch(batch.size());
-            batch.forEach(file -> {
-                executor.submit(() -> {
+        if (filesToProcess.isEmpty()) {
+            log.info("No files to process.");
+            return;
+        }
+
+        // Submit all tasks asynchronously using the executor
+        List<CompletableFuture<Void>> futures = filesToProcess.stream()
+                .map(file -> CompletableFuture.runAsync(() -> {
                     try {
                         fileProcessingWorker.processFile(file);
-                    } finally {
-                        latch.countDown();
+                    } catch (Exception e) {
+                        log.error("Error processing file {}", file, e);
                     }
-                });
-            });
-            try {
-                latch.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("Data processing batch was interrupted.", e);
-            }
+                }, executor))
+                .toList();
+
+        // Wait for all tasks to finish
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        try {
+            allDone.join();
+        } catch (CompletionException e) {
+            log.error("One or more files failed during processing.", e);
         }
         log.info("Data processing completed.");
     }

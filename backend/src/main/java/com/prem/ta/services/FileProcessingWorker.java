@@ -8,8 +8,11 @@ import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TradeDataRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,6 +21,9 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
 import net.lingala.zip4j.ZipFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,9 +43,9 @@ public class FileProcessingWorker {
     private EntityManager entityManager;
 
     public FileProcessingWorker(
-        FileRepository fileRepository,
-        TradeDataRepository tradeDataRepository,
-        BinanceProperties binanceProperties
+            FileRepository fileRepository,
+            TradeDataRepository tradeDataRepository,
+            BinanceProperties binanceProperties
     ) {
         this.fileRepository = fileRepository;
         this.tradeDataRepository = tradeDataRepository;
@@ -53,96 +59,96 @@ public class FileProcessingWorker {
         String tickerSymbol = file.getTicker().getSymbol();
         String baseFileName = tickerSymbol + "-trades-" + dateStr + ".zip";
         Path filePath = Paths.get(binanceProperties.getDownloadDir(), tickerSymbol, baseFileName);
-        Path tempDir = null;
 
-        try {
-            tempDir = Files.createTempDirectory("unzip-");
-            ZipFile zipFile = new ZipFile(filePath.toFile());
-            zipFile.extractAll(tempDir.toString());
-            String csvFileName = zipFile.getFileHeaders().get(0).getFileName();
-            Path csvFilePath = tempDir.resolve(csvFileName);
+        try (InputStream fis = Files.newInputStream(filePath);
+             ZipInputStream zis = new ZipInputStream(fis)) {
 
-            try (CSVReader reader = new CSVReader(new FileReader(csvFilePath.toFile()))) {
-                List<String[]> allRows = reader.readAll();
+            ZipEntry entry;
+            boolean processed = false;
 
-                // Calculations
-                double open = Double.parseDouble(allRows.get(0)[1]);
-                double close = Double.parseDouble(allRows.get(allRows.size() - 1)[1]);
-                double high = allRows.stream().mapToDouble(row -> Double.parseDouble(row[1])).max().getAsDouble();
-                double low = allRows.stream().mapToDouble(row -> Double.parseDouble(row[1])).min().getAsDouble();
-                double volume = allRows.stream().mapToDouble(row -> Double.parseDouble(row[2])).sum();
-                double totalQuoteQty = allRows.stream().mapToDouble(row -> Double.parseDouble(row[3])).sum();
-                double vwap = totalQuoteQty / volume;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (!entry.isDirectory() && entry.getName().endsWith(".csv")) {
+                    log.info("Reading CSV file from ZIP: {}", entry.getName());
 
-                long buyerMakerCount = allRows.stream().filter(row -> !Boolean.parseBoolean(row[5])).count();
-                double buyerParticipationRatio = (double) buyerMakerCount / allRows.size();
+                    try (CSVReader reader = new CSVReader(new InputStreamReader(zis))) {
+                        List<String[]> allRows = reader.readAll();
 
-                double buyerCapital = allRows.stream()
-                    .filter(row -> !Boolean.parseBoolean(row[5]))
-                    .mapToDouble(row -> Double.parseDouble(row[3]))
-                    .sum();
-                double buyerCapitalRatio = buyerCapital / totalQuoteQty;
+                        // Calculations
+                        double open = Double.parseDouble(allRows.getFirst()[1]);
+                        double close = Double.parseDouble(allRows.getLast()[1]);
+                        double high = allRows.stream().mapToDouble(row -> Double.parseDouble(row[1])).max().getAsDouble();
+                        double low = allRows.stream().mapToDouble(row -> Double.parseDouble(row[1])).min().getAsDouble();
+                        double volume = allRows.stream().mapToDouble(row -> Double.parseDouble(row[2])).sum();
+                        double totalQuoteQty = allRows.stream().mapToDouble(row -> Double.parseDouble(row[3])).sum();
+                        double vwap = totalQuoteQty / volume;
 
-                double buyerVolume = allRows.stream()
-                    .filter(row -> !Boolean.parseBoolean(row[5]))
-                    .mapToDouble(row -> Double.parseDouble(row[2]))
-                    .sum();
-                double sellerVolume = allRows.stream()
-                    .filter(row -> Boolean.parseBoolean(row[5]))
-                    .mapToDouble(row -> Double.parseDouble(row[2]))
-                    .sum();
-                double buyerVolumeRatio = (buyerVolume - sellerVolume) / volume;
+                        long buyerMakerCount = allRows.stream().filter(row -> !Boolean.parseBoolean(row[5])).count();
+                        double buyerParticipationRatio = (double) buyerMakerCount / allRows.size();
 
-                double whaleImpact = Math.abs(buyerCapitalRatio - buyerParticipationRatio);
+                        double buyerCapital = allRows.stream()
+                                .filter(row -> !Boolean.parseBoolean(row[5]))
+                                .mapToDouble(row -> Double.parseDouble(row[3]))
+                                .sum();
+                        double buyerCapitalRatio = buyerCapital / totalQuoteQty;
 
-                log.debug("Calculated metrics for {} on {}:", tickerSymbol, dateStr);
-                log.debug("Open: {}, High: {}, Low: {}, Close: {}", open, high, low, close);
-                log.debug("Volume: {}", volume);
-                log.debug("VWAP: {}", vwap);
-                log.debug("Buyer Capital Ratio: {}", buyerCapitalRatio);
-                log.debug("Buyer Participation Ratio: {}", buyerParticipationRatio);
-                log.debug("Buyer Volume Ratio: {}", buyerVolumeRatio);
-                log.debug("Whale Impact: {}", whaleImpact);
+                        double buyerVolume = allRows.stream()
+                                .filter(row -> !Boolean.parseBoolean(row[5]))
+                                .mapToDouble(row -> Double.parseDouble(row[2]))
+                                .sum();
+                        double sellerVolume = allRows.stream()
+                                .filter(row -> Boolean.parseBoolean(row[5]))
+                                .mapToDouble(row -> Double.parseDouble(row[2]))
+                                .sum();
+                        double buyerVolumeRatio = (buyerVolume - sellerVolume) / volume;
 
-                TradeData tradeData = new TradeData();
-                tradeData.setTickerId(file.getTicker().getTickerId());
-                tradeData.setIntervalId((short) 4); // 4 for daily
-                tradeData.setTradeTime(file.getFileDate());
-                tradeData.setPriceOpen(open);
-                tradeData.setPriceHigh(high);
-                tradeData.setPriceLow(low);
-                tradeData.setPriceClose(close);
-                tradeData.setVolume(volume);
-                tradeData.setVwap(vwap);
-                tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
-                tradeData.setBuyerParticipationRatio(buyerParticipationRatio);
-                tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
-                tradeData.setWhaleImpact(whaleImpact);
+                        double whaleImpact = Math.abs(buyerCapitalRatio - buyerParticipationRatio);
 
-                ensurePartitionExists(file.getFileDate());
-                tradeDataRepository.save(tradeData);
-            }
+                        log.debug("Calculated metrics for {} on {}:", tickerSymbol, dateStr);
+                        log.debug("Open: {}, High: {}, Low: {}, Close: {}", open, high, low, close);
+                        log.debug("Volume: {}", volume);
+                        log.debug("VWAP: {}", vwap);
+                        log.debug("Buyer Capital Ratio: {}", buyerCapitalRatio);
+                        log.debug("Buyer Participation Ratio: {}", buyerParticipationRatio);
+                        log.debug("Buyer Volume Ratio: {}", buyerVolumeRatio);
+                        log.debug("Whale Impact: {}", whaleImpact);
 
-            file.setProcessed(true);
-            file.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            file.setUpdatedBy("DataProcessingService");
-            fileRepository.save(file);
+                        TradeData tradeData = new TradeData();
+                        tradeData.setTickerId(file.getTicker().getTickerId());
+                        tradeData.setIntervalId((short) 4); // 4 for daily
+                        tradeData.setTradeTime(file.getFileDate());
+                        tradeData.setPriceOpen(open);
+                        tradeData.setPriceHigh(high);
+                        tradeData.setPriceLow(low);
+                        tradeData.setPriceClose(close);
+                        tradeData.setVolume(volume);
+                        tradeData.setVwap(vwap);
+                        tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
+                        tradeData.setBuyerParticipationRatio(buyerParticipationRatio);
+                        tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
+                        tradeData.setWhaleImpact(whaleImpact);
 
-        } catch (Exception e) {
-            log.error("Error processing file: " + filePath, e);
-        } finally {
-            if (tempDir != null) {
-                try {
-                    Files.walk(tempDir)
-                         .sorted(Comparator.reverseOrder())
-                         .map(Path::toFile)
-                         .forEach(java.io.File::delete);
-                } catch (IOException ex) {
-                    log.error("Failed to delete temporary directory: {}", tempDir, ex);
+                        ensurePartitionExists(file.getFileDate());
+                        tradeDataRepository.save(tradeData);
+
+                        processed = true;
+                    }
                 }
             }
+
+            if (processed) {
+                file.setProcessed(true);
+                file.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+                file.setUpdatedBy("DataProcessingService");
+                fileRepository.save(file);
+            } else {
+                log.warn("No CSV file found in ZIP: {}", filePath);
+            }
+
+        } catch (Exception e) {
+            log.error("Error processing file: {}", filePath, e);
         }
     }
+
 
     private void ensurePartitionExists(OffsetDateTime tradeTime) {
         int year = tradeTime.getYear();
@@ -156,10 +162,10 @@ public class FileProcessingWorker {
         if (!exists) {
             log.info("Partition {} does not exist. Creating it.", partitionTableName);
             String createPartitionSql = String.format(
-                "CREATE TABLE %s PARTITION OF trade_data FOR VALUES FROM ('%s-01-01 00:00:00 UTC') TO ('%s-01-01 00:00:00 UTC')",
-                partitionTableName,
-                year,
-                year + 1
+                    "CREATE TABLE %s PARTITION OF trade_data FOR VALUES FROM ('%s-01-01 00:00:00 UTC') TO ('%s-01-01 00:00:00 UTC')",
+                    partitionTableName,
+                    year,
+                    year + 1
             );
             entityManager.createNativeQuery(createPartitionSql).executeUpdate();
             log.info("Partition {} created.", partitionTableName);
