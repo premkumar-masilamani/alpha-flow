@@ -16,5 +16,5 @@ public interface FileRepository extends JpaRepository<File, Long> {
         Ticker ticker,
         OffsetDateTime fileDate
     );
-    List<File> findByIsDownloadedTrueAndIsProcessedFalse();
+    List<File> findByDownloadedTrueAndProcessedFalse();
 }
