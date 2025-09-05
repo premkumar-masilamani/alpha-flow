@@ -17,6 +17,7 @@ import net.lingala.zip4j.ZipFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DataProcessingService {
@@ -37,6 +38,7 @@ public class DataProcessingService {
         this.binanceProperties = binanceProperties;
     }
 
+    @Transactional
     public void processData() {
         log.info("Starting data processing...");
         List<File> filesToProcess = fileRepository.findByDownloadedTrueAndProcessedFalse();
