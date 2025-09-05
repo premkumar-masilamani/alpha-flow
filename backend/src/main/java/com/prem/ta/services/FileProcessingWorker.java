@@ -6,17 +6,20 @@ import com.prem.ta.entities.File;
 import com.prem.ta.entities.TradeData;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TradeDataRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import net.lingala.zip4j.ZipFile;
 import org.slf4j.Logger;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,10 +53,11 @@ public class FileProcessingWorker {
         String tickerSymbol = file.getTicker().getSymbol();
         String baseFileName = tickerSymbol + "-trades-" + dateStr + ".zip";
         Path filePath = Paths.get(binanceProperties.getDownloadDir(), tickerSymbol, baseFileName);
+        Path tempDir = null;
 
         try {
+            tempDir = Files.createTempDirectory("unzip-");
             ZipFile zipFile = new ZipFile(filePath.toFile());
-            Path tempDir = Paths.get(System.getProperty("java.io.tmpdir"));
             zipFile.extractAll(tempDir.toString());
             String csvFileName = zipFile.getFileHeaders().get(0).getFileName();
             Path csvFilePath = tempDir.resolve(csvFileName);
@@ -126,6 +130,17 @@ public class FileProcessingWorker {
 
         } catch (Exception e) {
             log.error("Error processing file: " + filePath, e);
+        } finally {
+            if (tempDir != null) {
+                try {
+                    Files.walk(tempDir)
+                         .sorted(Comparator.reverseOrder())
+                         .map(Path::toFile)
+                         .forEach(java.io.File::delete);
+                } catch (IOException ex) {
+                    log.error("Failed to delete temporary directory: {}", tempDir, ex);
+                }
+            }
         }
     }
 
