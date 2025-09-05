@@ -94,6 +94,15 @@ public class DataProcessingService {
 
                 double whaleImpact = Math.abs(buyerCapitalRatio - buyerParticipationRatio);
 
+                log.debug("Calculated metrics for {} on {}:", tickerSymbol, dateStr);
+                log.debug("Open: {}, High: {}, Low: {}, Close: {}", open, high, low, close);
+                log.debug("Volume: {}", volume);
+                log.debug("VWAP: {}", vwap);
+                log.debug("Buyer Capital Ratio: {}", buyerCapitalRatio);
+                log.debug("Buyer Participation Ratio: {}", buyerParticipationRatio);
+                log.debug("Buyer Volume Ratio: {}", buyerVolumeRatio);
+                log.debug("Whale Impact: {}", whaleImpact);
+
                 TradeData tradeData = new TradeData();
                 tradeData.setTickerId(file.getTicker().getTickerId());
                 tradeData.setIntervalId((short) 4); // 4 for daily
