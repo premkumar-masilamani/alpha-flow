@@ -132,13 +132,24 @@ public class FileProcessingWorker {
     private void ensurePartitionExists(OffsetDateTime tradeTime) {
         int year = tradeTime.getYear();
         String partitionTableName = "trade_data_y" + year;
-        String sql = String.format(
-            "CREATE TABLE IF NOT EXISTS %s PARTITION OF trade_data FOR VALUES FROM ('%s-01-01 00:00:00 UTC') TO ('%s-01-01 00:00:00 UTC')",
-            partitionTableName,
-            year,
-            year + 1
-        );
-        log.info("Ensuring partition exists for year {}: {}", year, partitionTableName);
-        entityManager.createNativeQuery(sql).executeUpdate();
+
+        String checkPartitionSql = "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = ?)";
+        jakarta.persistence.Query query = entityManager.createNativeQuery(checkPartitionSql, Boolean.class);
+        query.setParameter(1, partitionTableName);
+        boolean exists = (Boolean) query.getSingleResult();
+
+        if (!exists) {
+            log.info("Partition {} does not exist. Creating it.", partitionTableName);
+            String createPartitionSql = String.format(
+                "CREATE TABLE %s PARTITION OF trade_data FOR VALUES FROM ('%s-01-01 00:00:00 UTC') TO ('%s-01-01 00:00:00 UTC')",
+                partitionTableName,
+                year,
+                year + 1
+            );
+            entityManager.createNativeQuery(createPartitionSql).executeUpdate();
+            log.info("Partition {} created.", partitionTableName);
+        } else {
+            log.debug("Partition {} already exists.", partitionTableName);
+        }
     }
 }
