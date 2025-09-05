@@ -32,21 +32,27 @@ public class DataProcessingService implements DisposableBean {
         log.info("Starting data processing...");
         List<File> filesToProcess = fileRepository.findByDownloadedTrueAndProcessedFalse();
         log.info("Found {} files to process.", filesToProcess.size());
-        CountDownLatch latch = new CountDownLatch(filesToProcess.size());
-        filesToProcess.forEach(file -> {
-            executor.submit(() -> {
-                try {
-                    fileProcessingWorker.processFile(file);
-                } finally {
-                    latch.countDown();
-                }
+
+        int batchSize = 10;
+        for (int i = 0; i < filesToProcess.size(); i += batchSize) {
+            List<File> batch = filesToProcess.subList(i, Math.min(i + batchSize, filesToProcess.size()));
+            log.info("Processing batch of {} files (from index {} to {}).", batch.size(), i, i + batch.size() -1);
+            CountDownLatch latch = new CountDownLatch(batch.size());
+            batch.forEach(file -> {
+                executor.submit(() -> {
+                    try {
+                        fileProcessingWorker.processFile(file);
+                    } finally {
+                        latch.countDown();
+                    }
+                });
             });
-        });
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("Data processing was interrupted.", e);
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("Data processing batch was interrupted.", e);
+            }
         }
         log.info("Data processing completed.");
     }
