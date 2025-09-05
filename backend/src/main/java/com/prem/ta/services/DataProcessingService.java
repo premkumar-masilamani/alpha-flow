@@ -43,7 +43,7 @@ public class DataProcessingService {
         log.info("Starting data processing...");
         List<File> filesToProcess = fileRepository.findByDownloadedTrueAndProcessedFalse();
         log.info("Found {} files to process.", filesToProcess.size());
-        filesToProcess.forEach(this::processFile);
+        filesToProcess.stream().limit(10).forEach(this::processFile);
         log.info("Data processing completed.");
     }
 
