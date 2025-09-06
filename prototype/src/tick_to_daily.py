@@ -28,10 +28,6 @@ def process_file(filepath):
     # How much of the trading money was buyers?
     buyer_capital_ratio = df.loc[~df["is_buyer_maker"], "quote_qty"].sum() / df["quote_qty"].sum()
 
-    # How much of the trading volume was buyers?
-    buyer_volume_ratio = (df.loc[~df["is_buyer_maker"], "qty"].sum() -
-                            df.loc[df["is_buyer_maker"], "qty"].sum()) / qty
-
     # Impact of whale participation on market
     whale_impact = abs(buyer_capital_ratio - buyer_participation_ratio)
 

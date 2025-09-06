@@ -6,8 +6,8 @@ import matplotlib.dates as mdates
 df = pd.read_csv("./BTCUSDT-2025-renko.csv", parse_dates=["date"])
 
 # === Plot setup ===
-fig, axes = plt.subplots(5, 1, figsize=(14, 12), sharex=True,
-                         gridspec_kw={'height_ratios': [3, 1, 1, 1, 1]})
+fig, axes = plt.subplots(4, 1, figsize=(14, 12), sharex=True,
+                         gridspec_kw={'height_ratios': [3, 1, 1, 1]})
 
 # ---------------------------
 # 1. Renko Bricks
@@ -44,22 +44,16 @@ axes[2].legend()
 axes[2].grid(True, linestyle="--", alpha=0.5)
 
 # ---------------------------
-# 4. Buyer Volume Ratio
-# ---------------------------
-axes[3].plot(df["date"], df["buyer_volume_ratio"], color="orange", label="Volume Ratio")
-axes[3].axhline(0, color="gray", linestyle="--", alpha=0.7)
-axes[3].set_ylabel("Volume")
-axes[3].legend()
-axes[3].grid(True, linestyle="--", alpha=0.5)
-
-# ---------------------------
 # 5. Whale Impact
 # ---------------------------
-axes[4].bar(df["date"], df["whale_impact"], color="black", alpha=0.7, label="Whale Impact")
-axes[4].set_ylabel("Whale\nImpact")
-axes[4].legend()
-axes[4].grid(True, linestyle="--", alpha=0.5)
+axes[3].bar(df["date"], df["whale_impact"], color="red", label="Whale Impact")
+axes[2].axhline(0.5, color="gray", linestyle="--", alpha=0.7)
+axes[3].set_ylabel("Whale Impact")
+axes[3].legend()
+axes[3].grid(True, linestyle="--", alpha=0.5)
 
 # === Layout ===
 plt.tight_layout()
 plt.show()
+
+# python3 src/plot_renko_old.py

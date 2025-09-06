@@ -35,7 +35,6 @@ def build_renko(df: pd.DataFrame, brick_size: float) -> pd.DataFrame:
                 "direction": direction,
                 "buyer_participation_ratio": row["buyer_participation_ratio"],
                 "buyer_capital_ratio": row["buyer_capital_ratio"],
-                "buyer_volume_ratio": row["buyer_volume_ratio"],
                 "whale_impact": row["whale_impact"],
             })
 
@@ -67,3 +66,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# python3 src/daily_to_renko.py
