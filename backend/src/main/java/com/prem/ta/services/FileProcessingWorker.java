@@ -1,7 +1,5 @@
 package com.prem.ta.services;
 
-import com.opencsv.CSVReader;
-import com.opencsv.exceptions.CsvException;
 import com.prem.ta.configs.BinanceProperties;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.TradeData;
@@ -18,12 +16,16 @@ import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.zip.ZipInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tech.tablesaw.api.BooleanColumn;
+import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.api.DoubleColumn;
+import tech.tablesaw.api.Table;
+import tech.tablesaw.io.csv.CsvReadOptions;
 
 @Service
 public class FileProcessingWorker {
@@ -62,66 +64,74 @@ public class FileProcessingWorker {
                 ZipInputStream zis = new ZipInputStream(bais)
             ) {
                 zis.getNextEntry(); // Assuming one file per zip
-                try (CSVReader reader = new CSVReader(new InputStreamReader(zis))) {
-                    List<String[]> allRows = reader.readAll();
+                CsvReadOptions options = CsvReadOptions
+                    .builder(new InputStreamReader(zis))
+                    .header(false)
+                    .columnTypes(
+                        new ColumnType[] {
+                            ColumnType.LONG, // trade_id
+                            ColumnType.DOUBLE, // price
+                            ColumnType.DOUBLE, // qty
+                            ColumnType.DOUBLE, // quote_qty
+                            ColumnType.LONG, // time
+                            ColumnType.BOOLEAN, // is_buyer_maker
+                        }
+                    )
+                    .build();
+                Table allRows = Table.read().csv(options);
 
-                    // Calculations
-                    double open = Double.parseDouble(allRows.get(0)[1]);
-                    double close = Double.parseDouble(allRows.get(allRows.size() - 1)[1]);
-                    double high = allRows.stream().mapToDouble(row -> Double.parseDouble(row[1])).max().orElse(0.0);
-                    double low = allRows.stream().mapToDouble(row -> Double.parseDouble(row[1])).min().orElse(0.0);
-                    double volume = allRows.stream().mapToDouble(row -> Double.parseDouble(row[2])).sum();
-                    double totalQuoteQty = allRows.stream().mapToDouble(row -> Double.parseDouble(row[3])).sum();
-                    double vwap = volume > 0 ? totalQuoteQty / volume : 0;
+                // Calculations
+                DoubleColumn price = allRows.doubleColumn(1);
+                DoubleColumn qty = allRows.doubleColumn(2);
+                DoubleColumn quoteQty = allRows.doubleColumn(3);
+                BooleanColumn isBuyerMaker = allRows.booleanColumn(5);
 
-                    long buyerMakerCount = allRows.stream().filter(row -> !Boolean.parseBoolean(row[5])).count();
-                    double buyerParticipationRatio = allRows.isEmpty() ? 0 : (double) buyerMakerCount / allRows.size();
+                double open = price.get(0);
+                double close = price.get(price.size() - 1);
+                double high = price.max();
+                double low = price.min();
+                double volume = qty.sum();
+                double totalQuoteQty = quoteQty.sum();
+                double vwap = volume > 0 ? totalQuoteQty / volume : 0;
 
-                    double buyerCapital = allRows.stream()
-                        .filter(row -> !Boolean.parseBoolean(row[5]))
-                        .mapToDouble(row -> Double.parseDouble(row[3]))
-                        .sum();
-                    double buyerCapitalRatio = totalQuoteQty > 0 ? buyerCapital / totalQuoteQty : 0;
+                long buyerMakerCount = isBuyerMaker.countFalse();
+                double buyerParticipationRatio = allRows.rowCount() == 0 ? 0 : (double) buyerMakerCount / allRows.rowCount();
 
-                    double buyerVolume = allRows.stream()
-                        .filter(row -> !Boolean.parseBoolean(row[5]))
-                        .mapToDouble(row -> Double.parseDouble(row[2]))
-                        .sum();
-                    double sellerVolume = allRows.stream()
-                        .filter(row -> Boolean.parseBoolean(row[5]))
-                        .mapToDouble(row -> Double.parseDouble(row[2]))
-                        .sum();
-                    double buyerVolumeRatio = volume > 0 ? (buyerVolume - sellerVolume) / volume : 0;
+                double buyerCapital = quoteQty.where(isBuyerMaker.isFalse()).sum();
+                double buyerCapitalRatio = totalQuoteQty > 0 ? buyerCapital / totalQuoteQty : 0;
 
-                    double whaleImpact = Math.abs(buyerCapitalRatio - buyerParticipationRatio);
+                double buyerVolume = qty.where(isBuyerMaker.isFalse()).sum();
+                double sellerVolume = qty.where(isBuyerMaker.isTrue()).sum();
+                double buyerVolumeRatio = volume > 0 ? (buyerVolume - sellerVolume) / volume : 0;
 
-                    log.debug("Calculated metrics for {} on {}:", tickerSymbol, dateStr);
-                    log.debug("Open: {}, High: {}, Low: {}, Close: {}", open, high, low, close);
-                    log.debug("Volume: {}", volume);
-                    log.debug("VWAP: {}", vwap);
-                    log.debug("Buyer Capital Ratio: {}", buyerCapitalRatio);
-                    log.debug("Buyer Participation Ratio: {}", buyerParticipationRatio);
-                    log.debug("Buyer Volume Ratio: {}", buyerVolumeRatio);
-                    log.debug("Whale Impact: {}", whaleImpact);
+                double whaleImpact = Math.abs(buyerCapitalRatio - buyerParticipationRatio);
 
-                    TradeData tradeData = new TradeData();
-                    tradeData.setTickerId(file.getTicker().getTickerId());
-                    tradeData.setIntervalId((short) 4); // 4 for daily
-                    tradeData.setTradeTime(file.getFileDate());
-                    tradeData.setPriceOpen(open);
-                    tradeData.setPriceHigh(high);
-                    tradeData.setPriceLow(low);
-                    tradeData.setPriceClose(close);
-                    tradeData.setVolume(volume);
-                    tradeData.setVwap(vwap);
-                    tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
-                    tradeData.setBuyerParticipationRatio(buyerParticipationRatio);
-                    tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
-                    tradeData.setWhaleImpact(whaleImpact);
+                log.debug("Calculated metrics for {} on {}:", tickerSymbol, dateStr);
+                log.debug("Open: {}, High: {}, Low: {}, Close: {}", open, high, low, close);
+                log.debug("Volume: {}", volume);
+                log.debug("VWAP: {}", vwap);
+                log.debug("Buyer Capital Ratio: {}", buyerCapitalRatio);
+                log.debug("Buyer Participation Ratio: {}", buyerParticipationRatio);
+                log.debug("Buyer Volume Ratio: {}", buyerVolumeRatio);
+                log.debug("Whale Impact: {}", whaleImpact);
 
-                    ensurePartitionExists(file.getFileDate());
-                    tradeDataRepository.save(tradeData);
-                }
+                TradeData tradeData = new TradeData();
+                tradeData.setTickerId(file.getTicker().getTickerId());
+                tradeData.setIntervalId((short) 4); // 4 for daily
+                tradeData.setTradeTime(file.getFileDate());
+                tradeData.setPriceOpen(open);
+                tradeData.setPriceHigh(high);
+                tradeData.setPriceLow(low);
+                tradeData.setPriceClose(close);
+                tradeData.setVolume(volume);
+                tradeData.setVwap(vwap);
+                tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
+                tradeData.setBuyerParticipationRatio(buyerParticipationRatio);
+                tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
+                tradeData.setWhaleImpact(whaleImpact);
+
+                ensurePartitionExists(file.getFileDate());
+                tradeDataRepository.save(tradeData);
             }
 
             file.setProcessed(true);
@@ -129,7 +139,7 @@ public class FileProcessingWorker {
             file.setUpdatedBy("DataProcessingService");
             fileRepository.save(file);
 
-        } catch (IOException | CsvException | NumberFormatException e) {
+        } catch (IOException | NumberFormatException e) {
             log.error("Error processing file for ticker {} on date {}", tickerSymbol, dateStr, e);
         }
     }
