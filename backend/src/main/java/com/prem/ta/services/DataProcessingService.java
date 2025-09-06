@@ -26,7 +26,7 @@ public class DataProcessingService {
 
     public void processData() {
         log.info("Starting data processing...");
-        Pageable pageable = PageRequest.of(0, 100);
+        Pageable pageable = PageRequest.of(0, 10);
         Page<File> filePage;
 
         do {
