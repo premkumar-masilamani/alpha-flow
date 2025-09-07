@@ -1,1 +1,38 @@
+# Gradle cache
+.gradle/
+gradle/
+
+# Build output
+build/
+
+# IDE configuration files
+.idea/
+*.iml
+.project
+.classpath
+.factorypath
+.settings/
+bin/
+.ropeproject/
+.zed/
+
+# OS generated files
 .DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Package files
+*.jar
+*.war
+*.ear
+
+# Data Files
+*.csv
+
+# Output files
+*.png
+
+# Python files
+__pycache__

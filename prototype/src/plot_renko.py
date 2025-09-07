@@ -48,3 +48,5 @@ cbar.set_label("Buyer Capital Ratio")
 
 plt.tight_layout()
 plt.show()
+
+# python3 src/plot_renko.py
