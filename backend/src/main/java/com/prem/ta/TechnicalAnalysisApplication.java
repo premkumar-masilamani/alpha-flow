@@ -20,7 +20,7 @@ public class TechnicalAnalysisApplication {
         DataProcessingService dataProcessingService
     ) {
         return args -> {
-            dataIngestionService.downloadData();
+//            dataIngestionService.downloadData();
             dataProcessingService.processData();
         };
     }
