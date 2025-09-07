@@ -1,5 +1,6 @@
 package com.prem.ta.services;
 
+import com.prem.ta.configs.Utils;
 import com.prem.ta.entities.File;
 import com.prem.ta.repositories.FileRepository;
 import org.slf4j.Logger;
@@ -10,7 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DataProcessingService {
+public class DataProcessingService implements com.prem.ta.services.Service {
 
     private static final Logger log = LoggerFactory.getLogger(DataProcessingService.class);
     private final FileRepository fileRepository;
@@ -24,9 +25,10 @@ public class DataProcessingService {
         this.fileProcessingWorker = fileProcessingWorker;
     }
 
-    public void processData() {
+    @Override
+    public void doService() {
         log.info("Starting data processing...");
-        Pageable pageable = PageRequest.of(0, 10);
+        Pageable pageable = PageRequest.of(0, Utils.PAGE_SIZE);
         Page<File> filePage;
 
         do {

@@ -1,14 +1,11 @@
 package com.prem.ta.services;
 
-import com.prem.ta.configs.BinanceProperties;
+import com.prem.ta.configs.AppConfig;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.TradeData;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TradeDataRepository;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,20 +30,17 @@ public class FileProcessingWorker {
     private static final Logger log = LoggerFactory.getLogger(FileProcessingWorker.class);
     private final FileRepository fileRepository;
     private final TradeDataRepository tradeDataRepository;
-    private final BinanceProperties binanceProperties;
+    private final AppConfig appConfig;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    @PersistenceContext
-    private EntityManager entityManager;
 
     public FileProcessingWorker(
         FileRepository fileRepository,
         TradeDataRepository tradeDataRepository,
-        BinanceProperties binanceProperties
+        AppConfig appConfig
     ) {
         this.fileRepository = fileRepository;
         this.tradeDataRepository = tradeDataRepository;
-        this.binanceProperties = binanceProperties;
+        this.appConfig = appConfig;
     }
 
     @Transactional
@@ -55,7 +49,7 @@ public class FileProcessingWorker {
         String dateStr = file.getFileDate().format(dateFormatter);
         String tickerSymbol = file.getTicker().getSymbol();
         String baseFileName = tickerSymbol + "-trades-" + dateStr + ".zip";
-        Path filePath = Paths.get(binanceProperties.getDownloadDir(), tickerSymbol, baseFileName);
+        Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
         try {
             byte[] fileContent = Files.readAllBytes(filePath);
@@ -131,41 +125,16 @@ public class FileProcessingWorker {
                 tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
                 tradeData.setWhaleImpact(whaleImpact);
 
-                ensurePartitionExists(file.getFileDate());
                 tradeDataRepository.save(tradeData);
             }
 
             file.setProcessed(true);
             file.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            file.setUpdatedBy("DataProcessingService");
+            file.setUpdatedBy(this.getClass().getSimpleName());
             fileRepository.save(file);
 
         } catch (Exception e) {
             log.error("Error processing file for ticker {} on date {}", tickerSymbol, dateStr, e);
-        }
-    }
-
-    private void ensurePartitionExists(OffsetDateTime tradeTime) {
-        int year = tradeTime.getYear();
-        String partitionTableName = "trade_data_y" + year;
-
-        String checkPartitionSql = "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = ?)";
-        jakarta.persistence.Query query = entityManager.createNativeQuery(checkPartitionSql, Boolean.class);
-        query.setParameter(1, partitionTableName);
-        boolean exists = (Boolean) query.getSingleResult();
-
-        if (!exists) {
-            log.info("Partition {} does not exist. Creating it.", partitionTableName);
-            String createPartitionSql = String.format(
-                "CREATE TABLE %s PARTITION OF trade_data FOR VALUES FROM ('%s-01-01 00:00:00 UTC') TO ('%s-01-01 00:00:00 UTC')",
-                partitionTableName,
-                year,
-                year + 1
-            );
-            entityManager.createNativeQuery(createPartitionSql).executeUpdate();
-            log.info("Partition {} created.", partitionTableName);
-        } else {
-            log.debug("Partition {} already exists.", partitionTableName);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.prem.ta.services;
 
-import com.prem.ta.configs.BinanceProperties;
+import com.prem.ta.configs.AppConfig;
+import com.prem.ta.configs.Utils;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
@@ -17,7 +18,6 @@ import java.security.MessageDigest;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -26,31 +26,30 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class DataIngestionService {
+public class DataDownloadService implements com.prem.ta.services.Service {
 
     private static final Logger log = LoggerFactory.getLogger(
-        DataIngestionService.class
+        DataDownloadService.class
     );
-    private final BinanceProperties binanceProperties;
+    private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository FileRepository;
-    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(
-        "yyyy-MM-dd"
-    );
 
-    public DataIngestionService(
-        BinanceProperties binanceProperties,
+
+    public DataDownloadService(
+        AppConfig appConfig,
         TickerRepository tickerRepository,
-        FileRepository FileRepository
+        FileRepository fileRepository
     ) {
-        this.binanceProperties = binanceProperties;
+        this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
-        this.FileRepository = FileRepository;
+        this.FileRepository = fileRepository;
     }
 
-    public void downloadData() {
-        log.info("Download URL: {}", binanceProperties.getDownloadUrl());
-        log.info("Download directory: {}", binanceProperties.getDownloadDir());
+    @Override
+    public void doService() {
+        log.info("Download URL: {}", appConfig.getDownloadUrl());
+        log.info("Download directory: {}", appConfig.getDownloadDir());
         tickerRepository
             .findAll()
             .forEach(ticker -> {
@@ -59,13 +58,13 @@ public class DataIngestionService {
                     ticker.getSymbol(),
                     ticker.getStartDate()
                 );
-                downloadTickerData(ticker);
+                download(ticker);
             });
         log.info("All Downloads completed!");
     }
 
     @Transactional
-    public void downloadTickerData(Ticker ticker) {
+    public void download(Ticker ticker) {
         Optional<File> latestFile =
             FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
@@ -75,7 +74,7 @@ public class DataIngestionService {
         try {
             String tickerSymbol = ticker.getSymbol();
             Path outDir = Path.of(
-                binanceProperties.getDownloadDir(),
+                appConfig.getDownloadDir(),
                 tickerSymbol
             );
             Files.createDirectories(outDir);
@@ -86,10 +85,10 @@ public class DataIngestionService {
                 !date.isAfter(today);
                 date = date.plusDays(1)
             ) {
-                String dateStr = date.format(dateFormatter);
+                String dateStr = date.format(Utils.getDateFormatter());
                 String baseFileName =
                     tickerSymbol + "-trades-" + dateStr + ".zip";
-                String baseUrl = binanceProperties
+                String baseUrl = appConfig
                     .getDownloadUrl()
                     .replace("{ticker}", tickerSymbol)
                     .replace("{filename}", baseFileName);
@@ -99,8 +98,7 @@ public class DataIngestionService {
 
                 if (Files.exists(localFile)) {
                     log.info("Already downloaded: {}", localFile);
-                    // Still record in DB if it's not there
-                    saveFileRecord(ticker, date, true);
+                    saveFileRecord(ticker, date);
                     continue;
                 }
 
@@ -123,7 +121,7 @@ public class DataIngestionService {
                 downloadFileWithChecksum(baseUrl, localFile, expectedHash);
 
                 // Step 3: Save record to database
-                saveFileRecord(ticker, date, true);
+                saveFileRecord(ticker, date);
             }
         } catch (Exception e) {
             throw new RuntimeException(
@@ -135,8 +133,7 @@ public class DataIngestionService {
 
     private void saveFileRecord(
         Ticker ticker,
-        LocalDate date,
-        boolean downloaded
+        LocalDate date
     ) {
         OffsetDateTime fileDate = date
             .atStartOfDay(ZoneOffset.UTC)
@@ -158,11 +155,11 @@ public class DataIngestionService {
         File File = new File();
         File.setTicker(ticker);
         File.setFileDate(fileDate);
-        File.setSource("Binance");
-        File.setDownloaded(downloaded);
+        File.setSource(Utils.DOWNLOAD_SOURCE);
+        File.setDownloaded(true);
         File.setProcessed(false);
         File.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        File.setUpdatedBy("DataIngestionService");
+        File.setUpdatedBy(this.getClass().getSimpleName());
         FileRepository.save(File);
         log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
     }
@@ -176,7 +173,7 @@ public class DataIngestionService {
             Files.writeString(checksumFile, content, StandardCharsets.UTF_8);
 
             // Binance CHECKSUM files are of form: "<hash> <filename>"
-            String[] parts = content.split("\s+");
+            String[] parts = content.split(" +");
             return parts[0];
         } catch (IOException e) {
             log.error(
@@ -193,7 +190,7 @@ public class DataIngestionService {
         Path outputPath,
         String expectedHash
     ) throws Exception {
-        MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+        MessageDigest sha256 = MessageDigest.getInstance(Utils.CHECKSUM_ALGORITHM);
         try (
             DigestInputStream in = new DigestInputStream(
                 URI.create(fileUrl).toURL().openStream(),
