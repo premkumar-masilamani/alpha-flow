@@ -22,7 +22,6 @@ CREATE TABLE files (
     updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
--- Partitioned table
 CREATE TABLE trade_data (
     ticker_id BIGINT NOT NULL,
     interval_id SMALLINT NOT NULL,
@@ -38,4 +37,4 @@ CREATE TABLE trade_data (
     buyer_participation_ratio DOUBLE PRECISION,
     buyer_volume_ratio DOUBLE PRECISION,
     whale_impact DOUBLE PRECISION
-) PARTITION BY RANGE (trade_time);
+);
