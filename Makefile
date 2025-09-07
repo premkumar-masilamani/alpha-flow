@@ -97,10 +97,18 @@ check_frontend:
 
 # Clean up containers, volumes, and network
 clean:
+	@echo "You are about to delete the following resources:"
+	@echo "  - Container: $(POSTGRES_DB)"
+	@echo "  - Volume:    $(POSTGRES_VOLUME)"
+	@echo "  - Network:   $(DOCKER_NETWORK_NAME)"
+	@echo ""
+	@read -p "Are you sure you want to delete these? (yes/no): " ans && [ "$$ans" = "yes" ] || (echo "Aborted." && exit 1)
+	@read -p "Please type 'delete' to confirm irreversible removal: " ans && [ "$$ans" = "delete" ] || (echo "Aborted." && exit 1)
 	@echo "Cleaning up containers, volumes, and network..."
 	-docker rm -f $(POSTGRES_DB) >/dev/null 2>&1 || true
 	-docker volume rm -f $(POSTGRES_VOLUME) >/dev/null 2>&1 || true
 	-docker network rm $(DOCKER_NETWORK_NAME) >/dev/null 2>&1 || true
+	@echo "Cleanup completed."
 
 diagrams:
 	for file in $(DIAGRAMS_DIR)/*.d2; do \
