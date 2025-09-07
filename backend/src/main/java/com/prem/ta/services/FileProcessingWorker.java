@@ -75,6 +75,7 @@ public class FileProcessingWorker {
                             ColumnType.DOUBLE, // quote_qty
                             ColumnType.LONG, // time
                             ColumnType.BOOLEAN, // is_buyer_maker
+                            ColumnType.BOOLEAN, // is_best_match
                         }
                     )
                     .build();
@@ -139,7 +140,7 @@ public class FileProcessingWorker {
             file.setUpdatedBy("DataProcessingService");
             fileRepository.save(file);
 
-        } catch (IOException | NumberFormatException e) {
+        } catch (Exception e) {
             log.error("Error processing file for ticker {} on date {}", tickerSymbol, dateStr, e);
         }
     }
