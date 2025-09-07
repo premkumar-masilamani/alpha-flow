@@ -81,4 +81,5 @@ axes[2].grid(True, linestyle="--", alpha=0.5)
 plt.tight_layout()
 plt.show()
 
-# python3 src/plot_renko_old.py
+# Example:
+# python3 tick/plot_renko_old.py

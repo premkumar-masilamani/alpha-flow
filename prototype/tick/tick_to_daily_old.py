@@ -62,4 +62,5 @@ if __name__ == "__main__":
     output_csv = sys.argv[2]
     process_folder(data_folder, output_csv)
 
-# python3 src/tick_to_daily.py /Users/premkumar/Downloads/BTCUSDT-2025 ./BTCUSDT-2025-1d.csv
+# Example:
+# python3 tick/tick_to_daily_old.py /Users/premkumar/Downloads/BTCUSDT-2025 ./data/BTCUSDT-2025-1d-old.csv

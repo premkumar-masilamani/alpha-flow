@@ -79,3 +79,6 @@ ax.set_title("BTCUSDT Candlestick Chart with VWAP and Whale Signals")
 ax.set_ylabel("Price / Whale Strength (Normalized)")
 ax.legend(loc='upper left')
 plt.show()
+
+# Example:
+# python3 tick/visualize_renko.py ./data/BTCUSDT-2025-1d.csv ./data/BTCUSDT-2025-1d-signals.csv

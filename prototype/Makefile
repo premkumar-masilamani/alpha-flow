@@ -8,6 +8,11 @@ show:
 	@echo "Listing dependencies..."
 	pipenv graph
 
+.PHONY: clean
+clean:
+	@echo "Removing all pip environments..."
+	PIPENV_IGNORE_VIRTUALENVS=1 pipenv --rm
+
 .PHONY: run
 run:
 	make asta

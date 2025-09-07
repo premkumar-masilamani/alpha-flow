@@ -112,4 +112,4 @@ if __name__ == "__main__":
     process_folder(data_folder, output_csv)
 
 # Example:
-# python3 src/tick_to_daily.py /Users/premkumar/Downloads/BTCUSDT-2025 ./BTCUSDT-2025-1d.csv
+# python3 tick/tick_to_daily.py /Users/premkumar/Downloads/BTCUSDT-2025 ./data/BTCUSDT-2025-1d.csv
