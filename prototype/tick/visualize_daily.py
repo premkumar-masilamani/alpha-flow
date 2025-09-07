@@ -127,7 +127,4 @@ if __name__ == "__main__":
     visualize_signals(input_csv, output_csv)
 
 # Example:
-# python3 visualize_signals_updated.py ./BTCUSDT-2025-1d.csv ./BTCUSDT-2025-1d-signals.csv
-
-# Example:
-# python3 src/visualize_daily.py ./BTCUSDT-2025-1d.csv ./BTCUSDT-2025-1d-signals.csv
+# python3 tick/visualize_daily.py ./data/BTCUSDT-2025-1d.csv ./data/BTCUSDT-2025-1d-signals.csv

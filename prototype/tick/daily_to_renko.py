@@ -1,7 +1,7 @@
 import pandas as pd
 
-INPUT_FILE = "./BTCUSDT-2025-1d.csv"
-OUTPUT_FILE = "./BTCUSDT-2025-renko.csv"
+INPUT_FILE = "./data/BTCUSDT-2025-1d.csv"
+OUTPUT_FILE = "./data/BTCUSDT-2025-1d-renko.csv"
 
 def build_renko(df: pd.DataFrame, brick_size: float) -> pd.DataFrame:
     """
@@ -67,4 +67,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python3 src/daily_to_renko.py
+# Example:
+# python3 tick/daily_to_renko.py

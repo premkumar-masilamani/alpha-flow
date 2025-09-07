@@ -77,4 +77,4 @@ if __name__ == "__main__":
     main(input_csv, output_csv)
 
 # Example:
-# python3 src/daily_to_signals.py ./BTCUSDT-2025-1d.csv ./BTCUSDT-2025-1d-signals.csv
+# python3 tick/daily_to_signals.py ./data/BTCUSDT-2025-1d.csv ./data/BTCUSDT-2025-1d-signals.csv
