@@ -1,15 +1,15 @@
-package com.prem.ta.services;
+package com.prem.ta.cache;
 
 import com.prem.ta.entities.Interval;
 import com.prem.ta.repositories.IntervalRepository;
 import jakarta.annotation.PostConstruct;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Service
+@Component
 public class IntervalCache {
 
     private final IntervalRepository intervalRepository;
@@ -50,13 +50,5 @@ public class IntervalCache {
             throw new IllegalArgumentException("Interval not found in cache: " + label + ". Ensure it exists in DB and cache is loaded.");
         }
         return interval;
-    }
-
-    /**
-     * Optional: refresh cache dynamically if DB changes.
-     */
-    public void refresh() {
-        cache.clear();
-        loadIntervals();
     }
 }

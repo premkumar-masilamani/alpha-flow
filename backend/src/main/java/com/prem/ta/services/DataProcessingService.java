@@ -1,5 +1,6 @@
 package com.prem.ta.services;
 
+import com.prem.ta.cache.IntervalCache;
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.configs.Utils;
 import com.prem.ta.entities.FileRecord;
