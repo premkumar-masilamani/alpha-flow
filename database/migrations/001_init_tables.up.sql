@@ -8,7 +8,7 @@ CREATE TABLE tickers (
 CREATE TABLE intervals (
     interval_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     label VARCHAR(10) NOT NULL UNIQUE,   -- e.g., '1m', '5m', '1h', '1d'
-    duration INTERVAL NOT NULL           -- e.g., '1 minute', '5 minutes', '1 hour'
+    duration_minutes INT NOT NULL        -- duration in minutes
 );
 
 CREATE TABLE files (
@@ -33,8 +33,12 @@ CREATE TABLE trade_data (
     price_close DOUBLE PRECISION,
     volume DOUBLE PRECISION,
     vwap DOUBLE PRECISION,
+
     buyer_capital_ratio DOUBLE PRECISION,
-    buyer_participation_ratio DOUBLE PRECISION,
     buyer_volume_ratio DOUBLE PRECISION,
-    whale_impact DOUBLE PRECISION
+
+    trades_per_sec DOUBLE PRECISION,
+    micro_volatility DOUBLE PRECISION,
+    avg_inter_trade_ms DOUBLE PRECISION,
+    vpin DOUBLE PRECISION
 );

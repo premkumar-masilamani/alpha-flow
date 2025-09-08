@@ -2,7 +2,7 @@ package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.configs.Utils;
-import com.prem.ta.entities.File;
+import com.prem.ta.entities.FileRecord;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TickerRepository;
@@ -66,10 +66,10 @@ public class DataDownloadService implements com.prem.ta.services.Service {
 
     @Transactional
     public void download(Ticker ticker) {
-        Optional<File> latestFile =
+        Optional<FileRecord> latestFile =
                 FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
-                .map(file -> file.getFileDate().toLocalDate().plusDays(1))
+                .map(fileRecord -> fileRecord.getFileDate().toLocalDate().plusDays(1))
                 .orElse(ticker.getStartDate().toLocalDate());
 
         try {
@@ -139,29 +139,29 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         OffsetDateTime fileDate = date
                 .atStartOfDay(ZoneOffset.UTC)
                 .toOffsetDateTime();
-        Optional<File> existingFile = FileRepository.findByTickerAndFileDate(
+        Optional<FileRecord> existingFile = FileRepository.findByTickerAndFileDate(
                 ticker,
                 fileDate
         );
 
         if (existingFile.isPresent()) {
             log.debug(
-                    "File record for {} on {} already exists. Skipping.",
+                    "FileRecord record for {} on {} already exists. Skipping.",
                     ticker.getSymbol(),
                     date
             );
             return;
         }
 
-        File File = new File();
-        File.setTicker(ticker);
-        File.setFileDate(fileDate);
-        File.setSource(Utils.DOWNLOAD_SOURCE);
-        File.setDownloaded(true);
-        File.setProcessed(false);
-        File.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        File.setUpdatedBy(this.getClass().getSimpleName());
-        FileRepository.save(File);
+        FileRecord FileRecord = new FileRecord();
+        FileRecord.setTicker(ticker);
+        FileRecord.setFileDate(fileDate);
+        FileRecord.setSource(Utils.DOWNLOAD_SOURCE);
+        FileRecord.setDownloaded(true);
+        FileRecord.setProcessed(false);
+        FileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        FileRecord.setUpdatedBy(this.getClass().getSimpleName());
+        FileRepository.save(FileRecord);
         log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
     }
 

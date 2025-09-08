@@ -1,12 +1,12 @@
-INSERT INTO intervals (label, duration) VALUES
-('1m',  INTERVAL '1 minute'),
-('5m',  INTERVAL '5 minutes'),
-('15m', INTERVAL '15 minutes'),
-('1h',  INTERVAL '1 hour'),
-('4h',  INTERVAL '4 hours'),
-('1d',  INTERVAL '1 day'),
-('1w',  INTERVAL '1 week'),
-('1M',  INTERVAL '1 month');
+INSERT INTO intervals (label, duration_minutes) VALUES
+('1m',  1),
+('5m',  5),
+('15m', 15),
+('1h',  60),
+('4h',  240),
+('1d',  1440),
+('1w',  10080),
+('1M',  43200);   -- approximate month as 30 days
 
 INSERT INTO tickers (symbol, name, start_date) VALUES
 ('BTCUSDT', 'Bitcoin / Tether', '2017-08-17'),

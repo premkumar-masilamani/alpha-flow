@@ -8,5 +8,10 @@ import java.util.Optional;
 
 @Repository
 public interface TickerRepository extends JpaRepository<Ticker, Long> {
+
+    // Lookup by symbol
     Optional<Ticker> findBySymbol(String symbol);
+
+    // Prevent duplicates (case-insensitive symbols)
+    boolean existsBySymbolIgnoreCase(String symbol);
 }

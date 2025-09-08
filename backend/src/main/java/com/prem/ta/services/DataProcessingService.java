@@ -2,7 +2,7 @@ package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.configs.Utils;
-import com.prem.ta.entities.File;
+import com.prem.ta.entities.FileRecord;
 import com.prem.ta.entities.TradeData;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TradeDataRepository;
@@ -13,10 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tech.tablesaw.api.BooleanColumn;
-import tech.tablesaw.api.ColumnType;
-import tech.tablesaw.api.DoubleColumn;
-import tech.tablesaw.api.Table;
+import tech.tablesaw.api.*;
 import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.ByteArrayInputStream;
@@ -35,22 +32,25 @@ public class DataProcessingService implements com.prem.ta.services.Service {
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final TradeDataRepository tradeDataRepository;
+    private final IntervalCache intervalCache;
 
     public DataProcessingService(
             AppConfig appConfig,
             FileRepository fileRepository,
-            TradeDataRepository tradeDataRepository
+            TradeDataRepository tradeDataRepository,
+            IntervalCache intervalCache
     ) {
         this.appConfig = appConfig;
         this.fileRepository = fileRepository;
         this.tradeDataRepository = tradeDataRepository;
+        this.intervalCache = intervalCache;
     }
 
     @Override
     public void doService() {
         log.info("Starting data processing...");
         Pageable pageable = PageRequest.of(0, Utils.PAGE_SIZE);
-        Page<File> filePage;
+        Page<FileRecord> filePage;
 
         do {
             filePage = fileRepository.findByDownloadedTrueAndProcessedFalse(pageable);
@@ -63,10 +63,10 @@ public class DataProcessingService implements com.prem.ta.services.Service {
     }
 
     @Transactional
-    public void processFile(File file) {
-        log.info("Processing file for ticker {} on date {}", file.getTicker().getSymbol(), file.getFileDate());
-        String dateStr = file.getFileDate().format(Utils.getDateFormatter());
-        String tickerSymbol = file.getTicker().getSymbol();
+    public void processFile(FileRecord fileRecord) {
+        log.info("Processing fileRecord for ticker {} on date {}", fileRecord.getTicker().getSymbol(), fileRecord.getFileDate());
+        String dateStr = fileRecord.getFileDate().format(Utils.getDateFormatter());
+        String tickerSymbol = fileRecord.getTicker().getSymbol();
         String baseFileName = tickerSymbol + "-trades-" + dateStr + ".zip";
         Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
@@ -76,17 +76,17 @@ public class DataProcessingService implements com.prem.ta.services.Service {
                     ByteArrayInputStream bais = new ByteArrayInputStream(fileContent);
                     ZipInputStream zis = new ZipInputStream(bais)
             ) {
-                zis.getNextEntry(); // Assuming one file per zip
+                zis.getNextEntry(); // Assuming one fileRecord per zip
                 CsvReadOptions options = CsvReadOptions
                         .builder(new InputStreamReader(zis))
                         .header(false)
                         .columnTypes(
                                 new ColumnType[]{
-                                        ColumnType.LONG, // trade_id
-                                        ColumnType.DOUBLE, // price
-                                        ColumnType.DOUBLE, // qty
-                                        ColumnType.DOUBLE, // quote_qty
-                                        ColumnType.LONG, // time
+                                        ColumnType.LONG,    // trade_id
+                                        ColumnType.DOUBLE,  // price
+                                        ColumnType.DOUBLE,  // qty
+                                        ColumnType.DOUBLE,  // quote_qty
+                                        ColumnType.LONG,    // time
                                         ColumnType.BOOLEAN, // is_buyer_maker
                                         ColumnType.BOOLEAN, // is_best_match
                                 }
@@ -94,12 +94,19 @@ public class DataProcessingService implements com.prem.ta.services.Service {
                         .build();
                 Table allRows = Table.read().csv(options);
 
-                // Calculations
+                if (allRows.rowCount() == 0) {
+                    log.warn("No trades for {} on {}", tickerSymbol, dateStr);
+                    return;
+                }
+
+                // Extract columns
                 DoubleColumn price = allRows.doubleColumn(1);
                 DoubleColumn qty = allRows.doubleColumn(2);
                 DoubleColumn quoteQty = allRows.doubleColumn(3);
+                LongColumn time = allRows.longColumn(4);
                 BooleanColumn isBuyerMaker = allRows.booleanColumn(5);
 
+                // === OHLC + VWAP ===
                 double open = price.get(0);
                 double close = price.get(price.size() - 1);
                 double high = price.max();
@@ -108,31 +115,65 @@ public class DataProcessingService implements com.prem.ta.services.Service {
                 double totalQuoteQty = quoteQty.sum();
                 double vwap = volume > 0 ? totalQuoteQty / volume : 0;
 
-                long buyerMakerCount = isBuyerMaker.countFalse();
-                double buyerParticipationRatio = allRows.rowCount() == 0 ? 0 : (double) buyerMakerCount / allRows.rowCount();
-
-                double buyerCapital = quoteQty.where(isBuyerMaker.isFalse()).sum();
-                double buyerCapitalRatio = totalQuoteQty > 0 ? buyerCapital / totalQuoteQty : 0;
-
+                // === Buyer/Seller pressure ===
                 double buyerVolume = qty.where(isBuyerMaker.isFalse()).sum();
                 double sellerVolume = qty.where(isBuyerMaker.isTrue()).sum();
+                double buyerCapital = quoteQty.where(isBuyerMaker.isFalse()).sum();
+
+                double buyerCapitalRatio = totalQuoteQty > 0 ? buyerCapital / totalQuoteQty : 0;
                 double buyerVolumeRatio = volume > 0 ? (buyerVolume - sellerVolume) / volume : 0;
 
-                double whaleImpact = Math.abs(buyerCapitalRatio - buyerParticipationRatio);
+                // === Time & Trade Dynamics ===
+                double minTime = time.min();
+                double maxTime = time.max();
+                double durationSec = (maxTime - minTime) / 1000.0;
+                double tradesPerSec = durationSec > 0 ? allRows.rowCount() / durationSec : 0;
 
-                log.debug("Calculated metrics for {} on {}:", tickerSymbol, dateStr);
-                log.debug("Open: {}, High: {}, Low: {}, Close: {}", open, high, low, close);
-                log.debug("Volume: {}", volume);
-                log.debug("VWAP: {}", vwap);
-                log.debug("Buyer Capital Ratio: {}", buyerCapitalRatio);
-                log.debug("Buyer Participation Ratio: {}", buyerParticipationRatio);
-                log.debug("Buyer Volume Ratio: {}", buyerVolumeRatio);
-                log.debug("Whale Impact: {}", whaleImpact);
+                DoubleColumn timeDiffs = time.difference();
+                double avgInterTradeMs = timeDiffs.mean();
 
+                // === Micro Volatility ===
+                double microVolatility = 0.0;
+                if (price.size() > 1) {
+                    int n = price.size();
+                    double[] returnsArray = new double[n - 1];
+                    for (int i = 1; i < n; i++) {
+                        double prev = price.getDouble(i - 1);
+                        double curr = price.getDouble(i);
+                        if (prev != 0) {
+                            returnsArray[i - 1] = (curr - prev) / prev;
+                        } else {
+                            returnsArray[i - 1] = 0; // avoid division by zero
+                        }
+                    }
+                    // compute standard deviation
+                    double mean = 0;
+                    for (double r : returnsArray) mean += r;
+                    mean /= returnsArray.length;
+
+                    double variance = 0;
+                    for (double r : returnsArray) variance += Math.pow(r - mean, 2);
+                    variance /= returnsArray.length;
+
+                    microVolatility = Math.sqrt(variance);
+                }
+
+
+                // === VPIN proxy ===
+                double vpin = volume > 0 ? Math.abs(buyerVolume - sellerVolume) / volume : 0;
+
+                log.debug("Metrics for {} on {}:", tickerSymbol, dateStr);
+                log.debug("OHLC: O={} H={} L={} C={}", open, high, low, close);
+                log.debug("Volume={}, VWAP={}", volume, vwap);
+                log.debug("BuyerCapRatio={}, BuyerVolRatio={}", buyerCapitalRatio, buyerVolumeRatio);
+                log.debug("Trades/s={}, MicroVol={}, AvgInterTradeMs={}, VPIN={}",
+                        tradesPerSec, microVolatility, avgInterTradeMs, vpin);
+
+                // === Persist ===
                 TradeData tradeData = new TradeData();
-                tradeData.setTickerId(file.getTicker().getTickerId());
-                tradeData.setIntervalId((short) 4); // 4 for daily
-                tradeData.setTradeTime(file.getFileDate());
+                tradeData.setTicker(fileRecord.getTicker());
+                tradeData.setInterval(intervalCache.get(Utils.INTERVAL_DAILY));
+                tradeData.setTradeTime(fileRecord.getFileDate());
                 tradeData.setPriceOpen(open);
                 tradeData.setPriceHigh(high);
                 tradeData.setPriceLow(low);
@@ -140,20 +181,23 @@ public class DataProcessingService implements com.prem.ta.services.Service {
                 tradeData.setVolume(volume);
                 tradeData.setVwap(vwap);
                 tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
-                tradeData.setBuyerParticipationRatio(buyerParticipationRatio);
                 tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
-                tradeData.setWhaleImpact(whaleImpact);
+                tradeData.setTradesPerSec(tradesPerSec);
+                tradeData.setMicroVolatility(microVolatility);
+                tradeData.setAvgInterTradeMs(avgInterTradeMs);
+                tradeData.setVpin(vpin);
 
                 tradeDataRepository.save(tradeData);
             }
 
-            file.setProcessed(true);
-            file.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            file.setUpdatedBy(this.getClass().getSimpleName());
-            fileRepository.save(file);
+            fileRecord.setProcessed(true);
+            fileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            fileRecord.setUpdatedBy(this.getClass().getSimpleName());
+            fileRepository.save(fileRecord);
 
         } catch (Exception e) {
-            log.error("Error processing file for ticker {} on date {}", tickerSymbol, dateStr, e);
+            log.error("Error processing fileRecord for ticker {} on date {}", tickerSymbol, dateStr, e);
         }
     }
+
 }
