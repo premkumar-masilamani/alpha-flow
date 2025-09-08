@@ -1,25 +1,40 @@
 package com.prem.ta.entities;
 
 import jakarta.persistence.*;
+
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "tickers")
+@Table(
+        name = "tickers",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_tickers_symbol", columnNames = "symbol")
+        }
+)
 public class Ticker {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ticker_id")
+    @Column(name = "ticker_id", updatable = false, nullable = false)
     private Long tickerId;
 
-    @Column(name = "symbol", nullable = false, unique = true)
+    @Column(name = "symbol", nullable = false, length = 20)
     private String symbol;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, length = 100)
     private String name;
 
     @Column(name = "start_date")
     private OffsetDateTime startDate;
+
+    // Relationships
+    @OneToMany(mappedBy = "ticker", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FileRecord> files = new ArrayList<>();
+
+    @OneToMany(mappedBy = "ticker", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TradeData> tradeData = new ArrayList<>();
 
     public Long getTickerId() {
         return tickerId;
@@ -51,5 +66,21 @@ public class Ticker {
 
     public void setStartDate(OffsetDateTime startDate) {
         this.startDate = startDate;
+    }
+
+    public List<FileRecord> getFiles() {
+        return files;
+    }
+
+    public void setFiles(List<FileRecord> files) {
+        this.files = files;
+    }
+
+    public List<TradeData> getTradeData() {
+        return tradeData;
+    }
+
+    public void setTradeData(List<TradeData> tradeData) {
+        this.tradeData = tradeData;
     }
 }

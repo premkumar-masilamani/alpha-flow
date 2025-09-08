@@ -1,9 +1,7 @@
 package com.prem.ta.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+
 import java.time.OffsetDateTime;
 
 @Entity
@@ -12,40 +10,56 @@ import java.time.OffsetDateTime;
 public class TradeData {
 
     @Id
-    private Long tickerId;
-
-    @Id
-    private Short intervalId;
-
-    @Id
+    @Column(name = "trade_time", nullable = false)
     private OffsetDateTime tradeTime;
 
+    @Id
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "ticker_id", nullable = false, updatable = false,
+            foreignKey = @ForeignKey(name = "fk_trade_data_ticker"))
+    private Ticker ticker;
+
+    @Id
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "interval_id", nullable = false, updatable = false,
+            foreignKey = @ForeignKey(name = "fk_trade_data_interval"))
+    private Interval interval;
+
+    @Column(name = "price_open")
     private Double priceOpen;
+
+    @Column(name = "price_high")
     private Double priceHigh;
+
+    @Column(name = "price_low")
     private Double priceLow;
+
+    @Column(name = "price_close")
     private Double priceClose;
+
+    @Column(name = "volume")
     private Double volume;
+
+    @Column(name = "vwap")
     private Double vwap;
+
+    @Column(name = "buyer_capital_ratio")
     private Double buyerCapitalRatio;
-    private Double buyerParticipationRatio;
+
+    @Column(name = "buyer_volume_ratio")
     private Double buyerVolumeRatio;
-    private Double whaleImpact;
 
-    public Long getTickerId() {
-        return tickerId;
-    }
+    @Column(name = "trades_per_sec")
+    private Double tradesPerSec;
 
-    public void setTickerId(Long tickerId) {
-        this.tickerId = tickerId;
-    }
+    @Column(name = "micro_volatility")
+    private Double microVolatility;
 
-    public Short getIntervalId() {
-        return intervalId;
-    }
+    @Column(name = "avg_inter_trade_ms")
+    private Double avgInterTradeMs;
 
-    public void setIntervalId(Short intervalId) {
-        this.intervalId = intervalId;
-    }
+    @Column(name = "vpin")
+    private Double vpin;
 
     public OffsetDateTime getTradeTime() {
         return tradeTime;
@@ -53,6 +67,22 @@ public class TradeData {
 
     public void setTradeTime(OffsetDateTime tradeTime) {
         this.tradeTime = tradeTime;
+    }
+
+    public Ticker getTicker() {
+        return ticker;
+    }
+
+    public void setTicker(Ticker ticker) {
+        this.ticker = ticker;
+    }
+
+    public Interval getInterval() {
+        return interval;
+    }
+
+    public void setInterval(Interval interval) {
+        this.interval = interval;
     }
 
     public Double getPriceOpen() {
@@ -111,14 +141,6 @@ public class TradeData {
         this.buyerCapitalRatio = buyerCapitalRatio;
     }
 
-    public Double getBuyerParticipationRatio() {
-        return buyerParticipationRatio;
-    }
-
-    public void setBuyerParticipationRatio(Double buyerParticipationRatio) {
-        this.buyerParticipationRatio = buyerParticipationRatio;
-    }
-
     public Double getBuyerVolumeRatio() {
         return buyerVolumeRatio;
     }
@@ -127,11 +149,35 @@ public class TradeData {
         this.buyerVolumeRatio = buyerVolumeRatio;
     }
 
-    public Double getWhaleImpact() {
-        return whaleImpact;
+    public Double getTradesPerSec() {
+        return tradesPerSec;
     }
 
-    public void setWhaleImpact(Double whaleImpact) {
-        this.whaleImpact = whaleImpact;
+    public void setTradesPerSec(Double tradesPerSec) {
+        this.tradesPerSec = tradesPerSec;
+    }
+
+    public Double getMicroVolatility() {
+        return microVolatility;
+    }
+
+    public void setMicroVolatility(Double microVolatility) {
+        this.microVolatility = microVolatility;
+    }
+
+    public Double getAvgInterTradeMs() {
+        return avgInterTradeMs;
+    }
+
+    public void setAvgInterTradeMs(Double avgInterTradeMs) {
+        this.avgInterTradeMs = avgInterTradeMs;
+    }
+
+    public Double getVpin() {
+        return vpin;
+    }
+
+    public void setVpin(Double vpin) {
+        this.vpin = vpin;
     }
 }

@@ -2,7 +2,6 @@ package com.prem.ta;
 
 import com.prem.ta.services.DataDownloadService;
 import com.prem.ta.services.DataProcessingService;
-import com.prem.ta.services.Service;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

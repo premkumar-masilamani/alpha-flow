@@ -1,38 +1,44 @@
 package com.prem.ta.entities;
 
 import jakarta.persistence.*;
+
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "files")
-public class File {
+@Table(
+        name = "files",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uq_files", columnNames = {"ticker_id", "file_date", "source"})
+        }
+)
+public class FileRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "file_id")
+    @Column(name = "file_id", updatable = false, nullable = false)
     private Long fileId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "ticker_id", nullable = false, foreignKey = @ForeignKey(name = "fk_files_ticker"))
     private Ticker ticker;
 
     @Column(name = "file_date", nullable = false)
     private OffsetDateTime fileDate;
 
-    @Column(name = "source", nullable = false)
+    @Column(name = "source", nullable = false, length = 50)
     private String source;
 
-    @Column(name = "is_downloaded")
-    private boolean downloaded;
+    @Column(name = "is_downloaded", nullable = false)
+    private boolean downloaded = false;
 
-    @Column(name = "is_processed")
-    private boolean processed;
+    @Column(name = "is_processed", nullable = false)
+    private boolean processed = false;
 
-    @Column(name = "updated_by")
-    private String updatedBy;
+    @Column(name = "updated_by", nullable = false, length = 50)
+    private String updatedBy = "admin";
 
     @Column(name = "updated_at", nullable = false)
-    private OffsetDateTime updatedAt;
+    private OffsetDateTime updatedAt = OffsetDateTime.now();
 
     public Long getFileId() {
         return fileId;
