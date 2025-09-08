@@ -49,8 +49,8 @@ public class TradeDataId implements Serializable {
         if (o == null || getClass() != o.getClass()) return false;
         TradeDataId that = (TradeDataId) o;
         return Objects.equals(tickerId, that.tickerId) &&
-               Objects.equals(intervalId, that.intervalId) &&
-               Objects.equals(tradeTime, that.tradeTime);
+                Objects.equals(intervalId, that.intervalId) &&
+                Objects.equals(tradeTime, that.tradeTime);
     }
 
     @Override

@@ -6,6 +6,11 @@ import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TickerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,16 +25,12 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DataDownloadService implements com.prem.ta.services.Service {
 
     private static final Logger log = LoggerFactory.getLogger(
-        DataDownloadService.class
+            DataDownloadService.class
     );
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
@@ -37,9 +38,9 @@ public class DataDownloadService implements com.prem.ta.services.Service {
 
 
     public DataDownloadService(
-        AppConfig appConfig,
-        TickerRepository tickerRepository,
-        FileRepository fileRepository
+            AppConfig appConfig,
+            TickerRepository tickerRepository,
+            FileRepository fileRepository
     ) {
         this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
@@ -51,47 +52,47 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         log.info("Download URL: {}", appConfig.getDownloadUrl());
         log.info("Download directory: {}", appConfig.getDownloadDir());
         tickerRepository
-            .findAll()
-            .forEach(ticker -> {
-                log.info(
-                    "Syncing ticker {} starting from {}",
-                    ticker.getSymbol(),
-                    ticker.getStartDate()
-                );
-                download(ticker);
-            });
+                .findAll()
+                .forEach(ticker -> {
+                    log.info(
+                            "Syncing ticker {} starting from {}",
+                            ticker.getSymbol(),
+                            ticker.getStartDate()
+                    );
+                    download(ticker);
+                });
         log.info("All Downloads completed!");
     }
 
     @Transactional
     public void download(Ticker ticker) {
         Optional<File> latestFile =
-            FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
+                FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
-            .map(file -> file.getFileDate().toLocalDate().plusDays(1))
-            .orElse(ticker.getStartDate().toLocalDate());
+                .map(file -> file.getFileDate().toLocalDate().plusDays(1))
+                .orElse(ticker.getStartDate().toLocalDate());
 
         try {
             String tickerSymbol = ticker.getSymbol();
             Path outDir = Path.of(
-                appConfig.getDownloadDir(),
-                tickerSymbol
+                    appConfig.getDownloadDir(),
+                    tickerSymbol
             );
             Files.createDirectories(outDir);
 
             LocalDate today = LocalDate.now();
             for (
-                LocalDate date = startDate;
-                !date.isAfter(today);
-                date = date.plusDays(1)
+                    LocalDate date = startDate;
+                    !date.isAfter(today);
+                    date = date.plusDays(1)
             ) {
                 String dateStr = date.format(Utils.getDateFormatter());
                 String baseFileName =
-                    tickerSymbol + "-trades-" + dateStr + ".zip";
+                        tickerSymbol + "-trades-" + dateStr + ".zip";
                 String baseUrl = appConfig
-                    .getDownloadUrl()
-                    .replace("{ticker}", tickerSymbol)
-                    .replace("{filename}", baseFileName);
+                        .getDownloadUrl()
+                        .replace("{ticker}", tickerSymbol)
+                        .replace("{filename}", baseFileName);
 
                 Path localFile = outDir.resolve(baseFileName);
                 Path checksumFile = outDir.resolve(baseFileName + ".CHECKSUM");
@@ -105,13 +106,13 @@ public class DataDownloadService implements com.prem.ta.services.Service {
                 // Step 1: download checksum and save locally
                 String checksumUrl = baseUrl + ".CHECKSUM";
                 String expectedHash = downloadAndSaveChecksum(
-                    checksumUrl,
-                    checksumFile
+                        checksumUrl,
+                        checksumFile
                 );
                 if (expectedHash == null) {
                     log.warn(
-                        "Checksum missing for {} — skipping",
-                        baseFileName
+                            "Checksum missing for {} — skipping",
+                            baseFileName
                     );
                     continue;
                 }
@@ -125,29 +126,29 @@ public class DataDownloadService implements com.prem.ta.services.Service {
             }
         } catch (Exception e) {
             throw new RuntimeException(
-                "Error syncing " + ticker.getSymbol(),
-                e
+                    "Error syncing " + ticker.getSymbol(),
+                    e
             );
         }
     }
 
     private void saveFileRecord(
-        Ticker ticker,
-        LocalDate date
+            Ticker ticker,
+            LocalDate date
     ) {
         OffsetDateTime fileDate = date
-            .atStartOfDay(ZoneOffset.UTC)
-            .toOffsetDateTime();
+                .atStartOfDay(ZoneOffset.UTC)
+                .toOffsetDateTime();
         Optional<File> existingFile = FileRepository.findByTickerAndFileDate(
-            ticker,
-            fileDate
+                ticker,
+                fileDate
         );
 
         if (existingFile.isPresent()) {
             log.debug(
-                "File record for {} on {} already exists. Skipping.",
-                ticker.getSymbol(),
-                date
+                    "File record for {} on {} already exists. Skipping.",
+                    ticker.getSymbol(),
+                    date
             );
             return;
         }
@@ -167,8 +168,8 @@ public class DataDownloadService implements com.prem.ta.services.Service {
     private String downloadAndSaveChecksum(String url, Path checksumFile) {
         try (InputStream in = URI.create(url).toURL().openStream()) {
             String content = new String(
-                in.readAllBytes(),
-                StandardCharsets.UTF_8
+                    in.readAllBytes(),
+                    StandardCharsets.UTF_8
             ).trim();
             Files.writeString(checksumFile, content, StandardCharsets.UTF_8);
 
@@ -177,26 +178,26 @@ public class DataDownloadService implements com.prem.ta.services.Service {
             return parts[0];
         } catch (IOException e) {
             log.error(
-                "Failed to download checksum: {} ({})",
-                url,
-                e.getMessage()
+                    "Failed to download checksum: {} ({})",
+                    url,
+                    e.getMessage()
             );
             return null;
         }
     }
 
     private void downloadFileWithChecksum(
-        String fileUrl,
-        Path outputPath,
-        String expectedHash
+            String fileUrl,
+            Path outputPath,
+            String expectedHash
     ) throws Exception {
         MessageDigest sha256 = MessageDigest.getInstance(Utils.CHECKSUM_ALGORITHM);
         try (
-            DigestInputStream in = new DigestInputStream(
-                URI.create(fileUrl).toURL().openStream(),
-                sha256
-            );
-            FileOutputStream out = new FileOutputStream(outputPath.toFile())
+                DigestInputStream in = new DigestInputStream(
+                        URI.create(fileUrl).toURL().openStream(),
+                        sha256
+                );
+                FileOutputStream out = new FileOutputStream(outputPath.toFile())
         ) {
             byte[] buffer = new byte[8192];
             int bytesRead;
@@ -210,12 +211,12 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         if (!actualHash.equalsIgnoreCase(expectedHash)) {
             Files.deleteIfExists(outputPath);
             throw new IOException(
-                "Checksum mismatch for " +
-                outputPath.getFileName() +
-                ": expected " +
-                expectedHash +
-                " but got " +
-                actualHash
+                    "Checksum mismatch for " +
+                            outputPath.getFileName() +
+                            ": expected " +
+                            expectedHash +
+                            " but got " +
+                            actualHash
             );
         }
 
