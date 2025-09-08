@@ -24,67 +24,57 @@ def process_file(filepath):
     parts = basename.split("-")
     date_str = "-".join(parts[-3:])
     date = pd.to_datetime(date_str, format="%Y-%m-%d")
-
     # Load CSV from ZIP
     with zipfile.ZipFile(filepath, "r") as z:
         csv_file = [f for f in z.namelist() if f.endswith(".csv")][0]
         df = pd.read_csv(z.open(csv_file), header=None, names=[
             "trade_id", "price", "qty", "quote_qty", "timestamp", "is_buyer_maker", "ignore"
         ])
-
     # --- OHLCV ---
-    ohlcv_open = df.iloc[0]["price"]
-    ohlcv_close = df.iloc[-1]["price"]
-    ohlcv_high = df["price"].max()
-    ohlcv_low = df["price"].min()
-    ohlcv_volume = df["qty"].sum()
-
-    # --- Core metrics ---
-    vwap = np.average(df["price"], weights=df["qty"])
-    buyer_participation_ratio = (~df["is_buyer_maker"]).mean()
-    buyer_capital_ratio = df.loc[~df["is_buyer_maker"], "quote_qty"].sum() / df["quote_qty"].sum()
-    total_capital = df["quote_qty"].sum()
-
-    # --- Whale detection ---
-    whales = detect_whales(df)
-    whale_buys = whales[~whales["is_buyer_maker"]]
-    whale_sells = whales[whales["is_buyer_maker"]]
-
-    whale_buy_capital = whale_buys["quote_qty"].sum()
-    whale_sell_capital = whale_sells["quote_qty"].sum()
-    whale_total_capital = whale_buy_capital + whale_sell_capital
-
-    # --- Bullish / Bearish Whale Signal Strength ---
-    whale_bull_strength = (whale_buy_capital / total_capital) * (whale_total_capital / total_capital) if total_capital > 0 else 0
-    whale_bear_strength = (whale_sell_capital / total_capital) * (whale_total_capital / total_capital) if total_capital > 0 else 0
-
-    # --- Net whale direction ---
-    if whale_buy_capital > whale_sell_capital:
-        whale_net_direction = 1
-    elif whale_sell_capital > whale_buy_capital:
-        whale_net_direction = -1
-    else:
-        whale_net_direction = 0
-
+    open_ = df.iloc[0]["price"]
+    close = df.iloc[-1]["price"]
+    high = df["price"].max()
+    low = df["price"].min()
+    volume = df["qty"].sum()
+    total_quote_qty = df["quote_qty"].sum()
+    # --- VWAP ---
+    vwap = total_quote_qty / volume if volume > 0 else 0
+    # --- Buyer/Seller Pressure ---
+    buyer_volume = df.loc[~df["is_buyer_maker"], "qty"].sum()
+    seller_volume = df.loc[df["is_buyer_maker"], "qty"].sum()
+    buyer_capital = df.loc[~df["is_buyer_maker"], "quote_qty"].sum()
+    buyer_capital_ratio = buyer_capital / total_quote_qty if total_quote_qty > 0 else 0
+    buyer_volume_ratio = (buyer_volume - seller_volume) / volume if volume > 0 else 0
+    # --- Time & Trade Dynamics ---
+    min_time = df["timestamp"].min()
+    max_time = df["timestamp"].max()
+    duration_sec = (max_time - min_time) / 1000.0
+    trades_per_sec = len(df) / duration_sec if duration_sec > 0 else 0
+    time_diffs = df["timestamp"].diff().dropna()
+    avg_inter_trade_ms = time_diffs.mean() if not time_diffs.empty else 0
+    # --- Micro Volatility ---
+    micro_volatility = 0.0
+    prices = df["price"].values
+    if len(prices) > 1:
+        returns = np.array([(prices[i] - prices[i-1]) / prices[i-1] if prices[i-1] != 0 else 0 for i in range(1, len(prices))])
+        if len(returns) > 0:
+            micro_volatility = np.std(returns)
+    # --- VPIN Proxy ---
+    vpin = abs(buyer_volume - seller_volume) / volume if volume > 0 else 0
     return {
         "date": date,
-        # OHLCV
-        "open": ohlcv_open,
-        "high": ohlcv_high,
-        "low": ohlcv_low,
-        "close": ohlcv_close,
-        "volume": ohlcv_volume,
-        # Derived metrics
+        "open": open_,
+        "high": high,
+        "low": low,
+        "close": close,
+        "volume": volume,
         "vwap": vwap,
-        "buyer_participation_ratio": buyer_participation_ratio,
         "buyer_capital_ratio": buyer_capital_ratio,
-        "total_capital": total_capital,
-        # Whale metrics
-        "whale_buy_capital": whale_buy_capital,
-        "whale_sell_capital": whale_sell_capital,
-        "whale_bull_strength": whale_bull_strength,
-        "whale_bear_strength": whale_bear_strength,
-        "whale_net_direction": whale_net_direction
+        "buyer_volume_ratio": buyer_volume_ratio,
+        "trades_per_sec": trades_per_sec,
+        "micro_volatility": micro_volatility,
+        "avg_inter_trade_ms": avg_inter_trade_ms,
+        "vpin": vpin,
     }
 
 

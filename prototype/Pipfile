@@ -9,7 +9,6 @@ yfinance = "*"
 mplfinance = "*"
 matplotlib = "*"
 pandas = "*"
-yfinance = "*"
 
 [dev-packages]
 
