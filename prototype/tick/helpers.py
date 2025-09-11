@@ -119,6 +119,8 @@ def parse_chart_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+
+
 def get_zone_from_trend(trend: int) -> int:
     if trend <= 3:
         return 0

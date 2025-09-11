@@ -1,53 +1,32 @@
+import argparse
+import logging
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
+from helpers import load_timeseries_data
+from renko_chart import plot_renko, get_prices
 
-# Load Renko CSV
-df = pd.read_csv("./BTCUSDT-2025-renko.csv", parse_dates=["date"])
+logger = logging.getLogger(__name__)
 
-# Color mapping for buyer_capital_ratio
-norm = mcolors.Normalize(vmin=df["buyer_capital_ratio"].min(),
-                         vmax=df["buyer_capital_ratio"].max())
-cmap = plt.cm.RdYlGn
+CHART_BRICKS_COUNT: int = 180  # 6 Months Data
 
-# Initialize previous price for brick height calculation
-prev_price = df["price"].iloc[0]
-x_seq = 0
+if __name__ == "__main__":
+    """Main entry point for the program."""
+    parser = argparse.ArgumentParser(
+        description="Plot Renko Chart with VWAP."
+    )
+    parser.add_argument("--renko-file-path")
+    args = parser.parse_args()
 
-fig, ax = plt.subplots(figsize=(14, 6))
+    renko_df = load_timeseries_data(args.renko_file_path.lower())
 
-for _, row in df.iterrows():
-    price = row["price"]
-    direction = row["direction"]
-    color = cmap(norm(row["buyer_capital_ratio"]))
+    if len(renko_df) > CHART_BRICKS_COUNT:
+        renko_df = renko_df.iloc[-CHART_BRICKS_COUNT:]
 
-    # Brick height based on actual price change
-    if direction == 1:
-        bottom = prev_price
-        top = price
-    else:
-        top = prev_price
-        bottom = price
+    # Get current price and SL price
+    current_price, sl_price = get_prices(renko_df)
+    logger.info(f"Calculated Current Price: {current_price}, SL Price: {sl_price}")
 
-    # Draw rectangle brick
-    ax.bar(x_seq, abs(top - bottom), bottom=bottom, width=0.9, color=color, edgecolor="black")
-
-    prev_price = price
-    x_seq += 1
-
-ax.set_title("Diagonal Renko Bricks Colored by Buyer Capital Ratio")
-ax.set_xlabel("Brick Sequence")
-ax.set_ylabel("Price")
-ax.grid(True, linestyle="--", alpha=0.5)
-
-# Colorbar
-sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-sm.set_array([])
-cbar = plt.colorbar(sm, ax=ax)
-cbar.set_label("Buyer Capital Ratio")
-
-plt.tight_layout()
-plt.show()
+    # Plot Renko Chart wth GMMA Indicator
+    plot_renko(renko_df, pd.DataFrame(), "BTCUSDT", "1d")
 
 # Example:
-# python3 tick/plot_renko.py
+# python3 tick/plot_renko.py --renko-file-path ./data/BTCUSDT-2025-1d-renko-vwap.csv
