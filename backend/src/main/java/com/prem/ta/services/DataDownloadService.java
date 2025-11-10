@@ -34,8 +34,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
     );
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
-    private final FileRepository FileRepository;
-
+    private final FileRepository fileRepository;
 
     public DataDownloadService(
             AppConfig appConfig,
@@ -44,13 +43,14 @@ public class DataDownloadService implements com.prem.ta.services.Service {
     ) {
         this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
-        this.FileRepository = fileRepository;
+        this.fileRepository = fileRepository;
     }
 
     @Override
     public void doService() {
         log.info("Download URL: {}", appConfig.getDownloadUrl());
         log.info("Download directory: {}", appConfig.getDownloadDir());
+
         tickerRepository
                 .findAll()
                 .forEach(ticker -> {
@@ -61,23 +61,23 @@ public class DataDownloadService implements com.prem.ta.services.Service {
                     );
                     download(ticker);
                 });
-        log.info("All Downloads completed!");
+
+        log.info("All downloads completed!");
     }
 
     @Transactional
     public void download(Ticker ticker) {
         Optional<FileRecord> latestFile =
-                FileRepository.findTopByTickerOrderByFileDateDesc(ticker);
+                fileRepository.findTopByTickerOrderByFileDateDesc(ticker);
         LocalDate startDate = latestFile
-                .map(fileRecord -> fileRecord.getFileDate().toLocalDate().plusDays(1))
+                .map(fileRecord ->
+                        fileRecord.getFileDate().toLocalDate().plusDays(1)
+                )
                 .orElse(ticker.getStartDate().toLocalDate());
 
         try {
             String tickerSymbol = ticker.getSymbol();
-            Path outDir = Path.of(
-                    appConfig.getDownloadDir(),
-                    tickerSymbol
-            );
+            Path outDir = Path.of(appConfig.getDownloadDir(), tickerSymbol);
             Files.createDirectories(outDir);
 
             LocalDate today = LocalDate.now();
@@ -103,7 +103,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
                     continue;
                 }
 
-                // Step 1: download checksum and save locally
+                // Step 1: Download checksum
                 String checksumUrl = baseUrl + ".CHECKSUM";
                 String expectedHash = downloadAndSaveChecksum(
                         checksumUrl,
@@ -117,11 +117,11 @@ public class DataDownloadService implements com.prem.ta.services.Service {
                     continue;
                 }
 
-                // Step 2: download actual file
+                // Step 2: Download actual file
                 log.info("Downloading {}", baseUrl);
                 downloadFileWithChecksum(baseUrl, localFile, expectedHash);
 
-                // Step 3: Save record to database
+                // Step 3: Estimate and save record
                 saveFileRecord(ticker, date);
             }
         } catch (Exception e) {
@@ -132,36 +132,32 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         }
     }
 
-    private void saveFileRecord(
-            Ticker ticker,
-            LocalDate date
-    ) {
+    private void saveFileRecord(Ticker ticker, LocalDate date) {
         OffsetDateTime fileDate = date
                 .atStartOfDay(ZoneOffset.UTC)
                 .toOffsetDateTime();
-        Optional<FileRecord> existingFile = FileRepository.findByTickerAndFileDate(
-                ticker,
-                fileDate
-        );
 
+        Optional<FileRecord> existingFile =
+                fileRepository.findByTickerAndFileDate(ticker, fileDate);
         if (existingFile.isPresent()) {
             log.debug(
-                    "FileRecord record for {} on {} already exists. Skipping.",
+                    "FileRecord for {} on {} already exists. Skipping.",
                     ticker.getSymbol(),
                     date
             );
             return;
         }
 
-        FileRecord FileRecord = new FileRecord();
-        FileRecord.setTicker(ticker);
-        FileRecord.setFileDate(fileDate);
-        FileRecord.setSource(Utils.DOWNLOAD_SOURCE);
-        FileRecord.setDownloaded(true);
-        FileRecord.setProcessed(false);
-        FileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        FileRecord.setUpdatedBy(this.getClass().getSimpleName());
-        FileRepository.save(FileRecord);
+        FileRecord fileRecord = new FileRecord();
+        fileRecord.setTicker(ticker);
+        fileRecord.setFileDate(fileDate);
+        fileRecord.setFileDownloadUrl(appConfig.getDownloadUrl());
+        fileRecord.setIsDownloaded(true);
+        fileRecord.setIsProcessed(false);
+        fileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        fileRecord.setUpdatedBy(this.getClass().getSimpleName());
+
+        fileRepository.save(fileRecord);
         log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
     }
 
@@ -173,7 +169,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
             ).trim();
             Files.writeString(checksumFile, content, StandardCharsets.UTF_8);
 
-            // Binance CHECKSUM files are of form: "<hash> <filename>"
+            // Binance CHECKSUM format: "<hash> <filename>"
             String[] parts = content.split(" +");
             return parts[0];
         } catch (IOException e) {
@@ -191,7 +187,9 @@ public class DataDownloadService implements com.prem.ta.services.Service {
             Path outputPath,
             String expectedHash
     ) throws Exception {
-        MessageDigest sha256 = MessageDigest.getInstance(Utils.CHECKSUM_ALGORITHM);
+        MessageDigest sha256 = MessageDigest.getInstance(
+                Utils.CHECKSUM_ALGORITHM
+        );
         try (
                 DigestInputStream in = new DigestInputStream(
                         URI.create(fileUrl).toURL().openStream(),

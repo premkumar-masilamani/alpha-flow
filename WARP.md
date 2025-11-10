@@ -73,15 +73,14 @@ The project consists of three main components:
   - `DataDownloadService` - Downloads market data from external sources
   - `DataProcessingService` - Processes raw data for technical analysis
 - **Data Layer**:
-  - **Entities**: `TradeData`, `Ticker`, `Interval`, `FileRecord` - JPA entities
+  - **Entities**: `TradeData`, `Ticker`, `FileRecord` - JPA entities
   - **Repositories**: Spring Data JPA repositories for each entity
 - **Configuration**: `AppConfig.java`, `Utils.java` for application setup
 
 ### Database Schema
 Core tables:
 - `tickers` - Financial instruments (BTC-USD, ETH-USD, etc.)
-- `intervals` - Time intervals (1m, 5m, 1h, 1d, etc.)
-- `trade_data` - OHLCV data with technical indicators (composite key: ticker_id, interval_id, trade_time)
+- `trade_data` - OHLCV data with technical indicators (composite key: ticker_id, trade_time)
 - `files` - File processing tracking
 
 ### Python Prototype Architecture
@@ -135,4 +134,3 @@ Key environment variables in `.env`:
 - Primary: Yahoo Finance (yfinance)
 - Supported tickers: BTC-USD, ETH-USD (configurable)
 - Timeframes: 1d, 1wk (with next-timeframe analysis)
-

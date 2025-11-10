@@ -1,12 +1,16 @@
 package com.prem.ta.entities;
 
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "trade_data")
 @IdClass(TradeDataId.class)
+@Getter
+@Setter
 public class TradeData {
 
     @Id
@@ -14,16 +18,9 @@ public class TradeData {
     private OffsetDateTime tradeTime;
 
     @Id
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "ticker_id", nullable = false, updatable = false,
-            foreignKey = @ForeignKey(name = "fk_trade_data_ticker"))
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
-
-    @Id
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "interval_id", nullable = false, updatable = false,
-            foreignKey = @ForeignKey(name = "fk_trade_data_interval"))
-    private Interval interval;
 
     @Column(name = "price_open")
     private Double priceOpen;
@@ -43,141 +40,9 @@ public class TradeData {
     @Column(name = "vwap")
     private Double vwap;
 
-    @Column(name = "buyer_capital_ratio")
-    private Double buyerCapitalRatio;
-
     @Column(name = "buyer_volume_ratio")
-    private Double buyerVolumeRatio;
+    private Float buyerVolumeRatio;
 
-    @Column(name = "trades_per_sec")
-    private Double tradesPerSec;
-
-    @Column(name = "micro_volatility")
-    private Double microVolatility;
-
-    @Column(name = "avg_inter_trade_ms")
-    private Double avgInterTradeMs;
-
-    @Column(name = "vpin")
-    private Double vpin;
-
-    public OffsetDateTime getTradeTime() {
-        return tradeTime;
-    }
-
-    public void setTradeTime(OffsetDateTime tradeTime) {
-        this.tradeTime = tradeTime;
-    }
-
-    public Ticker getTicker() {
-        return ticker;
-    }
-
-    public void setTicker(Ticker ticker) {
-        this.ticker = ticker;
-    }
-
-    public Interval getInterval() {
-        return interval;
-    }
-
-    public void setInterval(Interval interval) {
-        this.interval = interval;
-    }
-
-    public Double getPriceOpen() {
-        return priceOpen;
-    }
-
-    public void setPriceOpen(Double priceOpen) {
-        this.priceOpen = priceOpen;
-    }
-
-    public Double getPriceHigh() {
-        return priceHigh;
-    }
-
-    public void setPriceHigh(Double priceHigh) {
-        this.priceHigh = priceHigh;
-    }
-
-    public Double getPriceLow() {
-        return priceLow;
-    }
-
-    public void setPriceLow(Double priceLow) {
-        this.priceLow = priceLow;
-    }
-
-    public Double getPriceClose() {
-        return priceClose;
-    }
-
-    public void setPriceClose(Double priceClose) {
-        this.priceClose = priceClose;
-    }
-
-    public Double getVolume() {
-        return volume;
-    }
-
-    public void setVolume(Double volume) {
-        this.volume = volume;
-    }
-
-    public Double getVwap() {
-        return vwap;
-    }
-
-    public void setVwap(Double vwap) {
-        this.vwap = vwap;
-    }
-
-    public Double getBuyerCapitalRatio() {
-        return buyerCapitalRatio;
-    }
-
-    public void setBuyerCapitalRatio(Double buyerCapitalRatio) {
-        this.buyerCapitalRatio = buyerCapitalRatio;
-    }
-
-    public Double getBuyerVolumeRatio() {
-        return buyerVolumeRatio;
-    }
-
-    public void setBuyerVolumeRatio(Double buyerVolumeRatio) {
-        this.buyerVolumeRatio = buyerVolumeRatio;
-    }
-
-    public Double getTradesPerSec() {
-        return tradesPerSec;
-    }
-
-    public void setTradesPerSec(Double tradesPerSec) {
-        this.tradesPerSec = tradesPerSec;
-    }
-
-    public Double getMicroVolatility() {
-        return microVolatility;
-    }
-
-    public void setMicroVolatility(Double microVolatility) {
-        this.microVolatility = microVolatility;
-    }
-
-    public Double getAvgInterTradeMs() {
-        return avgInterTradeMs;
-    }
-
-    public void setAvgInterTradeMs(Double avgInterTradeMs) {
-        this.avgInterTradeMs = avgInterTradeMs;
-    }
-
-    public Double getVpin() {
-        return vpin;
-    }
-
-    public void setVpin(Double vpin) {
-        this.vpin = vpin;
-    }
+    @Column(name = "buyer_capital_ratio")
+    private Float buyerCapitalRatio;
 }
