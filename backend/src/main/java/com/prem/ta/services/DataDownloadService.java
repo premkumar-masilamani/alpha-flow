@@ -9,7 +9,6 @@ import com.prem.ta.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,8 +38,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
     public DataDownloadService(
             AppConfig appConfig,
             TickerRepository tickerRepository,
-            FileRepository fileRepository
-    ) {
+            FileRepository fileRepository) {
         this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
         this.fileRepository = fileRepository;
@@ -65,7 +63,6 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         log.info("All downloads completed!");
     }
 
-    @Transactional
     public void download(Ticker ticker) {
         Optional<FileRecord> latestFile =
                 fileRepository.findTopByTickerOrderByFileDateDesc(ticker);
@@ -99,7 +96,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
 
                 if (Files.exists(localFile)) {
                     log.info("Already downloaded: {}", localFile);
-                    saveFileRecord(ticker, date);
+                    saveFileRecord(ticker, date, baseUrl, true);
                     continue;
                 }
 
@@ -119,10 +116,10 @@ public class DataDownloadService implements com.prem.ta.services.Service {
 
                 // Step 2: Download actual file
                 log.info("Downloading {}", baseUrl);
-                downloadFileWithChecksum(baseUrl, localFile, expectedHash);
+                boolean isDownloaded = downloadFileWithChecksum(baseUrl, localFile, expectedHash);
 
                 // Step 3: Estimate and save record
-                saveFileRecord(ticker, date);
+                saveFileRecord(ticker, date, baseUrl, isDownloaded);
             }
         } catch (Exception e) {
             throw new RuntimeException(
@@ -132,7 +129,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         }
     }
 
-    private void saveFileRecord(Ticker ticker, LocalDate date) {
+    private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl, boolean isDownloaded) {
         OffsetDateTime fileDate = date
                 .atStartOfDay(ZoneOffset.UTC)
                 .toOffsetDateTime();
@@ -151,8 +148,8 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         FileRecord fileRecord = new FileRecord();
         fileRecord.setTicker(ticker);
         fileRecord.setFileDate(fileDate);
-        fileRecord.setFileDownloadUrl(appConfig.getDownloadUrl());
-        fileRecord.setIsDownloaded(true);
+        fileRecord.setFileDownloadUrl(baseUrl);
+        fileRecord.setIsDownloaded(isDownloaded);
         fileRecord.setIsProcessed(false);
         fileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         fileRecord.setUpdatedBy(this.getClass().getSimpleName());
@@ -182,42 +179,48 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         }
     }
 
-    private void downloadFileWithChecksum(
+    private boolean downloadFileWithChecksum(
             String fileUrl,
             Path outputPath,
             String expectedHash
-    ) throws Exception {
-        MessageDigest sha256 = MessageDigest.getInstance(
-                Utils.CHECKSUM_ALGORITHM
-        );
-        try (
-                DigestInputStream in = new DigestInputStream(
-                        URI.create(fileUrl).toURL().openStream(),
-                        sha256
-                );
-                FileOutputStream out = new FileOutputStream(outputPath.toFile())
-        ) {
-            byte[] buffer = new byte[8192];
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-        }
-
-        // Verify checksum
-        String actualHash = HexFormat.of().formatHex(sha256.digest());
-        if (!actualHash.equalsIgnoreCase(expectedHash)) {
-            Files.deleteIfExists(outputPath);
-            throw new IOException(
-                    "Checksum mismatch for " +
-                            outputPath.getFileName() +
-                            ": expected " +
-                            expectedHash +
-                            " but got " +
-                            actualHash
+    ) {
+        try {
+            MessageDigest sha256 = MessageDigest.getInstance(
+                    Utils.CHECKSUM_ALGORITHM
             );
-        }
+            try (
+                    DigestInputStream in = new DigestInputStream(
+                            URI.create(fileUrl).toURL().openStream(),
+                            sha256
+                    );
+                    FileOutputStream out = new FileOutputStream(outputPath.toFile())
+            ) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, bytesRead);
+                }
+            }
 
-        log.info("Verified checksum OK: {}", outputPath.getFileName());
+            // Verify checksum
+            String actualHash = HexFormat.of().formatHex(sha256.digest());
+            if (!actualHash.equalsIgnoreCase(expectedHash)) {
+                Files.deleteIfExists(outputPath);
+                throw new IOException(
+                        "Checksum mismatch for " +
+                                outputPath.getFileName() +
+                                ": expected " +
+                                expectedHash +
+                                " but got " +
+                                actualHash
+                );
+            }
+
+            log.info("Verified checksum OK: {}", outputPath.getFileName());
+        } catch (Exception e) {
+            log.error("Failed to download file {}. The exception is {}", fileUrl, e.toString());
+            return false;
+        }
+        return true;
     }
 }
