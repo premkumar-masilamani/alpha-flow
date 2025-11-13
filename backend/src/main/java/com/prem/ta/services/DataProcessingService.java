@@ -12,7 +12,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DoubleColumn;
@@ -84,7 +83,6 @@ public class DataProcessingService implements com.prem.ta.services.Service {
         }
     }
 
-    @Transactional
     public void processFile(FileRecord fileRecord) {
         String tickerSymbol = fileRecord.getTicker().getSymbol();
         String dateStr = fileRecord
@@ -185,9 +183,7 @@ public class DataProcessingService implements com.prem.ta.services.Service {
         double buyerCapitalRatio = totalQuoteQty > 0
                 ? buyerCapital / totalQuoteQty
                 : 0.0;
-        double buyerVolumeRatio = volume > 0
-                ? buyerVolume / volume
-                : 0.0;
+        double buyerVolumeRatio = volume > 0 ? buyerVolume / volume : 0.0;
 
         log.debug(
                 "Ticker {} metrics — O:{} H:{} L:{} C:{} V:{} VWAP:{} BuyerCapRatio:{} BuyerVolRatio:{}",
