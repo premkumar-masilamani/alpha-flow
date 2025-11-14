@@ -15,16 +15,12 @@ public class Ticker {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ticker_id")
-    private Integer id;
+    private Integer tickerId;
 
-    @Column(nullable = false, unique = true, length = 20)
     private String symbol;
 
-    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "start_date", nullable = false)
     private OffsetDateTime startDate;
 
     @OneToMany(mappedBy = "ticker", cascade = CascadeType.ALL, orphanRemoval = true)
