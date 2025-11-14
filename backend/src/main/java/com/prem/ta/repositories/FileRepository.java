@@ -15,10 +15,9 @@ import java.util.Optional;
 @Repository
 public interface FileRepository
         extends JpaRepository<FileRecord, FileRecordId> {
-    // Latest file for a ticker (based on file_date DESC)
+
     Optional<FileRecord> findTopByTickerOrderByFileDateDesc(Ticker ticker);
 
-    // Pending files (with ticker eagerly loaded)
     @EntityGraph(attributePaths = "ticker")
     Page<FileRecord> findByIsDownloadedTrueAndIsProcessedFalse(
             Pageable pageable

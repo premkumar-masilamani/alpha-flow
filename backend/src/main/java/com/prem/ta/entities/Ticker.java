@@ -2,11 +2,8 @@ package com.prem.ta.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "tickers")

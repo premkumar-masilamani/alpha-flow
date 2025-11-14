@@ -4,7 +4,6 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.OffsetDateTime;
-import java.util.Objects;
 
 @Data
 public class TradeDataId implements Serializable {
