@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
@@ -28,7 +29,7 @@ import java.time.ZoneOffset;
 import java.util.zip.ZipInputStream;
 
 @Service
-public class DataProcessingService implements com.prem.ta.services.Service {
+public class DataProcessingService {
 
     private static final Logger log = LoggerFactory.getLogger(
             DataProcessingService.class
@@ -48,11 +49,10 @@ public class DataProcessingService implements com.prem.ta.services.Service {
         this.tradeDataRepository = tradeDataRepository;
     }
 
-    @Override
-    public void doService() {
+    public void process() {
         log.info("Starting data processing...");
 
-        Pageable pageable = PageRequest.of(0, Constants.PAGE_SIZE);
+        Pageable pageable = PageRequest.of(0, 10, Sort.unsorted());
         Page<FileRecord> filePage;
 
         do {

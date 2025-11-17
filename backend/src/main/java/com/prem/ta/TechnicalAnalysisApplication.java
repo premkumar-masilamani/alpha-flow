@@ -20,8 +20,8 @@ public class TechnicalAnalysisApplication {
             DataProcessingService dataProcessingService
     ) {
         return args -> {
-            dataDownloadService.doService();
-            dataProcessingService.doService();
+            dataDownloadService.download();
+            dataProcessingService.process();
         };
     }
 }

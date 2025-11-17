@@ -23,11 +23,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 @Service
-public class DataDownloadService implements com.prem.ta.services.Service {
+public class DataDownloadService {
 
-    private static final Logger log = LoggerFactory.getLogger(
-            DataDownloadService.class
-    );
+    private static final Logger log = LoggerFactory.getLogger(DataDownloadService.class);
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
@@ -41,19 +39,13 @@ public class DataDownloadService implements com.prem.ta.services.Service {
         this.fileRepository = fileRepository;
     }
 
-    @Override
-    public void doService() {
+    public void download() {
         log.info("Download URL: {}", appConfig.getDownloadUrl());
         log.info("Download directory: {}", appConfig.getDownloadDir());
 
         tickerRepository
                 .findAll()
                 .forEach(ticker -> {
-                    log.info(
-                            "Syncing ticker {} starting from {}",
-                            ticker.getSymbol(),
-                            ticker.getStartDate()
-                    );
                     downloadTicker(ticker);
                 });
 
@@ -82,6 +74,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
             return;
         }
 
+        log.info("Syncing ticker {} from {}", ticker.getSymbol(), startDate);
         String downloadPattern = appConfig.getDownloadUrl();
         for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
 
@@ -103,7 +96,7 @@ public class DataDownloadService implements com.prem.ta.services.Service {
                 saveFileRecord(ticker, date, url);
 
             } catch (IOException e) {
-                log.error("Download failed for {} {}: {}", tickerSymbol, dateStr, e.getMessage());
+                log.error("Download failed for {} on {}: {}", tickerSymbol, dateStr, e.getMessage());
             }
         }
     }
