@@ -70,7 +70,7 @@ public class DataDownloadService {
         try {
             Files.createDirectories(outDir);
         } catch (IOException e) {
-            log.error("Error creating directory {}: {}", outDir, e.getMessage());
+            log.error("Error creating directory {}:", outDir, e);
             return;
         }
 
@@ -78,8 +78,8 @@ public class DataDownloadService {
         String downloadPattern = appConfig.getDownloadUrl();
         for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
 
-            String dateStr = date.format(Constants.getDateFormatter());
-            String fileName = tickerSymbol + "-trades-" + dateStr + ".zip";
+            String dateStr = Constants.getBinanceFormattedDateString(date);
+            String fileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
 
             if (Files.exists(localFile)) {
@@ -96,7 +96,7 @@ public class DataDownloadService {
                 saveFileRecord(ticker, date, url);
 
             } catch (IOException e) {
-                log.error("Download failed for {} on {}: {}", tickerSymbol, dateStr, e.getMessage());
+                log.error("Download failed for {} on {}: ", tickerSymbol, dateStr, e);
             }
         }
     }

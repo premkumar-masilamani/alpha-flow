@@ -1,13 +1,18 @@
 package com.prem.ta.configs;
 
-import lombok.Getter;
-
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 
 public class Constants {
 
-    @Getter
     private static final DateTimeFormatter dateFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+    public static String getBinanceZipFileName(String tickerSymbol, String dateStr) {
+        return tickerSymbol + "-trades-" + dateStr + ".zip";
+    }
+
+    public static String getBinanceFormattedDateString(TemporalAccessor date) {
+        return dateFormatter.format(date);
+    }
 }

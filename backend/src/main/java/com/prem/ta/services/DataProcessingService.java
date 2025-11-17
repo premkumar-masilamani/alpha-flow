@@ -11,22 +11,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.selection.Selection;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.zip.ZipInputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 @Service
 public class DataProcessingService {
@@ -52,48 +53,35 @@ public class DataProcessingService {
     public void process() {
         log.info("Starting data processing...");
 
-        Pageable pageable = PageRequest.of(0, 10, Sort.unsorted());
-        Page<FileRecord> filePage;
+        Pageable pageable = PageRequest.of(0, 10);
 
-        do {
-            filePage = fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(
-                    pageable
-            );
-            int count = filePage.getNumberOfElements();
-            if (count == 0) break;
+        while (true) {
+            Page<FileRecord> page =
+                    fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(pageable);
 
-            log.info("Processing {} pending files...", count);
-            filePage.getContent().forEach(this::safeProcessFile);
-            pageable = filePage.nextPageable();
-        } while (filePage.hasNext());
+            if (page.isEmpty()) {
+                break;
+            }
+
+            log.info("Processing {} pending files...", page.getNumberOfElements());
+            page.getContent().forEach(this::processFile);
+
+            if (!page.hasNext()) {
+                break;
+            }
+
+            pageable = page.nextPageable();
+        }
 
         log.info("Data processing completed.");
     }
 
-    private void safeProcessFile(FileRecord fileRecord) {
-        try {
-            processFile(fileRecord);
-        } catch (Exception e) {
-            log.error(
-                    "Unexpected error while processing {} on {}",
-                    fileRecord.getTicker().getSymbol(),
-                    fileRecord.getFileDate(),
-                    e
-            );
-        }
-    }
-
     public void processFile(FileRecord fileRecord) {
-        String tickerSymbol = fileRecord.getTicker().getSymbol();
-        String dateStr = fileRecord
-                .getFileDate()
-                .format(Constants.getDateFormatter());
-        String baseFileName = tickerSymbol + "-trades-" + dateStr + ".zip";
-        Path filePath = Paths.get(
-                appConfig.getDownloadDir(),
-                tickerSymbol,
-                baseFileName
-        );
+
+        final String tickerSymbol = fileRecord.getTicker().getSymbol();
+        final String dateStr = Constants.getBinanceFormattedDateString(fileRecord.getFileDate());
+        final String baseFileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
+        final Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
         log.info("Processing trades for {} on {}", tickerSymbol, dateStr);
 
@@ -102,49 +90,17 @@ public class DataProcessingService {
             return;
         }
 
-        try {
-            byte[] fileContent = Files.readAllBytes(filePath);
+        try (ZipFile zipFile = new ZipFile(filePath.toFile())) {
 
-            try (
-                    ByteArrayInputStream bais = new ByteArrayInputStream(
-                            fileContent
-                    );
-                    ZipInputStream zis = new ZipInputStream(bais)
-            ) {
-                if (zis.getNextEntry() == null) {
-                    log.warn("Empty ZIP for {} on {}", tickerSymbol, dateStr);
-                    return;
-                }
+            ZipEntry entry = zipFile.stream().findFirst().orElse(null);
+            if (entry == null) {
+                log.warn("Empty ZIP for {} on {}", tickerSymbol, dateStr);
+                return;
+            }
 
-                CsvReadOptions options = CsvReadOptions.builder(
-                                new InputStreamReader(zis)
-                        )
-                        .header(false)
-                        .columnTypes(
-                                new ColumnType[]{
-                                        ColumnType.LONG, // trade_id
-                                        ColumnType.DOUBLE, // price
-                                        ColumnType.DOUBLE, // qty
-                                        ColumnType.DOUBLE, // quote_qty
-                                        ColumnType.LONG, // time
-                                        ColumnType.BOOLEAN, // is_buyer_maker
-                                        ColumnType.BOOLEAN, // is_best_match
-                                }
-                        )
-                        .build();
+            try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
-                Table table = Table.read().csv(options);
-
-                if (table.isEmpty()) {
-                    log.warn(
-                            "No trade rows found for {} on {}",
-                            tickerSymbol,
-                            dateStr
-                    );
-                    return;
-                }
-
-                TradeData tradeData = computeMetrics(fileRecord, table);
+                TradeData tradeData = computeMetrics(fileRecord, inputStream);
                 tradeDataRepository.save(tradeData);
 
                 fileRecord.setIsProcessed(true);
@@ -152,63 +108,82 @@ public class DataProcessingService {
                 fileRecord.setUpdatedBy(getClass().getSimpleName());
                 fileRepository.save(fileRecord);
 
-                log.info(
-                        "Processed {} rows for {}",
-                        table.rowCount(),
-                        tickerSymbol
-                );
+                log.info("Processed file {} for {}", baseFileName, tickerSymbol);
             }
+
         } catch (Exception e) {
             log.error("Failed to process {} on {}", tickerSymbol, dateStr, e);
         }
     }
 
-    private TradeData computeMetrics(FileRecord fileRecord, Table table) {
+    private TradeData computeMetrics(FileRecord fileRecord, InputStream inputStream) {
+
+        Table table = Table.read().csv(
+                CsvReadOptions.builder(new InputStreamReader(inputStream))
+                        .header(false)
+                        .columnTypes(new ColumnType[]{
+                                ColumnType.LONG,
+                                ColumnType.DOUBLE,
+                                ColumnType.DOUBLE,
+                                ColumnType.DOUBLE,
+                                ColumnType.LONG,
+                                ColumnType.BOOLEAN,
+                                ColumnType.BOOLEAN,
+                        })
+                        .build()
+        );
+
+        int rowCount = table.rowCount();
+        if (rowCount == 0) {
+            throw new IllegalStateException("CSV contains no rows");
+        }
+
         DoubleColumn price = table.doubleColumn(1);
         DoubleColumn qty = table.doubleColumn(2);
         DoubleColumn quoteQty = table.doubleColumn(3);
         BooleanColumn isBuyerMaker = table.booleanColumn(5);
 
         double open = price.get(0);
-        double close = price.get(price.size() - 1);
+        double close = price.get(rowCount - 1);
         double high = price.max();
         double low = price.min();
+
         double volume = qty.sum();
         double totalQuoteQty = quoteQty.sum();
-        double vwap = volume > 0 ? totalQuoteQty / volume : 0.0;
 
-        double buyerVolume = qty.where(isBuyerMaker.isFalse()).sum();
-        double buyerCapital = quoteQty.where(isBuyerMaker.isFalse()).sum();
+        double vwap = (volume > 0) ? totalQuoteQty / volume : 0.0;
 
-        double buyerCapitalRatio = totalQuoteQty > 0
-                ? buyerCapital / totalQuoteQty
-                : 0.0;
-        double buyerVolumeRatio = volume > 0 ? buyerVolume / volume : 0.0;
+        Selection buyerInitiatedTrades = isBuyerMaker.isFalse();
+
+        double buyerVolume = qty.where(buyerInitiatedTrades).sum();
+        double buyerCapital = quoteQty.where(buyerInitiatedTrades).sum();
+
+        double buyerVolumeRatio = (volume > 0) ? buyerVolume / volume : 0.0;
+        double buyerCapitalRatio = (totalQuoteQty > 0) ? buyerCapital / totalQuoteQty : 0.0;
+
+        log.info("Processed {} rows for {}", rowCount, fileRecord.getTicker().getSymbol());
 
         log.debug(
                 "Ticker {} metrics — O:{} H:{} L:{} C:{} V:{} VWAP:{} BuyerCapRatio:{} BuyerVolRatio:{}",
                 fileRecord.getTicker().getSymbol(),
-                open,
-                high,
-                low,
-                close,
-                volume,
-                vwap,
-                buyerCapitalRatio,
-                buyerVolumeRatio
+                open, high, low, close,
+                volume, vwap,
+                buyerCapitalRatio, buyerVolumeRatio
         );
 
-        TradeData td = new TradeData();
-        td.setTradeTime(fileRecord.getFileDate());
-        td.setTicker(fileRecord.getTicker());
-        td.setPriceOpen(open);
-        td.setPriceHigh(high);
-        td.setPriceLow(low);
-        td.setPriceClose(close);
-        td.setVolume(volume);
-        td.setVwap(vwap);
-        td.setBuyerCapitalRatio((float) buyerCapitalRatio);
-        td.setBuyerVolumeRatio((float) buyerVolumeRatio);
-        return td;
+        TradeData tradeData = new TradeData();
+        tradeData.setTradeTime(fileRecord.getFileDate());
+        tradeData.setTicker(fileRecord.getTicker());
+        tradeData.setPriceOpen(open);
+        tradeData.setPriceHigh(high);
+        tradeData.setPriceLow(low);
+        tradeData.setPriceClose(close);
+        tradeData.setVolume(volume);
+        tradeData.setVwap(vwap);
+        tradeData.setBuyerCapitalRatio((float) buyerCapitalRatio);
+        tradeData.setBuyerVolumeRatio((float) buyerVolumeRatio);
+
+        return tradeData;
     }
+
 }
