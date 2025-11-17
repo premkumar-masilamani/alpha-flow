@@ -4,7 +4,7 @@ import lombok.Getter;
 
 import java.time.format.DateTimeFormatter;
 
-public class Utils {
+public class Constants {
 
     public static final String CHECKSUM_ALGORITHM = "SHA-256";
     public static final int PAGE_SIZE = 10;

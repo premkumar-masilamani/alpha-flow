@@ -1,7 +1,7 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.configs.Utils;
+import com.prem.ta.configs.Constants;
 import com.prem.ta.entities.FileRecord;
 import com.prem.ta.entities.TradeData;
 import com.prem.ta.repositories.FileRepository;
@@ -52,7 +52,7 @@ public class DataProcessingService implements com.prem.ta.services.Service {
     public void doService() {
         log.info("Starting data processing...");
 
-        Pageable pageable = PageRequest.of(0, Utils.PAGE_SIZE);
+        Pageable pageable = PageRequest.of(0, Constants.PAGE_SIZE);
         Page<FileRecord> filePage;
 
         do {
@@ -87,7 +87,7 @@ public class DataProcessingService implements com.prem.ta.services.Service {
         String tickerSymbol = fileRecord.getTicker().getSymbol();
         String dateStr = fileRecord
                 .getFileDate()
-                .format(Utils.getDateFormatter());
+                .format(Constants.getDateFormatter());
         String baseFileName = tickerSymbol + "-trades-" + dateStr + ".zip";
         Path filePath = Paths.get(
                 appConfig.getDownloadDir(),

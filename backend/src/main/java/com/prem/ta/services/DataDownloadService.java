@@ -1,29 +1,26 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.configs.Utils;
+import com.prem.ta.configs.Constants;
 import com.prem.ta.entities.FileRecord;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.HexFormat;
-import java.util.Optional;
 
 @Service
 public class DataDownloadService implements com.prem.ta.services.Service {
@@ -57,170 +54,88 @@ public class DataDownloadService implements com.prem.ta.services.Service {
                             ticker.getSymbol(),
                             ticker.getStartDate()
                     );
-                    download(ticker);
+                    downloadTicker(ticker);
                 });
 
         log.info("All downloads completed!");
     }
 
-    public void download(Ticker ticker) {
-        Optional<FileRecord> latestFile =
-                fileRepository.findTopByTickerOrderByFileDateDesc(ticker);
-        LocalDate startDate = latestFile
-                .map(fileRecord ->
-                        fileRecord.getFileDate().toLocalDate().plusDays(1)
-                )
+    public void downloadTicker(Ticker ticker) {
+
+        LocalDate startDate = fileRepository
+                .findTopByTickerOrderByFileDateDesc(ticker)
+                .map(fileRecord -> fileRecord.getFileDate().toLocalDate().plusDays(1))
                 .orElse(ticker.getStartDate().toLocalDate());
 
-        try {
-            String tickerSymbol = ticker.getSymbol();
-            Path outDir = Path.of(appConfig.getDownloadDir(), tickerSymbol);
-            Files.createDirectories(outDir);
-
-            LocalDate today = LocalDate.now();
-            for (
-                    LocalDate date = startDate;
-                    !date.isAfter(today);
-                    date = date.plusDays(1)
-            ) {
-                String dateStr = date.format(Utils.getDateFormatter());
-                String baseFileName =
-                        tickerSymbol + "-trades-" + dateStr + ".zip";
-                String baseUrl = appConfig
-                        .getDownloadUrl()
-                        .replace("{ticker}", tickerSymbol)
-                        .replace("{filename}", baseFileName);
-
-                Path localFile = outDir.resolve(baseFileName);
-                Path checksumFile = outDir.resolve(baseFileName + ".CHECKSUM");
-
-                if (Files.exists(localFile)) {
-                    log.info("Already downloaded: {}", localFile);
-                    saveFileRecord(ticker, date, baseUrl, true);
-                    continue;
-                }
-
-                // Step 1: Download checksum
-                String checksumUrl = baseUrl + ".CHECKSUM";
-                String expectedHash = downloadAndSaveChecksum(
-                        checksumUrl,
-                        checksumFile
-                );
-                if (expectedHash == null) {
-                    log.warn(
-                            "Checksum missing for {} — skipping",
-                            baseFileName
-                    );
-                    continue;
-                }
-
-                // Step 2: Download actual file
-                log.info("Downloading {}", baseUrl);
-                boolean isDownloaded = downloadFileWithChecksum(baseUrl, localFile, expectedHash);
-
-                // Step 3: Estimate and save record
-                saveFileRecord(ticker, date, baseUrl, isDownloaded);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Error syncing " + ticker.getSymbol(),
-                    e
-            );
+        LocalDate today = LocalDate.now();
+        if (startDate.isAfter(today)) {
+            return; // nothing to download
         }
-    }
 
-    private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl, boolean isDownloaded) {
-        OffsetDateTime fileDate = date
-                .atStartOfDay(ZoneOffset.UTC)
-                .toOffsetDateTime();
+        String tickerSymbol = ticker.getSymbol();
+        Path outDir = Path.of(appConfig.getDownloadDir(), tickerSymbol);
 
-        Optional<FileRecord> existingFile =
-                fileRepository.findByTickerAndFileDate(ticker, fileDate);
-        if (existingFile.isPresent()) {
-            log.debug(
-                    "FileRecord for {} on {} already exists. Skipping.",
-                    ticker.getSymbol(),
-                    date
-            );
+        try {
+            Files.createDirectories(outDir);
+        } catch (IOException e) {
+            log.error("Error creating directory {}: {}", outDir, e.getMessage());
             return;
         }
 
-        FileRecord fileRecord = new FileRecord();
-        fileRecord.setTicker(ticker);
-        fileRecord.setFileDate(fileDate);
-        fileRecord.setFileDownloadUrl(baseUrl);
-        fileRecord.setIsDownloaded(isDownloaded);
-        fileRecord.setIsProcessed(false);
-        fileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        fileRecord.setUpdatedBy(this.getClass().getSimpleName());
+        String downloadPattern = appConfig.getDownloadUrl();
+        for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
 
-        fileRepository.save(fileRecord);
-        log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
-    }
+            String dateStr = date.format(Constants.getDateFormatter());
+            String fileName = tickerSymbol + "-trades-" + dateStr + ".zip";
+            Path localFile = outDir.resolve(fileName);
 
-    private String downloadAndSaveChecksum(String url, Path checksumFile) {
-        try (InputStream in = URI.create(url).toURL().openStream()) {
-            String content = new String(
-                    in.readAllBytes(),
-                    StandardCharsets.UTF_8
-            ).trim();
-            Files.writeString(checksumFile, content, StandardCharsets.UTF_8);
+            if (Files.exists(localFile)) {
+                continue;
+            }
 
-            // Binance CHECKSUM format: "<hash> <filename>"
-            String[] parts = content.split(" +");
-            return parts[0];
-        } catch (IOException e) {
-            log.error(
-                    "Failed to download checksum: {} ({})",
-                    url,
-                    e.getMessage()
-            );
-            return null;
+            String url = downloadPattern
+                    .replace("{ticker}", tickerSymbol)
+                    .replace("{filename}", fileName);
+
+            try {
+                log.info("Downloading {}", url);
+                downloadFile(url, localFile);
+                saveFileRecord(ticker, date, url);
+
+            } catch (IOException e) {
+                log.error("Download failed for {} {}: {}", tickerSymbol, dateStr, e.getMessage());
+            }
         }
     }
 
-    private boolean downloadFileWithChecksum(
-            String fileUrl,
-            Path outputPath,
-            String expectedHash
-    ) {
+    @Transactional
+    protected void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
+
+        OffsetDateTime fileDate = date.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+
+        FileRecord record = new FileRecord();
+        record.setTicker(ticker);
+        record.setFileDate(fileDate);
+        record.setFileDownloadUrl(baseUrl);
+        record.setIsDownloaded(true);
+        record.setIsProcessed(false);
+        record.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        record.setUpdatedBy(getClass().getSimpleName());
+
         try {
-            MessageDigest sha256 = MessageDigest.getInstance(
-                    Utils.CHECKSUM_ALGORITHM
-            );
-            try (
-                    DigestInputStream in = new DigestInputStream(
-                            URI.create(fileUrl).toURL().openStream(),
-                            sha256
-                    );
-                    FileOutputStream out = new FileOutputStream(outputPath.toFile())
-            ) {
-                byte[] buffer = new byte[8192];
-                int bytesRead;
-                while ((bytesRead = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, bytesRead);
-                }
-            }
-
-            // Verify checksum
-            String actualHash = HexFormat.of().formatHex(sha256.digest());
-            if (!actualHash.equalsIgnoreCase(expectedHash)) {
-                Files.deleteIfExists(outputPath);
-                throw new IOException(
-                        "Checksum mismatch for " +
-                                outputPath.getFileName() +
-                                ": expected " +
-                                expectedHash +
-                                " but got " +
-                                actualHash
-                );
-            }
-
-            log.info("Verified checksum OK: {}", outputPath.getFileName());
-        } catch (Exception e) {
-            log.error("Failed to download file {}. The exception is {}", fileUrl, e.toString());
-            return false;
+            fileRepository.save(record);
+            log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
+        } catch (DataIntegrityViolationException ignore) {
+            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getSymbol(), date);
         }
-        return true;
     }
+
+    private void downloadFile(String remoteFileURL, Path localFilePath) throws IOException {
+        InputStream in = URI.create(remoteFileURL)
+                .toURL()
+                .openConnection()
+                .getInputStream();
+        Files.copy(in, localFilePath, StandardCopyOption.REPLACE_EXISTING);
+    }
+
 }
