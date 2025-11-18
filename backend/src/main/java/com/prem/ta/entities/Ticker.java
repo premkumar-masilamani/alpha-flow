@@ -1,35 +1,26 @@
 package com.prem.ta.entities;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
-import java.time.OffsetDateTime;
-import java.util.List;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "tickers")
-@Getter
-@Setter
+@Data
 public class Ticker {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ticker_id")
-    private Integer id;
-
-    @Column(nullable = false, unique = true, length = 20)
-    private String symbol;
-
-    @Column(nullable = false, length = 100)
-    private String name;
+    private Integer tickerId;
 
     @Column(name = "start_date", nullable = false)
-    private OffsetDateTime startDate;
+    private LocalDate startDate;
 
-    @OneToMany(mappedBy = "ticker", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<FileRecord> files;
+    @Column(name = "symbol", nullable = false, length = 20, unique = true)
+    private String symbol;
 
-    @OneToMany(mappedBy = "ticker", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TradeData> trades;
+    @Column(name = "name", nullable = false, length = 100)
+    private String name;
+
 }

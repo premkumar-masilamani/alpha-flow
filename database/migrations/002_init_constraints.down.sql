@@ -1,5 +1,3 @@
 -- Drop Unique Constraints
-ALTER TABLE trade_data DROP CONSTRAINT fk_trade_data_tickers;
-ALTER TABLE files DROP CONSTRAINT fk_files_tickers;
-ALTER TABLE trade_data DROP CONSTRAINT pk_trade_data;
-ALTER TABLE files DROP CONSTRAINT pk_files;
+ALTER TABLE trade_data DROP CONSTRAINT uk_trade_data_ticker_id_trade_date;
+ALTER TABLE files DROP CONSTRAINT uk_files_ticker_id_file_date;
