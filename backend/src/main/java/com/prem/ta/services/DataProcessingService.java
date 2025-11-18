@@ -2,7 +2,7 @@ package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.configs.Constants;
-import com.prem.ta.entities.FileRecord;
+import com.prem.ta.entities.File;
 import com.prem.ta.entities.TradeData;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TradeDataRepository;
@@ -21,11 +21,10 @@ import tech.tablesaw.selection.Selection;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -56,7 +55,7 @@ public class DataProcessingService {
         Pageable pageable = PageRequest.of(0, 10);
 
         while (true) {
-            Page<FileRecord> page =
+            Page<File> page =
                     fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(pageable);
 
             if (page.isEmpty()) {
@@ -76,10 +75,10 @@ public class DataProcessingService {
         log.info("Data processing completed.");
     }
 
-    public void processFile(FileRecord fileRecord) {
+    public void processFile(File file) {
 
-        final String tickerSymbol = fileRecord.getTicker().getSymbol();
-        final String dateStr = Constants.getBinanceFormattedDateString(fileRecord.getFileDate());
+        final String tickerSymbol = file.getTicker().getSymbol();
+        final String dateStr = Constants.getBinanceFormattedDateString(file.getFileDate());
         final String baseFileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
         final Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
@@ -100,13 +99,11 @@ public class DataProcessingService {
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
-                TradeData tradeData = computeMetrics(fileRecord, inputStream);
+                TradeData tradeData = computeMetrics(file, inputStream);
                 tradeDataRepository.save(tradeData);
 
-                fileRecord.setIsProcessed(true);
-                fileRecord.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-                fileRecord.setUpdatedBy(getClass().getSimpleName());
-                fileRepository.save(fileRecord);
+                file.setIsProcessed(true);
+                fileRepository.save(file);
 
                 log.info("Processed file {} for {}", baseFileName, tickerSymbol);
             }
@@ -116,7 +113,7 @@ public class DataProcessingService {
         }
     }
 
-    private TradeData computeMetrics(FileRecord fileRecord, InputStream inputStream) {
+    private TradeData computeMetrics(File file, InputStream inputStream) {
 
         Table table = Table.read().csv(
                 CsvReadOptions.builder(new InputStreamReader(inputStream))
@@ -161,27 +158,27 @@ public class DataProcessingService {
         double buyerVolumeRatio = (volume > 0) ? buyerVolume / volume : 0.0;
         double buyerCapitalRatio = (totalQuoteQty > 0) ? buyerCapital / totalQuoteQty : 0.0;
 
-        log.info("Processed {} rows for {}", rowCount, fileRecord.getTicker().getSymbol());
+        log.info("Processed {} rows for {}", rowCount, file.getTicker().getSymbol());
 
         log.debug(
                 "Ticker {} metrics — O:{} H:{} L:{} C:{} V:{} VWAP:{} BuyerCapRatio:{} BuyerVolRatio:{}",
-                fileRecord.getTicker().getSymbol(),
+                file.getTicker().getSymbol(),
                 open, high, low, close,
                 volume, vwap,
                 buyerCapitalRatio, buyerVolumeRatio
         );
 
         TradeData tradeData = new TradeData();
-        tradeData.setTradeTime(fileRecord.getFileDate());
-        tradeData.setTicker(fileRecord.getTicker());
-        tradeData.setPriceOpen(open);
-        tradeData.setPriceHigh(high);
-        tradeData.setPriceLow(low);
-        tradeData.setPriceClose(close);
-        tradeData.setVolume(volume);
-        tradeData.setVwap(vwap);
-        tradeData.setBuyerCapitalRatio((float) buyerCapitalRatio);
-        tradeData.setBuyerVolumeRatio((float) buyerVolumeRatio);
+        tradeData.setTradeDate(file.getFileDate());
+        tradeData.setTicker(file.getTicker());
+        tradeData.setPriceOpen(BigDecimal.valueOf(open));
+        tradeData.setPriceHigh(BigDecimal.valueOf(high));
+        tradeData.setPriceLow(BigDecimal.valueOf(low));
+        tradeData.setPriceClose(BigDecimal.valueOf(close));
+        tradeData.setVolume(BigDecimal.valueOf(volume));
+        tradeData.setVwap(BigDecimal.valueOf(vwap));
+        tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
+        tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
 
         return tradeData;
     }

@@ -2,7 +2,7 @@ package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.configs.Constants;
-import com.prem.ta.entities.FileRecord;
+import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TickerRepository;
@@ -19,8 +19,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 
 @Service
 public class DataDownloadService {
@@ -56,8 +54,8 @@ public class DataDownloadService {
 
         LocalDate startDate = fileRepository
                 .findTopByTickerOrderByFileDateDesc(ticker)
-                .map(fileRecord -> fileRecord.getFileDate().toLocalDate().plusDays(1))
-                .orElse(ticker.getStartDate().toLocalDate());
+                .map(file -> file.getFileDate().plusDays(1))
+                .orElse(ticker.getStartDate());
 
         LocalDate today = LocalDate.now();
         if (startDate.isAfter(today)) {
@@ -81,14 +79,14 @@ public class DataDownloadService {
             String dateStr = Constants.getBinanceFormattedDateString(date);
             String fileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
-
-            if (Files.exists(localFile)) {
-                continue;
-            }
-
             String url = downloadPattern
                     .replace("{ticker}", tickerSymbol)
                     .replace("{filename}", fileName);
+
+            if (Files.exists(localFile)) {
+                saveFileRecord(ticker, date, url);
+                continue;
+            }
 
             try {
                 log.info("Downloading {}", url);
@@ -104,20 +102,16 @@ public class DataDownloadService {
     @Transactional
     protected void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
 
-        OffsetDateTime fileDate = date.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
-
-        FileRecord record = new FileRecord();
-        record.setTicker(ticker);
-        record.setFileDate(fileDate);
-        record.setFileDownloadUrl(baseUrl);
-        record.setIsDownloaded(true);
-        record.setIsProcessed(false);
-        record.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        record.setUpdatedBy(getClass().getSimpleName());
+        File file = new File();
+        file.setTicker(ticker);
+        file.setFileDate(date);
+        file.setFileUrl(baseUrl);
+        file.setIsDownloaded(true);
+        file.setIsProcessed(false);
 
         try {
-            fileRepository.save(record);
-            log.info("Saved file record for {} on {}", ticker.getSymbol(), date);
+            fileRepository.save(file);
+            log.info("Saved file file for {} on {}", ticker.getSymbol(), date);
         } catch (DataIntegrityViolationException ignore) {
             log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getSymbol(), date);
         }

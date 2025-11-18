@@ -1,7 +1,6 @@
 package com.prem.ta.repositories;
 
-import com.prem.ta.entities.FileRecord;
-import com.prem.ta.entities.FileRecordId;
+import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,12 +12,12 @@ import java.util.Optional;
 
 @Repository
 public interface FileRepository
-        extends JpaRepository<FileRecord, FileRecordId> {
+        extends JpaRepository<File, Integer> {
 
-    Optional<FileRecord> findTopByTickerOrderByFileDateDesc(Ticker ticker);
+    Optional<File> findTopByTickerOrderByFileDateDesc(Ticker ticker);
 
     @EntityGraph(attributePaths = "ticker")
-    Page<FileRecord> findByIsDownloadedTrueAndIsProcessedFalse(
+    Page<File> findByIsDownloadedTrueAndIsProcessedFalse(
             Pageable pageable
     );
 
