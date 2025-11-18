@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,14 +42,12 @@ public class DataDownloadService {
 
         tickerRepository
                 .findAll()
-                .forEach(ticker -> {
-                    downloadTicker(ticker);
-                });
+                .forEach(this::downloadTicker);
 
         log.info("All downloads completed!");
     }
 
-    public void downloadTicker(Ticker ticker) {
+    private void downloadTicker(Ticker ticker) {
 
         LocalDate startDate = fileRepository
                 .findTopByTickerOrderByFileDateDesc(ticker)
@@ -83,14 +80,11 @@ public class DataDownloadService {
                     .replace("{ticker}", tickerSymbol)
                     .replace("{filename}", fileName);
 
-            if (Files.exists(localFile)) {
-                saveFileRecord(ticker, date, url);
-                continue;
-            }
-
             try {
-                log.info("Downloading {}", url);
-                downloadFile(url, localFile);
+                if (!Files.exists(localFile)) {
+                    log.info("Downloading {}", url);
+                    downloadFile(url, localFile);
+                }
                 saveFileRecord(ticker, date, url);
 
             } catch (IOException e) {
@@ -99,8 +93,15 @@ public class DataDownloadService {
         }
     }
 
-    @Transactional
-    protected void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
+    private void downloadFile(String remoteFileURL, Path localFilePath) throws IOException {
+        InputStream in = URI.create(remoteFileURL)
+                .toURL()
+                .openConnection()
+                .getInputStream();
+        Files.copy(in, localFilePath, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
 
         File file = new File();
         file.setTicker(ticker);
@@ -115,14 +116,6 @@ public class DataDownloadService {
         } catch (DataIntegrityViolationException ignore) {
             log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getSymbol(), date);
         }
-    }
-
-    private void downloadFile(String remoteFileURL, Path localFilePath) throws IOException {
-        InputStream in = URI.create(remoteFileURL)
-                .toURL()
-                .openConnection()
-                .getInputStream();
-        Files.copy(in, localFilePath, StandardCopyOption.REPLACE_EXISTING);
     }
 
 }

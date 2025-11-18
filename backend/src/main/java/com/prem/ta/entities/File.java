@@ -1,9 +1,7 @@
 package com.prem.ta.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
@@ -12,15 +10,12 @@ import java.time.LocalDate;
         @UniqueConstraint(columnNames = {"ticker_id", "file_date"})
 })
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class File {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer fileId;
 
-    // Mapping the Foreign Key relationship (M:1)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
