@@ -1,14 +1,11 @@
 package com.prem.ta.dtos;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public record TradeDataDto(
-        @JsonIgnore
-        String symbol,
+public record TradeDataDTO(
 
         @JsonProperty("date")
         LocalDate tradeDate,

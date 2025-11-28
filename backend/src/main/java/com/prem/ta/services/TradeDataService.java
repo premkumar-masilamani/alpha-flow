@@ -1,6 +1,6 @@
 package com.prem.ta.services;
 
-import com.prem.ta.dtos.TradeDataDto;
+import com.prem.ta.dtos.TradeDataDTO;
 import com.prem.ta.mappers.TradeDataMapper;
 import com.prem.ta.repositories.TradeDataRepository;
 import org.springframework.stereotype.Service;
@@ -18,11 +18,11 @@ public class TradeDataService {
         this.tradeDataRepository = tradeDataRepository;
     }
 
-    public List<TradeDataDto> getTradesByTickerName(String tickerName) {
+    public List<TradeDataDTO> getTradesByTickerName(String tickerName) {
 
         return tradeDataRepository.findAllByTickerNameWithTicker(tickerName)
                 .stream()
-                .map(TradeDataMapper::toDto)
+                .map(TradeDataMapper::toDTO)
                 .toList();
     }
 }

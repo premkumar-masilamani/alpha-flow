@@ -1,6 +1,6 @@
 package com.prem.ta.services;
 
-import com.prem.ta.dtos.TickerDto;
+import com.prem.ta.dtos.TickerDTO;
 import com.prem.ta.exceptions.ResourceNotFoundException;
 import com.prem.ta.repositories.TickerRepository;
 import org.springframework.stereotype.Service;
@@ -18,9 +18,9 @@ public class TickerService {
         this.tickerRepository = tickerRepository;
     }
 
-    public TickerDto getTickerBySymbol(String symbol) {
+    public TickerDTO getTickerBySymbol(String symbol) {
         return tickerRepository.findBySymbolIgnoreCase(symbol)
-                .map(ticker -> new TickerDto(
+                .map(ticker -> new TickerDTO(
                         ticker.getTickerId(),
                         ticker.getSymbol(),
                         ticker.getName(),
@@ -31,10 +31,10 @@ public class TickerService {
                 );
     }
 
-    public List<TickerDto> getAllTickers() {
+    public List<TickerDTO> getAllTickers() {
         return tickerRepository.findAll()
                 .stream()
-                .map(ticker -> new TickerDto(
+                .map(ticker -> new TickerDTO(
                         ticker.getTickerId(),
                         ticker.getSymbol(),
                         ticker.getName(),

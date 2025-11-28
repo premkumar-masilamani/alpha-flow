@@ -1,7 +1,7 @@
 package com.prem.ta.controllers;
 
-import com.prem.ta.dtos.TickerDto;
-import com.prem.ta.dtos.TradeDataDto;
+import com.prem.ta.dtos.TickerDTO;
+import com.prem.ta.dtos.TradeDataDTO;
 import com.prem.ta.services.TickerService;
 import com.prem.ta.services.TradeDataService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,17 +25,17 @@ public class TickerController {
     }
 
     @GetMapping("/tickers")
-    public List<TickerDto> getAllTickers() {
+    public List<TickerDTO> getAllTickers() {
         return tickerService.getAllTickers();
     }
 
     @GetMapping("/tickers/{symbol}")
-    public TickerDto getTickerBySymbol(@PathVariable String symbol) {
+    public TickerDTO getTickerBySymbol(@PathVariable String symbol) {
         return tickerService.getTickerBySymbol(symbol);
     }
 
     @GetMapping("/tickers/{symbol}/trades")
-    public List<TradeDataDto> getTradesForTicker(@PathVariable String symbol) {
+    public List<TradeDataDTO> getTradesForTicker(@PathVariable String symbol) {
         return tradeDataService.getTradesByTickerName(symbol);
     }
 }

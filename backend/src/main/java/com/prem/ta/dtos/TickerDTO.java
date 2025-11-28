@@ -1,6 +1,6 @@
 package com.prem.ta.dtos;
 
-public record TickerDto(
+public record TickerDTO(
         Long tickerId,
         String symbol,
         String name,
