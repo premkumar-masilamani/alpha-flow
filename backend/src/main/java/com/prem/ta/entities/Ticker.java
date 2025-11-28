@@ -12,7 +12,7 @@ public class Ticker {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer tickerId;
+    private Long tickerId;
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
