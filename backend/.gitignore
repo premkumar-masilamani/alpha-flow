@@ -1,0 +1,10 @@
+# Gradle cache
+.gradle/
+gradle/
+
+# Build output
+build/
+bin/
+
+# Python files
+__pycache__
