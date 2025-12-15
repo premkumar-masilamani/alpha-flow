@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
@@ -52,11 +51,9 @@ public class DataProcessingService {
     public void process() {
         log.info("Starting data processing...");
 
-        Pageable pageable = PageRequest.of(0, 10);
-
         while (true) {
             Page<File> page =
-                    fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(pageable);
+                    fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(PageRequest.of(0, 10));
 
             if (page.isEmpty()) {
                 break;
@@ -64,12 +61,6 @@ public class DataProcessingService {
 
             log.info("Processing {} pending files...", page.getNumberOfElements());
             page.getContent().forEach(this::processFile);
-
-            if (!page.hasNext()) {
-                break;
-            }
-
-            pageable = page.nextPageable();
         }
 
         log.info("Data processing completed.");
