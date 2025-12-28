@@ -2,22 +2,22 @@ package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.configs.Constants;
+import com.prem.ta.core.TechnicalAnalysisEngine;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.TradeData;
+import com.prem.ta.models.OHLCVMetrics;
+import com.prem.ta.models.OrderFlowMetrics;
+import com.prem.ta.models.VolumeProfileMetrics;
 import com.prem.ta.repositories.FileRepository;
 import com.prem.ta.repositories.TradeDataRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
-import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.io.csv.CsvReadOptions;
-import tech.tablesaw.selection.Selection;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -38,44 +38,39 @@ public class DataProcessingService {
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final TradeDataRepository tradeDataRepository;
+    private final TechnicalAnalysisEngine technicalAnalysisEngine;
 
     public DataProcessingService(
             AppConfig appConfig,
             FileRepository fileRepository,
-            TradeDataRepository tradeDataRepository
+            TradeDataRepository tradeDataRepository,
+            TechnicalAnalysisEngine technicalAnalysisEngine
     ) {
         this.appConfig = appConfig;
         this.fileRepository = fileRepository;
         this.tradeDataRepository = tradeDataRepository;
+        this.technicalAnalysisEngine = technicalAnalysisEngine;
     }
 
     public void process() {
         log.info("Starting data processing...");
 
-        Pageable pageable = PageRequest.of(0, 10);
-
         while (true) {
             Page<File> page =
-                    fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(pageable);
+                    fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(PageRequest.of(0, 10));
 
             if (page.isEmpty()) {
                 break;
             }
 
             log.info("Processing {} pending files...", page.getNumberOfElements());
-            page.getContent().forEach(this::processFile);
-
-            if (!page.hasNext()) {
-                break;
-            }
-
-            pageable = page.nextPageable();
+            page.getContent().forEach(this::processTradeDataFile);
         }
 
         log.info("Data processing completed.");
     }
 
-    public void processFile(File file) {
+    public void processTradeDataFile(File file) {
 
         final String tickerSymbol = file.getTicker().getSymbol();
         final String dateStr = Constants.getBinanceFormattedDateString(file.getFileDate());
@@ -99,8 +94,31 @@ public class DataProcessingService {
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
-                TradeData tradeData = computeMetrics(file, inputStream);
-                tradeDataRepository.save(tradeData);
+                Table table = Table.read().csv(
+                        CsvReadOptions.builder(new InputStreamReader(inputStream))
+                                .header(false)
+                                .columnTypes(new ColumnType[]{
+                                        ColumnType.LONG,
+                                        ColumnType.DOUBLE,
+                                        ColumnType.DOUBLE,
+                                        ColumnType.DOUBLE,
+                                        ColumnType.LONG,
+                                        ColumnType.BOOLEAN,
+                                        ColumnType.BOOLEAN,
+                                })
+                                .build()
+                );
+
+                TradeData computedData = computeMetrics(file, table);
+                TradeData mergedData = tradeDataRepository
+                        .findByTickerAndTradeDate(
+                                file.getTicker(),
+                                file.getFileDate()
+                        )
+                        .map(existingData -> mergeWithComputed(existingData, computedData))
+                        .orElse(computedData);
+
+                tradeDataRepository.save(mergedData);
 
                 file.setIsProcessed(true);
                 fileRepository.save(file);
@@ -113,74 +131,48 @@ public class DataProcessingService {
         }
     }
 
-    private TradeData computeMetrics(File file, InputStream inputStream) {
+    private TradeData computeMetrics(File file, Table table) {
 
-        Table table = Table.read().csv(
-                CsvReadOptions.builder(new InputStreamReader(inputStream))
-                        .header(false)
-                        .columnTypes(new ColumnType[]{
-                                ColumnType.LONG,
-                                ColumnType.DOUBLE,
-                                ColumnType.DOUBLE,
-                                ColumnType.DOUBLE,
-                                ColumnType.LONG,
-                                ColumnType.BOOLEAN,
-                                ColumnType.BOOLEAN,
-                        })
-                        .build()
-        );
-
-        int rowCount = table.rowCount();
-        if (rowCount == 0) {
-            throw new IllegalStateException("CSV contains no rows");
-        }
-
-        DoubleColumn price = table.doubleColumn(1);
-        DoubleColumn qty = table.doubleColumn(2);
-        DoubleColumn quoteQty = table.doubleColumn(3);
-        BooleanColumn isBuyerMaker = table.booleanColumn(5);
-
-        double open = price.get(0);
-        double close = price.get(rowCount - 1);
-        double high = price.max();
-        double low = price.min();
-
-        double volume = qty.sum();
-        double totalQuoteQty = quoteQty.sum();
-
-        double vwap = (volume > 0) ? totalQuoteQty / volume : 0.0;
-
-        Selection buyerInitiatedTrades = isBuyerMaker.isFalse();
-
-        double buyerVolume = qty.where(buyerInitiatedTrades).sum();
-        double buyerCapital = quoteQty.where(buyerInitiatedTrades).sum();
-
-        double buyerVolumeRatio = (volume > 0) ? buyerVolume / volume : 0.0;
-        double buyerCapitalRatio = (totalQuoteQty > 0) ? buyerCapital / totalQuoteQty : 0.0;
-
-        log.info("Processed {} rows for {}", rowCount, file.getTicker().getSymbol());
-
-        log.debug(
-                "Ticker {} metrics — O:{} H:{} L:{} C:{} V:{} VWAP:{} BuyerCapRatio:{} BuyerVolRatio:{}",
-                file.getTicker().getSymbol(),
-                open, high, low, close,
-                volume, vwap,
-                buyerCapitalRatio, buyerVolumeRatio
-        );
+        OHLCVMetrics ohlcvMetrics = technicalAnalysisEngine.computeOHLCV(table);
+        OrderFlowMetrics orderFlowMetrics = technicalAnalysisEngine.computeOrderFlow(table);
+        VolumeProfileMetrics volumeProfileMetrics = technicalAnalysisEngine.computeVolumeProfile(table, ohlcvMetrics);
 
         TradeData tradeData = new TradeData();
-        tradeData.setTradeDate(file.getFileDate());
         tradeData.setTicker(file.getTicker());
-        tradeData.setPriceOpen(BigDecimal.valueOf(open));
-        tradeData.setPriceHigh(BigDecimal.valueOf(high));
-        tradeData.setPriceLow(BigDecimal.valueOf(low));
-        tradeData.setPriceClose(BigDecimal.valueOf(close));
-        tradeData.setVolume(BigDecimal.valueOf(volume));
-        tradeData.setVwap(BigDecimal.valueOf(vwap));
-        tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
-        tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
+        tradeData.setTradeDate(file.getFileDate());
+
+        tradeData.setPriceOpen(BigDecimal.valueOf(ohlcvMetrics.open()));
+        tradeData.setPriceHigh(BigDecimal.valueOf(ohlcvMetrics.high()));
+        tradeData.setPriceLow(BigDecimal.valueOf(ohlcvMetrics.low()));
+        tradeData.setPriceClose(BigDecimal.valueOf(ohlcvMetrics.close()));
+
+        tradeData.setVolume(BigDecimal.valueOf(ohlcvMetrics.volume()));
+        tradeData.setVolumeWeightedAveragePrice(BigDecimal.valueOf(ohlcvMetrics.vwap()));
+
+        tradeData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
+        tradeData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
+
+        tradeData.setVolumeProfilePointOfControl(volumeProfileMetrics.pointOfControl());
+        tradeData.setVolumeProfileValueAreaHigh(volumeProfileMetrics.valueAreaHigh());
+        tradeData.setVolumeProfileValueAreaLow(volumeProfileMetrics.valueAreaLow());
 
         return tradeData;
+    }
+
+
+    private TradeData mergeWithComputed(TradeData existing, TradeData computed) {
+        existing.setPriceOpen(computed.getPriceOpen());
+        existing.setPriceHigh(computed.getPriceHigh());
+        existing.setPriceLow(computed.getPriceLow());
+        existing.setPriceClose(computed.getPriceClose());
+        existing.setVolume(computed.getVolume());
+        existing.setVolumeWeightedAveragePrice(computed.getVolumeWeightedAveragePrice());
+        existing.setVolumeProfilePointOfControl(computed.getVolumeProfilePointOfControl());
+        existing.setVolumeProfileValueAreaHigh(computed.getVolumeProfileValueAreaHigh());
+        existing.setVolumeProfileValueAreaLow(computed.getVolumeProfileValueAreaLow());
+        existing.setBuyerVolumeShare(computed.getBuyerVolumeShare());
+        existing.setBuyerCapitalShare(computed.getBuyerCapitalShare());
+        return existing;
     }
 
 }

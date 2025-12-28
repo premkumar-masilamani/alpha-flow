@@ -26,12 +26,21 @@ public record TradeDataDTO(
         BigDecimal volume,
 
         @JsonProperty("vwap")
-        BigDecimal vwap,
+        BigDecimal volumeWeightedAveragePrice,
 
-        @JsonProperty("bvr")
-        Double buyerVolumeRatio,
+        @JsonProperty("poc")
+        BigDecimal volumeProfilePointOfControl,
 
-        @JsonProperty("bcr")
-        Double buyerCapitalRatio
+        @JsonProperty("vah")
+        BigDecimal volumeProfileValueAreaHigh,
+
+        @JsonProperty("val")
+        BigDecimal volumeProfileValueAreaLow,
+
+        @JsonProperty("bvs")
+        Double buyerVolumeShare,
+
+        @JsonProperty("bcs")
+        Double buyerCapitalShare
 ) {
 }

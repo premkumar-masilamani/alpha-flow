@@ -13,9 +13,12 @@ public class TradeDataMapper {
                 tradeData.getPriceLow(),
                 tradeData.getPriceClose(),
                 tradeData.getVolume(),
-                tradeData.getVwap(),
-                tradeData.getBuyerVolumeRatio(),
-                tradeData.getBuyerCapitalRatio()
+                tradeData.getVolumeWeightedAveragePrice(),
+                tradeData.getVolumeProfilePointOfControl(),
+                tradeData.getVolumeProfileValueAreaHigh(),
+                tradeData.getVolumeProfileValueAreaLow(),
+                tradeData.getBuyerVolumeShare(),
+                tradeData.getBuyerCapitalShare()
         );
     }
 }
