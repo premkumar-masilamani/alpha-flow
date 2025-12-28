@@ -40,11 +40,20 @@ public class TradeData {
     private BigDecimal volume;
 
     @Column(name = "vwap", precision = 18, scale = 8)
-    private BigDecimal vwap;
+    private BigDecimal volumeWeightedAveragePrice;
 
-    @Column(name = "buyer_volume_ratio")
-    private Double buyerVolumeRatio;
+    @Column(name = "volume_profile_poc", precision = 18, scale = 8)
+    private BigDecimal volumeProfilePointOfControl;
 
-    @Column(name = "buyer_capital_ratio")
-    private Double buyerCapitalRatio;
+    @Column(name = "volume_profile_vah", precision = 18, scale = 8)
+    private BigDecimal volumeProfileValueAreaHigh;
+
+    @Column(name = "volume_profile_val", precision = 18, scale = 8)
+    private BigDecimal volumeProfileValueAreaLow;
+
+    @Column(name = "buyer_volume_share")
+    private Double buyerVolumeShare;
+
+    @Column(name = "buyer_capital_share")
+    private Double buyerCapitalShare;
 }

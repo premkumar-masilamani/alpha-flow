@@ -21,9 +21,14 @@ import tech.tablesaw.selection.Selection;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -90,8 +95,16 @@ public class DataProcessingService {
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
-                TradeData tradeData = computeMetrics(file, inputStream);
-                tradeDataRepository.save(tradeData);
+                TradeData computedData = computeMetrics(file, inputStream);
+                TradeData mergedData = tradeDataRepository
+                        .findByTickerAndTradeDate(
+                                file.getTicker(),
+                                file.getFileDate()
+                        )
+                        .map(existingData -> mergeMissingFields(existingData, computedData))
+                        .orElse(computedData);
+
+                tradeDataRepository.save(mergedData);
 
                 file.setIsProcessed(true);
                 fileRepository.save(file);
@@ -103,6 +116,7 @@ public class DataProcessingService {
             log.error("Failed to process {} on {}", tickerSymbol, dateStr, e);
         }
     }
+
 
     private TradeData computeMetrics(File file, InputStream inputStream) {
 
@@ -138,40 +152,173 @@ public class DataProcessingService {
 
         double volume = qty.sum();
         double totalQuoteQty = quoteQty.sum();
+        double vwap = volume > 0 ? totalQuoteQty / volume : 0.0;
 
-        double vwap = (volume > 0) ? totalQuoteQty / volume : 0.0;
+        Selection buyerInitiated = isBuyerMaker.isFalse();
+        double buyerVolume = qty.where(buyerInitiated).sum();
+        double buyerCapital = quoteQty.where(buyerInitiated).sum();
 
-        Selection buyerInitiatedTrades = isBuyerMaker.isFalse();
+        double buyerVolumeRatio = volume > 0 ? buyerVolume / volume : 0.0;
+        double buyerCapitalRatio = totalQuoteQty > 0 ? buyerCapital / totalQuoteQty : 0.0;
 
-        double buyerVolume = qty.where(buyerInitiatedTrades).sum();
-        double buyerCapital = quoteQty.where(buyerInitiatedTrades).sum();
 
-        double buyerVolumeRatio = (volume > 0) ? buyerVolume / volume : 0.0;
-        double buyerCapitalRatio = (totalQuoteQty > 0) ? buyerCapital / totalQuoteQty : 0.0;
+        BigDecimal bin = deriveVolumeProfileBinSize(
+                BigDecimal.valueOf(open),
+                BigDecimal.valueOf(high),
+                BigDecimal.valueOf(low),
+                BigDecimal.valueOf(close)
+        );
+
+        Map<BigDecimal, BigDecimal> volumeAtPrice = new HashMap<>();
+
+        for (int i = 0; i < rowCount; i++) {
+
+            BigDecimal p = BigDecimal.valueOf(price.get(i));
+            BigDecimal q = BigDecimal.valueOf(qty.get(i));
+
+            BigDecimal bucketIndex = p.divide(bin, 0, RoundingMode.FLOOR);
+            BigDecimal bucketPrice = bucketIndex.multiply(bin);
+
+            volumeAtPrice.merge(bucketPrice, q, BigDecimal::add);
+        }
+
+        BigDecimal volumeProfilePointOfControl = volumeAtPrice.entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        BigDecimal totalVolume = volumeAtPrice.values()
+                .stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal targetVolume =
+                totalVolume.multiply(
+                        BigDecimal.valueOf(Constants.VOLUME_PROFILE_VALUE_AREA_PERCENT)
+                );
+
+        List<Map.Entry<BigDecimal, BigDecimal>> sorted =
+                volumeAtPrice.entrySet()
+                        .stream()
+                        .sorted(Comparator.comparing(
+                                e -> e.getKey().subtract(volumeProfilePointOfControl).abs()
+                        ))
+                        .toList();
+
+        BigDecimal cumulative = BigDecimal.ZERO;
+        BigDecimal volumeProfileValueAreaHigh = volumeProfilePointOfControl;
+        BigDecimal volumeProfileValueAreaLow = volumeProfilePointOfControl;
+
+        for (Map.Entry<BigDecimal, BigDecimal> e : sorted) {
+            cumulative = cumulative.add(e.getValue());
+
+            volumeProfileValueAreaHigh = volumeProfileValueAreaHigh.max(e.getKey());
+            volumeProfileValueAreaLow = volumeProfileValueAreaLow.min(e.getKey());
+
+            if (cumulative.compareTo(targetVolume) >= 0) {
+                break;
+            }
+        }
+
 
         log.info("Processed {} rows for {}", rowCount, file.getTicker().getSymbol());
-
         log.debug(
-                "Ticker {} metrics — O:{} H:{} L:{} C:{} V:{} VWAP:{} BuyerCapRatio:{} BuyerVolRatio:{}",
+                "Ticker {} — O:{} H:{} L:{} C:{} V:{} VWAP:{} BCS:{} BVS:{} POC:{} VAH:{} VAL:{}",
                 file.getTicker().getSymbol(),
-                open, high, low, close,
-                volume, vwap,
-                buyerCapitalRatio, buyerVolumeRatio
+                open, high, low, close, volume, vwap, buyerCapitalRatio, buyerVolumeRatio,
+                volumeProfilePointOfControl, volumeProfileValueAreaHigh, volumeProfileValueAreaLow
         );
 
         TradeData tradeData = new TradeData();
-        tradeData.setTradeDate(file.getFileDate());
         tradeData.setTicker(file.getTicker());
+        tradeData.setTradeDate(file.getFileDate());
+
         tradeData.setPriceOpen(BigDecimal.valueOf(open));
         tradeData.setPriceHigh(BigDecimal.valueOf(high));
         tradeData.setPriceLow(BigDecimal.valueOf(low));
         tradeData.setPriceClose(BigDecimal.valueOf(close));
+
         tradeData.setVolume(BigDecimal.valueOf(volume));
-        tradeData.setVwap(BigDecimal.valueOf(vwap));
-        tradeData.setBuyerCapitalRatio(buyerCapitalRatio);
-        tradeData.setBuyerVolumeRatio(buyerVolumeRatio);
+        tradeData.setVolumeWeightedAveragePrice(BigDecimal.valueOf(vwap));
+
+        tradeData.setVolumeProfilePointOfControl(volumeProfilePointOfControl);
+        tradeData.setVolumeProfileValueAreaHigh(volumeProfileValueAreaHigh);
+        tradeData.setVolumeProfileValueAreaLow(volumeProfileValueAreaLow);
+
+        tradeData.setBuyerVolumeShare(buyerVolumeRatio);
+        tradeData.setBuyerCapitalShare(buyerCapitalRatio);
 
         return tradeData;
+    }
+
+    private TradeData mergeMissingFields(TradeData existing, TradeData computed) {
+
+        if (existing.getPriceOpen() == null) {
+            existing.setPriceOpen(computed.getPriceOpen());
+        }
+        if (existing.getPriceHigh() == null) {
+            existing.setPriceHigh(computed.getPriceHigh());
+        }
+        if (existing.getPriceLow() == null) {
+            existing.setPriceLow(computed.getPriceLow());
+        }
+        if (existing.getPriceClose() == null) {
+            existing.setPriceClose(computed.getPriceClose());
+        }
+        if (existing.getVolume() == null) {
+            existing.setVolume(computed.getVolume());
+        }
+        if (existing.getVolumeWeightedAveragePrice() == null) {
+            existing.setVolumeWeightedAveragePrice(computed.getVolumeWeightedAveragePrice());
+        }
+        if (existing.getVolumeProfilePointOfControl() == null) {
+            existing.setVolumeProfilePointOfControl(
+                    computed.getVolumeProfilePointOfControl()
+            );
+        }
+        if (existing.getVolumeProfileValueAreaHigh() == null) {
+            existing.setVolumeProfileValueAreaHigh(
+                    computed.getVolumeProfileValueAreaHigh()
+            );
+        }
+        if (existing.getVolumeProfileValueAreaLow() == null) {
+            existing.setVolumeProfileValueAreaLow(
+                    computed.getVolumeProfileValueAreaLow()
+            );
+        }
+        if (existing.getBuyerVolumeShare() == null) {
+            existing.setBuyerVolumeShare(computed.getBuyerVolumeShare());
+        }
+        if (existing.getBuyerCapitalShare() == null) {
+            existing.setBuyerCapitalShare(computed.getBuyerCapitalShare());
+        }
+
+        return existing;
+    }
+
+    private BigDecimal deriveVolumeProfileBinSize(
+            BigDecimal open,
+            BigDecimal high,
+            BigDecimal low,
+            BigDecimal close
+    ) {
+        BigDecimal range = high.subtract(low);
+
+        // 5% of daily range
+        BigDecimal bin = range.multiply(BigDecimal.valueOf(0.05));
+
+        // If range == 0, fallback to price scale
+        if (bin.signum() == 0) {
+            BigDecimal priceScale = open
+                    .add(high)
+                    .add(low)
+                    .add(close)
+                    .divide(BigDecimal.valueOf(4), 18, RoundingMode.HALF_UP);
+
+            bin = priceScale.multiply(BigDecimal.valueOf(0.001));
+        }
+
+        return bin.stripTrailingZeros();
     }
 
 }

@@ -5,6 +5,8 @@ import java.time.temporal.TemporalAccessor;
 
 public class Constants {
 
+    public static final double VOLUME_PROFILE_VALUE_AREA_PERCENT = 0.70;
+
     private static final DateTimeFormatter dateFormatter =
             DateTimeFormatter.ofPattern("yyyy-MM-dd");
 

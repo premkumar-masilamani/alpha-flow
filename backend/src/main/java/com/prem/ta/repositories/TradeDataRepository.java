@@ -1,11 +1,14 @@
 package com.prem.ta.repositories;
 
+import com.prem.ta.entities.Ticker;
 import com.prem.ta.entities.TradeData;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TradeDataRepository extends JpaRepository<TradeData, Long> {
@@ -18,4 +21,8 @@ public interface TradeDataRepository extends JpaRepository<TradeData, Long> {
             """)
     List<TradeData> findAllByTickerNameWithTicker(String tickerName);
 
+    Optional<TradeData> findByTickerAndTradeDate(
+            Ticker ticker,
+            LocalDate tradeDate
+    );
 }

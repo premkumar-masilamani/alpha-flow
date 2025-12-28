@@ -25,7 +25,7 @@ CREATE TABLE trade_data
     price_high          NUMERIC(18, 8),
     price_low           NUMERIC(18, 8),
     price_close         NUMERIC(18, 8),
-    volume              NUMERIC(32, 8),
+    volume              NUMERIC(28, 8),
     vwap                NUMERIC(18, 8),
     buyer_volume_ratio  DOUBLE PRECISION,
     buyer_capital_ratio DOUBLE PRECISION
