@@ -1,7 +1,6 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.configs.Constants;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.Ticker;
 import com.prem.ta.repositories.FileRepository;
@@ -18,6 +17,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+
+import static com.prem.ta.configs.Constants.getBinanceFormattedDateString;
+import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 
 @Service
 public class DataDownloadService {
@@ -73,8 +75,8 @@ public class DataDownloadService {
         String downloadPattern = appConfig.getDownloadUrl();
         for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
 
-            String dateStr = Constants.getBinanceFormattedDateString(date);
-            String fileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
+            String dateStr = getBinanceFormattedDateString(date);
+            String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
             String url = downloadPattern
                     .replace("{ticker}", tickerSymbol)

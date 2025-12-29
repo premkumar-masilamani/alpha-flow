@@ -1,6 +1,5 @@
 package com.prem.ta.core;
 
-import com.prem.ta.configs.Constants;
 import com.prem.ta.models.OHLCVMetrics;
 import com.prem.ta.models.OrderFlowMetrics;
 import com.prem.ta.models.VolumeProfileMetrics;
@@ -17,13 +16,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.prem.ta.configs.Constants.*;
+
 @Component
 public class TechnicalAnalysisEngine {
 
     public OHLCVMetrics computeOHLCV(Table table) {
-        DoubleColumn price = table.doubleColumn(1);
-        DoubleColumn qty = table.doubleColumn(2);
-        DoubleColumn quoteQty = table.doubleColumn(3);
+        DoubleColumn price = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
+        DoubleColumn qty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
+        DoubleColumn quoteQty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
 
         int rows = table.rowCount();
 
@@ -42,9 +43,9 @@ public class TechnicalAnalysisEngine {
 
     public OrderFlowMetrics computeOrderFlow(Table table) {
 
-        DoubleColumn qty = table.doubleColumn(2);
-        DoubleColumn quoteQty = table.doubleColumn(3);
-        BooleanColumn isBuyerMaker = table.booleanColumn(5);
+        DoubleColumn qty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
+        DoubleColumn quoteQty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
+        BooleanColumn isBuyerMaker = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_IS_BUYER_THE_MAKER);
 
         double totalVolume = qty.sum();
         double totalQuoteQty = quoteQty.sum();
@@ -62,8 +63,8 @@ public class TechnicalAnalysisEngine {
 
     public VolumeProfileMetrics computeVolumeProfile(Table table, OHLCVMetrics ohlcv) {
 
-        DoubleColumn price = table.doubleColumn(1);
-        DoubleColumn qty = table.doubleColumn(2);
+        DoubleColumn price = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
+        DoubleColumn qty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
 
         BigDecimal binSize = deriveBinSize(ohlcv);
 
@@ -97,11 +98,11 @@ public class TechnicalAnalysisEngine {
         BigDecimal rangePercent = high.subtract(low)
                 .divide(priceScale, 18, RoundingMode.HALF_UP);
 
-        if (rangePercent.compareTo(BigDecimal.valueOf(Constants.VOLUME_PROFILE_RANGE_BIN_PERCENT)) < 0) {
+        if (rangePercent.compareTo(BigDecimal.valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT)) < 0) {
             return BigDecimal.ZERO;
         }
 
-        return priceScale.multiply(BigDecimal.valueOf(Constants.VOLUME_PROFILE_RANGE_BIN_PERCENT))
+        return priceScale.multiply(BigDecimal.valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT))
                 .stripTrailingZeros();
     }
 
@@ -119,7 +120,7 @@ public class TechnicalAnalysisEngine {
 
         BigDecimal targetVolume =
                 totalVolume.multiply(
-                        BigDecimal.valueOf(Constants.VOLUME_PROFILE_VALUE_AREA_PERCENT)
+                        BigDecimal.valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT)
                 );
 
         List<Map.Entry<BigDecimal, BigDecimal>> sorted =

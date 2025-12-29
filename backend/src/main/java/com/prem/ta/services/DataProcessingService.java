@@ -1,7 +1,6 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.configs.Constants;
 import com.prem.ta.core.TechnicalAnalysisEngine;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.TradeData;
@@ -27,6 +26,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import static com.prem.ta.configs.Constants.getBinanceFormattedDateString;
+import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 
 @Service
 public class DataProcessingService {
@@ -73,8 +75,8 @@ public class DataProcessingService {
     public void processTradeDataFile(File file) {
 
         final String tickerSymbol = file.getTicker().getSymbol();
-        final String dateStr = Constants.getBinanceFormattedDateString(file.getFileDate());
-        final String baseFileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
+        final String dateStr = getBinanceFormattedDateString(file.getFileDate());
+        final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
         final Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
         log.info("Processing trades for {} on {}", tickerSymbol, dateStr);
