@@ -2,6 +2,7 @@ package com.prem.ta.entities;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -11,6 +12,7 @@ import java.time.LocalDate;
         @UniqueConstraint(columnNames = {"ticker_id", "trade_date"})
 })
 @Data
+@ToString(exclude = "ticker")
 public class TradeData {
 
     @Id

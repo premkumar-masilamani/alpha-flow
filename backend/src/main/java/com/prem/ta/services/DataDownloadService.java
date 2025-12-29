@@ -25,6 +25,7 @@ import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 public class DataDownloadService {
 
     private static final Logger log = LoggerFactory.getLogger(DataDownloadService.class);
+
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;

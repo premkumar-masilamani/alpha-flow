@@ -33,9 +33,7 @@ import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 @Service
 public class DataProcessingService {
 
-    private static final Logger log = LoggerFactory.getLogger(
-            DataProcessingService.class
-    );
+    private static final Logger log = LoggerFactory.getLogger(DataProcessingService.class);
 
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
@@ -119,7 +117,7 @@ public class DataProcessingService {
                         )
                         .map(existingData -> mergeWithComputed(existingData, computedData))
                         .orElse(computedData);
-
+                log.debug(mergedData.toString());
                 tradeDataRepository.save(mergedData);
 
                 file.setIsProcessed(true);
