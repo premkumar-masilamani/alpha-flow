@@ -43,7 +43,7 @@ CREATE TABLE market_state
 
     ticker_id         INT            NOT NULL,
     metric            VARCHAR(100)   NOT NULL,
-    ma_type           VARCHAR(8)     NOT NULL,
+    ma_type           VARCHAR(16)     NOT NULL,
     period            INT            NOT NULL,
     value             NUMERIC(28, 8) NOT NULL
 );
