@@ -1,7 +1,6 @@
-package com.prem.ta.services;
+package com.prem.ta.core;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.core.TechnicalAnalysisEngine;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.MarketData;
 import com.prem.ta.models.OHLCVMetrics;
@@ -31,16 +30,16 @@ import static com.prem.ta.configs.Constants.getBinanceDateString;
 import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 
 @Service
-public class DataProcessingService {
+public class MarketDataComputationService {
 
-    private static final Logger log = LoggerFactory.getLogger(DataProcessingService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketDataComputationService.class);
 
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final MarketDataRepository marketDataRepository;
     private final TechnicalAnalysisEngine technicalAnalysisEngine;
 
-    public DataProcessingService(
+    public MarketDataComputationService(
             AppConfig appConfig,
             FileRepository fileRepository,
             MarketDataRepository marketDataRepository,
@@ -52,7 +51,7 @@ public class DataProcessingService {
         this.technicalAnalysisEngine = technicalAnalysisEngine;
     }
 
-    public void process() {
+    public void compute() {
         log.info("Starting data processing...");
 
         while (true) {

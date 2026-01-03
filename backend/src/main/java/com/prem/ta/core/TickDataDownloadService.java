@@ -1,4 +1,4 @@
-package com.prem.ta.services;
+package com.prem.ta.core;
 
 import com.prem.ta.configs.AppConfig;
 import com.prem.ta.entities.File;
@@ -22,15 +22,15 @@ import static com.prem.ta.configs.Constants.getBinanceDateString;
 import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 
 @Service
-public class DataDownloadService {
+public class TickDataDownloadService {
 
-    private static final Logger log = LoggerFactory.getLogger(DataDownloadService.class);
+    private static final Logger log = LoggerFactory.getLogger(TickDataDownloadService.class);
 
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
 
-    public DataDownloadService(
+    public TickDataDownloadService(
             AppConfig appConfig,
             TickerRepository tickerRepository,
             FileRepository fileRepository) {
