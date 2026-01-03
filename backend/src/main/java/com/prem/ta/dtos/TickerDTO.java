@@ -3,16 +3,17 @@ package com.prem.ta.dtos;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record TickerDTO(
+
         @JsonProperty("ticker_id")
         Long tickerId,
 
         @JsonProperty("symbol")
-        String symbol,
+        String tickerSymbol,
 
         @JsonProperty("name")
-        String name,
+        String tickerName,
 
-        @JsonProperty("start_date")
-        String startDate
+        @JsonProperty("date")
+        String tickerDate
 ) {
 }

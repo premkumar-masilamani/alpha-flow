@@ -18,7 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 
-import static com.prem.ta.configs.Constants.getBinanceFormattedDateString;
+import static com.prem.ta.configs.Constants.getBinanceDateString;
 import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 
 @Service
@@ -55,14 +55,14 @@ public class DataDownloadService {
         LocalDate startDate = fileRepository
                 .findTopByTickerOrderByFileDateDesc(ticker)
                 .map(file -> file.getFileDate().plusDays(1))
-                .orElse(ticker.getStartDate());
+                .orElse(ticker.getTickerDate());
 
         LocalDate today = LocalDate.now();
         if (startDate.isAfter(today)) {
             return; // nothing to download
         }
 
-        String tickerSymbol = ticker.getSymbol();
+        String tickerSymbol = ticker.getTickerSymbol();
         Path outDir = Path.of(appConfig.getDownloadDir(), tickerSymbol);
 
         try {
@@ -72,11 +72,11 @@ public class DataDownloadService {
             return;
         }
 
-        log.info("Syncing ticker {} from {}", ticker.getSymbol(), startDate);
+        log.info("Syncing ticker {} from {}", ticker.getTickerSymbol(), startDate);
         String downloadPattern = appConfig.getDownloadUrl();
         for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
 
-            String dateStr = getBinanceFormattedDateString(date);
+            String dateStr = getBinanceDateString(date);
             String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
             String url = downloadPattern
@@ -110,14 +110,13 @@ public class DataDownloadService {
         file.setTicker(ticker);
         file.setFileDate(date);
         file.setFileUrl(baseUrl);
-        file.setIsDownloaded(true);
         file.setIsProcessed(false);
 
         try {
             fileRepository.save(file);
-            log.info("Saved file file for {} on {}", ticker.getSymbol(), date);
+            log.info("Saved file for {} on {}", ticker.getTickerSymbol(), date);
         } catch (DataIntegrityViolationException ignore) {
-            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getSymbol(), date);
+            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getTickerSymbol(), date);
         }
     }
 

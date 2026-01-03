@@ -19,12 +19,12 @@ public class TickerService {
     }
 
     public TickerDTO getTickerBySymbol(String symbol) {
-        return tickerRepository.findBySymbolIgnoreCase(symbol)
+        return tickerRepository.findByTickerSymbol(symbol)
                 .map(ticker -> new TickerDTO(
                         ticker.getTickerId(),
-                        ticker.getSymbol(),
-                        ticker.getName(),
-                        ticker.getStartDate().toString()
+                        ticker.getTickerSymbol(),
+                        ticker.getTickerName(),
+                        ticker.getTickerDate().toString()
                 ))
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Ticker not found: " + symbol)
@@ -36,9 +36,9 @@ public class TickerService {
                 .stream()
                 .map(ticker -> new TickerDTO(
                         ticker.getTickerId(),
-                        ticker.getSymbol(),
-                        ticker.getName(),
-                        ticker.getStartDate().toString()
+                        ticker.getTickerSymbol(),
+                        ticker.getTickerName(),
+                        ticker.getTickerDate().toString()
                 ))
                 .toList();
     }
