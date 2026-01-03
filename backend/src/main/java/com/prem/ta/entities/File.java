@@ -6,9 +6,7 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "files", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"ticker_id", "file_date"})
-})
+@Table(name = "files")
 @Data
 public class File {
 
@@ -16,19 +14,13 @@ public class File {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long fileId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id", nullable = false)
-    private Ticker ticker;
-
-    @Column(name = "file_date", nullable = false)
     private LocalDate fileDate;
 
-    @Column(name = "file_url", nullable = false, columnDefinition = "TEXT")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ticker_id")
+    private Ticker ticker;
+
     private String fileUrl;
 
-    @Column(name = "is_downloaded", nullable = false)
-    private Boolean isDownloaded = false;
-
-    @Column(name = "is_processed", nullable = false)
     private Boolean isProcessed = false;
 }

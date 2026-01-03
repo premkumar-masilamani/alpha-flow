@@ -1,1 +1,1 @@
-CREATE INDEX idx_files_download_status ON files (is_downloaded, is_processed);
+CREATE INDEX idx_files_status ON files (is_processed);

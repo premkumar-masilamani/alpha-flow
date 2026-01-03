@@ -1,15 +1,14 @@
 package com.prem.ta.services;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.configs.Constants;
 import com.prem.ta.core.TechnicalAnalysisEngine;
 import com.prem.ta.entities.File;
-import com.prem.ta.entities.TradeData;
+import com.prem.ta.entities.MarketData;
 import com.prem.ta.models.OHLCVMetrics;
 import com.prem.ta.models.OrderFlowMetrics;
 import com.prem.ta.models.VolumeProfileMetrics;
 import com.prem.ta.repositories.FileRepository;
-import com.prem.ta.repositories.TradeDataRepository;
+import com.prem.ta.repositories.MarketDataRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -28,27 +27,28 @@ import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import static com.prem.ta.configs.Constants.getBinanceDateString;
+import static com.prem.ta.configs.Constants.getBinanceZipFileName;
+
 @Service
 public class DataProcessingService {
 
-    private static final Logger log = LoggerFactory.getLogger(
-            DataProcessingService.class
-    );
+    private static final Logger log = LoggerFactory.getLogger(DataProcessingService.class);
 
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
-    private final TradeDataRepository tradeDataRepository;
+    private final MarketDataRepository marketDataRepository;
     private final TechnicalAnalysisEngine technicalAnalysisEngine;
 
     public DataProcessingService(
             AppConfig appConfig,
             FileRepository fileRepository,
-            TradeDataRepository tradeDataRepository,
+            MarketDataRepository marketDataRepository,
             TechnicalAnalysisEngine technicalAnalysisEngine
     ) {
         this.appConfig = appConfig;
         this.fileRepository = fileRepository;
-        this.tradeDataRepository = tradeDataRepository;
+        this.marketDataRepository = marketDataRepository;
         this.technicalAnalysisEngine = technicalAnalysisEngine;
     }
 
@@ -57,7 +57,7 @@ public class DataProcessingService {
 
         while (true) {
             Page<File> page =
-                    fileRepository.findByIsDownloadedTrueAndIsProcessedFalse(PageRequest.of(0, 10));
+                    fileRepository.findByIsProcessedFalse(PageRequest.of(0, 10));
 
             if (page.isEmpty()) {
                 break;
@@ -72,9 +72,9 @@ public class DataProcessingService {
 
     public void processTradeDataFile(File file) {
 
-        final String tickerSymbol = file.getTicker().getSymbol();
-        final String dateStr = Constants.getBinanceFormattedDateString(file.getFileDate());
-        final String baseFileName = Constants.getBinanceZipFileName(tickerSymbol, dateStr);
+        final String tickerSymbol = file.getTicker().getTickerSymbol();
+        final String dateStr = getBinanceDateString(file.getFileDate());
+        final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
         final Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
         log.info("Processing trades for {} on {}", tickerSymbol, dateStr);
@@ -109,16 +109,16 @@ public class DataProcessingService {
                                 .build()
                 );
 
-                TradeData computedData = computeMetrics(file, table);
-                TradeData mergedData = tradeDataRepository
-                        .findByTickerAndTradeDate(
+                MarketData computedData = computeMetrics(file, table);
+                MarketData mergedData = marketDataRepository
+                        .findByTickerAndMarketDataDate(
                                 file.getTicker(),
                                 file.getFileDate()
                         )
                         .map(existingData -> mergeWithComputed(existingData, computedData))
                         .orElse(computedData);
-
-                tradeDataRepository.save(mergedData);
+                log.debug(mergedData.toString());
+                marketDataRepository.save(mergedData);
 
                 file.setIsProcessed(true);
                 fileRepository.save(file);
@@ -131,45 +131,44 @@ public class DataProcessingService {
         }
     }
 
-    private TradeData computeMetrics(File file, Table table) {
+    private MarketData computeMetrics(File file, Table table) {
 
         OHLCVMetrics ohlcvMetrics = technicalAnalysisEngine.computeOHLCV(table);
         OrderFlowMetrics orderFlowMetrics = technicalAnalysisEngine.computeOrderFlow(table);
         VolumeProfileMetrics volumeProfileMetrics = technicalAnalysisEngine.computeVolumeProfile(table, ohlcvMetrics);
 
-        TradeData tradeData = new TradeData();
-        tradeData.setTicker(file.getTicker());
-        tradeData.setTradeDate(file.getFileDate());
+        MarketData marketData = new MarketData();
+        marketData.setTicker(file.getTicker());
+        marketData.setMarketDataDate(file.getFileDate());
 
-        tradeData.setPriceOpen(BigDecimal.valueOf(ohlcvMetrics.open()));
-        tradeData.setPriceHigh(BigDecimal.valueOf(ohlcvMetrics.high()));
-        tradeData.setPriceLow(BigDecimal.valueOf(ohlcvMetrics.low()));
-        tradeData.setPriceClose(BigDecimal.valueOf(ohlcvMetrics.close()));
+        marketData.setPriceOpen(BigDecimal.valueOf(ohlcvMetrics.open()));
+        marketData.setPriceHigh(BigDecimal.valueOf(ohlcvMetrics.high()));
+        marketData.setPriceLow(BigDecimal.valueOf(ohlcvMetrics.low()));
+        marketData.setPriceClose(BigDecimal.valueOf(ohlcvMetrics.close()));
 
-        tradeData.setVolume(BigDecimal.valueOf(ohlcvMetrics.volume()));
-        tradeData.setVolumeWeightedAveragePrice(BigDecimal.valueOf(ohlcvMetrics.vwap()));
+        marketData.setVolume(BigDecimal.valueOf(ohlcvMetrics.volume()));
+        marketData.setVwap(BigDecimal.valueOf(ohlcvMetrics.vwap()));
+        marketData.setVolumeProfilePOC(volumeProfileMetrics.pointOfControl());
+        marketData.setVolumeProfileVAH(volumeProfileMetrics.valueAreaHigh());
+        marketData.setVolumeProfileVAL(volumeProfileMetrics.valueAreaLow());
 
-        tradeData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
-        tradeData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
+        marketData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
+        marketData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
 
-        tradeData.setVolumeProfilePointOfControl(volumeProfileMetrics.pointOfControl());
-        tradeData.setVolumeProfileValueAreaHigh(volumeProfileMetrics.valueAreaHigh());
-        tradeData.setVolumeProfileValueAreaLow(volumeProfileMetrics.valueAreaLow());
-
-        return tradeData;
+        return marketData;
     }
 
 
-    private TradeData mergeWithComputed(TradeData existing, TradeData computed) {
+    private MarketData mergeWithComputed(MarketData existing, MarketData computed) {
         existing.setPriceOpen(computed.getPriceOpen());
         existing.setPriceHigh(computed.getPriceHigh());
         existing.setPriceLow(computed.getPriceLow());
         existing.setPriceClose(computed.getPriceClose());
         existing.setVolume(computed.getVolume());
-        existing.setVolumeWeightedAveragePrice(computed.getVolumeWeightedAveragePrice());
-        existing.setVolumeProfilePointOfControl(computed.getVolumeProfilePointOfControl());
-        existing.setVolumeProfileValueAreaHigh(computed.getVolumeProfileValueAreaHigh());
-        existing.setVolumeProfileValueAreaLow(computed.getVolumeProfileValueAreaLow());
+        existing.setVwap(computed.getVwap());
+        existing.setVolumeProfilePOC(computed.getVolumeProfilePOC());
+        existing.setVolumeProfileVAH(computed.getVolumeProfileVAH());
+        existing.setVolumeProfileVAL(computed.getVolumeProfileVAL());
         existing.setBuyerVolumeShare(computed.getBuyerVolumeShare());
         existing.setBuyerCapitalShare(computed.getBuyerCapitalShare());
         return existing;

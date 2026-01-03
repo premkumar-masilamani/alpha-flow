@@ -14,13 +14,10 @@ public class Ticker {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long tickerId;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+    private LocalDate tickerDate;
 
-    @Column(name = "symbol", nullable = false, length = 20, unique = true)
-    private String symbol;
+    private String tickerSymbol;
 
-    @Column(name = "name", nullable = false, length = 100)
-    private String name;
+    private String tickerName;
 
 }

@@ -1,9 +1,9 @@
 package com.prem.ta.controllers;
 
+import com.prem.ta.dtos.MarketDataDTO;
 import com.prem.ta.dtos.TickerDTO;
-import com.prem.ta.dtos.TradeDataDTO;
+import com.prem.ta.services.MarketDataService;
 import com.prem.ta.services.TickerService;
-import com.prem.ta.services.TradeDataService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,12 +16,11 @@ import java.util.List;
 public class TickerController {
 
     private final TickerService tickerService;
-    private final TradeDataService tradeDataService;
+    private final MarketDataService marketDataService;
 
-    public TickerController(TickerService tickerService,
-                            TradeDataService tradeDataService) {
+    public TickerController(TickerService tickerService, MarketDataService marketDataService) {
         this.tickerService = tickerService;
-        this.tradeDataService = tradeDataService;
+        this.marketDataService = marketDataService;
     }
 
     @GetMapping("/tickers")
@@ -34,8 +33,8 @@ public class TickerController {
         return tickerService.getTickerBySymbol(symbol);
     }
 
-    @GetMapping("/tickers/{symbol}/trades")
-    public List<TradeDataDTO> getTradesForTicker(@PathVariable String symbol) {
-        return tradeDataService.getTradesByTickerName(symbol);
+    @GetMapping("/tickers/{symbol}/data")
+    public List<MarketDataDTO> getMarketDataForTicker(@PathVariable String symbol) {
+        return marketDataService.getMarketDataByTickerName(symbol);
     }
 }

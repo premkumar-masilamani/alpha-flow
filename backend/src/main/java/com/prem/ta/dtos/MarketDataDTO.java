@@ -5,10 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public record TradeDataDTO(
+public record MarketDataDTO(
 
         @JsonProperty("date")
-        LocalDate tradeDate,
+        LocalDate marketDataDate,
 
         @JsonProperty("open")
         BigDecimal priceOpen,
@@ -26,16 +26,16 @@ public record TradeDataDTO(
         BigDecimal volume,
 
         @JsonProperty("vwap")
-        BigDecimal volumeWeightedAveragePrice,
+        BigDecimal vwap,
 
         @JsonProperty("poc")
-        BigDecimal volumeProfilePointOfControl,
+        BigDecimal volumeProfilePOC,
 
         @JsonProperty("vah")
-        BigDecimal volumeProfileValueAreaHigh,
+        BigDecimal volumeProfileVAH,
 
         @JsonProperty("val")
-        BigDecimal volumeProfileValueAreaLow,
+        BigDecimal volumeProfileVAL,
 
         @JsonProperty("bvs")
         Double buyerVolumeShare,
