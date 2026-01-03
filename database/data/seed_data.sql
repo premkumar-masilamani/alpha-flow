@@ -1,38 +1,37 @@
-INSERT INTO tickers (symbol, name, start_date)
-VALUES ('BTCUSDT', 'Bitcoin / Tether', '2017-08-17'),
-       ('ETHUSDT', 'Ethereum / Tether', '2017-08-17'),
-       ('XRPUSDT', 'Ripple / Tether', '2018-05-04'),
-       ('BNBUSDT', 'Binance Coin / Tether', '2017-11-06'),
-       ('SOLUSDT', 'Solana / Tether', '2020-08-11'),
-       ('DOGEUSDT', 'Dogecoin / Tether', '2019-07-05'),
-       ('TRXUSDT', 'TRON / Tether', '2018-06-11'),
-       ('ADAUSDT', 'Cardano / Tether', '2018-04-17'),
-       ('LINKUSDT', 'Chainlink / Tether', '2019-01-16'),
-       ('SUIUSDT', 'Sui / Tether', '2023-05-03'),
-       ('XLMUSDT', 'Stellar / Tether', '2018-05-31'),
-       ('AVAXUSDT', 'Avalanche / Tether', '2020-09-22'),
-       ('HBARUSDT', 'Hedera / Tether', '2019-09-29'),
-       ('LTCUSDT', 'Litecoin / Tether', '2017-12-13'),
-       ('TONUSDT', 'Toncoin / Tether', '2024-08-08'),
-       ('SHIBUSDT', 'Shiba Inu / Tether', '2021-05-10'),
-       ('UNIUSDT', 'Uniswap / Tether', '2020-09-17'),
-       ('DOTUSDT', 'Polkadot / Tether', '2020-08-18'),
-       ('AAVEUSDT', 'Aave / Tether', '2020-10-15'),
-       ('ENAUSDT', 'Ethena / Tether', '2024-04-02'),
-       ('PEPEUSDT', 'Pepe / Tether', '2023-05-05'),
-       ('POLUSDT', 'Polygon / Tether', '2024-09-13'),
-       ('ARBUSDT', 'Arbitrum / Tether', '2023-03-23'),
-       ('PENGUUSDT', 'Pudgy Penguins / Tether', '2024-12-17'),
-       ('BONKUSDT', 'Bonk / Tether', '2023-12-15'),
-       ('TRUMPUSDT', 'Trump Meme Coin / Tether', '2025-01-19'),
-       ('FILUSDT', 'Filecoin / Tether', '2020-10-15'),
-       ('PYTHUSDT', 'Pyth Network / Tether', '2024-02-02'),
-       ('CFXUSDT', 'Conflux / Tether', '2021-03-29'),
-       ('BCHUSDT', 'Bitcoin Cash / Tether', '2019-11-28'),
-       ('ZECUSDT', 'Zcash / Tether', '2019-03-21'),
-       ('TAOUSDT', 'Bittensor / Tether', '2024-04-11'),
-       ('NEARUSDT', 'NEAR Protocol / Tether', '2020-10-14'),
-       ('ICPUSDT', 'Internet Computer / Tether', '2021-05-11'),
-       ('ONDOUSDT', 'Ondo / Tether', '2025-04-11'),
-       ('APTUSDT', 'Aptos / Tether', '2022-10-19')
-ON CONFLICT (symbol) DO NOTHING;
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(1, '2017-08-17', 'BTCUSDT', 'Bitcoin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(2, '2017-08-17', 'ETHUSDT', 'Ethereum / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(3, '2018-05-04', 'XRPUSDT', 'Ripple / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(4, '2017-11-06', 'BNBUSDT', 'Binance Coin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(5, '2020-08-11', 'SOLUSDT', 'Solana / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(6, '2019-07-05', 'DOGEUSDT', 'Dogecoin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(7, '2018-06-11', 'TRXUSDT', 'TRON / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(8, '2018-04-17', 'ADAUSDT', 'Cardano / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(9, '2019-01-16', 'LINKUSDT', 'Chainlink / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(10, '2023-05-03', 'SUIUSDT', 'Sui / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(11, '2018-05-31', 'XLMUSDT', 'Stellar / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(12, '2020-09-22', 'AVAXUSDT', 'Avalanche / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(13, '2019-09-29', 'HBARUSDT', 'Hedera / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(14, '2017-12-13', 'LTCUSDT', 'Litecoin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(15, '2024-08-08', 'TONUSDT', 'Toncoin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(16, '2021-05-10', 'SHIBUSDT', 'Shiba Inu / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(17, '2020-09-17', 'UNIUSDT', 'Uniswap / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(18, '2020-08-18', 'DOTUSDT', 'Polkadot / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(19, '2020-10-15', 'AAVEUSDT', 'Aave / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(20, '2024-04-02', 'ENAUSDT', 'Ethena / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(21, '2023-05-05', 'PEPEUSDT', 'Pepe / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(22, '2024-09-13', 'POLUSDT', 'Polygon / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(23, '2023-03-23', 'ARBUSDT', 'Arbitrum / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(24, '2024-12-17', 'PENGUUSDT', 'Pudgy Penguins / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(25, '2023-12-15', 'BONKUSDT', 'Bonk / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(26, '2025-01-19', 'TRUMPUSDT', 'Trump Meme Coin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(27, '2020-10-15', 'FILUSDT', 'Filecoin / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(28, '2024-02-02', 'PYTHUSDT', 'Pyth Network / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(29, '2021-03-29', 'CFXUSDT', 'Conflux / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(30, '2025-09-01', 'WLFIUSDT', 'World Liberty Financial / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(61, '2019-11-28', 'BCHUSDT', 'Bitcoin Cash / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(62, '2019-03-21', 'ZECUSDT', 'Zcash / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(63, '2024-04-11', 'TAOUSDT', 'Bittensor / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(64, '2020-10-14', 'NEARUSDT', 'NEAR Protocol / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(65, '2021-05-11', 'ICPUSDT', 'Internet Computer / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(66, '2025-04-11', 'ONDOUSDT', 'Ondo / Tether');
+INSERT INTO tickers (ticker_id, start_date, symbol, "name") VALUES(67, '2022-10-19', 'APTUSDT', 'Aptos / Tether');
