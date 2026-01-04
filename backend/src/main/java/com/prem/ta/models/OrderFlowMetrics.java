@@ -1,7 +1,9 @@
 package com.prem.ta.models;
 
+import java.math.BigDecimal;
+
 public record OrderFlowMetrics(
-        double buyerVolumeShare,
-        double buyerCapitalShare
+        BigDecimal buyerVolumeShare,
+        BigDecimal buyerCapitalShare
 ) {
 }

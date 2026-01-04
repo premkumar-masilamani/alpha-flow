@@ -5,9 +5,8 @@ import com.prem.ta.models.OrderFlowMetrics;
 import com.prem.ta.models.VolumeProfileMetrics;
 import org.springframework.stereotype.Component;
 import tech.tablesaw.api.BooleanColumn;
-import tech.tablesaw.api.DoubleColumn;
+import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.Table;
-import tech.tablesaw.selection.Selection;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,65 +16,97 @@ import java.util.List;
 import java.util.Map;
 
 import static com.prem.ta.configs.Constants.*;
+import static java.math.BigDecimal.valueOf;
 
 @Component
 public class TechnicalAnalysisEngine {
 
     public OHLCVMetrics computeOHLCV(Table table) {
-        DoubleColumn price = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
-        DoubleColumn qty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-        DoubleColumn quoteQty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
+        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
 
         int rows = table.rowCount();
 
-        double open = price.get(0);
-        double close = price.get(rows - 1);
+        BigDecimal open = new BigDecimal(priceColumn.get(0));
+        BigDecimal close = new BigDecimal(priceColumn.get(rows - 1));
 
-        double high = price.max();
-        double low = price.min();
+        BigDecimal high = open;
+        BigDecimal low = open;
+        BigDecimal volume = BigDecimal.ZERO;
+        BigDecimal quoteVolume = BigDecimal.ZERO;
 
-        double volume = qty.sum();
-        double quoteVolume = quoteQty.sum();
-        double vwap = volume > 0 ? quoteVolume / volume : 0.0;
+        for (int i = 0; i < rows; i++) {
+            BigDecimal price = new BigDecimal(priceColumn.get(i));
+            BigDecimal qty = new BigDecimal(qtyColumn.get(i));
+            BigDecimal quote = new BigDecimal(quoteQtyColumn.get(i));
+
+            if (price.compareTo(high) > 0) high = price;
+            if (price.compareTo(low) < 0) low = price;
+
+            volume = volume.add(qty);
+            quoteVolume = quoteVolume.add(quote);
+        }
+
+        BigDecimal vwap = volume.signum() > 0
+                ? quoteVolume.divide(volume, 8, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
 
         return new OHLCVMetrics(open, high, low, close, volume, vwap);
     }
 
     public OrderFlowMetrics computeOrderFlow(Table table) {
 
-        DoubleColumn qty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-        DoubleColumn quoteQty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
-        BooleanColumn isBuyerMaker = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_IS_BUYER_THE_MAKER);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
+        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
+        BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_IS_BUYER_THE_MAKER);
 
-        double totalVolume = qty.sum();
-        double totalQuoteQty = quoteQty.sum();
+        BigDecimal totalVolume = BigDecimal.ZERO;
+        BigDecimal totalQuoteQty = BigDecimal.ZERO;
+        BigDecimal buyerVolume = BigDecimal.ZERO;
+        BigDecimal buyerCapital = BigDecimal.ZERO;
 
-        Selection aggressiveBuyer = isBuyerMaker.isFalse();
+        int rowCount = table.rowCount();
 
-        double buyerVolume = qty.where(aggressiveBuyer).sum();
-        double buyerCapital = quoteQty.where(aggressiveBuyer).sum();
+        for (int i = 0; i < rowCount; i++) {
+            BigDecimal qty = new BigDecimal(qtyColumn.get(i));
+            BigDecimal quoteQty = new BigDecimal(quoteQtyColumn.get(i));
 
-        return new OrderFlowMetrics(
-                totalVolume > 0 ? buyerVolume / totalVolume : 0.0,
-                totalQuoteQty > 0 ? buyerCapital / totalQuoteQty : 0.0
-        );
+            totalVolume = totalVolume.add(qty);
+            totalQuoteQty = totalQuoteQty.add(quoteQty);
+
+            // Aggressive buyer = buyer is NOT the maker
+            if (!isBuyerMakerColumn.get(i)) {
+                buyerVolume = buyerVolume.add(qty);
+                buyerCapital = buyerCapital.add(quoteQty);
+            }
+        }
+
+        BigDecimal buyerVolumeShare = totalVolume.signum() > 0
+                ? buyerVolume.divide(totalVolume, 8, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0
+                ? buyerCapital.divide(totalQuoteQty, 8, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        return new OrderFlowMetrics(buyerVolumeShare, buyerCapitalShare);
     }
 
     public VolumeProfileMetrics computeVolumeProfile(Table table, OHLCVMetrics ohlcv) {
 
-        DoubleColumn price = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
-        DoubleColumn qty = table.doubleColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-
         BigDecimal binSize = deriveBinSize(ohlcv);
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
 
         // Map {price_zone_low → total_volume_traded_in_that_zone}
         Map<BigDecimal, BigDecimal> volumeAtPrice = new HashMap<>();
         boolean singleBin = binSize.signum() == 0;
-        BigDecimal anchorPrice = BigDecimal.valueOf(ohlcv.open());
+        BigDecimal anchorPrice = ohlcv.open();
 
         for (int i = 0; i < table.rowCount(); i++) {
-            BigDecimal p = BigDecimal.valueOf(price.get(i));
-            BigDecimal q = BigDecimal.valueOf(qty.get(i));
+            BigDecimal p = new BigDecimal(priceColumn.get(i));
+            BigDecimal q = new BigDecimal(qtyColumn.get(i));
 
             // If single bin, put all the volume to open price (anchor)
             // Else, floor the number with binSize to find the respective bins
@@ -91,26 +122,28 @@ public class TechnicalAnalysisEngine {
     }
 
     private BigDecimal deriveBinSize(OHLCVMetrics ohlcv) {
-        BigDecimal open = BigDecimal.valueOf(ohlcv.open());
-        BigDecimal high = BigDecimal.valueOf(ohlcv.high());
-        BigDecimal low = BigDecimal.valueOf(ohlcv.low());
-        BigDecimal close = BigDecimal.valueOf(ohlcv.close());
 
         // Price Scale = Average of all 4 prices
-        BigDecimal priceScale = open.add(high).add(low).add(close).divide(BigDecimal.valueOf(4), 18, RoundingMode.HALF_UP);
+        BigDecimal priceScale = ohlcv.open()
+                .add(ohlcv.high())
+                .add(ohlcv.low())
+                .add(ohlcv.close())
+                .divide(valueOf(4), 18, RoundingMode.HALF_UP);
 
         // Daily Range = high - low;
         // Daily Range as % = (high - low) / priceScale
-        BigDecimal rangePercent = high.subtract(low).divide(priceScale, 18, RoundingMode.HALF_UP);
+        BigDecimal rangePercent = ohlcv.high()
+                .subtract(ohlcv.low())
+                .divide(priceScale, 18, RoundingMode.HALF_UP);
 
         // If the Daily Range % less than threshold %, default to 1 bin
         // (i.e.) bin size = 0
-        if (rangePercent.compareTo(BigDecimal.valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT)) < 0) {
+        if (rangePercent.compareTo(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT)) < 0) {
             return BigDecimal.ZERO;
         }
 
         // Get the threshold % of the price scale as bin size
-        return priceScale.multiply(BigDecimal.valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT))
+        return priceScale.multiply(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT))
                 .stripTrailingZeros();
     }
 
@@ -141,7 +174,7 @@ public class TechnicalAnalysisEngine {
 
         BigDecimal targetVolume =
                 totalVolume.multiply(
-                        BigDecimal.valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT)
+                        valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT)
                 );
 
         BigDecimal cumulative = BigDecimal.ZERO;

@@ -44,7 +44,7 @@ public class MarketData {
     @Column(name = "volume_profile_val")
     private BigDecimal volumeProfileVAL;
 
-    private Double buyerVolumeShare;
+    private BigDecimal buyerVolumeShare;
 
-    private Double buyerCapitalShare;
+    private BigDecimal buyerCapitalShare;
 }
