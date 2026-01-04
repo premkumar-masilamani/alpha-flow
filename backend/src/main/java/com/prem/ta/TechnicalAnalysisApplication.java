@@ -1,7 +1,7 @@
 package com.prem.ta;
 
-import com.prem.ta.services.DataDownloadService;
-import com.prem.ta.services.DataProcessingService;
+import com.prem.ta.core.MarketDataComputationService;
+import com.prem.ta.core.TickDataDownloadService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -16,12 +16,12 @@ public class TechnicalAnalysisApplication {
 
     @Bean
     CommandLineRunner runner(
-            DataDownloadService dataDownloadService,
-            DataProcessingService dataProcessingService
+            TickDataDownloadService tickDataDownloadService,
+            MarketDataComputationService marketDataComputationService
     ) {
         return args -> {
-            dataDownloadService.download();
-            dataProcessingService.process();
+            tickDataDownloadService.download();
+            marketDataComputationService.compute();
         };
     }
 }

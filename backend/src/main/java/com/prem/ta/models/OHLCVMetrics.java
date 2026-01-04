@@ -1,11 +1,13 @@
 package com.prem.ta.models;
 
+import java.math.BigDecimal;
+
 public record OHLCVMetrics(
-        double open,
-        double high,
-        double low,
-        double close,
-        double volume,
-        double vwap
+        BigDecimal open,
+        BigDecimal high,
+        BigDecimal low,
+        BigDecimal close,
+        BigDecimal volume,
+        BigDecimal vwap
 ) {
 }

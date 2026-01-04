@@ -1,7 +1,6 @@
-package com.prem.ta.services;
+package com.prem.ta.core;
 
 import com.prem.ta.configs.AppConfig;
-import com.prem.ta.core.TechnicalAnalysisEngine;
 import com.prem.ta.entities.File;
 import com.prem.ta.entities.MarketData;
 import com.prem.ta.models.OHLCVMetrics;
@@ -20,7 +19,6 @@ import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,16 +29,16 @@ import static com.prem.ta.configs.Constants.getBinanceDateString;
 import static com.prem.ta.configs.Constants.getBinanceZipFileName;
 
 @Service
-public class DataProcessingService {
+public class MarketDataComputationService {
 
-    private static final Logger log = LoggerFactory.getLogger(DataProcessingService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketDataComputationService.class);
 
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final MarketDataRepository marketDataRepository;
     private final TechnicalAnalysisEngine technicalAnalysisEngine;
 
-    public DataProcessingService(
+    public MarketDataComputationService(
             AppConfig appConfig,
             FileRepository fileRepository,
             MarketDataRepository marketDataRepository,
@@ -52,25 +50,24 @@ public class DataProcessingService {
         this.technicalAnalysisEngine = technicalAnalysisEngine;
     }
 
-    public void process() {
+    public void compute() {
         log.info("Starting data processing...");
 
         while (true) {
-            Page<File> page =
-                    fileRepository.findByIsProcessedFalse(PageRequest.of(0, 10));
+            Page<File> page = fileRepository.findByIsProcessedFalse(PageRequest.of(0, 10));
 
             if (page.isEmpty()) {
                 break;
             }
 
             log.info("Processing {} pending files...", page.getNumberOfElements());
-            page.getContent().forEach(this::processTradeDataFile);
+            page.getContent().forEach(this::processTickDataFile);
         }
 
         log.info("Data processing completed.");
     }
 
-    public void processTradeDataFile(File file) {
+    public void processTickDataFile(File file) {
 
         final String tickerSymbol = file.getTicker().getTickerSymbol();
         final String dateStr = getBinanceDateString(file.getFileDate());
@@ -86,32 +83,18 @@ public class DataProcessingService {
 
         try (ZipFile zipFile = new ZipFile(filePath.toFile())) {
 
-            ZipEntry entry = zipFile.stream().findFirst().orElse(null);
+            ZipEntry entry = zipFile.stream()
+                    .findFirst()
+                    .orElse(null);
+
             if (entry == null) {
                 log.warn("Empty ZIP for {} on {}", tickerSymbol, dateStr);
                 return;
             }
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
-
-                Table table = Table.read().csv(
-                        CsvReadOptions.builder(new InputStreamReader(inputStream))
-                                .header(false)
-                                .columnTypes(new ColumnType[]{
-                                        ColumnType.LONG,
-                                        ColumnType.DOUBLE,
-                                        ColumnType.DOUBLE,
-                                        ColumnType.DOUBLE,
-                                        ColumnType.LONG,
-                                        ColumnType.BOOLEAN,
-                                        ColumnType.BOOLEAN,
-                                })
-                                .build()
-                );
-
-                MarketData computedData = computeMetrics(file, table);
-                MarketData mergedData = marketDataRepository
-                        .findByTickerAndMarketDataDate(
+                MarketData computedData = computeMetrics(file, getFileAsTable(inputStream));
+                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(
                                 file.getTicker(),
                                 file.getFileDate()
                         )
@@ -131,6 +114,20 @@ public class DataProcessingService {
         }
     }
 
+    private Table getFileAsTable(InputStream inputStream) {
+        return Table.read().csv(CsvReadOptions.builder(new InputStreamReader(inputStream))
+                .header(false)
+                .columnTypes(new ColumnType[]{
+                        ColumnType.LONG,    // trade id (integer, safe as LONG)
+                        ColumnType.STRING,  // price (parsed as STRING to preserve precision)
+                        ColumnType.STRING,  // quantity (parsed as STRING to preserve precision)
+                        ColumnType.STRING,  // quote quantity (parsed as STRING to preserve precision)
+                        ColumnType.LONG,    // trade time (integer, safe as LONG)
+                        ColumnType.BOOLEAN, // is buyer maker
+                        ColumnType.BOOLEAN  // is best match
+                }).build());
+    }
+
     private MarketData computeMetrics(File file, Table table) {
 
         OHLCVMetrics ohlcvMetrics = technicalAnalysisEngine.computeOHLCV(table);
@@ -141,13 +138,13 @@ public class DataProcessingService {
         marketData.setTicker(file.getTicker());
         marketData.setMarketDataDate(file.getFileDate());
 
-        marketData.setPriceOpen(BigDecimal.valueOf(ohlcvMetrics.open()));
-        marketData.setPriceHigh(BigDecimal.valueOf(ohlcvMetrics.high()));
-        marketData.setPriceLow(BigDecimal.valueOf(ohlcvMetrics.low()));
-        marketData.setPriceClose(BigDecimal.valueOf(ohlcvMetrics.close()));
+        marketData.setPriceOpen(ohlcvMetrics.open());
+        marketData.setPriceHigh(ohlcvMetrics.high());
+        marketData.setPriceLow(ohlcvMetrics.low());
+        marketData.setPriceClose(ohlcvMetrics.close());
 
-        marketData.setVolume(BigDecimal.valueOf(ohlcvMetrics.volume()));
-        marketData.setVwap(BigDecimal.valueOf(ohlcvMetrics.vwap()));
+        marketData.setVolume(ohlcvMetrics.volume());
+        marketData.setVwap(ohlcvMetrics.vwap());
         marketData.setVolumeProfilePOC(volumeProfileMetrics.pointOfControl());
         marketData.setVolumeProfileVAH(volumeProfileMetrics.valueAreaHigh());
         marketData.setVolumeProfileVAL(volumeProfileMetrics.valueAreaLow());
