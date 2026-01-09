@@ -16,8 +16,6 @@ public interface FileRepository extends JpaRepository<File, Long> {
     Optional<File> findTopByTickerOrderByFileDateDesc(Ticker ticker);
 
     @EntityGraph(attributePaths = "ticker")
-    Page<File> findByIsProcessedFalse(
-            Pageable pageable
-    );
+    Page<File> findByIsProcessedFalse(Pageable pageable);
 
 }

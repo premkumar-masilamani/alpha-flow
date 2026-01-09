@@ -24,11 +24,8 @@ public class TickerService {
                         ticker.getTickerId(),
                         ticker.getTickerSymbol(),
                         ticker.getTickerName(),
-                        ticker.getTickerDate().toString()
-                ))
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Ticker not found: " + symbol)
-                );
+                        ticker.getTickerDate().toString()))
+                .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
     }
 
     public List<TickerDTO> getAllTickers() {
@@ -38,8 +35,7 @@ public class TickerService {
                         ticker.getTickerId(),
                         ticker.getTickerSymbol(),
                         ticker.getTickerName(),
-                        ticker.getTickerDate().toString()
-                ))
+                        ticker.getTickerDate().toString()))
                 .toList();
     }
 }

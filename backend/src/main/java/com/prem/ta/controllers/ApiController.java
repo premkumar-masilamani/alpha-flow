@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
+
+import static java.util.Optional.ofNullable;
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.valueOf;
 
 @RestController
 public class ApiController implements ErrorController {
@@ -27,21 +30,19 @@ public class ApiController implements ErrorController {
     public Map<String, Object> handleError(HttpServletRequest request) {
 
         Integer status = (Integer) request.getAttribute("jakarta.servlet.error.status_code");
-        Throwable ex = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
+        Throwable exception = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
         String path = (String) request.getAttribute("jakarta.servlet.error.request_uri");
 
-        HttpStatus httpStatus = HttpStatus.valueOf(Optional.ofNullable(status)
-                .orElse(HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        HttpStatus httpStatus = valueOf(ofNullable(status)
+                .orElse(INTERNAL_SERVER_ERROR.value()));
 
-        String message = Optional.ofNullable(ex)
-                .map(Throwable::getMessage)
+        String message = ofNullable(exception).map(Throwable::getMessage)
                 .orElse(httpStatus.getReasonPhrase());
 
         return Map.of(
                 "status", httpStatus.value(),
                 "error", httpStatus.getReasonPhrase(),
-                "message", message,
-                "path", path,
+                "message", message, "path", path,
                 "timestamp", Instant.now().toString()
         );
     }

@@ -4,16 +4,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record TickerDTO(
 
-        @JsonProperty("ticker_id")
-        Long tickerId,
+        @JsonProperty("ticker_id") Long tickerId,
 
-        @JsonProperty("symbol")
-        String tickerSymbol,
+        @JsonProperty("symbol") String tickerSymbol,
 
-        @JsonProperty("name")
-        String tickerName,
+        @JsonProperty("name") String tickerName,
 
-        @JsonProperty("date")
-        String tickerDate
-) {
+        @JsonProperty("date") String tickerDate) {
 }

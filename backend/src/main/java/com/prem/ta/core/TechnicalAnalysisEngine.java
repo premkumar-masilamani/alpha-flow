@@ -10,21 +10,22 @@ import tech.tablesaw.api.Table;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.prem.ta.configs.Constants.*;
 import static java.math.BigDecimal.valueOf;
+import static java.util.Comparator.comparing;
 
 @Component
 public class TechnicalAnalysisEngine {
 
     public OHLCVMetrics computeOHLCV(Table table) {
-        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
-        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
+
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
+        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
 
         int rows = table.rowCount();
 
@@ -44,22 +45,20 @@ public class TechnicalAnalysisEngine {
             if (price.compareTo(high) > 0) high = price;
             if (price.compareTo(low) < 0) low = price;
 
-            volume = volume.add(qty);
-            quoteVolume = quoteVolume.add(quote);
+            volume = volume.add(qty, DB_MATH_CONTEXT);
+            quoteVolume = quoteVolume.add(quote, DB_MATH_CONTEXT);
         }
 
-        BigDecimal vwap = volume.signum() > 0
-                ? quoteVolume.divide(volume, 8, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal vwap = volume.signum() > 0 ? quoteVolume.divide(volume, DB_MATH_CONTEXT) : BigDecimal.ZERO;
 
         return new OHLCVMetrics(open, high, low, close, volume, vwap);
     }
 
     public OrderFlowMetrics computeOrderFlow(Table table) {
 
-        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
-        BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_IS_BUYER_THE_MAKER);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
+        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
+        BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_INDEX_IS_BUYER_THE_MAKER);
 
         BigDecimal totalVolume = BigDecimal.ZERO;
         BigDecimal totalQuoteQty = BigDecimal.ZERO;
@@ -72,23 +71,19 @@ public class TechnicalAnalysisEngine {
             BigDecimal qty = new BigDecimal(qtyColumn.get(i));
             BigDecimal quoteQty = new BigDecimal(quoteQtyColumn.get(i));
 
-            totalVolume = totalVolume.add(qty);
-            totalQuoteQty = totalQuoteQty.add(quoteQty);
+            totalVolume = totalVolume.add(qty, DB_MATH_CONTEXT);
+            totalQuoteQty = totalQuoteQty.add(quoteQty, DB_MATH_CONTEXT);
 
             // Aggressive buyer = buyer is NOT the maker
             if (!isBuyerMakerColumn.get(i)) {
-                buyerVolume = buyerVolume.add(qty);
-                buyerCapital = buyerCapital.add(quoteQty);
+                buyerVolume = buyerVolume.add(qty, DB_MATH_CONTEXT);
+                buyerCapital = buyerCapital.add(quoteQty, DB_MATH_CONTEXT);
             }
         }
 
-        BigDecimal buyerVolumeShare = totalVolume.signum() > 0
-                ? buyerVolume.divide(totalVolume, 8, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal buyerVolumeShare = totalVolume.signum() > 0 ? buyerVolume.divide(totalVolume, DB_MATH_CONTEXT) : BigDecimal.ZERO;
 
-        BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0
-                ? buyerCapital.divide(totalQuoteQty, 8, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0 ? buyerCapital.divide(totalQuoteQty, DB_MATH_CONTEXT) : BigDecimal.ZERO;
 
         return new OrderFlowMetrics(buyerVolumeShare, buyerCapitalShare);
     }
@@ -96,8 +91,8 @@ public class TechnicalAnalysisEngine {
     public VolumeProfileMetrics computeVolumeProfile(Table table, OHLCVMetrics ohlcv) {
 
         BigDecimal binSize = deriveBinSize(ohlcv);
-        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
-        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
 
         // Map {price_zone_low → total_volume_traded_in_that_zone}
         Map<BigDecimal, BigDecimal> volumeAtPrice = new HashMap<>();
@@ -110,9 +105,7 @@ public class TechnicalAnalysisEngine {
 
             // If single bin, put all the volume to open price (anchor)
             // Else, floor the number with binSize to find the respective bins
-            BigDecimal bucket = singleBin
-                    ? anchorPrice
-                    : p.divide(binSize, 0, RoundingMode.FLOOR).multiply(binSize);
+            BigDecimal bucket = singleBin ? anchorPrice : p.divide(binSize, 0, RoundingMode.FLOOR).multiply(binSize);
 
             // Add the volume to the bucket
             volumeAtPrice.merge(bucket, q, BigDecimal::add);
@@ -125,16 +118,16 @@ public class TechnicalAnalysisEngine {
 
         // Price Scale = Average of all 4 prices
         BigDecimal priceScale = ohlcv.open()
-                .add(ohlcv.high())
-                .add(ohlcv.low())
-                .add(ohlcv.close())
-                .divide(valueOf(4), 18, RoundingMode.HALF_UP);
+                .add(ohlcv.high(), DB_MATH_CONTEXT)
+                .add(ohlcv.low(), DB_MATH_CONTEXT)
+                .add(ohlcv.close(), DB_MATH_CONTEXT)
+                .divide(valueOf(4), DB_MATH_CONTEXT);
 
         // Daily Range = high - low;
         // Daily Range as % = (high - low) / priceScale
         BigDecimal rangePercent = ohlcv.high()
-                .subtract(ohlcv.low())
-                .divide(priceScale, 18, RoundingMode.HALF_UP);
+                .subtract(ohlcv.low(), DB_MATH_CONTEXT)
+                .divide(priceScale, DB_MATH_CONTEXT);
 
         // If the Daily Range % less than threshold %, default to 1 bin
         // (i.e.) bin size = 0
@@ -143,7 +136,7 @@ public class TechnicalAnalysisEngine {
         }
 
         // Get the threshold % of the price scale as bin size
-        return priceScale.multiply(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT))
+        return priceScale.multiply(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT), DB_MATH_CONTEXT)
                 .stripTrailingZeros();
     }
 
@@ -164,7 +157,7 @@ public class TechnicalAnalysisEngine {
         // This is a sorted list of how far the prices are away from PoC
         List<Map.Entry<BigDecimal, BigDecimal>> sortedDistanceFromPoCList = volumeAtPrice.entrySet()
                 .stream()
-                .sorted(Comparator.comparing(e -> e.getKey().subtract(poc).abs()))
+                .sorted(comparing(e -> e.getKey().subtract(poc).abs()))
                 .toList();
 
         // Target Volume calculation, to stop the iteration once reached the limit
@@ -172,10 +165,7 @@ public class TechnicalAnalysisEngine {
                 .stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal targetVolume =
-                totalVolume.multiply(
-                        valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT)
-                );
+        BigDecimal targetVolume = totalVolume.multiply(valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT), DB_MATH_CONTEXT);
 
         BigDecimal cumulative = BigDecimal.ZERO;
         BigDecimal vah = poc;
@@ -184,7 +174,7 @@ public class TechnicalAnalysisEngine {
         for (var e : sortedDistanceFromPoCList) {
             vah = vah.max(e.getKey());
             val = val.min(e.getKey());
-            cumulative = cumulative.add(e.getValue());
+            cumulative = cumulative.add(e.getValue(), DB_MATH_CONTEXT);
             if (cumulative.compareTo(targetVolume) >= 0) break;
         }
 

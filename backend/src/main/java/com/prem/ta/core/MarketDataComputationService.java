@@ -13,20 +13,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.Table;
-import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import static com.prem.ta.configs.Constants.getBinanceDateString;
-import static com.prem.ta.configs.Constants.getBinanceZipFileName;
+import static com.prem.ta.configs.Constants.*;
+import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
 public class MarketDataComputationService {
@@ -51,10 +48,10 @@ public class MarketDataComputationService {
     }
 
     public void compute() {
-        log.info("Starting data processing...");
+        log.info("Computing Market Data from Tick Data...");
 
         while (true) {
-            Page<File> page = fileRepository.findByIsProcessedFalse(PageRequest.of(0, 10));
+            Page<File> page = fileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
 
             if (page.isEmpty()) {
                 break;
@@ -64,7 +61,7 @@ public class MarketDataComputationService {
             page.getContent().forEach(this::processTickDataFile);
         }
 
-        log.info("Data processing completed.");
+        log.info("Completed Market Data Computation...");
     }
 
     public void processTickDataFile(File file) {
@@ -94,12 +91,10 @@ public class MarketDataComputationService {
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
                 MarketData computedData = computeMetrics(file, getFileAsTable(inputStream));
-                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(
-                                file.getTicker(),
-                                file.getFileDate()
-                        )
-                        .map(existingData -> mergeWithComputed(existingData, computedData))
+                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
+                        .map(existingData -> existingData.merge(computedData))
                         .orElse(computedData);
+
                 log.debug(mergedData.toString());
                 marketDataRepository.save(mergedData);
 
@@ -115,17 +110,11 @@ public class MarketDataComputationService {
     }
 
     private Table getFileAsTable(InputStream inputStream) {
-        return Table.read().csv(CsvReadOptions.builder(new InputStreamReader(inputStream))
-                .header(false)
-                .columnTypes(new ColumnType[]{
-                        ColumnType.LONG,    // trade id (integer, safe as LONG)
-                        ColumnType.STRING,  // price (parsed as STRING to preserve precision)
-                        ColumnType.STRING,  // quantity (parsed as STRING to preserve precision)
-                        ColumnType.STRING,  // quote quantity (parsed as STRING to preserve precision)
-                        ColumnType.LONG,    // trade time (integer, safe as LONG)
-                        ColumnType.BOOLEAN, // is buyer maker
-                        ColumnType.BOOLEAN  // is best match
-                }).build());
+        return Table.read()
+                .csv(builder(inputStream).header(false)
+                        .columnTypes(BINANCE_TICK_DATA_SCHEMA)
+                        .build()
+                );
     }
 
     private MarketData computeMetrics(File file, Table table) {
@@ -153,22 +142,6 @@ public class MarketDataComputationService {
         marketData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
 
         return marketData;
-    }
-
-
-    private MarketData mergeWithComputed(MarketData existing, MarketData computed) {
-        existing.setPriceOpen(computed.getPriceOpen());
-        existing.setPriceHigh(computed.getPriceHigh());
-        existing.setPriceLow(computed.getPriceLow());
-        existing.setPriceClose(computed.getPriceClose());
-        existing.setVolume(computed.getVolume());
-        existing.setVwap(computed.getVwap());
-        existing.setVolumeProfilePOC(computed.getVolumeProfilePOC());
-        existing.setVolumeProfileVAH(computed.getVolumeProfileVAH());
-        existing.setVolumeProfileVAL(computed.getVolumeProfileVAL());
-        existing.setBuyerVolumeShare(computed.getBuyerVolumeShare());
-        existing.setBuyerCapitalShare(computed.getBuyerCapitalShare());
-        return existing;
     }
 
 }

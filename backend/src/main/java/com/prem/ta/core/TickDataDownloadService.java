@@ -30,10 +30,7 @@ public class TickDataDownloadService {
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
 
-    public TickDataDownloadService(
-            AppConfig appConfig,
-            TickerRepository tickerRepository,
-            FileRepository fileRepository) {
+    public TickDataDownloadService(AppConfig appConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
         this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
         this.fileRepository = fileRepository;
@@ -43,17 +40,15 @@ public class TickDataDownloadService {
         log.info("Download URL: {}", appConfig.getDownloadUrl());
         log.info("Download directory: {}", appConfig.getDownloadDir());
 
-        tickerRepository
-                .findAll()
-                .forEach(this::downloadTicker);
+        tickerRepository.findAll()
+                .forEach(this::downloadTickDataForTicker);
 
         log.info("All downloads completed!");
     }
 
-    private void downloadTicker(Ticker ticker) {
+    private void downloadTickDataForTicker(Ticker ticker) {
 
-        LocalDate startDate = fileRepository
-                .findTopByTickerOrderByFileDateDesc(ticker)
+        LocalDate startDate = fileRepository.findTopByTickerOrderByFileDateDesc(ticker)
                 .map(file -> file.getFileDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
@@ -79,9 +74,7 @@ public class TickDataDownloadService {
             String dateStr = getBinanceDateString(date);
             String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
-            String url = downloadPattern
-                    .replace("{ticker}", tickerSymbol)
-                    .replace("{filename}", fileName);
+            String url = downloadPattern.replace("{ticker}", tickerSymbol).replace("{filename}", fileName);
 
             try {
                 if (!Files.exists(localFile)) {
@@ -97,10 +90,7 @@ public class TickDataDownloadService {
     }
 
     private void downloadFile(String remoteFileURL, Path localFilePath) throws IOException {
-        InputStream in = URI.create(remoteFileURL)
-                .toURL()
-                .openConnection()
-                .getInputStream();
+        InputStream in = URI.create(remoteFileURL).toURL().openConnection().getInputStream();
         Files.copy(in, localFilePath, StandardCopyOption.REPLACE_EXISTING);
     }
 
