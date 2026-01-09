@@ -67,11 +67,48 @@ public class MarketStateComputationService {
     ) {
         int period = maPeriod.days();
 
-        LocalDate startDate = resolveStartDate(ticker, metric, maType, period);
+        // 1. Latest MarketData date (source of truth)
+        LocalDate latestMarketDataDate =
+                marketDataRepository
+                        .findTopByTickerOrderByMarketDataDateDesc(ticker)
+                        .map(MarketData::getMarketDataDate)
+                        .orElse(null);
 
-        // No Market Data exists, nothing to compute
+        if (latestMarketDataDate == null) {
+            return; // no market data at all
+        }
+
+        // 2. Latest MarketState date for this MA
+        Optional<MarketState> latestMarketState =
+                marketStateRepository
+                        .findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                                ticker,
+                                metric.code(),
+                                maType.code(),
+                                period
+                        );
+
+        // 3. Skip if already up-to-date
+        if (latestMarketState.isPresent()
+                && !latestMarketState.get()
+                .getMarketStateDate()
+                .isBefore(latestMarketDataDate)) {
+
+            log.debug(
+                    "Skipping {} {} {} — already up to date at {}",
+                    metric.code(),
+                    maType.code(),
+                    period,
+                    latestMarketDataDate
+            );
+            return;
+        }
+
+        // 4. Resolve computation start date
+        LocalDate startDate = resolveStartDate(ticker, metric, maType, period);
         if (startDate == null) return;
 
+        // 5. Load only required MarketData
         // TODO: Stream the data, use windows, instead of keeping the records in the memory
         List<MarketData> series =
                 marketDataRepository
@@ -82,6 +119,7 @@ public class MarketStateComputationService {
 
         if (series.size() < period) return;
 
+        // 6. Compute
         switch (maType) {
             case SMA -> computeSMA(series, metric, period);
             case EMA -> computeEMA(series, metric, period);
