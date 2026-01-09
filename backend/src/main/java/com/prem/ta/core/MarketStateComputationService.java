@@ -81,7 +81,6 @@ public class MarketStateComputationService {
 
         // 3. Skip if already up-to-date
         if (alreadyComputed(latestMarketState, latestMarketDataDate)) {
-            log.debug("Skipping {} {} {} — already up to date at {}", metric.code(), maType.code(), period, latestMarketDataDate);
             return;
         }
 
