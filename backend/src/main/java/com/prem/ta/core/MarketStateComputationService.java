@@ -89,11 +89,7 @@ public class MarketStateComputationService {
                         );
 
         // 3. Skip if already up-to-date
-        if (latestMarketState.isPresent()
-                && !latestMarketState.get()
-                .getMarketStateDate()
-                .isBefore(latestMarketDataDate)) {
-
+        if (alreadyComputed(latestMarketState, latestMarketDataDate)) {
             log.debug(
                     "Skipping {} {} {} — already up to date at {}",
                     metric.code(),
@@ -124,6 +120,13 @@ public class MarketStateComputationService {
             case SMA -> computeSMA(series, metric, period);
             case EMA -> computeEMA(series, metric, period);
         }
+    }
+
+    private Boolean alreadyComputed(Optional<MarketState> latestMarketState, LocalDate latestMarketDataDate) {
+        return latestMarketState
+                .map(ms -> ms.getMarketStateDate().isEqual(latestMarketDataDate)
+                        || ms.getMarketStateDate().isAfter(latestMarketDataDate))
+                .orElse(false);
     }
 
     private void computeSMA(
