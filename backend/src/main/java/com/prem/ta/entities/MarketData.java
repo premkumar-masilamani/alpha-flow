@@ -47,4 +47,20 @@ public class MarketData {
     private BigDecimal buyerVolumeShare;
 
     private BigDecimal buyerCapitalShare;
+
+    public MarketData merge(MarketData other) {
+        this.priceOpen = other.priceOpen;
+        this.priceHigh = other.priceHigh;
+        this.priceLow = other.priceLow;
+        this.priceClose = other.priceClose;
+        this.volume = other.volume;
+        this.vwap = other.vwap;
+        this.volumeProfilePOC = other.volumeProfilePOC;
+        this.volumeProfileVAH = other.volumeProfileVAH;
+        this.volumeProfileVAL = other.volumeProfileVAL;
+        this.buyerVolumeShare = other.buyerVolumeShare;
+        this.buyerCapitalShare = other.buyerCapitalShare;
+        return this;
+    }
+
 }

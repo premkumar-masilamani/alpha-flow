@@ -22,9 +22,9 @@ import static java.math.BigDecimal.valueOf;
 public class TechnicalAnalysisEngine {
 
     public OHLCVMetrics computeOHLCV(Table table) {
-        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
-        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
+        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
 
         int rows = table.rowCount();
 
@@ -57,9 +57,9 @@ public class TechnicalAnalysisEngine {
 
     public OrderFlowMetrics computeOrderFlow(Table table) {
 
-        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
-        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUOTE_QUANTITY);
-        BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_IS_BUYER_THE_MAKER);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
+        StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
+        BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_INDEX_IS_BUYER_THE_MAKER);
 
         BigDecimal totalVolume = BigDecimal.ZERO;
         BigDecimal totalQuoteQty = BigDecimal.ZERO;
@@ -96,8 +96,8 @@ public class TechnicalAnalysisEngine {
     public VolumeProfileMetrics computeVolumeProfile(Table table, OHLCVMetrics ohlcv) {
 
         BigDecimal binSize = deriveBinSize(ohlcv);
-        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_PRICE);
-        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_QUANTITY);
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
+        StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
 
         // Map {price_zone_low → total_volume_traded_in_that_zone}
         Map<BigDecimal, BigDecimal> volumeAtPrice = new HashMap<>();

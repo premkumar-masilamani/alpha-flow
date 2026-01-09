@@ -45,12 +45,12 @@ public class TickDataDownloadService {
 
         tickerRepository
                 .findAll()
-                .forEach(this::downloadTicker);
+                .forEach(this::downloadTickDataForTicker);
 
         log.info("All downloads completed!");
     }
 
-    private void downloadTicker(Ticker ticker) {
+    private void downloadTickDataForTicker(Ticker ticker) {
 
         LocalDate startDate = fileRepository
                 .findTopByTickerOrderByFileDateDesc(ticker)
