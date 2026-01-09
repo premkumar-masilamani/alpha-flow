@@ -2,6 +2,7 @@ package com.prem.ta.configs;
 
 import tech.tablesaw.api.ColumnType;
 
+import java.math.MathContext;
 import java.time.temporal.TemporalAccessor;
 
 import static java.time.format.DateTimeFormatter.ofPattern;
@@ -25,6 +26,7 @@ public class Constants {
     public static final double VOLUME_PROFILE_RANGE_BIN_PERCENT = 0.05;
     public static final double VOLUME_PROFILE_VALUE_AREA_PERCENT = 0.70;
 
+    public static final MathContext DB_MATH_CONTEXT = new MathContext(38);
     public static final int DB_QUERY_PAGE_SIZE = 10;
 
     public static String getBinanceZipFileName(String tickerSymbol, String dateStr) {

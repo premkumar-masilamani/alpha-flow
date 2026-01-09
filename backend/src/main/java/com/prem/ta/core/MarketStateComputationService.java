@@ -3,6 +3,9 @@ package com.prem.ta.core;
 import com.prem.ta.entities.MarketData;
 import com.prem.ta.entities.MarketState;
 import com.prem.ta.entities.Ticker;
+import com.prem.ta.models.MarketStateMetricType;
+import com.prem.ta.models.MovingAveragePeriod;
+import com.prem.ta.models.MovingAverageType;
 import com.prem.ta.repositories.MarketDataRepository;
 import com.prem.ta.repositories.MarketStateRepository;
 import com.prem.ta.repositories.TickerRepository;
@@ -11,18 +14,18 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import static com.prem.ta.configs.Constants.DB_MATH_CONTEXT;
+import static java.math.BigDecimal.valueOf;
 
 @Service
 public class MarketStateComputationService {
 
     private static final Logger log =
             LoggerFactory.getLogger(MarketStateComputationService.class);
-
-    private static final MathContext MC = new MathContext(18);
 
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
@@ -41,30 +44,35 @@ public class MarketStateComputationService {
     public void compute() {
         log.info("Computing Market State");
 
-        tickerRepository.findAll()
-                .forEach(ticker -> {
-                    log.info("Computing Market State for {}", ticker.getTickerSymbol());
-//                    computeEMA(ticker, "VWAP", 8);
-//                    computeEMA(ticker, "VALUE_RANGE", 5);
-//                    computeEMA(ticker, "BUYER_CAPITAL", 8);
+        tickerRepository.findAll().forEach(ticker -> {
+            log.info("Computing Market State for {}", ticker.getTickerSymbol());
 
-                    computeSMA(ticker, "VOLUME", 20);
-//                    computeSMA(ticker, "POC", 10);
-                });
+            for (MarketStateMetricType metric : MarketStateMetricType.values()) {
+                for (MovingAverageType maType : MovingAverageType.values()) {
+                    for (MovingAveragePeriod maPeriod : MovingAveragePeriod.values()) {
+                        computeMA(ticker, metric, maType, maPeriod);
+                    }
+                }
+            }
+        });
 
         log.info("Market State computation complete");
     }
 
-    /* ======================= EMA ======================= */
-
-    private void computeEMA(
+    private void computeMA(
             Ticker ticker,
-            String metric,
-            int period
+            MarketStateMetricType metric,
+            MovingAverageType maType,
+            MovingAveragePeriod maPeriod
     ) {
-        LocalDate startDate = resolveStartDate(ticker, metric, "EMA", period);
+        int period = maPeriod.days();
+
+        LocalDate startDate = resolveStartDate(ticker, metric, maType, period);
+
+        // No Market Data exists, nothing to compute
         if (startDate == null) return;
 
+        // TODO: Stream the data, use windows, instead of keeping the records in the memory
         List<MarketData> series =
                 marketDataRepository
                         .findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
@@ -72,112 +80,141 @@ public class MarketStateComputationService {
                                 startDate
                         );
 
-        if (series.size() < period) {
-            for (MarketData md : series) {
-                persist(md, metric, "EMA", period, BigDecimal.ZERO);
-            }
-            return;
-        }
+        if (series.size() < period) return;
 
-        List<BigDecimal> seedWindow = new ArrayList<>();
-        BigDecimal ema = null;
-
-        BigDecimal alpha =
-                BigDecimal.valueOf(2)
-                        .divide(BigDecimal.valueOf(period + 1), MC);
-
-        for (MarketData md : series) {
-            BigDecimal value = extractMetric(md, metric);
-            if (value == null) continue;
-
-            if (ema == null) {
-                seedWindow.add(value);
-                if (seedWindow.size() == period) {
-                    ema = average(seedWindow);
-                    persist(md, metric, "EMA", period, ema);
-                }
-            } else {
-                ema = value.subtract(ema)
-                        .multiply(alpha, MC)
-                        .add(ema);
-                persist(md, metric, "EMA", period, ema);
-            }
+        switch (maType) {
+            case SMA -> computeSMA(series, metric, period);
+            case EMA -> computeEMA(series, metric, period);
         }
     }
 
-    /* ======================= SMA ======================= */
-
     private void computeSMA(
-            Ticker ticker,
-            String metric,
+            List<MarketData> series,
+            MarketStateMetricType metric,
             int period
     ) {
-        LocalDate startDate = resolveStartDate(ticker, metric, "SMA", period);
-        if (startDate == null) return;
-        List<MarketData> series =
-                marketDataRepository
-                        .findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
-                                ticker,
-                                startDate
-                        );
-
-        if (series.size() < period) {
-            for (int i = period - 1; i < series.size(); i++) {
-                persist(
-                        series.get(i),
-                        metric,
-                        "SMA",
-                        period,
-                        BigDecimal.ZERO
-                );
-            }
-            return;
-        }
-        ;
-
         for (int i = period - 1; i < series.size(); i++) {
             BigDecimal sum = BigDecimal.ZERO;
-
             for (int j = i - period + 1; j <= i; j++) {
-                BigDecimal v = extractMetric(series.get(j), metric);
-                if (v == null) {
-                    sum = null;
-                    break;
-                }
-                sum = sum.add(v);
+                BigDecimal value = metric.extract(series.get(j));
+                sum = sum.add(value, DB_MATH_CONTEXT);
             }
+            BigDecimal sma = sum.divide(valueOf(period), DB_MATH_CONTEXT);
 
-            if (sum == null) continue;
+            log.debug("{} {} {} {}", metric, MovingAverageType.SMA, period, sma);
+            persist(series.get(i), metric, MovingAverageType.SMA, period, sma);
+        }
+    }
 
-            BigDecimal sma =
-                    sum.divide(BigDecimal.valueOf(period), MC);
+    /**
+     * EMAₜ = EMAₜ₋₁ + α × (valueₜ − EMAₜ₋₁)
+     * α = 2 / (period + 1)
+     */
+    private void computeEMA(
+            List<MarketData> series,
+            MarketStateMetricType metric,
+            int period
+    ) {
 
+        // α = 2 / (period + 1)
+        BigDecimal alpha =
+                valueOf(2)
+                        .divide(valueOf(period + 1), DB_MATH_CONTEXT);
+
+        // Fetch latest EMA from the database
+        Optional<MarketState> lastEmaState = marketStateRepository
+                .findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                        series.getFirst().getTicker(),
+                        metric.code(),
+                        MovingAverageType.EMA.code(),
+                        period
+                );
+
+        // If not present, compute & persist seed EMA
+        BigDecimal ema;
+        int startIndex;
+        if (lastEmaState.isPresent()) {
+            ema = lastEmaState.get().getValue();
+            startIndex = 0;
+        } else {
+            EMASeed seed = computeAndPersistFirstEMA(series, metric, period);
+            if (seed == null) return;
+
+            ema = seed.ema();
+            startIndex = seed.nextIndex();
+        }
+
+        // Continue EMA calculation for rest of the series
+        for (int i = startIndex; i < series.size(); i++) {
+            MarketData marketData = series.get(i);
+            BigDecimal value = metric.extract(marketData);
+
+            // EMAₜ = EMAₜ₋₁ + α × (valueₜ − EMAₜ₋₁)
+            ema = value.subtract(ema, DB_MATH_CONTEXT)
+                    .multiply(alpha, DB_MATH_CONTEXT)
+                    .add(ema, DB_MATH_CONTEXT);
+
+            log.debug("{} {} {} {}", metric, MovingAverageType.EMA, period, ema);
             persist(
-                    series.get(i),
+                    marketData,
                     metric,
-                    "SMA",
+                    MovingAverageType.EMA,
                     period,
-                    sma
+                    ema
             );
         }
     }
 
-    /* ======================= Helpers ======================= */
+    private EMASeed computeAndPersistFirstEMA(
+            List<MarketData> series,
+            MarketStateMetricType metric,
+            int period
+    ) {
+        BigDecimal sum = BigDecimal.ZERO;
+        int count = 0;
+
+        for (int i = 0; i < series.size(); i++) {
+            MarketData marketData = series.get(i);
+            BigDecimal value = metric.extract(marketData);
+
+            sum = sum.add(value, DB_MATH_CONTEXT);
+            count++;
+            if (count == period) {
+                BigDecimal ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
+                log.debug("{} {} {} {}", metric, MovingAverageType.EMA, period, ema);
+                persist(
+                        marketData,
+                        metric,
+                        MovingAverageType.EMA,
+                        period,
+                        ema
+                );
+
+                // Next EMA computation starts AFTER the seed day
+                return new EMASeed(ema, i + 1);
+            }
+        }
+
+        return null; // not enough data to seed EMA
+    }
+
 
     private LocalDate resolveStartDate(
             Ticker ticker,
-            String metric,
-            String maType,
+            MarketStateMetricType metric,
+            MovingAverageType maType,
             int period
     ) {
         return marketStateRepository
                 .findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                        ticker, metric, maType, period
+                        ticker,
+                        metric.code(),
+                        maType.code(),
+                        period
                 )
                 .map(ms -> ms.getMarketStateDate().minusDays(period - 1))
                 .orElseGet(() -> earliestMarketDataDate(ticker));
     }
-
 
     private LocalDate earliestMarketDataDate(Ticker ticker) {
         return marketDataRepository
@@ -186,52 +223,34 @@ public class MarketStateComputationService {
                 .orElse(null);
     }
 
-    private BigDecimal extractMetric(MarketData md, String metric) {
-        return switch (metric) {
-            case "VWAP" -> md.getVwap();
-            case "VOLUME" -> md.getVolume();
-            case "POC" -> md.getVolumeProfilePOC();
-            case "BUYER_CAPITAL" -> md.getBuyerCapitalShare();
-            case "VALUE_RANGE" -> md.getVolumeProfileVAH()
-                    .subtract(md.getVolumeProfileVAL());
-            default -> null;
-        };
-    }
-
-    private BigDecimal average(List<BigDecimal> values) {
-        return values.stream()
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(values.size()), MC);
-    }
-
     private void persist(
-            MarketData md,
-            String metric,
-            String maType,
+            MarketData marketData,
+            MarketStateMetricType metric,
+            MovingAverageType maType,
             int period,
             BigDecimal value
     ) {
-        log.debug("Date={}, Metric={}, MaType={}, Period={}, Value={}", md.getMarketDataDate(), metric, maType, period, value);
-        marketStateRepository
-                .findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
-                        md.getTicker(),
-                        md.getMarketDataDate(),
-                        metric,
-                        maType,
-                        period
-                )
-                .ifPresentOrElse(existing -> {
-                    existing.setValue(value);
-                    marketStateRepository.save(existing);
-                }, () -> {
-                    MarketState ms = new MarketState();
-                    ms.setTicker(md.getTicker());
-                    ms.setMarketStateDate(md.getMarketDataDate());
-                    ms.setMetric(metric);
-                    ms.setMaType(maType);
-                    ms.setPeriod(period);
-                    ms.setValue(value);
-                    marketStateRepository.save(ms);
-                });
+        MarketState marketState =
+                marketStateRepository
+                        .findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
+                                marketData.getTicker(),
+                                marketData.getMarketDataDate(),
+                                metric.code(),
+                                maType.code(),
+                                period
+                        )
+                        .orElseGet(MarketState::new);
+
+        marketState.setTicker(marketData.getTicker());
+        marketState.setMarketStateDate(marketData.getMarketDataDate());
+        marketState.setMetric(metric.code());
+        marketState.setMaType(maType.code());
+        marketState.setPeriod(period);
+        marketState.setValue(value);
+
+        marketStateRepository.save(marketState);
+    }
+
+    private record EMASeed(BigDecimal ema, int nextIndex) {
     }
 }

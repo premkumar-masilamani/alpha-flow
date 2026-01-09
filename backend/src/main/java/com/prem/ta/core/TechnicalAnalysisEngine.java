@@ -44,12 +44,12 @@ public class TechnicalAnalysisEngine {
             if (price.compareTo(high) > 0) high = price;
             if (price.compareTo(low) < 0) low = price;
 
-            volume = volume.add(qty);
-            quoteVolume = quoteVolume.add(quote);
+            volume = volume.add(qty, DB_MATH_CONTEXT);
+            quoteVolume = quoteVolume.add(quote, DB_MATH_CONTEXT);
         }
 
         BigDecimal vwap = volume.signum() > 0
-                ? quoteVolume.divide(volume, 8, RoundingMode.HALF_UP)
+                ? quoteVolume.divide(volume, DB_MATH_CONTEXT)
                 : BigDecimal.ZERO;
 
         return new OHLCVMetrics(open, high, low, close, volume, vwap);
@@ -72,22 +72,22 @@ public class TechnicalAnalysisEngine {
             BigDecimal qty = new BigDecimal(qtyColumn.get(i));
             BigDecimal quoteQty = new BigDecimal(quoteQtyColumn.get(i));
 
-            totalVolume = totalVolume.add(qty);
-            totalQuoteQty = totalQuoteQty.add(quoteQty);
+            totalVolume = totalVolume.add(qty, DB_MATH_CONTEXT);
+            totalQuoteQty = totalQuoteQty.add(quoteQty, DB_MATH_CONTEXT);
 
             // Aggressive buyer = buyer is NOT the maker
             if (!isBuyerMakerColumn.get(i)) {
-                buyerVolume = buyerVolume.add(qty);
-                buyerCapital = buyerCapital.add(quoteQty);
+                buyerVolume = buyerVolume.add(qty, DB_MATH_CONTEXT);
+                buyerCapital = buyerCapital.add(quoteQty, DB_MATH_CONTEXT);
             }
         }
 
         BigDecimal buyerVolumeShare = totalVolume.signum() > 0
-                ? buyerVolume.divide(totalVolume, 8, RoundingMode.HALF_UP)
+                ? buyerVolume.divide(totalVolume, DB_MATH_CONTEXT)
                 : BigDecimal.ZERO;
 
         BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0
-                ? buyerCapital.divide(totalQuoteQty, 8, RoundingMode.HALF_UP)
+                ? buyerCapital.divide(totalQuoteQty, DB_MATH_CONTEXT)
                 : BigDecimal.ZERO;
 
         return new OrderFlowMetrics(buyerVolumeShare, buyerCapitalShare);
@@ -125,16 +125,16 @@ public class TechnicalAnalysisEngine {
 
         // Price Scale = Average of all 4 prices
         BigDecimal priceScale = ohlcv.open()
-                .add(ohlcv.high())
-                .add(ohlcv.low())
-                .add(ohlcv.close())
-                .divide(valueOf(4), 18, RoundingMode.HALF_UP);
+                .add(ohlcv.high(), DB_MATH_CONTEXT)
+                .add(ohlcv.low(), DB_MATH_CONTEXT)
+                .add(ohlcv.close(), DB_MATH_CONTEXT)
+                .divide(valueOf(4), DB_MATH_CONTEXT);
 
         // Daily Range = high - low;
         // Daily Range as % = (high - low) / priceScale
         BigDecimal rangePercent = ohlcv.high()
-                .subtract(ohlcv.low())
-                .divide(priceScale, 18, RoundingMode.HALF_UP);
+                .subtract(ohlcv.low(), DB_MATH_CONTEXT)
+                .divide(priceScale, DB_MATH_CONTEXT);
 
         // If the Daily Range % less than threshold %, default to 1 bin
         // (i.e.) bin size = 0
@@ -143,7 +143,7 @@ public class TechnicalAnalysisEngine {
         }
 
         // Get the threshold % of the price scale as bin size
-        return priceScale.multiply(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT))
+        return priceScale.multiply(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT), DB_MATH_CONTEXT)
                 .stripTrailingZeros();
     }
 
@@ -172,10 +172,7 @@ public class TechnicalAnalysisEngine {
                 .stream()
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal targetVolume =
-                totalVolume.multiply(
-                        valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT)
-                );
+        BigDecimal targetVolume = totalVolume.multiply(valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT), DB_MATH_CONTEXT);
 
         BigDecimal cumulative = BigDecimal.ZERO;
         BigDecimal vah = poc;
@@ -184,7 +181,7 @@ public class TechnicalAnalysisEngine {
         for (var e : sortedDistanceFromPoCList) {
             vah = vah.max(e.getKey());
             val = val.min(e.getKey());
-            cumulative = cumulative.add(e.getValue());
+            cumulative = cumulative.add(e.getValue(), DB_MATH_CONTEXT);
             if (cumulative.compareTo(targetVolume) >= 0) break;
         }
 

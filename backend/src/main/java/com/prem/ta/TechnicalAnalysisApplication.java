@@ -24,7 +24,7 @@ public class TechnicalAnalysisApplication {
         return args -> {
             tickDataDownloadService.download();
             marketDataComputationService.compute();
-//            marketStateComputationService.compute();
+            marketStateComputationService.compute();
         };
     }
 }
