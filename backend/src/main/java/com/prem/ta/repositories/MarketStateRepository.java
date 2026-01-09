@@ -7,19 +7,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.LocalDate;
 import java.util.Optional;
 
-public interface MarketStateRepository
-        extends JpaRepository<MarketState, Long> {
+public interface MarketStateRepository extends JpaRepository<MarketState, Long> {
 
-    Optional<MarketState>
-    findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+    Optional<MarketState> findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
             Ticker ticker,
             String metric,
             String maType,
             int period
     );
 
-    Optional<MarketState>
-    findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
+    Optional<MarketState> findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
             Ticker ticker,
             LocalDate marketStateDate,
             String metric,

@@ -14,7 +14,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import tech.tablesaw.api.Table;
-import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -24,6 +23,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import static com.prem.ta.configs.Constants.*;
+import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
 public class MarketDataComputationService {
@@ -91,12 +91,10 @@ public class MarketDataComputationService {
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
                 MarketData computedData = computeMetrics(file, getFileAsTable(inputStream));
-                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(
-                                file.getTicker(),
-                                file.getFileDate()
-                        )
+                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
                         .map(existingData -> existingData.merge(computedData))
                         .orElse(computedData);
+
                 log.debug(mergedData.toString());
                 marketDataRepository.save(mergedData);
 
@@ -113,8 +111,7 @@ public class MarketDataComputationService {
 
     private Table getFileAsTable(InputStream inputStream) {
         return Table.read()
-                .csv(CsvReadOptions.builder(inputStream)
-                        .header(false)
+                .csv(builder(inputStream).header(false)
                         .columnTypes(BINANCE_TICK_DATA_SCHEMA)
                         .build()
                 );

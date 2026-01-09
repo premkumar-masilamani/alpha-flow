@@ -19,13 +19,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.prem.ta.configs.Constants.DB_MATH_CONTEXT;
+import static com.prem.ta.models.MovingAverageType.*;
 import static java.math.BigDecimal.valueOf;
 
 @Service
 public class MarketStateComputationService {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(MarketStateComputationService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketStateComputationService.class);
 
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
@@ -48,7 +48,7 @@ public class MarketStateComputationService {
             log.info("Computing Market State for {}", ticker.getTickerSymbol());
 
             for (MarketStateMetricType metric : MarketStateMetricType.values()) {
-                for (MovingAverageType maType : MovingAverageType.values()) {
+                for (MovingAverageType maType : values()) {
                     for (MovingAveragePeriod maPeriod : MovingAveragePeriod.values()) {
                         computeMA(ticker, metric, maType, maPeriod);
                     }
@@ -59,44 +59,29 @@ public class MarketStateComputationService {
         log.info("Market State computation complete");
     }
 
-    private void computeMA(
-            Ticker ticker,
-            MarketStateMetricType metric,
-            MovingAverageType maType,
-            MovingAveragePeriod maPeriod
-    ) {
+    private void computeMA(Ticker ticker, MarketStateMetricType metric, MovingAverageType maType, MovingAveragePeriod maPeriod) {
         int period = maPeriod.days();
 
         // 1. Latest MarketData date (source of truth)
-        LocalDate latestMarketDataDate =
-                marketDataRepository
-                        .findTopByTickerOrderByMarketDataDateDesc(ticker)
-                        .map(MarketData::getMarketDataDate)
-                        .orElse(null);
+        LocalDate latestMarketDataDate = marketDataRepository.findTopByTickerOrderByMarketDataDateDesc(ticker)
+                .map(MarketData::getMarketDataDate)
+                .orElse(null);
 
         if (latestMarketDataDate == null) {
             return; // no market data at all
         }
 
         // 2. Latest MarketState date for this MA
-        Optional<MarketState> latestMarketState =
-                marketStateRepository
-                        .findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                                ticker,
-                                metric.code(),
-                                maType.code(),
-                                period
-                        );
+        Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                ticker,
+                metric.code(),
+                maType.code(),
+                period
+        );
 
         // 3. Skip if already up-to-date
         if (alreadyComputed(latestMarketState, latestMarketDataDate)) {
-            log.debug(
-                    "Skipping {} {} {} — already up to date at {}",
-                    metric.code(),
-                    maType.code(),
-                    period,
-                    latestMarketDataDate
-            );
+            log.debug("Skipping {} {} {} — already up to date at {}", metric.code(), maType.code(), period, latestMarketDataDate);
             return;
         }
 
@@ -106,12 +91,7 @@ public class MarketStateComputationService {
 
         // 5. Load only required MarketData
         // TODO: Stream the data, use windows, instead of keeping the records in the memory
-        List<MarketData> series =
-                marketDataRepository
-                        .findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
-                                ticker,
-                                startDate
-                        );
+        List<MarketData> series = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(ticker, startDate);
 
         if (series.size() < period) return;
 
@@ -123,17 +103,12 @@ public class MarketStateComputationService {
     }
 
     private Boolean alreadyComputed(Optional<MarketState> latestMarketState, LocalDate latestMarketDataDate) {
-        return latestMarketState
-                .map(ms -> ms.getMarketStateDate().isEqual(latestMarketDataDate)
-                        || ms.getMarketStateDate().isAfter(latestMarketDataDate))
+        return latestMarketState.map(ms -> ms.getMarketStateDate().isEqual(latestMarketDataDate) ||
+                        ms.getMarketStateDate().isAfter(latestMarketDataDate))
                 .orElse(false);
     }
 
-    private void computeSMA(
-            List<MarketData> series,
-            MarketStateMetricType metric,
-            int period
-    ) {
+    private void computeSMA(List<MarketData> series, MarketStateMetricType metric, int period) {
         for (int i = period - 1; i < series.size(); i++) {
             BigDecimal sum = BigDecimal.ZERO;
             for (int j = i - period + 1; j <= i; j++) {
@@ -142,8 +117,8 @@ public class MarketStateComputationService {
             }
             BigDecimal sma = sum.divide(valueOf(period), DB_MATH_CONTEXT);
 
-            log.debug("{} {} {} {}", metric, MovingAverageType.SMA, period, sma);
-            persist(series.get(i), metric, MovingAverageType.SMA, period, sma);
+            log.debug("{} {} {} {}", metric, SMA, period, sma);
+            persist(series.get(i), metric, SMA, period, sma);
         }
     }
 
@@ -151,25 +126,18 @@ public class MarketStateComputationService {
      * EMAₜ = EMAₜ₋₁ + α × (valueₜ − EMAₜ₋₁)
      * α = 2 / (period + 1)
      */
-    private void computeEMA(
-            List<MarketData> series,
-            MarketStateMetricType metric,
-            int period
-    ) {
+    private void computeEMA(List<MarketData> series, MarketStateMetricType metric, int period) {
 
         // α = 2 / (period + 1)
-        BigDecimal alpha =
-                valueOf(2)
-                        .divide(valueOf(period + 1), DB_MATH_CONTEXT);
+        BigDecimal alpha = valueOf(2).divide(valueOf(period + 1), DB_MATH_CONTEXT);
 
         // Fetch latest EMA from the database
-        Optional<MarketState> lastEmaState = marketStateRepository
-                .findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                        series.getFirst().getTicker(),
-                        metric.code(),
-                        MovingAverageType.EMA.code(),
-                        period
-                );
+        Optional<MarketState> lastEmaState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                series.getFirst().getTicker(),
+                metric.code(),
+                EMA.code(),
+                period
+        );
 
         // If not present, compute & persist seed EMA
         BigDecimal ema;
@@ -195,22 +163,12 @@ public class MarketStateComputationService {
                     .multiply(alpha, DB_MATH_CONTEXT)
                     .add(ema, DB_MATH_CONTEXT);
 
-            log.debug("{} {} {} {}", metric, MovingAverageType.EMA, period, ema);
-            persist(
-                    marketData,
-                    metric,
-                    MovingAverageType.EMA,
-                    period,
-                    ema
-            );
+            log.debug("{} {} {} {}", metric, EMA, period, ema);
+            persist(marketData, metric, EMA, period, ema);
         }
     }
 
-    private EMASeed computeAndPersistFirstEMA(
-            List<MarketData> series,
-            MarketStateMetricType metric,
-            int period
-    ) {
+    private EMASeed computeAndPersistFirstEMA(List<MarketData> series, MarketStateMetricType metric, int period) {
         BigDecimal sum = BigDecimal.ZERO;
         int count = 0;
 
@@ -222,14 +180,8 @@ public class MarketStateComputationService {
             count++;
             if (count == period) {
                 BigDecimal ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
-                log.debug("{} {} {} {}", metric, MovingAverageType.EMA, period, ema);
-                persist(
-                        marketData,
-                        metric,
-                        MovingAverageType.EMA,
-                        period,
-                        ema
-                );
+                log.debug("{} {} {} {}", metric, EMA, period, ema);
+                persist(marketData, metric, EMA, period, ema);
 
                 // Next EMA computation starts AFTER the seed day
                 return new EMASeed(ema, i + 1);
@@ -240,47 +192,30 @@ public class MarketStateComputationService {
     }
 
 
-    private LocalDate resolveStartDate(
-            Ticker ticker,
-            MarketStateMetricType metric,
-            MovingAverageType maType,
-            int period
-    ) {
-        return marketStateRepository
-                .findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+    private LocalDate resolveStartDate(Ticker ticker, MarketStateMetricType metric, MovingAverageType maType, int period) {
+        return marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
                         ticker,
                         metric.code(),
                         maType.code(),
-                        period
-                )
+                        period)
                 .map(ms -> ms.getMarketStateDate().minusDays(period - 1))
                 .orElseGet(() -> earliestMarketDataDate(ticker));
     }
 
     private LocalDate earliestMarketDataDate(Ticker ticker) {
-        return marketDataRepository
-                .findFirstByTickerOrderByMarketDataDateAsc(ticker)
+        return marketDataRepository.findFirstByTickerOrderByMarketDataDateAsc(ticker)
                 .map(MarketData::getMarketDataDate)
                 .orElse(null);
     }
 
-    private void persist(
-            MarketData marketData,
-            MarketStateMetricType metric,
-            MovingAverageType maType,
-            int period,
-            BigDecimal value
-    ) {
-        MarketState marketState =
-                marketStateRepository
-                        .findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
-                                marketData.getTicker(),
-                                marketData.getMarketDataDate(),
-                                metric.code(),
-                                maType.code(),
-                                period
-                        )
-                        .orElseGet(MarketState::new);
+    private void persist(MarketData marketData, MarketStateMetricType metric, MovingAverageType maType, int period, BigDecimal value) {
+        MarketState marketState = marketStateRepository.findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
+                        marketData.getTicker(),
+                        marketData.getMarketDataDate(),
+                        metric.code(),
+                        maType.code(),
+                        period)
+                .orElseGet(MarketState::new);
 
         marketState.setTicker(marketData.getTicker());
         marketState.setMarketStateDate(marketData.getMarketDataDate());

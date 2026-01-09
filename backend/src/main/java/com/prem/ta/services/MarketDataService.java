@@ -19,7 +19,6 @@ public class MarketDataService {
     }
 
     public List<MarketDataDTO> getMarketDataByTickerName(String tickerName) {
-
         return marketDataRepository.findAllByTickerNameWithTicker(tickerName)
                 .stream()
                 .map(MarketDataMapper::toDTO)

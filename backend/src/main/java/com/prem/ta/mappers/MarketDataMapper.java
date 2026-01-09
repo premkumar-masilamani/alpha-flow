@@ -4,7 +4,6 @@ import com.prem.ta.dtos.MarketDataDTO;
 import com.prem.ta.entities.MarketData;
 
 public class MarketDataMapper {
-
     public static MarketDataDTO toDTO(MarketData marketData) {
         return new MarketDataDTO(
                 marketData.getMarketDataDate(),

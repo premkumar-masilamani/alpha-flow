@@ -10,18 +10,19 @@ import tech.tablesaw.api.Table;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.prem.ta.configs.Constants.*;
 import static java.math.BigDecimal.valueOf;
+import static java.util.Comparator.comparing;
 
 @Component
 public class TechnicalAnalysisEngine {
 
     public OHLCVMetrics computeOHLCV(Table table) {
+
         StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
         StringColumn qtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
         StringColumn quoteQtyColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
@@ -48,9 +49,7 @@ public class TechnicalAnalysisEngine {
             quoteVolume = quoteVolume.add(quote, DB_MATH_CONTEXT);
         }
 
-        BigDecimal vwap = volume.signum() > 0
-                ? quoteVolume.divide(volume, DB_MATH_CONTEXT)
-                : BigDecimal.ZERO;
+        BigDecimal vwap = volume.signum() > 0 ? quoteVolume.divide(volume, DB_MATH_CONTEXT) : BigDecimal.ZERO;
 
         return new OHLCVMetrics(open, high, low, close, volume, vwap);
     }
@@ -82,13 +81,9 @@ public class TechnicalAnalysisEngine {
             }
         }
 
-        BigDecimal buyerVolumeShare = totalVolume.signum() > 0
-                ? buyerVolume.divide(totalVolume, DB_MATH_CONTEXT)
-                : BigDecimal.ZERO;
+        BigDecimal buyerVolumeShare = totalVolume.signum() > 0 ? buyerVolume.divide(totalVolume, DB_MATH_CONTEXT) : BigDecimal.ZERO;
 
-        BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0
-                ? buyerCapital.divide(totalQuoteQty, DB_MATH_CONTEXT)
-                : BigDecimal.ZERO;
+        BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0 ? buyerCapital.divide(totalQuoteQty, DB_MATH_CONTEXT) : BigDecimal.ZERO;
 
         return new OrderFlowMetrics(buyerVolumeShare, buyerCapitalShare);
     }
@@ -110,9 +105,7 @@ public class TechnicalAnalysisEngine {
 
             // If single bin, put all the volume to open price (anchor)
             // Else, floor the number with binSize to find the respective bins
-            BigDecimal bucket = singleBin
-                    ? anchorPrice
-                    : p.divide(binSize, 0, RoundingMode.FLOOR).multiply(binSize);
+            BigDecimal bucket = singleBin ? anchorPrice : p.divide(binSize, 0, RoundingMode.FLOOR).multiply(binSize);
 
             // Add the volume to the bucket
             volumeAtPrice.merge(bucket, q, BigDecimal::add);
@@ -164,7 +157,7 @@ public class TechnicalAnalysisEngine {
         // This is a sorted list of how far the prices are away from PoC
         List<Map.Entry<BigDecimal, BigDecimal>> sortedDistanceFromPoCList = volumeAtPrice.entrySet()
                 .stream()
-                .sorted(Comparator.comparing(e -> e.getKey().subtract(poc).abs()))
+                .sorted(comparing(e -> e.getKey().subtract(poc).abs()))
                 .toList();
 
         // Target Volume calculation, to stop the iteration once reached the limit

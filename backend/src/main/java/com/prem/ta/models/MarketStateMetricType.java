@@ -13,11 +13,7 @@ public enum MarketStateMetricType {
 
     VOLUME_PROFILE_POC("VP_POC", MarketData::getVolumeProfilePOC),
 
-    VOLUME_PROFILE_VALUE_RANGE(
-            "VP_VALUE_RANGE",
-            md -> md.getVolumeProfileVAH()
-                    .subtract(md.getVolumeProfileVAL())
-    ),
+    VOLUME_PROFILE_VALUE_RANGE("VP_VALUE_RANGE", md -> md.getVolumeProfileVAH().subtract(md.getVolumeProfileVAL())),
 
     BUYER_CAPITAL_SHARE("BUYER_CAPITAL_SHARE", MarketData::getBuyerCapitalShare),
 
