@@ -10,5 +10,7 @@ public record TickerDTO(
 
         @JsonProperty("name") String tickerName,
 
-        @JsonProperty("date") String tickerDate) {
+        @JsonProperty("date") String tickerDate,
+
+        @JsonProperty("active") boolean active) {
 }

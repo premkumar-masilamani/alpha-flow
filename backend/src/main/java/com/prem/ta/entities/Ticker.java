@@ -20,4 +20,7 @@ public class Ticker {
 
     private String tickerName;
 
+    @Column(nullable = false)
+    private boolean active = true;
+
 }
