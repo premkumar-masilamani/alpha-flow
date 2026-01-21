@@ -49,10 +49,12 @@ public class MarketStateComputationService {
             log.info("Computing Market State for {}", ticker.getTickerSymbol());
 
             // 1. Fetch all available market data for the ticker, sorted by date
+            // We fetch everything once to avoid N+1 query problems and redundant DB round-trips
             List<MarketData> allSeries = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
                     ticker, LocalDate.of(1900, 1, 1));
 
             if (allSeries.isEmpty()) {
+                log.warn("No market data found for {}", ticker.getTickerSymbol());
                 return;
             }
 
@@ -67,11 +69,19 @@ public class MarketStateComputationService {
         log.info("Market State computation complete");
     }
 
+    /**
+     * Simple Moving Average (SMA) calculation.
+     * Uses a sliding window approach for O(N) efficiency instead of O(N*P).
+     *
+     * Formula: SMA = (Sum of values in window) / Period
+     */
     private void computeSMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
-        // Find the latest SMA already in the database
+        log.info("Computing SMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.code(), period);
+
+        // Find the latest SMA already in the database to resume computation
         Optional<MarketState> latestSma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
                 ticker, metric.code(), SMA.code(), period
         );
@@ -80,32 +90,54 @@ public class MarketStateComputationService {
         if (latestSma.isPresent()) {
             LocalDate lastDate = latestSma.get().getMarketStateDate();
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
-            if (startIndex <= 0 || startIndex >= allSeries.size()) return;
+            // If up to date, skip
+            if (startIndex <= 0 || startIndex >= allSeries.size()) {
+                log.info("SMA for {} - {} ({} days) is already up to date", ticker.getTickerSymbol(), metric.code(), period);
+                return;
+            }
         } else {
+            // First ever computation starts at the first possible date where a full window exists
             startIndex = period - 1;
         }
 
-        // Using sliding window for SMA
+        // Initialize sliding window sum
         BigDecimal sum = BigDecimal.ZERO;
-        // Initial sum for the window ending just before startIndex
+        // Sum values for the window ending just before our starting point
         for (int j = startIndex - period + 1; j < startIndex; j++) {
             sum = sum.add(metric.extract(allSeries.get(j)), DB_MATH_CONTEXT);
         }
 
+        int count = 0;
         for (int i = startIndex; i < allSeries.size(); i++) {
+            // Add current value to window sum
             sum = sum.add(metric.extract(allSeries.get(i)), DB_MATH_CONTEXT);
+
             BigDecimal sma = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(i), metric, SMA, period, sma);
-            // Sliding the window: subtract the element that will be out of window in next iteration
+            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getMarketDataDate(), sma);
+
+            // Slide window: subtract the oldest value (which will be out of window in next step)
             sum = sum.subtract(metric.extract(allSeries.get(i - period + 1)), DB_MATH_CONTEXT);
+            count++;
         }
+        log.info("Computed {} new SMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
     }
 
+    /**
+     * Exponential Moving Average (EMA) calculation.
+     *
+     * Formula: EMAₜ = EMAₜ₋₁ + α × (Valueₜ − EMAₜ₋₁)
+     * where α = 2 / (Period + 1)
+     *
+     * Initial Seed: The first EMA value is typically the SMA of the first 'Period' days.
+     */
     private void computeEMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
-        // Find the latest EMA already in the database
+        log.info("Computing EMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.code(), period);
+
+        // Find the latest EMA already in the database to resume computation
         Optional<MarketState> latestEma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
                 ticker, metric.code(), EMA.code(), period
         );
@@ -118,7 +150,11 @@ public class MarketStateComputationService {
             ema = latestEma.get().getValue();
             LocalDate lastDate = latestEma.get().getMarketStateDate();
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
-            if (startIndex <= 0 || startIndex >= allSeries.size()) return;
+            // If up to date, skip
+            if (startIndex <= 0 || startIndex >= allSeries.size()) {
+                log.info("EMA for {} - {} ({} days) is already up to date", ticker.getTickerSymbol(), metric.code(), period);
+                return;
+            }
         } else {
             // Seed EMA with SMA of the first 'period' elements
             BigDecimal sum = BigDecimal.ZERO;
@@ -127,17 +163,25 @@ public class MarketStateComputationService {
             }
             ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(period - 1), metric, EMA, period, ema);
+            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(period - 1).getMarketDataDate(), ema);
             startIndex = period;
         }
 
-        // EMAₜ = EMAₜ₋₁ + α × (valueₜ − EMAₜ₋₁)
+        // Apply EMA recursive formula for remaining dates
+        int count = 0;
         for (int i = startIndex; i < allSeries.size(); i++) {
             BigDecimal value = metric.extract(allSeries.get(i));
+
+            // EMAₜ = EMAₜ₋₁ + α × (valueₜ − EMAₜ₋₁)
             ema = value.subtract(ema, DB_MATH_CONTEXT)
                     .multiply(alpha, DB_MATH_CONTEXT)
                     .add(ema, DB_MATH_CONTEXT);
+
             persist(allSeries.get(i), metric, EMA, period, ema);
+            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getMarketDataDate(), ema);
+            count++;
         }
+        log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
     }
 
     private int findIndexForDate(List<MarketData> allSeries, LocalDate date) {
