@@ -24,7 +24,8 @@ public class TickerService {
                         ticker.getTickerId(),
                         ticker.getTickerSymbol(),
                         ticker.getTickerName(),
-                        ticker.getTickerDate().toString()))
+                        ticker.getTickerDate().toString(),
+                        ticker.isActive()))
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
     }
 
@@ -35,7 +36,8 @@ public class TickerService {
                         ticker.getTickerId(),
                         ticker.getTickerSymbol(),
                         ticker.getTickerName(),
-                        ticker.getTickerDate().toString()))
+                        ticker.getTickerDate().toString(),
+                        ticker.isActive()))
                 .toList();
     }
 }

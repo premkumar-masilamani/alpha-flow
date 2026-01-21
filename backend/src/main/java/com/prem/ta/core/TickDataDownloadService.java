@@ -40,7 +40,7 @@ public class TickDataDownloadService {
         log.info("Download URL: {}", appConfig.getDownloadUrl());
         log.info("Download directory: {}", appConfig.getDownloadDir());
 
-        tickerRepository.findAll()
+        tickerRepository.findByIsActiveTrue()
                 .forEach(this::downloadTickDataForTicker);
 
         log.info("All downloads completed!");

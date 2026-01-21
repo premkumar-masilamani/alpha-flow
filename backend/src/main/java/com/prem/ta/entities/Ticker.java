@@ -20,4 +20,6 @@ public class Ticker {
 
     private String tickerName;
 
+    private boolean isActive = true;
+
 }
