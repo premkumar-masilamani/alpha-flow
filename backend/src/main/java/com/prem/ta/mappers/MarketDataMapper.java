@@ -16,7 +16,7 @@ public class MarketDataMapper {
                 marketData.getVolumeProfilePOC(),
                 marketData.getVolumeProfileVAH(),
                 marketData.getVolumeProfileVAL(),
-                marketData.getVwapPocDeviationPct(),
+                marketData.getVwapPocSpread(),
                 marketData.getBuyerVolumeShare(),
                 marketData.getBuyerCapitalShare()
         );

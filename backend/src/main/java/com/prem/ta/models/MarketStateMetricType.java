@@ -7,17 +7,19 @@ import java.util.function.Function;
 
 public enum MarketStateMetricType {
 
-    VOLUME("VOLUME", MarketData::getVolume),
+    vol("vol", MarketData::getVolume),
 
-    VWAP("VWAP", MarketData::getVwap),
+    vwap("vwap", MarketData::getVwap),
 
-    VOLUME_PROFILE_POC("VP_POC", MarketData::getVolumeProfilePOC),
+    poc("poc", MarketData::getVolumeProfilePOC),
 
-    VOLUME_PROFILE_VALUE_RANGE("VP_VALUE_RANGE", md -> md.getVolumeProfileVAH().subtract(md.getVolumeProfileVAL())),
+    vpr("vpr", md -> md.getVolumeProfileVAH().subtract(md.getVolumeProfileVAL())),
 
-    BUYER_CAPITAL_SHARE("BUYER_CAPITAL_SHARE", MarketData::getBuyerCapitalShare),
+    vpd("vpd", md -> md.getVwap().subtract(md.getVolumeProfilePOC())),
 
-    BUYER_VOLUME_SHARE("BUYER_VOLUME_SHARE", MarketData::getBuyerVolumeShare);
+    bcs("bcs", MarketData::getBuyerCapitalShare),
+
+    bvs("bvs", MarketData::getBuyerVolumeShare);
 
     private final String code;
     private final Function<MarketData, BigDecimal> extractor;

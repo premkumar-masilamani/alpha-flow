@@ -78,11 +78,11 @@ public class MarketStateComputationService {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
-        log.info("Computing SMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.code(), period);
+        log.info("Computing SMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.name(), period);
 
         // Find the latest SMA already in the database to resume computation
         Optional<MarketState> latestSma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                ticker, metric.code(), SMA.code(), period
+                ticker, metric.name(), SMA.code(), period
         );
 
         int startIndex;
@@ -113,13 +113,13 @@ public class MarketStateComputationService {
 
             BigDecimal sma = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(i), metric, SMA, period, sma);
-            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getMarketDataDate(), sma);
+            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.name(), allSeries.get(i).getMarketDataDate(), sma);
 
             // Slide window: subtract the oldest value (which will be out of window in next step)
             sum = sum.subtract(metric.extract(allSeries.get(i - period + 1)), DB_MATH_CONTEXT);
             count++;
         }
-        log.info("Computed {} new SMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
+        log.info("Computed {} new SMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.name(), period);
     }
 
     /**
@@ -132,11 +132,11 @@ public class MarketStateComputationService {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
-        log.info("Computing EMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.code(), period);
+        log.info("Computing EMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.name(), period);
 
         // Find the latest EMA already in the database to resume computation
         Optional<MarketState> latestEma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                ticker, metric.code(), EMA.code(), period
+                ticker, metric.name(), EMA.code(), period
         );
 
         BigDecimal ema;
@@ -160,7 +160,7 @@ public class MarketStateComputationService {
             }
             ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(period - 1), metric, EMA, period, ema);
-            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(period - 1).getMarketDataDate(), ema);
+            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.name(), allSeries.get(period - 1).getMarketDataDate(), ema);
             startIndex = period;
         }
 
@@ -175,10 +175,10 @@ public class MarketStateComputationService {
                     .add(ema, DB_MATH_CONTEXT);
 
             persist(allSeries.get(i), metric, EMA, period, ema);
-            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getMarketDataDate(), ema);
+            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.name(), allSeries.get(i).getMarketDataDate(), ema);
             count++;
         }
-        log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
+        log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.name(), period);
     }
 
     private int findIndexForDate(List<MarketData> allSeries, LocalDate date) {
@@ -195,14 +195,14 @@ public class MarketStateComputationService {
         MarketState marketState = marketStateRepository.findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
                         marketData.getTicker(),
                         marketData.getMarketDataDate(),
-                        metric.code(),
+                        metric.name(),
                         maType.code(),
                         period)
                 .orElseGet(MarketState::new);
 
         marketState.setTicker(marketData.getTicker());
         marketState.setMarketStateDate(marketData.getMarketDataDate());
-        marketState.setMetric(metric.code());
+        marketState.setMetric(metric.name());
         marketState.setMaType(maType.code());
         marketState.setPeriod(period);
         marketState.setValue(value);

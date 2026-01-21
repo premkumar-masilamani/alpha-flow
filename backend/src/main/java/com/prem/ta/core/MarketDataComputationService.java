@@ -171,16 +171,13 @@ public class MarketDataComputationService {
         marketData.setVolumeProfileVAH(volumeProfileMetrics.valueAreaHigh());
         marketData.setVolumeProfileVAL(volumeProfileMetrics.valueAreaLow());
 
-        // Δ% = (VWAP − VP_POC) / VP_POC × 100
+        // VWAP POC SPREAD = VWAP - POC
         BigDecimal poc = volumeProfileMetrics.pointOfControl();
         BigDecimal vwap = ohlcvMetrics.vwap();
-        if (poc != null && poc.signum() > 0) {
-            BigDecimal deviationPct = vwap.subtract(poc, DB_MATH_CONTEXT)
-                    .divide(poc, DB_MATH_CONTEXT)
-                    .multiply(BigDecimal.valueOf(100), DB_MATH_CONTEXT);
-            marketData.setVwapPocDeviationPct(deviationPct);
+        if (poc != null && vwap != null) {
+            marketData.setVwapPocSpread(vwap.subtract(poc, DB_MATH_CONTEXT));
         } else {
-            marketData.setVwapPocDeviationPct(BigDecimal.ZERO);
+            marketData.setVwapPocSpread(BigDecimal.ZERO);
         }
 
         marketData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
