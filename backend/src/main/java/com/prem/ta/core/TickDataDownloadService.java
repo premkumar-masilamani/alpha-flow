@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -19,12 +18,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static com.prem.ta.configs.Constants.getBinanceDateString;
 import static com.prem.ta.configs.Constants.getBinanceZipFileName;
@@ -37,20 +30,17 @@ public class TickDataDownloadService {
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
-    private final ExecutorService downloadExecutor;
 
     public TickDataDownloadService(AppConfig appConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
         this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
         this.fileRepository = fileRepository;
-        // Use a fixed thread pool for downloads to avoid overwhelming the network/OS
-        this.downloadExecutor = Executors.newFixedThreadPool(4);
     }
 
     /**
      * Entry point for downloading historical tick data.
      * Iterates through active tickers and synchronizes missing data from the Binance Public Data repository.
-     * This method waits for all downloads to complete before returning.
+     * Downloads are processed sequentially to respect rate limits and system resources.
      */
     public void download() {
         log.info("Starting tick data download process...");
@@ -60,22 +50,17 @@ public class TickDataDownloadService {
         var activeTickers = tickerRepository.findByIsActiveTrue();
         log.info("Found {} active tickers to sync.", activeTickers.size());
 
-        List<CompletableFuture<Void>> allTasks = new ArrayList<>();
-        activeTickers.forEach(ticker -> allTasks.addAll(scheduleDownloadsForTicker(ticker)));
-
-        log.info("Waiting for {} scheduled download tasks to complete...", allTasks.size());
-        CompletableFuture.allOf(allTasks.toArray(new CompletableFuture[0])).join();
+        activeTickers.forEach(this::downloadTickDataForTicker);
 
         log.info("All downloads completed!");
     }
 
     /**
-     * Schedules download tasks for a specific ticker from its last recorded date until yesterday.
+     * Synchronizes tick data for a specific ticker from its last recorded date until yesterday.
      *
      * @param ticker The ticker to sync.
-     * @return A list of CompletableFutures representing the scheduled tasks.
      */
-    private List<CompletableFuture<Void>> scheduleDownloadsForTicker(Ticker ticker) {
+    private void downloadTickDataForTicker(Ticker ticker) {
         // Determine the start date: either the day after the last downloaded file, or the ticker's initial date.
         LocalDate startDate = fileRepository.findTopByTickerOrderByFileDateDesc(ticker)
                 .map(file -> file.getFileDate().plusDays(1))
@@ -84,7 +69,7 @@ public class TickDataDownloadService {
         LocalDate yesterday = LocalDate.now().minusDays(1); // Usually, today's data isn't fully available on public archives yet.
         if (startDate.isAfter(yesterday)) {
             log.info("Ticker {} is already up to date.", ticker.getTickerSymbol());
-            return List.of();
+            return;
         }
 
         String tickerSymbol = ticker.getTickerSymbol();
@@ -94,39 +79,32 @@ public class TickDataDownloadService {
             Files.createDirectories(outDir);
         } catch (IOException e) {
             log.error("Failed to create directory for {}: {}", tickerSymbol, outDir, e);
-            return List.of();
+            return;
         }
 
         log.info("Syncing {} from {} to {}", tickerSymbol, startDate, yesterday);
 
         String downloadPattern = appConfig.getDownloadUrl();
 
-        List<CompletableFuture<Void>> tasks = new ArrayList<>();
-        // Loop through each day and schedule a download task
+        // Loop through each day and download sequentially
         for (LocalDate date = startDate; !date.isAfter(yesterday); date = date.plusDays(1)) {
-            final LocalDate currentDate = date;
+            String dateStr = getBinanceDateString(date);
+            String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
+            Path localFile = outDir.resolve(fileName);
+            String url = downloadPattern.replace("{ticker}", tickerSymbol).replace("{filename}", fileName);
 
-            var task = CompletableFuture.runAsync(() -> {
-                String dateStr = getBinanceDateString(currentDate);
-                String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
-                Path localFile = outDir.resolve(fileName);
-                String url = downloadPattern.replace("{ticker}", tickerSymbol).replace("{filename}", fileName);
-
-                try {
-                    if (!Files.exists(localFile)) {
-                        log.debug("Downloading {} to {}", url, localFile);
-                        downloadFileWithTimeout(url, localFile);
-                    } else {
-                        log.trace("File already exists locally: {}", fileName);
-                    }
-                    saveFileRecord(ticker, currentDate, url);
-                } catch (IOException e) {
-                    log.warn("Failed to download {} on {}. It might not be available yet. Error: {}", tickerSymbol, dateStr, e.getMessage());
+            try {
+                if (!Files.exists(localFile)) {
+                    log.debug("Downloading {} to {}", url, localFile);
+                    downloadFileWithTimeout(url, localFile);
+                } else {
+                    log.trace("File already exists locally: {}", fileName);
                 }
-            }, downloadExecutor);
-            tasks.add(task);
+                saveFileRecord(ticker, date, url);
+            } catch (IOException e) {
+                log.warn("Failed to download {} on {}. It might not be available yet. Error: {}", tickerSymbol, dateStr, e.getMessage());
+            }
         }
-        return tasks;
     }
 
     /**
@@ -142,22 +120,6 @@ public class TickDataDownloadService {
         }
     }
 
-    /**
-     * Shuts down the download executor gracefully when the bean is destroyed.
-     */
-    @PreDestroy
-    public void shutdown() {
-        log.info("Shutting down TickDataDownloadService executor...");
-        downloadExecutor.shutdown();
-        try {
-            if (!downloadExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-                downloadExecutor.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            downloadExecutor.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-    }
 
     private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
 
