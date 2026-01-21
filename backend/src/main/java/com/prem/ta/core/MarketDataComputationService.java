@@ -47,65 +47,96 @@ public class MarketDataComputationService {
         this.technicalAnalysisEngine = technicalAnalysisEngine;
     }
 
+    /**
+     * Entry point for computing market data.
+     * Iterates through all unprocessed files in the database, extracts tick data from ZIP archives,
+     * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
+     */
     public void compute() {
-        log.info("Computing Market Data from Tick Data...");
+        log.info("Starting Market Data Computation from Tick Data...");
 
+        int totalProcessed = 0;
         while (true) {
+            // Fetch a page of unprocessed files to avoid loading too many records into memory
             Page<File> page = fileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
 
             if (page.isEmpty()) {
                 break;
             }
 
-            log.info("Processing {} pending files...", page.getNumberOfElements());
-            page.getContent().forEach(this::processTickDataFile);
+            log.info("Processing page with {} pending files...", page.getNumberOfElements());
+
+            // Process files in parallel to utilize multi-core processors for heavy technical analysis computation
+            page.getContent().parallelStream().forEach(this::processTickDataFile);
+
+            totalProcessed += page.getNumberOfElements();
         }
 
-        log.info("Completed Market Data Computation...");
+        log.info("Completed Market Data Computation. Total files processed: {}", totalProcessed);
     }
 
+    /**
+     * Processes a single tick data file:
+     * 1. Locates the ZIP file on disk.
+     * 2. Extracts the CSV content.
+     * 3. Computes technical metrics.
+     * 4. Merges with existing market data if applicable (to handle multiple files for the same date/ticker).
+     * 5. Updates the file status to processed.
+     *
+     * @param file The file record from the database.
+     */
     public void processTickDataFile(File file) {
-
         final String tickerSymbol = file.getTicker().getTickerSymbol();
         final String dateStr = getBinanceDateString(file.getFileDate());
         final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
         final Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
-        log.info("Processing trades for {} on {}", tickerSymbol, dateStr);
+        log.debug("Processing trades for ticker: {}, date: {}, file: {}", tickerSymbol, dateStr, baseFileName);
 
         if (!Files.exists(filePath)) {
-            log.warn("File not found: {}", filePath);
+            log.warn("File not found on disk: {}. Skipping processing for this file.", filePath);
             return;
         }
 
         try (ZipFile zipFile = new ZipFile(filePath.toFile())) {
-
+            // Binance ZIPs typically contain a single CSV file
             ZipEntry entry = zipFile.stream()
                     .findFirst()
                     .orElse(null);
 
             if (entry == null) {
-                log.warn("Empty ZIP for {} on {}", tickerSymbol, dateStr);
+                log.warn("ZIP archive is empty for {} on {}. Path: {}", tickerSymbol, dateStr, filePath);
                 return;
             }
 
             try (InputStream inputStream = zipFile.getInputStream(entry)) {
-                MarketData computedData = computeMetrics(file, getFileAsTable(inputStream));
+                log.trace("Reading CSV data from ZIP for {}", baseFileName);
+                Table tickTable = getFileAsTable(inputStream);
+
+                log.trace("Computing technical metrics for {}", baseFileName);
+                MarketData computedData = computeMetrics(file, tickTable);
+
+                // If we already have market data for this ticker/date, merge it.
+                // This is crucial if tick data is split across multiple files.
                 MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
-                        .map(existingData -> existingData.merge(computedData))
+                        .map(existingData -> {
+                            log.debug("Existing market data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
+                            return existingData.merge(computedData);
+                        })
                         .orElse(computedData);
 
-                log.debug(mergedData.toString());
+                log.debug("Saving market data: {}", mergedData);
                 marketDataRepository.save(mergedData);
 
+                // Mark the file as processed to avoid re-computation
                 file.setIsProcessed(true);
                 fileRepository.save(file);
 
-                log.info("Processed file {} for {}", baseFileName, tickerSymbol);
+                log.info("Successfully processed and saved data for {} on {}", tickerSymbol, dateStr);
             }
 
         } catch (Exception e) {
-            log.error("Failed to process {} on {}", tickerSymbol, dateStr, e);
+            log.error("Failed to process tick data for ticker: {}, date: {}. Error: {}", tickerSymbol, dateStr, e.getMessage(), e);
         }
     }
 
