@@ -68,7 +68,7 @@ public class MarketDataComputationService {
 
             // Process files sequentially to avoid OutOfMemoryError.
             // Binance tick data files can be large, and loading multiple tables into memory concurrently
-            // via parallelStream() can exceed available heap space.
+            // can exceed available heap space.
             page.getContent().forEach(this::processTickDataFile);
 
             totalProcessed += page.getNumberOfElements();
