@@ -91,7 +91,7 @@ public class MarketStateComputationService {
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
             // If up to date, skip
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.info("SMA for {} - {} ({} days) is already up to date", ticker.getTickerSymbol(), metric.code(), period);
+                log.info("SMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
                 return;
             }
         } else {
@@ -149,7 +149,7 @@ public class MarketStateComputationService {
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
             // If up to date, skip
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.info("EMA for {} - {} ({} days) is already up to date", ticker.getTickerSymbol(), metric.code(), period);
+                log.info("EMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
                 return;
             }
         } else {
