@@ -44,9 +44,6 @@ public class MarketData {
     @Column(name = "volume_profile_val")
     private BigDecimal volumeProfileVAL;
 
-    @Column(name = "vwap_poc_deviation_pct")
-    private BigDecimal vwapPocDeviationPct;
-
     private BigDecimal buyerVolumeShare;
 
     private BigDecimal buyerCapitalShare;
@@ -61,7 +58,6 @@ public class MarketData {
         this.volumeProfilePOC = other.volumeProfilePOC;
         this.volumeProfileVAH = other.volumeProfileVAH;
         this.volumeProfileVAL = other.volumeProfileVAL;
-        this.vwapPocDeviationPct = other.vwapPocDeviationPct;
         this.buyerVolumeShare = other.buyerVolumeShare;
         this.buyerCapitalShare = other.buyerCapitalShare;
         return this;
