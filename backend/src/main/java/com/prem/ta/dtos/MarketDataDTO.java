@@ -27,6 +27,8 @@ public record MarketDataDTO(
 
         @JsonProperty("val") BigDecimal volumeProfileVAL,
 
+        @JsonProperty("vpd") BigDecimal vwapPocDeviationPct,
+
         @JsonProperty("bvs") BigDecimal buyerVolumeShare,
 
         @JsonProperty("bcs") BigDecimal buyerCapitalShare) {
