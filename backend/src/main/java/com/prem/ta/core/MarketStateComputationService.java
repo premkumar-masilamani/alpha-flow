@@ -71,8 +71,7 @@ public class MarketStateComputationService {
 
     /**
      * Simple Moving Average (SMA) calculation.
-     * Uses a sliding window approach for O(N) efficiency instead of O(N*P).
-     *
+     * Uses a sliding window approach for O(N) efficiency.
      * Formula: SMA = (Sum of values in window) / Period
      */
     private void computeSMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
@@ -125,10 +124,8 @@ public class MarketStateComputationService {
 
     /**
      * Exponential Moving Average (EMA) calculation.
-     *
      * Formula: EMAₜ = EMAₜ₋₁ + α × (Valueₜ − EMAₜ₋₁)
      * where α = 2 / (Period + 1)
-     *
      * Initial Seed: The first EMA value is typically the SMA of the first 'Period' days.
      */
     private void computeEMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
