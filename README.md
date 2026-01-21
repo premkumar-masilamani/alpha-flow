@@ -1,8 +1,8 @@
-# Technical Analysis
+# Alpha Flow
 
-Exploration of trading strategies, purely based on technical analysis.
+AlphaFlow studies the flow of buying and selling to make better trading decisions.
 
-## Pre-requistes
+## Pre-requisites
 
 - Java version 21
 - Node version 20
