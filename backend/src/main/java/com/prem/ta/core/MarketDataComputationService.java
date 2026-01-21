@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import tech.tablesaw.api.Table;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -167,6 +168,18 @@ public class MarketDataComputationService {
         marketData.setVolumeProfilePOC(volumeProfileMetrics.pointOfControl());
         marketData.setVolumeProfileVAH(volumeProfileMetrics.valueAreaHigh());
         marketData.setVolumeProfileVAL(volumeProfileMetrics.valueAreaLow());
+
+        // Δ% = (VWAP − VP_POC) / VP_POC × 100
+        BigDecimal poc = volumeProfileMetrics.pointOfControl();
+        BigDecimal vwap = ohlcvMetrics.vwap();
+        if (poc != null && poc.signum() > 0) {
+            BigDecimal deviationPct = vwap.subtract(poc, DB_MATH_CONTEXT)
+                    .divide(poc, DB_MATH_CONTEXT)
+                    .multiply(BigDecimal.valueOf(100), DB_MATH_CONTEXT);
+            marketData.setVwapPocDeviationPct(deviationPct);
+        } else {
+            marketData.setVwapPocDeviationPct(BigDecimal.ZERO);
+        }
 
         marketData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
         marketData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
