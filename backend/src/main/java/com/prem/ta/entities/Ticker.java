@@ -20,7 +20,6 @@ public class Ticker {
 
     private String tickerName;
 
-    @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
 }
