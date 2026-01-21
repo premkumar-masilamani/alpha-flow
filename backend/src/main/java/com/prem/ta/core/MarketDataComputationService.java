@@ -66,8 +66,10 @@ public class MarketDataComputationService {
 
             log.info("Processing page with {} pending files...", page.getNumberOfElements());
 
-            // Process files in parallel to utilize multi-core processors for heavy technical analysis computation
-            page.getContent().parallelStream().forEach(this::processTickDataFile);
+            // Process files sequentially to avoid OutOfMemoryError.
+            // Binance tick data files can be large, and loading multiple tables into memory concurrently
+            // can exceed available heap space.
+            page.getContent().forEach(this::processTickDataFile);
 
             totalProcessed += page.getNumberOfElements();
         }
