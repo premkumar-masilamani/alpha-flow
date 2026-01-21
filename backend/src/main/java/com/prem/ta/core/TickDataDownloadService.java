@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -36,25 +37,39 @@ public class TickDataDownloadService {
         this.fileRepository = fileRepository;
     }
 
+    /**
+     * Entry point for downloading historical tick data.
+     * Iterates through active tickers and synchronizes missing data from the Binance Public Data repository.
+     * Downloads are processed sequentially to respect rate limits and system resources.
+     */
     public void download() {
-        log.info("Download URL: {}", appConfig.getDownloadUrl());
-        log.info("Download directory: {}", appConfig.getDownloadDir());
+        log.info("Starting tick data download process...");
+        log.info("Remote Repository: {}", appConfig.getDownloadUrl());
+        log.info("Local Storage: {}", appConfig.getDownloadDir());
 
-        tickerRepository.findByIsActiveTrue()
-                .forEach(this::downloadTickDataForTicker);
+        var activeTickers = tickerRepository.findByIsActiveTrue();
+        log.info("Found {} active tickers to sync.", activeTickers.size());
+
+        activeTickers.forEach(this::downloadTickDataForTicker);
 
         log.info("All downloads completed!");
     }
 
+    /**
+     * Synchronizes tick data for a specific ticker from its last recorded date until yesterday.
+     *
+     * @param ticker The ticker to sync.
+     */
     private void downloadTickDataForTicker(Ticker ticker) {
-
+        // Determine the start date: either the day after the last downloaded file, or the ticker's initial date.
         LocalDate startDate = fileRepository.findTopByTickerOrderByFileDateDesc(ticker)
                 .map(file -> file.getFileDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
-        LocalDate today = LocalDate.now();
-        if (startDate.isAfter(today)) {
-            return; // nothing to download
+        LocalDate yesterday = LocalDate.now().minusDays(1); // Usually, today's data isn't fully available on public archives yet.
+        if (startDate.isAfter(yesterday)) {
+            log.info("Ticker {} is already up to date.", ticker.getTickerSymbol());
+            return;
         }
 
         String tickerSymbol = ticker.getTickerSymbol();
@@ -63,14 +78,16 @@ public class TickDataDownloadService {
         try {
             Files.createDirectories(outDir);
         } catch (IOException e) {
-            log.error("Error creating directory {}:", outDir, e);
+            log.error("Failed to create directory for {}: {}", tickerSymbol, outDir, e);
             return;
         }
 
-        log.info("Syncing ticker {} from {}", ticker.getTickerSymbol(), startDate);
-        String downloadPattern = appConfig.getDownloadUrl();
-        for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
+        log.info("Syncing {} from {} to {}", tickerSymbol, startDate, yesterday);
 
+        String downloadPattern = appConfig.getDownloadUrl();
+
+        // Loop through each day and download sequentially
+        for (LocalDate date = startDate; !date.isAfter(yesterday); date = date.plusDays(1)) {
             String dateStr = getBinanceDateString(date);
             String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
@@ -78,21 +95,31 @@ public class TickDataDownloadService {
 
             try {
                 if (!Files.exists(localFile)) {
-                    log.info("Downloading {}", url);
-                    downloadFile(url, localFile);
+                    log.debug("Downloading {} to {}", url, localFile);
+                    downloadFileWithTimeout(url, localFile);
+                } else {
+                    log.trace("File already exists locally: {}", fileName);
                 }
                 saveFileRecord(ticker, date, url);
-
             } catch (IOException e) {
-                log.error("Download failed for {} on {}: ", tickerSymbol, dateStr, e);
+                log.warn("Failed to download {} on {}. It might not be available yet. Error: {}", tickerSymbol, dateStr, e.getMessage());
             }
         }
     }
 
-    private void downloadFile(String remoteFileURL, Path localFilePath) throws IOException {
-        InputStream in = URI.create(remoteFileURL).toURL().openConnection().getInputStream();
-        Files.copy(in, localFilePath, StandardCopyOption.REPLACE_EXISTING);
+    /**
+     * Downloads a file from a URL with basic timeout handling.
+     */
+    private void downloadFileWithTimeout(String remoteFileURL, Path localFilePath) throws IOException {
+        URLConnection connection = URI.create(remoteFileURL).toURL().openConnection();
+        connection.setConnectTimeout(5000); // 5 seconds
+        connection.setReadTimeout(10000);    // 10 seconds
+
+        try (InputStream in = connection.getInputStream()) {
+            Files.copy(in, localFilePath, StandardCopyOption.REPLACE_EXISTING);
+        }
     }
+
 
     private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
 
