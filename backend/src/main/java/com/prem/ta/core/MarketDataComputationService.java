@@ -66,18 +66,10 @@ public class MarketDataComputationService {
 
             log.info("Processing page with {} pending files...", page.getNumberOfElements());
 
-            // Group files by Ticker and Date within the page to ensure we process each (ticker, date) group sequentially.
-            // This prevents race conditions where multiple threads might try to insert the same MarketData record
-            // for different files belonging to the same ticker and date.
-            var groupedFiles = page.getContent().stream()
-                    .collect(java.util.stream.Collectors.groupingBy(f -> f.getTicker().getTickerId() + "-" + f.getFileDate()));
-
-            // Process each (ticker, date) group in parallel, but files within a group sequentially.
-            groupedFiles.values().parallelStream().forEach(filesInGroup -> {
-                for (File file : filesInGroup) {
-                    processTickDataFile(file);
-                }
-            });
+            // Process files sequentially to avoid OutOfMemoryError.
+            // Binance tick data files can be large, and loading multiple tables into memory concurrently
+            // via parallelStream() can exceed available heap space.
+            page.getContent().forEach(this::processTickDataFile);
 
             totalProcessed += page.getNumberOfElements();
         }
@@ -126,28 +118,17 @@ public class MarketDataComputationService {
                 log.trace("Computing technical metrics for {}", baseFileName);
                 MarketData computedData = computeMetrics(file, tickTable);
 
-                // Attempt to find and merge with existing market data.
-                // We use a retry mechanism to handle potential race conditions during parallel inserts.
-                MarketData mergedData = null;
-                int retryCount = 0;
-                while (retryCount < 3) {
-                    try {
-                        mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
-                                .map(existingData -> {
-                                    log.debug("Existing market data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
-                                    return existingData.merge(computedData);
-                                })
-                                .orElse(computedData);
+                // If we already have market data for this ticker/date, merge it.
+                // This is crucial if tick data is split across multiple files.
+                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
+                        .map(existingData -> {
+                            log.debug("Existing market data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
+                            return existingData.merge(computedData);
+                        })
+                        .orElse(computedData);
 
-                        log.debug("Saving market data: {}", mergedData);
-                        marketDataRepository.save(mergedData);
-                        break; // Success
-                    } catch (org.springframework.dao.DataIntegrityViolationException e) {
-                        retryCount++;
-                        log.warn("Data integrity violation for {} on {} (retry {}/3). Likely a concurrent insert race condition.", tickerSymbol, dateStr, retryCount);
-                        if (retryCount >= 3) throw e;
-                    }
-                }
+                log.debug("Saving market data: {}", mergedData);
+                marketDataRepository.save(mergedData);
 
                 // Mark the file as processed to avoid re-computation
                 file.setIsProcessed(true);
