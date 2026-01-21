@@ -120,6 +120,7 @@ public class TickDataDownloadService {
         }
     }
 
+
     private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
 
         File file = new File();

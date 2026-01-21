@@ -119,7 +119,6 @@ public class MarketDataComputationService {
                 MarketData computedData = computeMetrics(file, tickTable);
 
                 // If we already have market data for this ticker/date, merge it.
-                // This is crucial if tick data is split across multiple files.
                 MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
                         .map(existingData -> {
                             log.debug("Existing market data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
