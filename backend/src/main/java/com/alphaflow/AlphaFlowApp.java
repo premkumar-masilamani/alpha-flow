@@ -1,8 +1,8 @@
 package com.alphaflow;
 
-import com.alphaflow.core.services.MarketDataComputationService;
-import com.alphaflow.core.services.MarketStateComputationService;
-import com.alphaflow.core.services.TickDataDownloadService;
+import com.alphaflow.application.usecase.MarketDataComputationService;
+import com.alphaflow.application.usecase.MarketStateComputationService;
+import com.alphaflow.infrastructure.marketdata.TickDataDownloadService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

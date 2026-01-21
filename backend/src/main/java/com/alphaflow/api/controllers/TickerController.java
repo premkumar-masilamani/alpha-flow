@@ -2,8 +2,8 @@ package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.MarketDataDTO;
 import com.alphaflow.api.dtos.TickerDTO;
-import com.alphaflow.api.services.MarketDataService;
-import com.alphaflow.api.services.TickerService;
+import com.alphaflow.application.usecase.MarketDataService;
+import com.alphaflow.application.usecase.TickerService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
