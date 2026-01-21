@@ -66,12 +66,6 @@ public class TickDataDownloadService {
                 .map(file -> file.getFileDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
-        LocalDate yesterday = LocalDate.now().minusDays(1); // Usually, today's data isn't fully available on public archives yet.
-        if (startDate.isAfter(yesterday)) {
-            log.info("Ticker {} is already up to date.", ticker.getTickerSymbol());
-            return;
-        }
-
         String tickerSymbol = ticker.getTickerSymbol();
         Path outDir = Path.of(appConfig.getDownloadDir(), tickerSymbol);
 
@@ -82,12 +76,14 @@ public class TickDataDownloadService {
             return;
         }
 
-        log.info("Syncing {} from {} to {}", tickerSymbol, startDate, yesterday);
-
+        LocalDate today = LocalDate.now();
+        log.info("Syncing {} from {} to {}", tickerSymbol, startDate, today);
         String downloadPattern = appConfig.getDownloadUrl();
 
         // Loop through each day and download sequentially
-        for (LocalDate date = startDate; !date.isAfter(yesterday); date = date.plusDays(1)) {
+        // Usually, today's data isn't fully available on public archives yet.
+        // So, we still check and fail to download the file, if not available.
+        for (LocalDate date = startDate; !date.isAfter(today); date = date.plusDays(1)) {
             String dateStr = getBinanceDateString(date);
             String fileName = getBinanceZipFileName(tickerSymbol, dateStr);
             Path localFile = outDir.resolve(fileName);
