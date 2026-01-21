@@ -44,7 +44,7 @@ public class MarketStateComputationService {
     public void compute() {
         log.info("Computing Market State");
 
-        tickerRepository.findByActiveTrue().forEach(ticker -> {
+        tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Computing Market State for {}", ticker.getTickerSymbol());
 
             for (MarketStateMetricType metric : MarketStateMetricType.values()) {

@@ -12,5 +12,5 @@ public record TickerDTO(
 
         @JsonProperty("date") String tickerDate,
 
-        @JsonProperty("active") boolean active) {
+        @JsonProperty("is_active") boolean isActive) {
 }

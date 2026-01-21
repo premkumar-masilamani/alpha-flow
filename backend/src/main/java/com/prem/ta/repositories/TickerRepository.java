@@ -12,6 +12,6 @@ public interface TickerRepository extends JpaRepository<Ticker, Long> {
 
     Optional<Ticker> findByTickerSymbol(String symbol);
 
-    List<Ticker> findByActiveTrue();
+    List<Ticker> findByIsActiveTrue();
 
 }
