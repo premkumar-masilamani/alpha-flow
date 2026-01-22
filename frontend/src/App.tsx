@@ -4,15 +4,8 @@ import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import Controls from './components/Controls';
 import type { IndicatorConfig } from './components/Controls';
-import type { Ticker, MarketData } from './services/api';
+import { getTickers, type Ticker, type MarketData } from './services/api';
 import { Loader2 } from 'lucide-react';
-
-// Mock data for development when backend is not available
-const MOCK_TICKERS: Ticker[] = [
-  { symbol: 'BTCUSDT', name: 'Bitcoin / Tether US' },
-  { symbol: 'ETHUSDT', name: 'Ethereum / Tether US' },
-  { symbol: 'BNBUSDT', name: 'Binance Coin / Tether US' },
-];
 
 const generateMockMarketData = (symbol: string): MarketData[] => {
   const data: MarketData[] = [];
@@ -51,8 +44,8 @@ const generateMockMarketData = (symbol: string): MarketData[] => {
 };
 
 function App() {
-  const [tickers] = useState<Ticker[]>(MOCK_TICKERS);
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(MOCK_TICKERS[0].symbol);
+  const [tickers, setTickers] = useState<Ticker[]>([]);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [loading, setLoading] = useState(false);
   const [indicators, setIndicators] = useState<IndicatorConfig[]>([
@@ -63,6 +56,21 @@ function App() {
     { id: 'bvs', label: 'Buyer Vol Share', color: '#3b82f6', visible: false },
     { id: 'bcs', label: 'Buyer Cap Share', color: '#ec4899', visible: false },
   ]);
+
+  useEffect(() => {
+    const fetchTickers = async () => {
+      try {
+        const data = await getTickers();
+        setTickers(data);
+        if (data.length > 0) {
+          setSelectedTicker(data[0].symbol);
+        }
+      } catch (error) {
+        console.error('Failed to fetch tickers:', error);
+      }
+    };
+    fetchTickers();
+  }, []);
 
   useEffect(() => {
     if (selectedTicker) {
