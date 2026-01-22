@@ -53,7 +53,7 @@ public class MarketDataComputer {
      * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
      */
     public void compute() {
-        log.info("Starting Market Data Computation from Tick Data...");
+        log.info("Starting Market Data Computation");
 
         int totalProcessed = 0;
         while (true) {
