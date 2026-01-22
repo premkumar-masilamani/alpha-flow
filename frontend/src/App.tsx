@@ -5,11 +5,14 @@ import Chart from './components/Chart';
 import { getTickers, getMarketData, type Ticker, type MarketData } from './services/api';
 import { Loader2 } from 'lucide-react';
 
+const TABS = ['Candlestick', 'Renko', 'CCS'];
+
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<MarketData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('Candlestick');
 
   useEffect(() => {
     const fetchTickers = async () => {
@@ -65,12 +68,38 @@ function App() {
                 </div>
                 {loading && <Loader2 className="animate-spin text-blue-500" />}
               </div>
+
+              <div className="flex border-b border-slate-800 bg-slate-900/50">
+                {TABS.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-6 py-3 text-sm font-medium transition-all relative ${
+                      activeTab === tab
+                        ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-400/5'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex-1 relative overflow-hidden p-4">
-                {marketData.length > 0 ? (
-                  <Chart data={marketData} />
+                {activeTab === 'Candlestick' ? (
+                  marketData.length > 0 ? (
+                    <Chart data={marketData} />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                      {loading ? 'Loading data...' : 'No data available for this ticker'}
+                    </div>
+                  )
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                    {loading ? 'Loading data...' : 'No data available for this ticker'}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
+                    <div className="text-xl font-semibold mb-2">{activeTab}</div>
+                    <div className="px-4 py-2 border border-slate-700 rounded-md bg-slate-800/50">
+                      Under Construction
+                    </div>
                   </div>
                 )}
               </div>
