@@ -8,6 +8,7 @@ import {
 import type {
   IChartApi,
   ISeriesApi,
+  Time,
 } from 'lightweight-charts';
 import type { MarketData } from '../services/api';
 
@@ -103,7 +104,17 @@ const Chart: React.FC<ChartProps> = ({ data }) => {
 
     volumeSeriesRef.current.setData(formattedVolumeData);
 
-    chartRef.current.timeScale().fitContent();
+    // Set initial display to latest six months
+    const lastDate = sortedData[sortedData.length - 1].date;
+    const lastDateObj = new Date(lastDate);
+    const sixMonthsAgo = new Date(lastDateObj);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
+
+    chartRef.current.timeScale().setVisibleRange({
+      from: sixMonthsAgoStr as Time,
+      to: lastDate as Time,
+    });
   }, [data]);
 
   return <div ref={chartContainerRef} style={{ width: '100%', height: '600px', backgroundColor: '#020617' }} />;
