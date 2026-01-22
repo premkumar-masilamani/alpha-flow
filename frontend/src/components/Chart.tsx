@@ -4,26 +4,22 @@ import {
   ColorType,
   CandlestickSeries,
   HistogramSeries,
-  LineSeries,
 } from 'lightweight-charts';
 import type {
   IChartApi,
   ISeriesApi,
 } from 'lightweight-charts';
 import type { MarketData } from '../services/api';
-import type { IndicatorConfig } from './Controls';
 
 interface ChartProps {
   data: MarketData[];
-  indicators: IndicatorConfig[];
 }
 
-const Chart: React.FC<ChartProps> = ({ data, indicators }) => {
+const Chart: React.FC<ChartProps> = ({ data }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-  const indicatorSeriesRefs = useRef<{ [key: string]: ISeriesApi<'Line'> }>({});
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -107,33 +103,8 @@ const Chart: React.FC<ChartProps> = ({ data, indicators }) => {
 
     volumeSeriesRef.current.setData(formattedVolumeData);
 
-    // Indicators
-    indicators.forEach((indicator) => {
-      if (indicator.visible) {
-        if (!indicatorSeriesRefs.current[indicator.id]) {
-          indicatorSeriesRefs.current[indicator.id] = chartRef.current!.addSeries(LineSeries, {
-            color: indicator.color,
-            lineWidth: 2,
-            title: indicator.label,
-          });
-        }
-
-        const indicatorData = sortedData.map((d) => ({
-          time: d.date,
-          value: Number((d as any)[indicator.id]),
-        })).filter(d => !isNaN(d.value));
-
-        indicatorSeriesRefs.current[indicator.id].setData(indicatorData);
-      } else {
-        if (indicatorSeriesRefs.current[indicator.id]) {
-          chartRef.current!.removeSeries(indicatorSeriesRefs.current[indicator.id]);
-          delete indicatorSeriesRefs.current[indicator.id];
-        }
-      }
-    });
-
     chartRef.current.timeScale().fitContent();
-  }, [data, indicators]);
+  }, [data]);
 
   return <div ref={chartContainerRef} style={{ width: '100%', height: '600px', backgroundColor: '#020617' }} />;
 };

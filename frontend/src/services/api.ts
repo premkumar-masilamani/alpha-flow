@@ -30,7 +30,17 @@ export const getTickers = async (): Promise<Ticker[]> => {
   return response.data;
 };
 
+const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
+const cache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
+
 export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
+  const now = Date.now();
+  if (cache[symbol] && now - cache[symbol].timestamp < CACHE_DURATION) {
+    return cache[symbol].data;
+  }
+
   const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
-  return response.data;
+  const data = response.data;
+  cache[symbol] = { data, timestamp: now };
+  return data;
 };
