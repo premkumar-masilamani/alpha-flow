@@ -2,6 +2,8 @@ package com.alphaflow.core;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -30,13 +32,24 @@ public class DataUpdateScheduler {
     }
 
     /**
-     * Runs the data update pipeline every hour.
-     * The process is executed with a fixed delay of one hour after the previous completion
-     * to prevent overlapping executions if a cycle takes longer than expected.
+     * Runs the data update pipeline every hour on the hour.
      */
-    @Scheduled(fixedDelay = 3600000) // 1 hour in milliseconds
-    public void runDataUpdate() {
-        log.info("Starting scheduled data update cycle...");
+    @Scheduled(cron = "0 0 * * * *")
+    public void runScheduledUpdate() {
+        log.info("Starting scheduled data update cycle (on the hour)...");
+        runDataUpdate();
+    }
+
+    /**
+     * Runs the data update pipeline immediately upon application startup.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void runOnStartup() {
+        log.info("Starting initial data update cycle upon startup...");
+        runDataUpdate();
+    }
+
+    private void runDataUpdate() {
         try {
             log.info("Step 1/3: Downloading tick data...");
             tickDataDownloader.download();
