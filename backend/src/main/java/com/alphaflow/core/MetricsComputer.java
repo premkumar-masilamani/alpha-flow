@@ -1,4 +1,4 @@
-package com.alphaflow.domain.service;
+package com.alphaflow.core;
 
 import com.alphaflow.domain.model.OHLCVMetrics;
 import com.alphaflow.domain.model.OrderFlowMetrics;
@@ -19,7 +19,7 @@ import static java.math.BigDecimal.valueOf;
 import static java.util.Comparator.comparing;
 
 @Component
-public class TechnicalAnalysisEngine {
+public class MetricsComputer {
 
     /**
      * Computes Open, High, Low, Close, Volume, and VWAP (Volume Weighted Average Price)

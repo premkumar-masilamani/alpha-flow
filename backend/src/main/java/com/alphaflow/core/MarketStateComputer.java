@@ -1,4 +1,4 @@
-package com.alphaflow.application.usecase;
+package com.alphaflow.core;
 
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import com.alphaflow.infrastructure.persistence.entities.MarketState;
@@ -24,15 +24,15 @@ import static com.alphaflow.domain.model.MovingAverageType.SMA;
 import static java.math.BigDecimal.valueOf;
 
 @Service
-public class MarketStateComputationService {
+public class MarketStateComputer {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketStateComputationService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketStateComputer.class);
 
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
     private final TickerRepository tickerRepository;
 
-    public MarketStateComputationService(
+    public MarketStateComputer(
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
             TickerRepository tickerRepository

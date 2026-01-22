@@ -25,8 +25,4 @@ public interface MarketDataRepository extends JpaRepository<MarketData, Long> {
 
     List<MarketData> findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(Ticker ticker, LocalDate startDate);
 
-    Optional<MarketData> findTopByTickerOrderByMarketDataDateDesc(Ticker ticker);
-
-    Optional<MarketData> findFirstByTickerOrderByMarketDataDateAsc(Ticker ticker);
-
 }

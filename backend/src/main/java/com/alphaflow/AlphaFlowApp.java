@@ -1,8 +1,8 @@
 package com.alphaflow;
 
-import com.alphaflow.application.usecase.MarketDataComputationService;
-import com.alphaflow.application.usecase.MarketStateComputationService;
-import com.alphaflow.infrastructure.marketdata.TickDataDownloadService;
+import com.alphaflow.core.MarketDataComputer;
+import com.alphaflow.core.MarketStateComputer;
+import com.alphaflow.core.TickDataDownloader;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,14 +17,14 @@ public class AlphaFlowApp {
 
     @Bean
     CommandLineRunner runner(
-            TickDataDownloadService tickDataDownloadService,
-            MarketDataComputationService marketDataComputationService,
-            MarketStateComputationService marketStateComputationService
+            TickDataDownloader tickDataDownloader,
+            MarketDataComputer marketDataComputer,
+            MarketStateComputer marketStateComputer
     ) {
         return args -> {
-            tickDataDownloadService.download();
-            marketDataComputationService.compute();
-            marketStateComputationService.compute();
+            tickDataDownloader.download();
+            marketDataComputer.compute();
+            marketStateComputer.compute();
         };
     }
 }

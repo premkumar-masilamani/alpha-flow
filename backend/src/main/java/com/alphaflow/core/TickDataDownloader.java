@@ -1,4 +1,4 @@
-package com.alphaflow.infrastructure.marketdata;
+package com.alphaflow.core;
 
 import com.alphaflow.infrastructure.config.AppConfig;
 import com.alphaflow.infrastructure.persistence.entities.File;
@@ -23,15 +23,15 @@ import static com.alphaflow.infrastructure.config.Constants.getBinanceDateString
 import static com.alphaflow.infrastructure.config.Constants.getBinanceZipFileName;
 
 @Service
-public class TickDataDownloadService {
+public class TickDataDownloader {
 
-    private static final Logger log = LoggerFactory.getLogger(TickDataDownloadService.class);
+    private static final Logger log = LoggerFactory.getLogger(TickDataDownloader.class);
 
     private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
 
-    public TickDataDownloadService(AppConfig appConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
+    public TickDataDownloader(AppConfig appConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
         this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
         this.fileRepository = fileRepository;

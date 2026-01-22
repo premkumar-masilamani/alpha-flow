@@ -1,6 +1,4 @@
-package com.alphaflow.application.usecase;
-
-import com.alphaflow.domain.service.TechnicalAnalysisEngine;
+package com.alphaflow.core;
 
 import com.alphaflow.infrastructure.config.AppConfig;
 import com.alphaflow.infrastructure.persistence.entities.File;
@@ -28,25 +26,25 @@ import static com.alphaflow.infrastructure.config.Constants.*;
 import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
-public class MarketDataComputationService {
+public class MarketDataComputer {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketDataComputationService.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketDataComputer.class);
 
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final MarketDataRepository marketDataRepository;
-    private final TechnicalAnalysisEngine technicalAnalysisEngine;
+    private final MetricsComputer metricsComputer;
 
-    public MarketDataComputationService(
+    public MarketDataComputer(
             AppConfig appConfig,
             FileRepository fileRepository,
             MarketDataRepository marketDataRepository,
-            TechnicalAnalysisEngine technicalAnalysisEngine
+            MetricsComputer metricsComputer
     ) {
         this.appConfig = appConfig;
         this.fileRepository = fileRepository;
         this.marketDataRepository = marketDataRepository;
-        this.technicalAnalysisEngine = technicalAnalysisEngine;
+        this.metricsComputer = metricsComputer;
     }
 
     /**
@@ -83,7 +81,7 @@ public class MarketDataComputationService {
      * Processes a single tick data file:
      * 1. Locates the ZIP file on disk.
      * 2. Extracts the CSV content.
-     * 3. Computes technical metrics.
+     * 3. Computes metrics.
      * 4. Merges with existing market data if applicable (to handle multiple files for the same date/ticker).
      * 5. Updates the file status to processed.
      *
@@ -117,7 +115,7 @@ public class MarketDataComputationService {
                 log.trace("Reading CSV data from ZIP for {}", baseFileName);
                 Table tickTable = getFileAsTable(inputStream);
 
-                log.trace("Computing technical metrics for {}", baseFileName);
+                log.trace("Computing metrics for {}", baseFileName);
                 MarketData computedData = computeMetrics(file, tickTable);
 
                 // If we already have market data for this ticker/date, merge it.
@@ -153,9 +151,9 @@ public class MarketDataComputationService {
 
     private MarketData computeMetrics(File file, Table table) {
 
-        OHLCVMetrics ohlcvMetrics = technicalAnalysisEngine.computeOHLCV(table);
-        OrderFlowMetrics orderFlowMetrics = technicalAnalysisEngine.computeOrderFlow(table);
-        VolumeProfileMetrics volumeProfileMetrics = technicalAnalysisEngine.computeVolumeProfile(table, ohlcvMetrics);
+        OHLCVMetrics ohlcvMetrics = metricsComputer.computeOHLCV(table);
+        OrderFlowMetrics orderFlowMetrics = metricsComputer.computeOrderFlow(table);
+        VolumeProfileMetrics volumeProfileMetrics = metricsComputer.computeVolumeProfile(table, ohlcvMetrics);
 
         MarketData marketData = new MarketData();
         marketData.setTicker(file.getTicker());

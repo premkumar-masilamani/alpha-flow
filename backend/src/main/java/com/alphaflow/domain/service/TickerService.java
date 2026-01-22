@@ -1,4 +1,4 @@
-package com.alphaflow.application.usecase;
+package com.alphaflow.domain.service;
 
 import com.alphaflow.api.dtos.TickerDTO;
 import com.alphaflow.api.exceptions.ResourceNotFoundException;
