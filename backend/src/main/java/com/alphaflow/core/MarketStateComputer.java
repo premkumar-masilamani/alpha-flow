@@ -88,11 +88,17 @@ public class MarketStateComputer {
         int startIndex;
         if (latestSma.isPresent()) {
             LocalDate lastDate = latestSma.get().getMarketStateDate();
-            startIndex = findIndexForDate(allSeries, lastDate) + 1;
-            // If up to date, skip
-            if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.info("SMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
-                return;
+            int lastIndex = findIndexForDate(allSeries, lastDate);
+            if (lastIndex == -1) {
+                // This shouldn't happen if data is consistent, but if it does, we recompute from scratch
+                startIndex = period - 1;
+            } else {
+                startIndex = lastIndex + 1;
+                // If up to date, skip
+                if (startIndex >= allSeries.size()) {
+                    log.info("SMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
+                    return;
+                }
             }
         } else {
             // First ever computation starts at the first possible date where a full window exists
@@ -146,11 +152,23 @@ public class MarketStateComputer {
         if (latestEma.isPresent()) {
             ema = latestEma.get().getValue();
             LocalDate lastDate = latestEma.get().getMarketStateDate();
-            startIndex = findIndexForDate(allSeries, lastDate) + 1;
-            // If up to date, skip
-            if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.info("EMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
-                return;
+            int lastIndex = findIndexForDate(allSeries, lastDate);
+            if (lastIndex == -1) {
+                // Should not happen, but if it does, seed from scratch
+                BigDecimal sum = BigDecimal.ZERO;
+                for (int i = 0; i < period; i++) {
+                    sum = sum.add(metric.extract(allSeries.get(i)), DB_MATH_CONTEXT);
+                }
+                ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
+                persist(allSeries.get(period - 1), metric, EMA, period, ema);
+                startIndex = period;
+            } else {
+                startIndex = lastIndex + 1;
+                // If up to date, skip
+                if (startIndex >= allSeries.size()) {
+                    log.info("EMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
+                    return;
+                }
             }
         } else {
             // Seed EMA with SMA of the first 'period' elements
