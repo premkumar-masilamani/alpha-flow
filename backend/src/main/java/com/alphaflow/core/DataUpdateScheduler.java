@@ -37,7 +37,7 @@ public class DataUpdateScheduler {
     @Scheduled(cron = "0 0 * * * *")
     public void runScheduledUpdate() {
         log.info("Starting scheduled data update cycle (on the hour)...");
-        runDataUpdate();
+        run();
     }
 
     /**
@@ -46,10 +46,10 @@ public class DataUpdateScheduler {
     @EventListener(ApplicationReadyEvent.class)
     public void runOnStartup() {
         log.info("Starting initial data update cycle upon startup...");
-        runDataUpdate();
+        run();
     }
 
-    private void runDataUpdate() {
+    private void run() {
         try {
             log.info("Step 1/3: Downloading tick data...");
             tickDataDownloader.download();
