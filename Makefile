@@ -28,7 +28,7 @@ database:
 		-p $(POSTGRES_PORT):5432 \
 		-v $(LOCAL_SEED_DATA_VOLUME):$(DOCKER_SEED_DATA_VOLUME) \
 		-v $(LOCAL_SCRIPTS_VOLUME):$(DOCKER_SCRIPTS_VOLUME) \
-		-v $(POSTGRES_VOLUME):/var/lib/postgresql/data \
+		-v $(DOCKER_POSTGRES_VOLUME):/var/lib/postgresql/data \
 		-e POSTGRES_USER=$(POSTGRES_USER) \
 		-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 		-e POSTGRES_DB=$(POSTGRES_DB) \
@@ -50,11 +50,10 @@ migrate_database:
 		--network $(DOCKER_NETWORK_NAME) \
 		$(DOCKER_IMAGE_DB_MIGRATE) \
 		-path=/migrations \
-		-database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@$(POSTGRES_DB):$(POSTGRES_PORT)/${POSTGRES_DB}?sslmode=disable" \
-		$(DATABASE_MIGRATION_DIRECTION) $(DATABASE_MIGRATION_STEP)
+		-database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@$(POSTGRES_DB):$(POSTGRES_PORT)/${POSTGRES_DB}?sslmode=disable" up
 # Usage:
-# make migrate_database DATABASE_MIGRATION_DIRECTION=up
-# make migrate_database DATABASE_MIGRATION_DIRECTION=down DATABASE_MIGRATION_STEP=1
+# make migrate_database up
+# make migrate_database down 1
 
 # Import seed data
 import_seed_data:
@@ -99,14 +98,14 @@ check_frontend:
 clean:
 	@echo "You are about to delete the following resources:"
 	@echo "  - Container: $(POSTGRES_DB)"
-	@echo "  - Volume:    $(POSTGRES_VOLUME)"
+	@echo "  - Volume:    $(DOCKER_POSTGRES_VOLUME)"
 	@echo "  - Network:   $(DOCKER_NETWORK_NAME)"
 	@echo ""
 	@read -p "Are you sure you want to delete these? (yes/no): " ans && [ "$$ans" = "yes" ] || (echo "Aborted." && exit 1)
 	@read -p "Please type 'delete' to confirm irreversible removal: " ans && [ "$$ans" = "delete" ] || (echo "Aborted." && exit 1)
 	@echo "Cleaning up containers, volumes, and network..."
 	-docker rm -f $(POSTGRES_DB) >/dev/null 2>&1 || true
-	-docker volume rm -f $(POSTGRES_VOLUME) >/dev/null 2>&1 || true
+	-docker volume rm -f $(DOCKER_POSTGRES_VOLUME) >/dev/null 2>&1 || true
 	-docker network rm $(DOCKER_NETWORK_NAME) >/dev/null 2>&1 || true
 	@echo "Cleanup completed."
 

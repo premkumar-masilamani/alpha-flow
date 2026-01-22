@@ -43,7 +43,7 @@ public class MarketStateComputer {
     }
 
     public void compute() {
-        log.info("Computing Market State");
+        log.info("Starting Market State Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Computing Market State for {}", ticker.getTickerSymbol());
@@ -66,7 +66,7 @@ public class MarketStateComputer {
             }
         });
 
-        log.info("Market State computation complete");
+        log.info("Completed Market State Computation");
     }
 
     /**
@@ -77,8 +77,6 @@ public class MarketStateComputer {
     private void computeSMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
-
-        log.info("Computing SMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.code(), period);
 
         // Find the latest SMA already in the database to resume computation
         Optional<MarketState> latestSma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
@@ -91,7 +89,6 @@ public class MarketStateComputer {
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
             // If up to date, skip
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.info("SMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
                 return;
             }
         } else {
@@ -132,8 +129,6 @@ public class MarketStateComputer {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
-        log.info("Computing EMA for {} - {} ({} days)", ticker.getTickerSymbol(), metric.code(), period);
-
         // Find the latest EMA already in the database to resume computation
         Optional<MarketState> latestEma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
                 ticker, metric.code(), EMA.code(), period
@@ -149,7 +144,6 @@ public class MarketStateComputer {
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
             // If up to date, skip
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.info("EMA for {} - {} ({} days) is already calculated", ticker.getTickerSymbol(), metric.code(), period);
                 return;
             }
         } else {
