@@ -19,8 +19,8 @@ public class ApiController implements ErrorController {
     @RequestMapping("/api")
     public Map<String, Object> index() {
         return Map.of(
-                "name", "Technical Analysis Application API",
-                "version", "v1",
+                "name", "Alpha Flow Application",
+                "version", "0.1.0",
                 "docs", "/swagger-ui/index.html",
                 "openapi", "/v3/api-docs"
         );
