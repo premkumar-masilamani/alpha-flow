@@ -92,8 +92,8 @@ public class RenkoDataComputer {
                 RenkoData brick = new RenkoData();
                 brick.setTicker(ticker);
                 brick.setRenkoDate(date);
-                brick.setBrickHigh(currentPrice);
                 brick.setBrickLow(currentPrice.subtract(brickSize));
+                brick.setBrickHigh(currentPrice);
                 brick.setDirection(RENKO_BRICK_DIRECTION_UP);
                 renkoBricks.add(brick);
             }
@@ -104,8 +104,8 @@ public class RenkoDataComputer {
                 RenkoData brick = new RenkoData();
                 brick.setTicker(ticker);
                 brick.setRenkoDate(date);
-                brick.setBrickHigh(currentPrice.add(brickSize));
                 brick.setBrickLow(currentPrice);
+                brick.setBrickHigh(currentPrice.add(brickSize));
                 brick.setDirection(RENKO_BRICK_DIRECTION_DOWN);
                 renkoBricks.add(brick);
             }

@@ -17,6 +17,11 @@ ALTER TABLE market_state
             REFERENCES tickers (ticker_id)
             ON DELETE CASCADE;
 
+ALTER TABLE renko_data
+    ADD CONSTRAINT fk_renko_data_tickers
+        FOREIGN KEY (ticker_id)
+            REFERENCES tickers (ticker_id)
+            ON DELETE CASCADE;
 
 -- Unique constraints
 ALTER TABLE files
