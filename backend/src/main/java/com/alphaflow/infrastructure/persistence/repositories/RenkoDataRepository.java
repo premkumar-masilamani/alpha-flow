@@ -1,0 +1,19 @@
+package com.alphaflow.infrastructure.persistence.repositories;
+
+import com.alphaflow.infrastructure.persistence.entities.RenkoData;
+import com.alphaflow.infrastructure.persistence.entities.Ticker;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Repository
+public interface RenkoDataRepository extends JpaRepository<RenkoData, Long> {
+    List<RenkoData> findByTickerOrderByRenkoDateAscRenkoDataIdAsc(Ticker ticker);
+
+    @Modifying
+    @Transactional
+    void deleteByTicker(Ticker ticker);
+}

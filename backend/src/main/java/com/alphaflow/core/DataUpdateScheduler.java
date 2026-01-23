@@ -20,15 +20,18 @@ public class DataUpdateScheduler {
     private final TickDataDownloader tickDataDownloader;
     private final MarketDataComputer marketDataComputer;
     private final MarketStateComputer marketStateComputer;
+    private final RenkoDataComputer renkoDataComputer;
 
     public DataUpdateScheduler(
             TickDataDownloader tickDataDownloader,
             MarketDataComputer marketDataComputer,
-            MarketStateComputer marketStateComputer
+            MarketStateComputer marketStateComputer,
+            RenkoDataComputer renkoDataComputer
     ) {
         this.tickDataDownloader = tickDataDownloader;
         this.marketDataComputer = marketDataComputer;
         this.marketStateComputer = marketStateComputer;
+        this.renkoDataComputer = renkoDataComputer;
     }
 
     /**
@@ -57,8 +60,11 @@ public class DataUpdateScheduler {
             log.info("Step 2/3: Computing market data metrics...");
             marketDataComputer.compute();
 
-            log.info("Step 3/3: Computing market state indicators...");
+            log.info("Step 3/4: Computing market state indicators...");
             marketStateComputer.compute();
+
+            log.info("Step 4/4: Computing Renko bricks...");
+            renkoDataComputer.compute();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {

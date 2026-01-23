@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
-import { getTickers, getMarketData, type Ticker, type MarketData } from './services/api';
+import RenkoChart from './components/RenkoChart';
+import { getTickers, getMarketData, getRenkoData, type Ticker, type MarketData, type RenkoData } from './services/api';
 import { Loader2 } from 'lucide-react';
 
 const TABS = ['Candlestick', 'CCS', 'Renko'];
@@ -11,6 +12,7 @@ function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [marketData, setMarketData] = useState<MarketData[]>([]);
+  const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('Candlestick');
 
@@ -30,21 +32,26 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const fetchMarketData = async () => {
+    const fetchData = async () => {
       if (selectedTicker) {
         setLoading(true);
         try {
-          const data = await getMarketData(selectedTicker);
-          setMarketData(data);
+          const [mData, rData] = await Promise.all([
+            getMarketData(selectedTicker),
+            getRenkoData(selectedTicker)
+          ]);
+          setMarketData(mData);
+          setRenkoData(rData);
         } catch (error) {
-          console.error('Failed to fetch market data:', error);
+          console.error('Failed to fetch data:', error);
           setMarketData([]);
+          setRenkoData(null);
         } finally {
           setLoading(false);
         }
       }
     };
-    fetchMarketData();
+    fetchData();
   }, [selectedTicker]);
 
   const displayData = useMemo(() => {
@@ -105,6 +112,14 @@ function App() {
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center text-slate-500">
                       {loading ? 'Loading data...' : 'No data available for this ticker'}
+                    </div>
+                  )
+                ) : activeTab === 'Renko' ? (
+                  renkoData && renkoData.bricks.length > 0 ? (
+                    <RenkoChart data={renkoData} />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                      {loading ? 'Loading data...' : 'No Renko data available for this ticker'}
                     </div>
                   )
                 ) : (

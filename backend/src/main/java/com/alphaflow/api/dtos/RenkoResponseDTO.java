@@ -1,0 +1,13 @@
+package com.alphaflow.api.dtos;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+public record RenkoResponseDTO(
+        @JsonProperty("bricks") List<RenkoBrickDTO> bricks,
+        @JsonProperty("current_price") BigDecimal currentPrice,
+        @JsonProperty("sl_price") BigDecimal slPrice
+) {
+}
