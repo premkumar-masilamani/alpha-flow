@@ -36,7 +36,8 @@ database:
 		--health-interval=5s \
 		--health-timeout=5s \
 		--health-retries=10 \
-		$(DOCKER_IMAGE_POSTGRES)
+		$(DOCKER_IMAGE_POSTGRES) \
+		-c shared_preload_libraries=pg_stat_statements
 	@echo "Waiting for database to be healthy..."
 	@until [ "$$(docker inspect --format='{{json .State.Health.Status}}' $(POSTGRES_DB))" = "\"healthy\"" ]; do \
 		sleep 2; \
