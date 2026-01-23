@@ -37,6 +37,7 @@ export interface RenkoData {
   bricks: RenkoBrick[];
   current_price: number;
   sl_price: number;
+  renko_brick_size: number;
 }
 
 export const getTickers = async (): Promise<Ticker[]> => {

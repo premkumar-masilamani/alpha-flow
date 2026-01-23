@@ -4,6 +4,7 @@ import {
   ColorType,
   CandlestickSeries,
   createSeriesMarkers,
+  createTextWatermark,
 } from 'lightweight-charts';
 import type {
   IChartApi,
@@ -59,11 +60,31 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
 
     chartRef.current = chart;
 
+    const firstPane = chart.panes()[0];
+    createTextWatermark(firstPane, {
+        lines: [
+            {
+                text: `Brick Size: ${data.renko_brick_size.toFixed(4)}`,
+                color: 'rgba(148, 163, 184, 0.4)',
+            }
+        ],
+    });
+
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#22c55e',
       downColor: '#ef4444',
       borderVisible: false,
       wickVisible: false,
+      priceScaleId: 'left',
+    });
+
+    chart.priceScale('left').applyOptions({
+      visible: true,
+      borderColor: '#334155',
+    });
+
+    chart.priceScale('right').applyOptions({
+      visible: false,
     });
     candlestickSeriesRef.current = candlestickSeries;
 
@@ -145,9 +166,9 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
         price: data.sl_price,
         color: '#3b82f6',
         lineWidth: 1,
-        lineStyle: 1, // Dotted
+        lineStyle: 0, // Solid
         axisLabelVisible: true,
-        title: 'SL',
+        title: 'Stop Loss',
     });
 
     // Set initial display to latest six months
