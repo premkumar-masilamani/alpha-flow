@@ -116,7 +116,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
     currentPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
         price: data.current_price,
         color: '#3b82f6',
-        lineWidth: 2,
+        lineWidth: 1,
         lineStyle: 0, // Solid
         axisLabelVisible: true,
         title: 'Current',
@@ -126,8 +126,8 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
     slPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
         price: data.sl_price,
         color: '#ef4444',
-        lineWidth: 2,
-        lineStyle: 2, // Dashed
+        lineWidth: 1,
+        lineStyle: 1, // Dotted
         axisLabelVisible: true,
         title: 'SL',
     });

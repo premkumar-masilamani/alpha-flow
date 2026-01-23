@@ -6,6 +6,7 @@ import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.RenkoDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
+import com.alphaflow.core.util.TrendUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,8 +16,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
+import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
 import static java.math.BigDecimal.valueOf;
 
 @Service
@@ -24,7 +27,7 @@ public class RenkoDataComputer {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoDataComputer.class);
 
-    private static final int PERIOD_COUNT = 180;
+    private static final int PERIOD_COUNT = 9;
 
     private final MarketDataRepository marketDataRepository;
     private final RenkoDataRepository renkoDataRepository;
@@ -48,10 +51,19 @@ public class RenkoDataComputer {
             log.info("Computing Renko Data for {}", ticker.getTickerSymbol());
 
             List<MarketData> allSeries = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
-                    ticker, LocalDate.of(1900, 1, 1));
+                    ticker, EPOCH_START);
 
             if (allSeries.isEmpty()) {
                 log.warn("No market data found for {}", ticker.getTickerSymbol());
+                return;
+            }
+
+            LocalDate latestMarketDate = allSeries.get(allSeries.size() - 1).getMarketDataDate();
+            Optional<RenkoData> latestRenko = renkoDataRepository.findTopByTickerOrderByRenkoDateDesc(ticker);
+
+            if (latestRenko.isPresent() && !latestMarketDate.isAfter(latestRenko.get().getRenkoDate())) {
+                log.info("Renko data for {} is up to date (latest date: {}). Skipping computation.",
+                        ticker.getTickerSymbol(), latestMarketDate);
                 return;
             }
 
@@ -74,8 +86,8 @@ public class RenkoDataComputer {
     private List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries) {
         BigDecimal brickSize = calculateBrickSize(allSeries);
         if (brickSize.compareTo(BigDecimal.ZERO) <= 0) {
-            log.warn("Calculated brick size is zero or negative for {}. Using default 0.1", ticker.getTickerSymbol());
-            brickSize = new BigDecimal("0.1");
+            log.error("Calculated brick size is zero or negative ({}) for {}. Failing computation.", brickSize, ticker.getTickerSymbol());
+            return List.of();
         }
 
         List<RenkoData> renkoBricks = new ArrayList<>();
@@ -169,13 +181,13 @@ public class RenkoDataComputer {
 
                 // Resumption logic
                 if (currentDir.equals("up")) {
-                    if (trend <= getZoneFromTrend(previousUptrend)) {
+                    if (trend <= TrendUtil.getZoneFromTrend(previousUptrend)) {
                         trend = (previousUptrend - trend) + 1;
                     } else {
                         trend = 1;
                     }
                 } else {
-                    if (trend <= getZoneFromTrend(previousDowntrend)) {
+                    if (trend <= TrendUtil.getZoneFromTrend(previousDowntrend)) {
                         trend = (previousDowntrend - trend) + 1;
                     } else {
                         trend = 1;
@@ -184,13 +196,5 @@ public class RenkoDataComputer {
             }
             brick.setTrend(trend);
         }
-    }
-
-    private int getZoneFromTrend(int trend) {
-        if (trend <= 3) return 0;
-        if (trend <= 9) return 1;
-        if (trend <= 27) return 2;
-        if (trend <= 81) return 3;
-        return 4;
     }
 }

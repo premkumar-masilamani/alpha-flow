@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
+import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
 import static com.alphaflow.domain.model.TransformationType.EMA;
 import static com.alphaflow.domain.model.TransformationType.SMA;
 import static java.math.BigDecimal.valueOf;
@@ -51,7 +52,7 @@ public class MarketStateComputer {
             // 1. Fetch all available market data for the ticker, sorted by date
             // We fetch everything once to avoid N+1 query problems and redundant DB round-trips
             List<MarketData> allSeries = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
-                    ticker, LocalDate.of(1900, 1, 1));
+                    ticker, EPOCH_START);
 
             if (allSeries.isEmpty()) {
                 log.warn("No market data found for {}", ticker.getTickerSymbol());

@@ -10,4 +10,4 @@ CREATE TABLE renko_data
     FOREIGN KEY (ticker_id) REFERENCES tickers (ticker_id)
 );
 
-CREATE INDEX idx_renko_data_ticker_date ON renko_data (ticker_id, renko_date);
+CREATE INDEX idx_renko_data_ticker ON renko_data (ticker_id);

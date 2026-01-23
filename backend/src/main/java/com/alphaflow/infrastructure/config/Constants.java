@@ -3,11 +3,14 @@ package com.alphaflow.infrastructure.config;
 import tech.tablesaw.api.ColumnType;
 
 import java.math.MathContext;
+import java.time.LocalDate;
 import java.time.temporal.TemporalAccessor;
 
 import static java.time.format.DateTimeFormatter.ofPattern;
 
 public class Constants {
+
+    public static final LocalDate EPOCH_START = LocalDate.of(1900, 1, 1);
 
     public static final ColumnType[] BINANCE_TICK_DATA_SCHEMA = {
             ColumnType.LONG,    // trade id (integer, safe as LONG)

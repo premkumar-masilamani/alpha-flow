@@ -7,6 +7,7 @@ import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.mappers.RenkoDataMapper;
 import com.alphaflow.infrastructure.persistence.repositories.RenkoDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
+import com.alphaflow.core.util.TrendUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,26 +33,18 @@ public class RenkoDataService {
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> new RuntimeException("Ticker not found: " + symbol));
 
-        List<RenkoData> bricks = renkoDataRepository.findByTickerOrderByRenkoDateAscRenkoDataIdAsc(ticker);
+        List<RenkoData> bricks = renkoDataRepository.findByTickerOrderByRenkoDateAsc(ticker);
+        return calculatePricesAndCreateResponse(bricks);
+    }
+
+    private RenkoResponseDTO calculatePricesAndCreateResponse(List<RenkoData> bricks) {
         if (bricks.isEmpty()) {
-            return new RenkoResponseDTO(List.of(), BigDecimal.ZERO, BigDecimal.ZERO);
+            return new RenkoResponseDTO(List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
         List<RenkoBrickDTO> brickDTOs = bricks.stream()
                 .map(RenkoDataMapper::toDTO)
                 .toList();
-
-        Prices prices = calculatePrices(bricks);
-
-        return new RenkoResponseDTO(brickDTOs, prices.currentPrice(), prices.slPrice());
-    }
-
-    private record Prices(BigDecimal currentPrice, BigDecimal slPrice) {}
-
-    private Prices calculatePrices(List<RenkoData> bricks) {
-        if (bricks.isEmpty()) {
-            return new Prices(BigDecimal.ZERO, BigDecimal.ZERO);
-        }
 
         RenkoData latestBrick = bricks.get(bricks.size() - 1);
         String latestDirection = latestBrick.getDirection();
@@ -70,7 +63,7 @@ public class RenkoDataService {
             currentBrick = latestBrick;
         } else {
             int latestBrickTrend = latestBrick.getTrend();
-            int latestOppositeBrickZone = getZoneFromTrend(latestOppositeBrick.getTrend());
+            int latestOppositeBrickZone = TrendUtil.getZoneFromTrend(latestOppositeBrick.getTrend());
             if (latestBrickTrend > (latestOppositeBrickZone + 1)) {
                 currentBrick = latestBrick;
             } else {
@@ -78,7 +71,7 @@ public class RenkoDataService {
             }
         }
 
-        int currentBrickZone = getZoneFromTrend(currentBrick.getTrend());
+        int currentBrickZone = TrendUtil.getZoneFromTrend(currentBrick.getTrend());
         BigDecimal brickSize = currentBrick.getBrickHigh().subtract(currentBrick.getBrickLow());
 
         BigDecimal currentPrice;
@@ -92,14 +85,6 @@ public class RenkoDataService {
             slPrice = currentPrice.add(brickSize.multiply(valueOf(currentBrickZone + 2), DB_MATH_CONTEXT), DB_MATH_CONTEXT);
         }
 
-        return new Prices(currentPrice, slPrice);
-    }
-
-    private int getZoneFromTrend(int trend) {
-        if (trend <= 3) return 0;
-        if (trend <= 9) return 1;
-        if (trend <= 27) return 2;
-        if (trend <= 81) return 3;
-        return 4;
+        return new RenkoResponseDTO(brickDTOs, currentPrice, slPrice, brickSize);
     }
 }
