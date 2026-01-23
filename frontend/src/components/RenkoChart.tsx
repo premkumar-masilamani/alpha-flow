@@ -146,7 +146,21 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
         title: 'SL',
     });
 
-    chartRef.current.timeScale().fitContent();
+    // Set initial display to latest six months
+    const lastDate = data.bricks[data.bricks.length - 1].date;
+    const lastDateObj = new Date(lastDate);
+    const sixMonthsAgo = new Date(lastDateObj);
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
+
+    // Find the first index that is >= sixMonthsAgoStr
+    let startIndex = data.bricks.findIndex(b => b.date >= sixMonthsAgoStr);
+    if (startIndex === -1) startIndex = 0;
+
+    chartRef.current.timeScale().setVisibleRange({
+      from: startIndex as unknown as Time,
+      to: (data.bricks.length - 1) as unknown as Time,
+    });
   }, [data]);
 
   return <div ref={chartContainerRef} style={{ width: '100%', height: '600px', backgroundColor: '#020617' }} />;
