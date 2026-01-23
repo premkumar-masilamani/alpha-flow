@@ -23,9 +23,12 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const leftDummySeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const seriesMarkersRef = useRef<any>(null);
-  const currentPriceLineRef = useRef<IPriceLine | null>(null);
-  const slPriceLineRef = useRef<IPriceLine | null>(null);
+  const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
+  const currentPriceLineLeftRef = useRef<IPriceLine | null>(null);
+  const slPriceLineRightRef = useRef<IPriceLine | null>(null);
+  const slPriceLineLeftRef = useRef<IPriceLine | null>(null);
   const dateMapping = useRef<string[]>([]);
 
   useEffect(() => {
@@ -62,10 +65,12 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
 
     const firstPane = chart.panes()[0];
     createTextWatermark(firstPane, {
+        horzAlign: 'right',
+        vertAlign: 'top',
         lines: [
             {
                 text: `Brick Size: ${data.renko_brick_size.toFixed(4)}`,
-                color: 'rgba(148, 163, 184, 0.4)',
+                color: 'rgba(148, 163, 184, 0.8)',
             }
         ],
     });
@@ -75,18 +80,28 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
       downColor: '#ef4444',
       borderVisible: false,
       wickVisible: false,
-      priceScaleId: 'left',
+      priceScaleId: 'right',
+    });
+    candlestickSeriesRef.current = candlestickSeries;
+
+    const leftDummySeries = chart.addSeries(CandlestickSeries, {
+        priceScaleId: 'left',
+        upColor: 'rgba(0,0,0,0)',
+        downColor: 'rgba(0,0,0,0)',
+        borderVisible: false,
+        wickVisible: false,
+    });
+    leftDummySeriesRef.current = leftDummySeries;
+
+    chart.priceScale('right').applyOptions({
+      visible: true,
+      borderColor: '#334155',
     });
 
     chart.priceScale('left').applyOptions({
       visible: true,
       borderColor: '#334155',
     });
-
-    chart.priceScale('right').applyOptions({
-      visible: false,
-    });
-    candlestickSeriesRef.current = candlestickSeries;
 
     const handleResize = () => {
       if (chartContainerRef.current) {
@@ -122,15 +137,19 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
     });
 
     candlestickSeriesRef.current.setData(formattedBricks);
+    // Give dummy series same data to sync scales
+    if (leftDummySeriesRef.current) {
+        leftDummySeriesRef.current.setData(formattedBricks);
+    }
 
     // Set markers for trend numbers
-    const markers: SeriesMarker<Time>[] = formattedBricks.map((b) => ({
-      time: b.time,
+    const markers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
+      time: i as unknown as Time,
       position: 'inBar',
       color: '#ffffff',
-      shape: 'circle',
-      text: `${b.trend}`,
-      size: 0,
+      shape: 'text' as any,
+      text: `${b.zone}/${b.trend}`,
+      size: 1,
     }));
 
     if (seriesMarkersRef.current) {
@@ -140,36 +159,64 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
     }
 
     // Remove old price lines if they exist
-    if (currentPriceLineRef.current) {
-      candlestickSeriesRef.current.removePriceLine(currentPriceLineRef.current);
+    if (currentPriceLineRightRef.current) {
+      candlestickSeriesRef.current.removePriceLine(currentPriceLineRightRef.current);
     }
-    if (slPriceLineRef.current) {
-      candlestickSeriesRef.current.removePriceLine(slPriceLineRef.current);
+    if (currentPriceLineLeftRef.current && leftDummySeriesRef.current) {
+      leftDummySeriesRef.current.removePriceLine(currentPriceLineLeftRef.current);
+    }
+    if (slPriceLineRightRef.current) {
+      candlestickSeriesRef.current.removePriceLine(slPriceLineRightRef.current);
+    }
+    if (slPriceLineLeftRef.current && leftDummySeriesRef.current) {
+      leftDummySeriesRef.current.removePriceLine(slPriceLineLeftRef.current);
     }
 
     // Determine Current line color based on latest brick direction
     const latestBrick = data.bricks[data.bricks.length - 1];
     const currentColor = latestBrick.direction === 'up' ? '#22c55e' : '#ef4444';
 
-    // Add Current Price line
-    currentPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
+    // Add Current Price line (Right)
+    currentPriceLineRightRef.current = candlestickSeriesRef.current.createPriceLine({
         price: data.current_price,
         color: currentColor,
         lineWidth: 1,
         lineStyle: 0, // Solid
+        axisLabelVisible: false,
+    });
+
+    // Add Current Price label (Left)
+    if (leftDummySeriesRef.current) {
+    currentPriceLineLeftRef.current = leftDummySeriesRef.current.createPriceLine({
+        price: data.current_price,
+        color: currentColor,
+        lineWidth: 1,
+        lineVisible: true,
         axisLabelVisible: true,
         title: 'Current',
     });
+    }
 
-    // Add SL Price line
-    slPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
+    // Add SL Price line (Right)
+    slPriceLineRightRef.current = candlestickSeriesRef.current.createPriceLine({
         price: data.sl_price,
         color: '#3b82f6',
         lineWidth: 1,
         lineStyle: 0, // Solid
+        axisLabelVisible: false,
+    });
+
+    // Add SL Price label (Left)
+    if (leftDummySeriesRef.current) {
+    slPriceLineLeftRef.current = leftDummySeriesRef.current.createPriceLine({
+        price: data.sl_price,
+        color: '#3b82f6',
+        lineWidth: 1,
+        lineVisible: true,
         axisLabelVisible: true,
         title: 'Stop Loss',
     });
+    }
 
     // Set initial display to latest six months
     const lastDate = data.bricks[data.bricks.length - 1].date;

@@ -31,4 +31,6 @@ public class RenkoData {
 
     private Integer trend;
 
+    private Integer zone;
+
 }

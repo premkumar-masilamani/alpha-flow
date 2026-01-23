@@ -10,6 +10,7 @@ public record RenkoBrickDTO(
         @JsonProperty("low") BigDecimal low,
         @JsonProperty("high") BigDecimal high,
         @JsonProperty("direction") String direction,
-        @JsonProperty("trend") int trend
+        @JsonProperty("trend") int trend,
+        @JsonProperty("zone") int zone
 ) {
 }

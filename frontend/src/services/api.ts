@@ -31,6 +31,7 @@ export interface RenkoBrick {
   high: number;
   direction: 'up' | 'down';
   trend: number;
+  zone: number;
 }
 
 export interface RenkoData {
@@ -51,24 +52,22 @@ const renkoDataCache: { [symbol: string]: { data: RenkoData; timestamp: number }
 
 export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
   const now = Date.now();
-  if (marketDataCache[symbol] && now - marketDataCache[symbol].timestamp < CACHE_DURATION) {
+  if (marketDataCache[symbol] && (now - marketDataCache[symbol].timestamp < CACHE_DURATION)) {
     return marketDataCache[symbol].data;
   }
 
   const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
-  const data = response.data;
-  marketDataCache[symbol] = { data, timestamp: now };
-  return data;
+  marketDataCache[symbol] = { data: response.data, timestamp: now };
+  return response.data;
 };
 
 export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
   const now = Date.now();
-  if (renkoDataCache[symbol] && now - renkoDataCache[symbol].timestamp < CACHE_DURATION) {
+  if (renkoDataCache[symbol] && (now - renkoDataCache[symbol].timestamp < CACHE_DURATION)) {
     return renkoDataCache[symbol].data;
   }
 
   const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/renko`);
-  const data = response.data;
-  renkoDataCache[symbol] = { data, timestamp: now };
-  return data;
+  renkoDataCache[symbol] = { data: response.data, timestamp: now };
+  return response.data;
 };

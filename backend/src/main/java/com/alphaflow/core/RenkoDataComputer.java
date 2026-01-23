@@ -134,14 +134,25 @@ public class RenkoDataComputer {
         int lookbackStart = Math.max(0, allSeries.size() - PERIOD_COUNT);
         List<MarketData> lookbackData = allSeries.subList(lookbackStart, allSeries.size());
 
+        log.info("Using the following periods for brick size calculation:");
         BigDecimal totalRange = BigDecimal.ZERO;
         for (MarketData row : lookbackData) {
-            BigDecimal range = row.getPriceHigh().subtract(row.getPriceLow());
+            BigDecimal high = row.getPriceHigh();
+            BigDecimal low = row.getPriceLow();
+            BigDecimal range = high.subtract(low);
             totalRange = totalRange.add(range);
+            log.info("  {}: High = {}, Low = {}, Range = {}",
+                    row.getMarketDataDate(), high, low, range);
         }
 
         BigDecimal avgRange = totalRange.divide(valueOf(lookbackData.size()), DB_MATH_CONTEXT);
-        return avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
+        BigDecimal brickSize = avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
+
+        log.info("Total range: {}", totalRange);
+        log.info("Average range: {}", avgRange);
+        log.info("Brick size (half of average range): {}", brickSize);
+
+        return brickSize;
     }
 
     private List<RenkoData> removeConsecutiveDuplicates(List<RenkoData> bricks) {
@@ -195,6 +206,7 @@ public class RenkoDataComputer {
                 }
             }
             brick.setTrend(trend);
+            brick.setZone(TrendUtil.getZoneFromTrend(trend));
         }
     }
 }

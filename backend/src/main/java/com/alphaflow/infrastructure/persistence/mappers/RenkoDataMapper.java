@@ -11,7 +11,8 @@ public class RenkoDataMapper {
                 entity.getBrickLow(),
                 entity.getBrickHigh(),
                 entity.getDirection(),
-                entity.getTrend()
+                entity.getTrend(),
+                entity.getZone()
         );
     }
 }

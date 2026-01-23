@@ -7,6 +7,7 @@ CREATE TABLE renko_data
     brick_high    NUMERIC(28, 8) NOT NULL,
     direction     VARCHAR(10)    NOT NULL,
     trend         INT            NOT NULL,
+    zone          INT            NOT NULL,
     FOREIGN KEY (ticker_id) REFERENCES tickers (ticker_id)
 );
 
