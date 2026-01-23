@@ -25,6 +25,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
   const seriesMarkersRef = useRef<any>(null);
   const currentPriceLineRef = useRef<IPriceLine | null>(null);
   const slPriceLineRef = useRef<IPriceLine | null>(null);
+  const dateMapping = useRef<string[]>([]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -42,7 +43,17 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
       height: 600,
       timeScale: {
         borderColor: '#334155',
-        timeVisible: true,
+        timeVisible: false,
+        tickMarkFormatter: (time: Time) => {
+          const index = typeof time === 'number' ? time : 0;
+          return dateMapping.current[index] || '';
+        },
+      },
+      localization: {
+        timeFormatter: (time: Time) => {
+          const index = typeof time === 'number' ? time : 0;
+          return dateMapping.current[index] || '';
+        }
       }
     });
 
@@ -71,6 +82,9 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
 
   useEffect(() => {
     if (!chartRef.current || !candlestickSeriesRef.current || data.bricks.length === 0) return;
+
+    // Store date mapping for the formatters
+    dateMapping.current = data.bricks.map(b => b.date);
 
     // Process bricks to ensure unique timestamps
     // We'll use a sequence of numbers as timestamps to keep bricks equally spaced
