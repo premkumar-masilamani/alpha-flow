@@ -25,22 +25,49 @@ export interface MarketData {
   bcs: number;
 }
 
+export interface RenkoBrick {
+  date: string;
+  low: number;
+  high: number;
+  direction: 'up' | 'down';
+  trend: number;
+  zone: number;
+}
+
+export interface RenkoData {
+  bricks: RenkoBrick[];
+  current_price: number;
+  sl_price: number;
+  renko_brick_size: number;
+}
+
 export const getTickers = async (): Promise<Ticker[]> => {
   const response = await axios.get(`${API_BASE_URL}/tickers`);
   return response.data;
 };
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
-const cache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
+const marketDataCache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
+const renkoDataCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
 
 export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
   const now = Date.now();
-  if (cache[symbol] && now - cache[symbol].timestamp < CACHE_DURATION) {
-    return cache[symbol].data;
+  if (marketDataCache[symbol] && (now - marketDataCache[symbol].timestamp < CACHE_DURATION)) {
+    return marketDataCache[symbol].data;
   }
 
   const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
-  const data = response.data;
-  cache[symbol] = { data, timestamp: now };
-  return data;
+  marketDataCache[symbol] = { data: response.data, timestamp: now };
+  return response.data;
+};
+
+export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
+  const now = Date.now();
+  if (renkoDataCache[symbol] && (now - renkoDataCache[symbol].timestamp < CACHE_DURATION)) {
+    return renkoDataCache[symbol].data;
+  }
+
+  const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/renko`);
+  renkoDataCache[symbol] = { data: response.data, timestamp: now };
+  return response.data;
 };
