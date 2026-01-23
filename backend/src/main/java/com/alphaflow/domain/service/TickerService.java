@@ -1,7 +1,8 @@
 package com.alphaflow.domain.service;
 
 import com.alphaflow.api.dtos.TickerDTO;
-import com.alphaflow.api.exceptions.ResourceNotFoundException;
+import com.alphaflow.domain.exceptions.ResourceNotFoundException;
+import com.alphaflow.infrastructure.persistence.mappers.TickerMapper;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,24 +21,15 @@ public class TickerService {
 
     public TickerDTO getTickerBySymbol(String symbol) {
         return tickerRepository.findByTickerSymbol(symbol)
-                .map(ticker -> new TickerDTO(
-                        ticker.getTickerId(),
-                        ticker.getTickerSymbol(),
-                        ticker.getTickerName(),
-                        ticker.getTickerDate().toString(),
-                        ticker.isActive()))
+                .map(TickerMapper::toDTO)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
     }
+
 
     public List<TickerDTO> getAllTickers() {
         return tickerRepository.findAll()
                 .stream()
-                .map(ticker -> new TickerDTO(
-                        ticker.getTickerId(),
-                        ticker.getTickerSymbol(),
-                        ticker.getTickerName(),
-                        ticker.getTickerDate().toString(),
-                        ticker.isActive()))
+                .map(TickerMapper::toDTO)
                 .toList();
     }
 }

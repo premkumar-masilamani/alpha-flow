@@ -4,20 +4,20 @@ import com.alphaflow.api.dtos.MarketDataDTO;
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 
 public class MarketDataMapper {
-    public static MarketDataDTO toDTO(MarketData marketData) {
+    public static MarketDataDTO toDTO(MarketData marketDataEntity) {
         return new MarketDataDTO(
-                marketData.getMarketDataDate(),
-                marketData.getPriceOpen(),
-                marketData.getPriceHigh(),
-                marketData.getPriceLow(),
-                marketData.getPriceClose(),
-                marketData.getVolume(),
-                marketData.getVwap(),
-                marketData.getVolumeProfilePOC(),
-                marketData.getVolumeProfileVAH(),
-                marketData.getVolumeProfileVAL(),
-                marketData.getBuyerVolumeShare(),
-                marketData.getBuyerCapitalShare()
+                marketDataEntity.getMarketDataDate(),
+                marketDataEntity.getPriceOpen(),
+                marketDataEntity.getPriceHigh(),
+                marketDataEntity.getPriceLow(),
+                marketDataEntity.getPriceClose(),
+                marketDataEntity.getVolume(),
+                marketDataEntity.getVwap(),
+                marketDataEntity.getVolumeProfilePOC(),
+                marketDataEntity.getVolumeProfileVAH(),
+                marketDataEntity.getVolumeProfileVAL(),
+                marketDataEntity.getBuyerVolumeShare(),
+                marketDataEntity.getBuyerCapitalShare()
         );
     }
 }

@@ -8,7 +8,7 @@ import java.util.List;
 public record RenkoResponseDTO(
         @JsonProperty("bricks") List<RenkoBrickDTO> bricks,
         @JsonProperty("current_price") BigDecimal currentPrice,
-        @JsonProperty("sl_price") BigDecimal slPrice,
-        @JsonProperty("renko_brick_size") BigDecimal renkoBrickSize
+        @JsonProperty("stop_loss_price") BigDecimal stopLossPrice,
+        @JsonProperty("brick_size") BigDecimal brickSize
 ) {
 }

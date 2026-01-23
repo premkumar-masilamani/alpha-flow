@@ -185,7 +185,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
 
     // Add SL Price line (Right)
     slPriceLineRightRef.current = candlestickSeriesRef.current.createPriceLine({
-        price: data.sl_price,
+        price: data.stop_loss_price,
         color: '#3b82f6',
         lineWidth: 1,
         lineStyle: 0, // Solid
@@ -195,7 +195,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
     // Add SL Price label (Left)
     if (leftDummySeriesRef.current) {
     slPriceLineLeftRef.current = leftDummySeriesRef.current.createPriceLine({
-        price: data.sl_price,
+        price: data.stop_loss_price,
         color: '#3b82f6',
         lineWidth: 1,
         lineVisible: false,

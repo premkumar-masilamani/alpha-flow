@@ -4,15 +4,14 @@ import com.alphaflow.api.dtos.RenkoBrickDTO;
 import com.alphaflow.infrastructure.persistence.entities.RenkoData;
 
 public class RenkoDataMapper {
-
-    public static RenkoBrickDTO toDTO(RenkoData entity) {
+    public static RenkoBrickDTO toDTO(RenkoData renkoDataEntity) {
         return new RenkoBrickDTO(
-                entity.getRenkoDate(),
-                entity.getBrickLow(),
-                entity.getBrickHigh(),
-                entity.getDirection(),
-                entity.getTrend(),
-                entity.getZone()
+                renkoDataEntity.getRenkoDate(),
+                renkoDataEntity.getBrickLow(),
+                renkoDataEntity.getBrickHigh(),
+                renkoDataEntity.getDirection(),
+                renkoDataEntity.getTrend(),
+                renkoDataEntity.getZone()
         );
     }
 }

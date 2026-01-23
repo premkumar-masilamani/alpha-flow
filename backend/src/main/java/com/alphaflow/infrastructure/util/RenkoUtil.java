@@ -1,7 +1,6 @@
-package com.alphaflow.core.util;
+package com.alphaflow.infrastructure.util;
 
-public class TrendUtil {
-
+public class RenkoUtil {
     public static int getZoneFromTrend(int trend) {
         if (trend <= 3) return 0;
         if (trend <= 9) return 1;
