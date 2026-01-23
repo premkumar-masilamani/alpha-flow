@@ -32,6 +32,10 @@ public class Constants {
     public static final MathContext DB_MATH_CONTEXT = new MathContext(38);
     public static final int DB_QUERY_PAGE_SIZE = 10;
 
+    public static final int RENKO_BRICK_SIZE_PERIOD = 9;
+    public static final String RENKO_BRICK_DIRECTION_UP = "up";
+    public static final String RENKO_BRICK_DIRECTION_DOWN = "down";
+
     public static String getBinanceZipFileName(String tickerSymbol, String dateStr) {
         return tickerSymbol + "-trades-" + dateStr + ".zip";
     }

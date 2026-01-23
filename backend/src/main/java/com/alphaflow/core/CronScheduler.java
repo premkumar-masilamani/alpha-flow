@@ -8,21 +8,21 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Scheduler for periodic data updates.
+ * CronScheduler for periodic data updates.
  * This component automates the download of tick data, computation of market data metrics,
  * and calculation of market state indicators on a regular basis.
  */
 @Component
-public class DataUpdateScheduler {
+public class CronScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(DataUpdateScheduler.class);
+    private static final Logger log = LoggerFactory.getLogger(CronScheduler.class);
 
     private final TickDataDownloader tickDataDownloader;
     private final MarketDataComputer marketDataComputer;
     private final MarketStateComputer marketStateComputer;
     private final RenkoDataComputer renkoDataComputer;
 
-    public DataUpdateScheduler(
+    public CronScheduler(
             TickDataDownloader tickDataDownloader,
             MarketDataComputer marketDataComputer,
             MarketStateComputer marketStateComputer,
@@ -54,10 +54,10 @@ public class DataUpdateScheduler {
 
     private void run() {
         try {
-            log.info("Step 1/3: Downloading tick data...");
+            log.info("Step 1/4: Downloading tick data...");
             tickDataDownloader.download();
 
-            log.info("Step 2/3: Computing market data metrics...");
+            log.info("Step 2/4: Computing market data metrics...");
             marketDataComputer.compute();
 
             log.info("Step 3/4: Computing market state indicators...");

@@ -7,7 +7,6 @@ import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.mappers.RenkoDataMapper;
 import com.alphaflow.infrastructure.persistence.repositories.RenkoDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
-import com.alphaflow.core.util.TrendUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +14,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
+import static com.alphaflow.infrastructure.util.RenkoUtil.getZoneFromTrend;
 import static java.math.BigDecimal.valueOf;
 
 @Service
@@ -46,7 +46,7 @@ public class RenkoDataService {
                 .map(RenkoDataMapper::toDTO)
                 .toList();
 
-        RenkoData latestBrick = bricks.get(bricks.size() - 1);
+        RenkoData latestBrick = bricks.getLast();
         String latestDirection = latestBrick.getDirection();
         String oppositeDirection = latestDirection.equals("up") ? "down" : "up";
 
@@ -63,7 +63,7 @@ public class RenkoDataService {
             currentBrick = latestBrick;
         } else {
             int latestBrickTrend = latestBrick.getTrend();
-            int latestOppositeBrickZone = TrendUtil.getZoneFromTrend(latestOppositeBrick.getTrend());
+            int latestOppositeBrickZone = getZoneFromTrend(latestOppositeBrick.getTrend());
             if (latestBrickTrend > (latestOppositeBrickZone + 1)) {
                 currentBrick = latestBrick;
             } else {
@@ -71,7 +71,7 @@ public class RenkoDataService {
             }
         }
 
-        int currentBrickZone = TrendUtil.getZoneFromTrend(currentBrick.getTrend());
+        int currentBrickZone = getZoneFromTrend(currentBrick.getTrend());
         BigDecimal brickSize = currentBrick.getBrickHigh().subtract(currentBrick.getBrickLow());
 
         BigDecimal currentPrice;

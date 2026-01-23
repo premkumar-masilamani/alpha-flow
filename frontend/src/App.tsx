@@ -60,8 +60,8 @@ function App() {
         ...d,
         open: d.poc,
         close: d.vwap,
-        high: d.vah,
-        low: d.val,
+        high: d.high,
+        low: d.low,
       }));
     }
     return marketData;
