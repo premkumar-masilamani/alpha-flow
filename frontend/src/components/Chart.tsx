@@ -84,24 +84,35 @@ const Chart: React.FC<ChartProps> = ({ data }) => {
   useEffect(() => {
     if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current || data.length === 0) return;
 
+    // Financial data usually comes sorted, but we ensure it for chart stability
     const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
-    const formattedCandlestickData = sortedData.map((d) => ({
-      time: d.date,
-      open: Number(d.open),
-      high: Number(d.high),
-      low: Number(d.low),
-      close: Number(d.close),
-    }));
+    const formattedCandlestickData = [];
+    const formattedVolumeData = [];
+
+    for (const d of sortedData) {
+      const open = Number(d.open);
+      const high = Number(d.high);
+      const low = Number(d.low);
+      const close = Number(d.close);
+      const vol = Number(d.vol);
+
+      formattedCandlestickData.push({
+        time: d.date as Time,
+        open,
+        high,
+        low,
+        close,
+      });
+
+      formattedVolumeData.push({
+        time: d.date as Time,
+        value: vol,
+        color: close >= open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+      });
+    }
 
     candlestickSeriesRef.current.setData(formattedCandlestickData);
-
-    const formattedVolumeData = sortedData.map((d) => ({
-      time: d.date,
-      value: Number(d.vol),
-      color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
-    }));
-
     volumeSeriesRef.current.setData(formattedVolumeData);
 
     // Set initial display to latest six months
