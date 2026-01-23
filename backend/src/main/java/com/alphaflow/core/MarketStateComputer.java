@@ -6,9 +6,9 @@ import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
-import com.alphaflow.domain.model.MarketStateMetricType;
-import com.alphaflow.domain.model.MovingAveragePeriod;
-import com.alphaflow.domain.model.MovingAverageType;
+import com.alphaflow.domain.model.MarketDataMetricType;
+import com.alphaflow.domain.model.WindowPeriod;
+import com.alphaflow.domain.model.TransformationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
-import static com.alphaflow.domain.model.MovingAverageType.EMA;
-import static com.alphaflow.domain.model.MovingAverageType.SMA;
+import static com.alphaflow.domain.model.TransformationType.EMA;
+import static com.alphaflow.domain.model.TransformationType.SMA;
 import static java.math.BigDecimal.valueOf;
 
 @Service
@@ -58,8 +58,8 @@ public class MarketStateComputer {
                 return;
             }
 
-            for (MarketStateMetricType metric : MarketStateMetricType.values()) {
-                for (MovingAveragePeriod maPeriod : MovingAveragePeriod.values()) {
+            for (MarketDataMetricType metric : MarketDataMetricType.values()) {
+                for (WindowPeriod maPeriod : WindowPeriod.values()) {
                     computeSMA(ticker, metric, maPeriod, allSeries);
                     computeEMA(ticker, metric, maPeriod, allSeries);
                 }
@@ -74,7 +74,7 @@ public class MarketStateComputer {
      * Uses a sliding window approach for O(N) efficiency.
      * Formula: SMA = (Sum of values in window) / Period
      */
-    private void computeSMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
+    private void computeSMA(Ticker ticker, MarketDataMetricType metric, WindowPeriod maPeriod, List<MarketData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
@@ -125,7 +125,7 @@ public class MarketStateComputer {
      * where α = 2 / (Period + 1)
      * Initial Seed: The first EMA value is typically the SMA of the first 'Period' days.
      */
-    private void computeEMA(Ticker ticker, MarketStateMetricType metric, MovingAveragePeriod maPeriod, List<MarketData> allSeries) {
+    private void computeEMA(Ticker ticker, MarketDataMetricType metric, WindowPeriod maPeriod, List<MarketData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
@@ -184,7 +184,7 @@ public class MarketStateComputer {
         return -1;
     }
 
-    private void persist(MarketData marketData, MarketStateMetricType metric, MovingAverageType maType, int period, BigDecimal value) {
+    private void persist(MarketData marketData, MarketDataMetricType metric, TransformationType maType, int period, BigDecimal value) {
         // We use findBy... to ensure idempotency and avoid duplicates if the computation is re-run for same dates
         MarketState marketState = marketStateRepository.findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
                         marketData.getTicker(),

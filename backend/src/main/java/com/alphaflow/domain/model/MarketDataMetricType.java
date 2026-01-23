@@ -5,24 +5,24 @@ import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import java.math.BigDecimal;
 import java.util.function.Function;
 
-public enum MarketStateMetricType {
+public enum MarketDataMetricType {
 
-    VOLUME("VOLUME", MarketData::getVolume),
+    VOLUME("VOL", MarketData::getVolume),
 
     VWAP("VWAP", MarketData::getVwap),
 
     VOLUME_PROFILE_POC("VP_POC", MarketData::getVolumeProfilePOC),
 
-    VOLUME_PROFILE_VALUE_RANGE("VP_VALUE_RANGE", md -> md.getVolumeProfileVAH().subtract(md.getVolumeProfileVAL())),
+    VOLUME_PROFILE_VALUE_RANGE("VP_VR", md -> md.getVolumeProfileVAH().subtract(md.getVolumeProfileVAL())),
 
-    BUYER_CAPITAL_SHARE("BUYER_CAPITAL_SHARE", MarketData::getBuyerCapitalShare),
+    BUYER_CAPITAL_SHARE("B_CAP", MarketData::getBuyerCapitalShare),
 
-    BUYER_VOLUME_SHARE("BUYER_VOLUME_SHARE", MarketData::getBuyerVolumeShare);
+    BUYER_VOLUME_SHARE("B_VOL", MarketData::getBuyerVolumeShare);
 
     private final String code;
     private final Function<MarketData, BigDecimal> extractor;
 
-    MarketStateMetricType(String code, Function<MarketData, BigDecimal> extractor) {
+    MarketDataMetricType(String code, Function<MarketData, BigDecimal> extractor) {
         this.code = code;
         this.extractor = extractor;
     }
