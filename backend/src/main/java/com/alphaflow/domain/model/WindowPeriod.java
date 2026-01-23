@@ -1,6 +1,6 @@
 package com.alphaflow.domain.model;
 
-public enum MovingAveragePeriod {
+public enum WindowPeriod {
 
     ONE_WEEK(7),
     TWO_WEEKS(14),
@@ -10,7 +10,7 @@ public enum MovingAveragePeriod {
 
     private final int days;
 
-    MovingAveragePeriod(int days) {
+    WindowPeriod(int days) {
         this.days = days;
     }
 

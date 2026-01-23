@@ -51,8 +51,8 @@ function App() {
     if (activeTab === 'CCS') {
       return marketData.map((d) => ({
         ...d,
-        open: d.vwap,
-        close: d.poc,
+        open: d.poc,
+        close: d.vwap,
         high: d.vah,
         low: d.val,
       }));

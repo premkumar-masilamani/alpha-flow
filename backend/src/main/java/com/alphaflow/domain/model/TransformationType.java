@@ -1,13 +1,13 @@
 package com.alphaflow.domain.model;
 
-public enum MovingAverageType {
+public enum TransformationType {
 
     SMA("SMA"),
     EMA("EMA");
 
     private final String code;
 
-    MovingAverageType(String code) {
+    TransformationType(String code) {
         this.code = code;
     }
 
