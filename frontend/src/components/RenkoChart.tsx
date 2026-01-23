@@ -126,10 +126,14 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
       candlestickSeriesRef.current.removePriceLine(slPriceLineRef.current);
     }
 
+    // Determine Current line color based on latest brick direction
+    const latestBrick = data.bricks[data.bricks.length - 1];
+    const currentColor = latestBrick.direction === 'up' ? '#22c55e' : '#ef4444';
+
     // Add Current Price line
     currentPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
         price: data.current_price,
-        color: '#3b82f6',
+        color: currentColor,
         lineWidth: 1,
         lineStyle: 0, // Solid
         axisLabelVisible: true,
@@ -139,7 +143,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({ data }) => {
     // Add SL Price line
     slPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
         price: data.sl_price,
-        color: '#ef4444',
+        color: '#3b82f6',
         lineWidth: 1,
         lineStyle: 1, // Dotted
         axisLabelVisible: true,
