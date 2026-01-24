@@ -142,12 +142,12 @@ public class MetricsComputer {
 
         // If the Daily Range % less than threshold %, default to 1 bin
         // (i.e.) bin size = 0
-        if (rangePercent.compareTo(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT)) < 0) {
+        if (rangePercent.compareTo(valueOf(CAPITAL_PROFILE_RANGE_BIN_PERCENT)) < 0) {
             return BigDecimal.ZERO;
         }
 
         // Get the threshold % of the price scale as bin size
-        return priceScale.multiply(valueOf(VOLUME_PROFILE_RANGE_BIN_PERCENT), DB_MATH_CONTEXT)
+        return priceScale.multiply(valueOf(CAPITAL_PROFILE_RANGE_BIN_PERCENT), DB_MATH_CONTEXT)
                 .stripTrailingZeros();
     }
 
@@ -175,7 +175,7 @@ public class MetricsComputer {
 
         BigDecimal targetCapital =
                 totalCapital.multiply(
-                        valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT),
+                        valueOf(CAPITAL_PROFILE_VALUE_AREA_PERCENT),
                         DB_MATH_CONTEXT
                 );
 

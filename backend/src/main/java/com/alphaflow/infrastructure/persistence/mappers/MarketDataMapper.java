@@ -13,11 +13,11 @@ public class MarketDataMapper {
                 marketDataEntity.getPriceClose(),
                 marketDataEntity.getVolume(),
                 marketDataEntity.getVwap(),
-                marketDataEntity.getVolumeProfilePOC(),
-                marketDataEntity.getVolumeProfileVAH(),
-                marketDataEntity.getVolumeProfileVAL(),
-                marketDataEntity.getBuyerVolumeShare(),
-                marketDataEntity.getBuyerCapitalShare()
+                marketDataEntity.getCapitalPOC(),
+                marketDataEntity.getCapitalVAH(),
+                marketDataEntity.getCapitalVAL(),
+                marketDataEntity.getBuyerCapital(),
+                marketDataEntity.getTotalCapital()
         );
     }
 }

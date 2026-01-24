@@ -59,9 +59,9 @@ function App() {
       return marketData.map((d) => ({
         ...d,
         open: d.vwap,
-        close: d.poc,
-        high: d.vah,
-        low: d.val,
+        close: d.capital_poc,
+        high: d.capital_vah,
+        low: d.capital_val,
       }));
     }
     return marketData;

@@ -13,10 +13,10 @@ public record MarketDataDTO(
         @JsonProperty("close") BigDecimal priceClose,
         @JsonProperty("vol") BigDecimal volume,
         @JsonProperty("vwap") BigDecimal vwap,
-        @JsonProperty("poc") BigDecimal volumeProfilePOC,
-        @JsonProperty("vah") BigDecimal volumeProfileVAH,
-        @JsonProperty("val") BigDecimal volumeProfileVAL,
-        @JsonProperty("bvs") BigDecimal buyerVolumeShare,
-        @JsonProperty("bcs") BigDecimal buyerCapitalShare
+        @JsonProperty("capital_poc") BigDecimal capitalPOC,
+        @JsonProperty("capital_vah") BigDecimal capitalVAH,
+        @JsonProperty("capital_val") BigDecimal capitalVAL,
+        @JsonProperty("buyer_capital") BigDecimal buyerCapital,
+        @JsonProperty("total_capital") BigDecimal totalCapital
 ) {
 }

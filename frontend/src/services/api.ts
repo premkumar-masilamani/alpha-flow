@@ -18,11 +18,11 @@ export interface MarketData {
   close: number;
   vol: number;
   vwap: number;
-  poc: number;
-  vah: number;
-  val: number;
-  bvs: number;
-  bcs: number;
+  capital_poc: number;
+  capital_vah: number;
+  capital_val: number;
+  buyer_capital: number;
+  total_capital: number;
 }
 
 export interface RenkoBrick {

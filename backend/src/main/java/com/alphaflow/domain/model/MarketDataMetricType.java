@@ -11,13 +11,13 @@ public enum MarketDataMetricType {
 
     VWAP("VWAP", MarketData::getVwap),
 
-    VOLUME_PROFILE_POC("VP_POC", MarketData::getVolumeProfilePOC),
+    CAPITAL_POC("C_POC", MarketData::getCapitalPOC),
 
-    VOLUME_PROFILE_VALUE_RANGE("VP_VR", md -> md.getVolumeProfileVAH().subtract(md.getVolumeProfileVAL())),
+    CAPITAL_VALUE_RANGE("C_VR", md -> md.getCapitalVAH().subtract(md.getCapitalVAL())),
 
-    BUYER_CAPITAL_SHARE("B_CAP", MarketData::getBuyerCapitalShare),
+    TOTAL_CAPITAL("T_CAP", MarketData::getTotalCapital),
 
-    BUYER_VOLUME_SHARE("B_VOL", MarketData::getBuyerVolumeShare);
+    BUYER_CAPITAL("B_CAP", MarketData::getBuyerCapital);
 
     private final String code;
     private final Function<MarketData, BigDecimal> extractor;
