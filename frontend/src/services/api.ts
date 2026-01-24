@@ -3,11 +3,9 @@ import axios from 'axios';
 const API_BASE_URL = `${import.meta.env.NEXT_PUBLIC_API_URL || ''}/api`;
 
 export interface Ticker {
-  ticker_id: number;
+  id: number;
   symbol: string;
   name: string;
-  date: string;
-  is_active: boolean;
 }
 
 export interface MarketData {
@@ -18,11 +16,11 @@ export interface MarketData {
   close: number;
   vol: number;
   vwap: number;
-  poc: number;
-  vah: number;
-  val: number;
-  bvs: number;
-  bcs: number;
+  capital_poc: number;
+  capital_vah: number;
+  capital_val: number;
+  buyer_capital: number;
+  total_capital: number;
 }
 
 export interface RenkoBrick {

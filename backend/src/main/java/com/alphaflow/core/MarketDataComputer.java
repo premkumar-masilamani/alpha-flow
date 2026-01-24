@@ -166,12 +166,12 @@ public class MarketDataComputer {
 
         marketData.setVolume(ohlcvMetrics.volume());
         marketData.setVwap(ohlcvMetrics.vwap());
-        marketData.setVolumeProfilePOC(capitalProfileMetrics.pointOfControl());
-        marketData.setVolumeProfileVAH(capitalProfileMetrics.valueAreaHigh());
-        marketData.setVolumeProfileVAL(capitalProfileMetrics.valueAreaLow());
+        marketData.setCapitalPOC(capitalProfileMetrics.pointOfControl());
+        marketData.setCapitalVAH(capitalProfileMetrics.valueAreaHigh());
+        marketData.setCapitalVAL(capitalProfileMetrics.valueAreaLow());
 
-        marketData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
-        marketData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
+        marketData.setBuyerCapital(orderFlowMetrics.buyerCapital());
+        marketData.setTotalCapital(orderFlowMetrics.totalCapital());
 
         return marketData;
     }

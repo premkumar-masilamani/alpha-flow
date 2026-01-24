@@ -35,18 +35,18 @@ public class MarketData {
 
     private BigDecimal vwap;
 
-    @Column(name = "volume_profile_poc")
-    private BigDecimal volumeProfilePOC;
+    @Column(name = "capital_poc")
+    private BigDecimal capitalPOC;
 
-    @Column(name = "volume_profile_vah")
-    private BigDecimal volumeProfileVAH;
+    @Column(name = "capital_vah")
+    private BigDecimal capitalVAH;
 
-    @Column(name = "volume_profile_val")
-    private BigDecimal volumeProfileVAL;
+    @Column(name = "capital_val")
+    private BigDecimal capitalVAL;
 
-    private BigDecimal buyerVolumeShare;
+    private BigDecimal buyerCapital;
 
-    private BigDecimal buyerCapitalShare;
+    private BigDecimal totalCapital;
 
     public MarketData merge(MarketData other) {
         this.priceOpen = other.priceOpen;
@@ -55,11 +55,11 @@ public class MarketData {
         this.priceClose = other.priceClose;
         this.volume = other.volume;
         this.vwap = other.vwap;
-        this.volumeProfilePOC = other.volumeProfilePOC;
-        this.volumeProfileVAH = other.volumeProfileVAH;
-        this.volumeProfileVAL = other.volumeProfileVAL;
-        this.buyerVolumeShare = other.buyerVolumeShare;
-        this.buyerCapitalShare = other.buyerCapitalShare;
+        this.capitalPOC = other.capitalPOC;
+        this.capitalVAH = other.capitalVAH;
+        this.capitalVAL = other.capitalVAL;
+        this.buyerCapital = other.buyerCapital;
+        this.totalCapital = other.totalCapital;
         return this;
     }
 
