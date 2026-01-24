@@ -1,8 +1,8 @@
 package com.alphaflow.core;
 
+import com.alphaflow.domain.model.CapitalProfileMetrics;
 import com.alphaflow.domain.model.OHLCVMetrics;
 import com.alphaflow.domain.model.OrderFlowMetrics;
-import com.alphaflow.domain.model.VolumeProfileMetrics;
 import org.springframework.stereotype.Component;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.StringColumn;
@@ -11,7 +11,6 @@ import tech.tablesaw.api.Table;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static com.alphaflow.infrastructure.config.Constants.*;
@@ -21,23 +20,23 @@ import static java.util.Comparator.comparing;
 @Component
 public class MetricsComputer {
 
-    /**
-     * Computes Open, High, Low, Close, Volume, and VWAP (Volume Weighted Average Price)
-     * from a table of tick data.
-     *
-     * @param table The table containing tick data.
-     * @return Calculated OHLCV metrics.
-     */
     public OHLCVMetrics computeOHLCV(Table table) {
-        StringColumn priceCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
-        StringColumn qtyCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
-        StringColumn quoteQtyCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
+
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
+        StringColumn quantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
+        StringColumn quoteQuantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
 
         int rows = table.rowCount();
-        if (rows == 0) return new OHLCVMetrics(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+        if (rows == 0) {
+            return new OHLCVMetrics(
+                    BigDecimal.ZERO, BigDecimal.ZERO,
+                    BigDecimal.ZERO, BigDecimal.ZERO,
+                    BigDecimal.ZERO, BigDecimal.ZERO
+            );
+        }
 
-        BigDecimal open = new BigDecimal(priceCol.get(0));
-        BigDecimal close = new BigDecimal(priceCol.get(rows - 1));
+        BigDecimal open = new BigDecimal(priceColumn.get(0));
+        BigDecimal close = new BigDecimal(priceColumn.get(rows - 1));
 
         BigDecimal high = open;
         BigDecimal low = open;
@@ -45,9 +44,9 @@ public class MetricsComputer {
         BigDecimal quoteVolume = BigDecimal.ZERO;
 
         for (int i = 0; i < rows; i++) {
-            BigDecimal price = new BigDecimal(priceCol.get(i));
-            BigDecimal qty = new BigDecimal(qtyCol.get(i));
-            BigDecimal quote = new BigDecimal(quoteQtyCol.get(i));
+            BigDecimal price = new BigDecimal(priceColumn.get(i));
+            BigDecimal qty = new BigDecimal(quantityColumn.get(i));
+            BigDecimal quote = new BigDecimal(quoteQuantityColumn.get(i));
 
             if (price.compareTo(high) > 0) high = price;
             if (price.compareTo(low) < 0) low = price;
@@ -56,84 +55,74 @@ public class MetricsComputer {
             quoteVolume = quoteVolume.add(quote, DB_MATH_CONTEXT);
         }
 
-        // VWAP = Total Quote Volume / Total Base Volume
-        BigDecimal vwap = volume.signum() > 0 ? quoteVolume.divide(volume, DB_MATH_CONTEXT) : BigDecimal.ZERO;
+        BigDecimal vwap = volume.signum() > 0
+                ? quoteVolume.divide(volume, DB_MATH_CONTEXT)
+                : BigDecimal.ZERO;
 
         return new OHLCVMetrics(open, high, low, close, volume, vwap);
     }
 
-    /**
-     * Computes Order Flow metrics, specifically the share of volume and capital
-     * attributed to aggressive buyers (market orders).
-     *
-     * @param table The table containing tick data.
-     * @return Calculated Order Flow metrics.
-     */
     public OrderFlowMetrics computeOrderFlow(Table table) {
-        StringColumn qtyCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
-        StringColumn quoteQtyCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
+
+        StringColumn quoteQuantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
         BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_INDEX_IS_BUYER_THE_MAKER);
 
-        BigDecimal totalVolume = BigDecimal.ZERO;
-        BigDecimal totalQuoteQty = BigDecimal.ZERO;
-        BigDecimal buyerVolume = BigDecimal.ZERO;
+        BigDecimal totalCapital = BigDecimal.ZERO;
         BigDecimal buyerCapital = BigDecimal.ZERO;
 
-        int rowCount = table.rowCount();
-
-        for (int i = 0; i < rowCount; i++) {
-            BigDecimal qty = new BigDecimal(qtyCol.get(i));
-            BigDecimal quoteQty = new BigDecimal(quoteQtyCol.get(i));
-
-            totalVolume = totalVolume.add(qty, DB_MATH_CONTEXT);
-            totalQuoteQty = totalQuoteQty.add(quoteQty, DB_MATH_CONTEXT);
+        int rows = table.rowCount();
+        for (int i = 0; i < rows; i++) {
+            BigDecimal quote = new BigDecimal(quoteQuantityColumn.get(i));
+            totalCapital = totalCapital.add(quote, DB_MATH_CONTEXT);
 
             // In Binance tick data, 'isBuyerMaker' = true means the buyer was the passive side (limit order).
             // Therefore, 'isBuyerMaker' = false means the buyer was the aggressive side (market order).
             if (!isBuyerMakerColumn.get(i)) {
-                buyerVolume = buyerVolume.add(qty, DB_MATH_CONTEXT);
-                buyerCapital = buyerCapital.add(quoteQty, DB_MATH_CONTEXT);
+                buyerCapital = buyerCapital.add(quote, DB_MATH_CONTEXT);
             }
         }
 
-        BigDecimal buyerVolumeShare = totalVolume.signum() > 0 ? buyerVolume.divide(totalVolume, DB_MATH_CONTEXT) : BigDecimal.ZERO;
-        BigDecimal buyerCapitalShare = totalQuoteQty.signum() > 0 ? buyerCapital.divide(totalQuoteQty, DB_MATH_CONTEXT) : BigDecimal.ZERO;
-
-        return new OrderFlowMetrics(buyerVolumeShare, buyerCapitalShare);
+        return new OrderFlowMetrics(buyerCapital, totalCapital);
     }
 
-    /**
-     * Computes Volume Profile metrics including Point of Control (POC) and Value Area (VAH/VAL).
-     * This involves binning trades into price zones and identifying where the most volume occurred.
-     *
-     * @param table The table containing tick data.
-     * @param ohlcv Pre-computed OHLCV metrics used for bin size derivation.
-     * @return Calculated Volume Profile metrics.
-     */
-    public VolumeProfileMetrics computeVolumeProfile(Table table, OHLCVMetrics ohlcv) {
+    public CapitalProfileMetrics computeCapitalProfile(Table table, OHLCVMetrics ohlcv) {
+
         BigDecimal binSize = deriveBinSize(ohlcv);
-        StringColumn priceCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
-        StringColumn qtyCol = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
 
-        // Map {price_zone_low → total_volume_traded_in_that_zone}
-        Map<BigDecimal, BigDecimal> volumeAtPrice = new HashMap<>();
-        boolean singleBin = binSize.signum() == 0;
-        BigDecimal anchorPrice = ohlcv.open();
-
-        int rowCount = table.rowCount();
-        for (int i = 0; i < rowCount; i++) {
-            BigDecimal p = new BigDecimal(priceCol.get(i));
-            BigDecimal q = new BigDecimal(qtyCol.get(i));
-
-            // If single bin (low volatility), put all volume into a single bucket.
-            // Otherwise, group prices into bins of 'binSize'.
-            BigDecimal bucket = singleBin ? anchorPrice : p.divide(binSize, 0, RoundingMode.FLOOR).multiply(binSize);
-
-            // Accumulate volume for each price bucket
-            volumeAtPrice.merge(bucket, q, BigDecimal::add);
+        // Flat day → everything collapses to VWAP
+        if (binSize.signum() == 0) {
+            return new CapitalProfileMetrics(
+                    ohlcv.vwap(),
+                    ohlcv.high(),
+                    ohlcv.low()
+            );
         }
 
-        return deriveValueArea(volumeAtPrice);
+        StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
+        StringColumn quantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
+        StringColumn quoteQuantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
+
+        BigDecimal anchor = ohlcv.low();
+        Map<Integer, CapitalBucket> buckets = new HashMap<>();
+
+        int rows = table.rowCount();
+        for (int i = 0; i < rows; i++) {
+
+            BigDecimal price = new BigDecimal(priceColumn.get(i));
+            BigDecimal quantity = new BigDecimal(quantityColumn.get(i));
+            BigDecimal quoteQuantity = new BigDecimal(quoteQuantityColumn.get(i));
+
+            int idx = price
+                    .subtract(anchor, DB_MATH_CONTEXT)
+                    .divide(binSize, 0, RoundingMode.FLOOR)
+                    .intValueExact();
+
+            CapitalBucket bucket = buckets.computeIfAbsent(idx, k -> new CapitalBucket());
+            bucket.volume = bucket.volume.add(quantity, DB_MATH_CONTEXT);
+            bucket.capital = bucket.capital.add(quoteQuantity, DB_MATH_CONTEXT);
+        }
+
+        return deriveCapitalMetrics(buckets);
     }
 
     private BigDecimal deriveBinSize(OHLCVMetrics ohlcv) {
@@ -162,45 +151,76 @@ public class MetricsComputer {
                 .stripTrailingZeros();
     }
 
-    private VolumeProfileMetrics deriveValueArea(Map<BigDecimal, BigDecimal> volumeAtPrice) {
+    private CapitalProfileMetrics deriveCapitalMetrics(Map<Integer, CapitalBucket> buckets) {
 
-        // The bucket with maximum volume is the Point of Control
-        // (i.e.) The price zone where the market did the most business
-        BigDecimal poc = volumeAtPrice.entrySet()
+        // --- Capital POC (max capital) ---
+        int pocIdx = buckets.entrySet()
                 .stream()
-                .max(Map.Entry.comparingByValue())
+                .max(Map.Entry.comparingByValue(
+                        comparing(b -> b.capital)
+                ))
                 .map(Map.Entry::getKey)
-                .orElse(null);
+                .orElse(0);
 
-        // Take all price bins and order them by how close they are to the POC
-        // ABS (Price - PoC). ABS is important.
-        // If Price > PoC -> Positive number
-        // If Price < PoC -> Negative. ABS(Negative) -> Positive number
-        // This is a sorted list of how far the prices are away from PoC
-        List<Map.Entry<BigDecimal, BigDecimal>> sortedDistanceFromPoCList = volumeAtPrice.entrySet()
-                .stream()
-                .sorted(comparing(e -> e.getKey().subtract(poc).abs()))
-                .toList();
+        CapitalBucket pocBucket = buckets.get(pocIdx);
 
-        // Target Volume calculation, to stop the iteration once reached the limit
-        BigDecimal totalVolume = volumeAtPrice.values()
+        BigDecimal pocPrice = pocBucket.capital
+                .divide(pocBucket.volume, DB_MATH_CONTEXT);
+
+        // --- Capital Value Area ---
+        BigDecimal totalCapital = buckets.values()
                 .stream()
+                .map(b -> b.capital)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal targetVolume = totalVolume.multiply(valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT), DB_MATH_CONTEXT);
+        BigDecimal targetCapital =
+                totalCapital.multiply(
+                        valueOf(VOLUME_PROFILE_VALUE_AREA_PERCENT),
+                        DB_MATH_CONTEXT
+                );
 
-        BigDecimal cumulative = BigDecimal.ZERO;
-        BigDecimal vah = poc;
-        BigDecimal val = poc;
+        BigDecimal cumulative = pocBucket.capital;
 
-        for (var e : sortedDistanceFromPoCList) {
-            vah = vah.max(e.getKey());
-            val = val.min(e.getKey());
-            cumulative = cumulative.add(e.getValue(), DB_MATH_CONTEXT);
-            if (cumulative.compareTo(targetVolume) >= 0) break;
+        int lowIdx = pocIdx;
+        int highIdx = pocIdx;
+
+        while (cumulative.compareTo(targetCapital) < 0) {
+
+            CapitalBucket lower = buckets.get(lowIdx - 1);
+            CapitalBucket upper = buckets.get(highIdx + 1);
+
+            BigDecimal lowerCap = lower != null ? lower.capital : BigDecimal.ZERO;
+            BigDecimal upperCap = upper != null ? upper.capital : BigDecimal.ZERO;
+
+            if (upperCap.compareTo(lowerCap) >= 0) {
+                highIdx++;
+                cumulative = cumulative.add(upperCap, DB_MATH_CONTEXT);
+            } else {
+                lowIdx--;
+                cumulative = cumulative.add(lowerCap, DB_MATH_CONTEXT);
+            }
         }
 
-        // These values represent the lower bounds of the zones
-        return new VolumeProfileMetrics(poc, vah, val);
+        // --- VWAP of VAH / VAL bins ---
+        CapitalBucket valBucket = buckets.get(lowIdx);
+        CapitalBucket vahBucket = buckets.get(highIdx);
+
+        BigDecimal valPrice = valBucket.capital
+                .divide(valBucket.volume, DB_MATH_CONTEXT);
+
+        BigDecimal vahPrice = vahBucket.capital
+                .divide(vahBucket.volume, DB_MATH_CONTEXT);
+
+        return new CapitalProfileMetrics(
+                pocPrice,
+                vahPrice,
+                valPrice
+        );
+    }
+
+
+    private static final class CapitalBucket {
+        BigDecimal volume = BigDecimal.ZERO;   // qty
+        BigDecimal capital = BigDecimal.ZERO;   // quoteQty
     }
 }

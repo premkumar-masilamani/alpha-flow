@@ -28,13 +28,13 @@ CREATE TABLE market_data
     price_high          NUMERIC(28, 8) NOT NULL,
     price_low           NUMERIC(28, 8) NOT NULL,
     price_close         NUMERIC(28, 8) NOT NULL,
-    volume              NUMERIC(38, 8) NOT NULL,
+    volume              NUMERIC(28, 8) NOT NULL,
     vwap                NUMERIC(28, 8) NOT NULL,
     volume_profile_poc  NUMERIC(28, 8) NOT NULL,
     volume_profile_vah  NUMERIC(28, 8) NOT NULL,
     volume_profile_val  NUMERIC(28, 8) NOT NULL,
-    buyer_volume_share  NUMERIC(10, 8) NOT NULL,
-    buyer_capital_share NUMERIC(10, 8) NOT NULL
+    buyer_volume_share  NUMERIC(28, 8) NOT NULL,
+    buyer_capital_share NUMERIC(28, 8) NOT NULL
 );
 
 CREATE TABLE market_state

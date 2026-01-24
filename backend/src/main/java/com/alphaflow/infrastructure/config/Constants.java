@@ -29,7 +29,7 @@ public class Constants {
     public static final double VOLUME_PROFILE_RANGE_BIN_PERCENT = 0.05;
     public static final double VOLUME_PROFILE_VALUE_AREA_PERCENT = 0.70;
 
-    public static final MathContext DB_MATH_CONTEXT = new MathContext(38);
+    public static final MathContext DB_MATH_CONTEXT = new MathContext(28);
     public static final int DB_QUERY_PAGE_SIZE = 10;
 
     public static final int RENKO_BRICK_SIZE_PERIOD = 9;
