@@ -27,7 +27,7 @@ public class TickerService {
 
 
     public List<TickerDTO> getAllTickers() {
-        return tickerRepository.findAll()
+        return tickerRepository.findByIsActiveTrue()
                 .stream()
                 .map(TickerMapper::toDTO)
                 .toList();

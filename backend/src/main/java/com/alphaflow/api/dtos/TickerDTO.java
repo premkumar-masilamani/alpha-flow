@@ -1,12 +1,13 @@
 package com.alphaflow.api.dtos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record TickerDTO(
-        @JsonProperty("ticker_id") Long tickerId,
+        @JsonProperty("id") Long tickerId,
         @JsonProperty("symbol") String tickerSymbol,
         @JsonProperty("name") String tickerName,
-        @JsonProperty("date") String tickerDate,
-        @JsonProperty("is_active") boolean isActive
+        @JsonIgnore String tickerDate,
+        @JsonIgnore boolean isActive
 ) {
 }
