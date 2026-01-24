@@ -64,41 +64,25 @@ public class MetricsComputer {
 
     public OrderFlowMetrics computeOrderFlow(Table table) {
 
-        StringColumn quantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
         StringColumn quoteQuantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
         BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_INDEX_IS_BUYER_THE_MAKER);
 
-        BigDecimal totalVolume = BigDecimal.ZERO;
         BigDecimal totalCapital = BigDecimal.ZERO;
-        BigDecimal buyerVolume = BigDecimal.ZERO;
         BigDecimal buyerCapital = BigDecimal.ZERO;
 
         int rows = table.rowCount();
         for (int i = 0; i < rows; i++) {
-
-            BigDecimal qty = new BigDecimal(quantityColumn.get(i));
             BigDecimal quote = new BigDecimal(quoteQuantityColumn.get(i));
-
-            totalVolume = totalVolume.add(qty, DB_MATH_CONTEXT);
             totalCapital = totalCapital.add(quote, DB_MATH_CONTEXT);
 
             // In Binance tick data, 'isBuyerMaker' = true means the buyer was the passive side (limit order).
             // Therefore, 'isBuyerMaker' = false means the buyer was the aggressive side (market order).
             if (!isBuyerMakerColumn.get(i)) {
-                buyerVolume = buyerVolume.add(qty, DB_MATH_CONTEXT);
                 buyerCapital = buyerCapital.add(quote, DB_MATH_CONTEXT);
             }
         }
 
-        BigDecimal buyerVolumeShare = totalVolume.signum() > 0
-                ? buyerVolume.divide(totalVolume, DB_MATH_CONTEXT)
-                : BigDecimal.ZERO;
-
-        BigDecimal buyerCapitalShare = totalCapital.signum() > 0
-                ? buyerCapital.divide(totalCapital, DB_MATH_CONTEXT)
-                : BigDecimal.ZERO;
-
-        return new OrderFlowMetrics(buyerVolumeShare, buyerCapitalShare);
+        return new OrderFlowMetrics(buyerCapital, totalCapital);
     }
 
     public CapitalProfileMetrics computeCapitalProfile(Table table, OHLCVMetrics ohlcv) {
