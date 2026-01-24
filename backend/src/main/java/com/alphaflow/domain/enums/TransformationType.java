@@ -1,4 +1,4 @@
-package com.alphaflow.domain.model;
+package com.alphaflow.domain.enums;
 
 public enum TransformationType {
 

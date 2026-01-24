@@ -1,14 +1,14 @@
 package com.alphaflow.core;
 
+import com.alphaflow.domain.enums.MarketDataMetricType;
+import com.alphaflow.domain.enums.TransformationType;
+import com.alphaflow.domain.enums.WindowPeriod;
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import com.alphaflow.infrastructure.persistence.entities.MarketState;
 import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
-import com.alphaflow.domain.model.MarketDataMetricType;
-import com.alphaflow.domain.model.WindowPeriod;
-import com.alphaflow.domain.model.TransformationType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -18,10 +18,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static com.alphaflow.domain.enums.TransformationType.EMA;
+import static com.alphaflow.domain.enums.TransformationType.SMA;
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
 import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
-import static com.alphaflow.domain.model.TransformationType.EMA;
-import static com.alphaflow.domain.model.TransformationType.SMA;
 import static java.math.BigDecimal.valueOf;
 
 @Service
@@ -60,9 +60,14 @@ public class MarketStateComputer {
             }
 
             for (MarketDataMetricType metric : MarketDataMetricType.values()) {
-                for (WindowPeriod maPeriod : WindowPeriod.values()) {
-                    computeSMA(ticker, metric, maPeriod, allSeries);
-                    computeEMA(ticker, metric, maPeriod, allSeries);
+                var spec = metric.transformSpec();
+                for (TransformationType transformation : spec.transformations()) {
+                    for (WindowPeriod period : spec.periods()) {
+                        switch (transformation) {
+                            case SMA -> computeSMA(ticker, metric, period, allSeries);
+                            case EMA -> computeEMA(ticker, metric, period, allSeries);
+                        }
+                    }
                 }
             }
         });

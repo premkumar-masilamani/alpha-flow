@@ -1,12 +1,11 @@
-package com.alphaflow.domain.model;
+package com.alphaflow.domain.enums;
 
 public enum WindowPeriod {
 
-    ONE_WEEK(7),
-    TWO_WEEKS(14),
-    ONE_MONTH(30),
-    TWO_MONTHS(60),
-    THREE_MONTHS(90);
+    FIVE_DAYS(5),
+    TEN_DAYS(10),
+    TWENTY_DAYS(20),
+    TWENTY_ONE_DAYS(21);
 
     private final int days;
 
