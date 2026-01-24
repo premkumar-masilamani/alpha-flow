@@ -3,10 +3,11 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
+import CapitalGravityChart from './components/CapitalGravityChart';
 import { getTickers, getMarketData, getRenkoData, type Ticker, type MarketData, type RenkoData } from './services/api';
 import { Loader2 } from 'lucide-react';
 
-const TABS = ['Candlestick', 'CCS', 'Renko'];
+const TABS = ['Candlestick', 'CCS', 'Renko', 'CGC'];
 
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
@@ -119,6 +120,14 @@ function App() {
           ) : (activeTab === 'Candlestick' || activeTab === 'CCS') ? (
             hasMarketData ? (
               <Chart data={displayData} />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                {loading ? 'Loading data...' : 'No data available for this ticker'}
+              </div>
+            )
+          ) : activeTab === 'CGC' ? (
+            hasMarketData ? (
+              <CapitalGravityChart data={marketData} />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-slate-500">
                 {loading ? 'Loading data...' : 'No data available for this ticker'}
