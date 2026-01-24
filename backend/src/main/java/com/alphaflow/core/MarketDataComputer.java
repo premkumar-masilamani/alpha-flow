@@ -7,7 +7,7 @@ import com.alphaflow.infrastructure.persistence.repositories.FileRepository;
 import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
 import com.alphaflow.domain.model.OHLCVMetrics;
 import com.alphaflow.domain.model.OrderFlowMetrics;
-import com.alphaflow.domain.model.VolumeProfileMetrics;
+import com.alphaflow.domain.model.CapitalProfileMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -153,7 +153,7 @@ public class MarketDataComputer {
 
         OHLCVMetrics ohlcvMetrics = metricsComputer.computeOHLCV(table);
         OrderFlowMetrics orderFlowMetrics = metricsComputer.computeOrderFlow(table);
-        VolumeProfileMetrics volumeProfileMetrics = metricsComputer.computeVolumeProfile(table, ohlcvMetrics);
+        CapitalProfileMetrics capitalProfileMetrics = metricsComputer.computeCapitalProfile(table, ohlcvMetrics);
 
         MarketData marketData = new MarketData();
         marketData.setTicker(file.getTicker());
@@ -166,9 +166,9 @@ public class MarketDataComputer {
 
         marketData.setVolume(ohlcvMetrics.volume());
         marketData.setVwap(ohlcvMetrics.vwap());
-        marketData.setVolumeProfilePOC(volumeProfileMetrics.pointOfControl());
-        marketData.setVolumeProfileVAH(volumeProfileMetrics.valueAreaHigh());
-        marketData.setVolumeProfileVAL(volumeProfileMetrics.valueAreaLow());
+        marketData.setVolumeProfilePOC(capitalProfileMetrics.pointOfControl());
+        marketData.setVolumeProfileVAH(capitalProfileMetrics.valueAreaHigh());
+        marketData.setVolumeProfileVAL(capitalProfileMetrics.valueAreaLow());
 
         marketData.setBuyerVolumeShare(orderFlowMetrics.buyerVolumeShare());
         marketData.setBuyerCapitalShare(orderFlowMetrics.buyerCapitalShare());
