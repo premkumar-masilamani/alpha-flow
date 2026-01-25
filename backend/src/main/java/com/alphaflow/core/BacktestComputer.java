@@ -55,8 +55,6 @@ public class BacktestComputer {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Running backtests for {}", ticker.getTickerSymbol());
 
-            backtestResultRepository.deleteByTicker(ticker);
-
             List<MarketData> marketDataList = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(ticker, LocalDate.of(2000, 1, 1));
             List<MarketState> marketStateList = marketStateRepository.findByTickerOrderByMarketStateDateAsc(ticker);
 
