@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class BacktestComputer {
 
     private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
-    private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.0000");
+    private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
 
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
@@ -87,7 +87,7 @@ public class BacktestComputer {
         BigDecimal currentCash = INITIAL_EQUITY;
         PositionType position = PositionType.NONE;
         BigDecimal shares = BigDecimal.ZERO;
-        BigDecimal entryPrice = BigDecimal.ZERO;
+        BigDecimal entryPrice = BigDecimal.ZERO; // Used for SHORT positions
         BacktestSignal pendingSignal = BacktestSignal.NONE;
 
         List<BacktestResult> results = new ArrayList<>();
@@ -100,23 +100,29 @@ public class BacktestComputer {
 
             // 1. Execute pending signal from previous day at today's open
             if (pendingSignal != BacktestSignal.NONE && pendingSignal != BacktestSignal.HOLD) {
-                if (pendingSignal == BacktestSignal.LONG_ENTRY && position == PositionType.NONE) {
-                    shares = currentCash.divide(priceOpen, 8, RoundingMode.HALF_UP);
+                BigDecimal totalEquityAtOpen;
+                if (position == PositionType.SHORT_100) {
+                    totalEquityAtOpen = currentCash.add(shares.multiply(entryPrice.subtract(priceOpen)));
+                } else {
+                    totalEquityAtOpen = currentCash.add(shares.multiply(priceOpen));
+                }
+
+                if (pendingSignal == BacktestSignal.GO_LONG_100) {
+                    shares = totalEquityAtOpen.divide(priceOpen, 8, RoundingMode.HALF_UP);
+                    currentCash = totalEquityAtOpen.subtract(shares.multiply(priceOpen));
+                    position = PositionType.LONG_100;
+                } else if (pendingSignal == BacktestSignal.GO_LONG_50) {
+                    BigDecimal targetShares = totalEquityAtOpen.multiply(new BigDecimal("0.5")).divide(priceOpen, 8, RoundingMode.HALF_UP);
+                    shares = targetShares;
+                    currentCash = totalEquityAtOpen.subtract(shares.multiply(priceOpen));
+                    position = PositionType.LONG_50;
+                } else if (pendingSignal == BacktestSignal.GO_SHORT_100) {
+                    shares = totalEquityAtOpen.divide(priceOpen, 8, RoundingMode.HALF_UP);
+                    currentCash = totalEquityAtOpen;
                     entryPrice = priceOpen;
-                    currentCash = BigDecimal.ZERO;
-                    position = PositionType.LONG;
-                } else if (pendingSignal == BacktestSignal.SHORT_ENTRY && position == PositionType.NONE) {
-                    shares = currentCash.divide(priceOpen, 8, RoundingMode.HALF_UP);
-                    entryPrice = priceOpen;
-                    // For shorting, currentCash remains the same (it's the margin/collateral),
-                    // and we track profit/loss relative to it.
-                    position = PositionType.SHORT;
-                } else if (pendingSignal == BacktestSignal.EXIT_LONG && position == PositionType.LONG) {
-                    currentCash = shares.multiply(priceOpen);
-                    shares = BigDecimal.ZERO;
-                    position = PositionType.NONE;
-                } else if (pendingSignal == BacktestSignal.EXIT_SHORT && position == PositionType.SHORT) {
-                    currentCash = currentCash.add(shares.multiply(entryPrice.subtract(priceOpen)));
+                    position = PositionType.SHORT_100;
+                } else if (pendingSignal == BacktestSignal.GO_NONE) {
+                    currentCash = totalEquityAtOpen;
                     shares = BigDecimal.ZERO;
                     position = PositionType.NONE;
                 }
@@ -124,9 +130,9 @@ public class BacktestComputer {
 
             // 2. Calculate equity at today's close
             BigDecimal dailyEquity;
-            if (position == PositionType.LONG) {
-                dailyEquity = shares.multiply(priceClose);
-            } else if (position == PositionType.SHORT) {
+            if (position == PositionType.LONG_100 || position == PositionType.LONG_50) {
+                dailyEquity = currentCash.add(shares.multiply(priceClose));
+            } else if (position == PositionType.SHORT_100) {
                 dailyEquity = currentCash.add(shares.multiply(entryPrice.subtract(priceClose)));
             } else {
                 dailyEquity = currentCash;
@@ -141,7 +147,7 @@ public class BacktestComputer {
                     .ticker(ticker)
                     .date(date)
                     .strategyName(strategy.getName())
-                    .equity(dailyEquity.setScale(4, RoundingMode.HALF_UP))
+                    .equity(dailyEquity.setScale(8, RoundingMode.HALF_UP))
                     .position(position.name())
                     .price(priceClose)
                     .signal(nextSignal.name())

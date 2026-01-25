@@ -30,13 +30,13 @@ public class BacktestResult {
     @Column(name = "strategy_name")
     private String strategyName;
 
-    @Column(name = "equity", precision = 19, scale = 4)
+    @Column(name = "equity", precision = 28, scale = 8)
     private BigDecimal equity;
 
     @Column(name = "position")
-    private String position; // LONG, SHORT, NONE
+    private String position; // LONG_100, LONG_50, SHORT_100, NONE
 
-    @Column(name = "price", precision = 19, scale = 4)
+    @Column(name = "price", precision = 28, scale = 8)
     private BigDecimal price; // price_close of the day
 
     @Column(name = "signal")

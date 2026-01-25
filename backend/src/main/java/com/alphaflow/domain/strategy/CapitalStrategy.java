@@ -33,41 +33,33 @@ public class CapitalStrategy implements BacktestStrategy {
         BigDecimal priceClose = marketData.getPriceClose();
         BigDecimal capitalVah = marketData.getCapitalVAH();
         BigDecimal capitalVal = marketData.getCapitalVAL();
+        BigDecimal capitalPoc = marketData.getCapitalPOC();
 
-        // CASE structure based on SQL logic
-        // LONG ENTRY
-        if (ema5Vwap.compareTo(ema21Vwap) > 0 &&
-                sma5Poc.compareTo(sma10Poc) > 0 &&
-                capitalMomentum.compareTo(BigDecimal.ZERO) > 0 &&
-                sma5BuyerRatio.compareTo(new BigDecimal("0.55")) > 0 &&
-                priceClose.compareTo(capitalVah) > 0) {
-            return BacktestSignal.LONG_ENTRY;
+        // FULL EXIT (0%) — Structural Failure Only
+        if (priceClose.compareTo(capitalVal) < 0) {
+            return BacktestSignal.GO_NONE;
         }
 
-        // SHORT ENTRY
-        if (ema5Vwap.compareTo(ema21Vwap) < 0 &&
-                sma5Poc.compareTo(sma10Poc) < 0 &&
-                capitalMomentum.compareTo(BigDecimal.ZERO) < 0 &&
-                sma5BuyerRatio.compareTo(new BigDecimal("0.45")) < 0 &&
-                priceClose.compareTo(capitalVal) < 0) {
-            return BacktestSignal.SHORT_ENTRY;
-        }
-
-        // EXIT (LONG)
-        if (currentPosition == PositionType.LONG) {
-            if (capitalMomentum.compareTo(BigDecimal.ZERO) <= 0 ||
-                    priceClose.compareTo(capitalVah) <= 0 ||
-                    sma5BuyerRatio.compareTo(new BigDecimal("0.50")) < 0) {
-                return BacktestSignal.EXIT_LONG;
+        if (currentPosition == PositionType.NONE) {
+            // ENTRY RULE (100% position)
+            if (ema5Vwap.compareTo(ema21Vwap) > 0 &&
+                    sma5Poc.compareTo(sma10Poc) > 0 &&
+                    capitalMomentum.compareTo(BigDecimal.ZERO) > 0 &&
+                    sma5BuyerRatio.compareTo(new BigDecimal("0.55")) > 0 &&
+                    priceClose.compareTo(capitalVah) > 0) {
+                return BacktestSignal.GO_LONG_100;
             }
-        }
-
-        // EXIT (SHORT)
-        if (currentPosition == PositionType.SHORT) {
-            if (capitalMomentum.compareTo(BigDecimal.ZERO) >= 0 ||
-                    priceClose.compareTo(capitalVal) >= 0 ||
-                    sma5BuyerRatio.compareTo(new BigDecimal("0.50")) > 0) {
-                return BacktestSignal.EXIT_SHORT;
+        } else if (currentPosition == PositionType.LONG_100) {
+            // Reduce to 50% (warning state)
+            if (capitalMomentum.compareTo(BigDecimal.ZERO) < 0 ||
+                    sma5BuyerRatio.compareTo(new BigDecimal("0.50")) < 0) {
+                return BacktestSignal.GO_LONG_50;
+            }
+        } else if (currentPosition == PositionType.LONG_50) {
+            // Re-add from 50% → 100%
+            if (capitalMomentum.compareTo(BigDecimal.ZERO) > 0 &&
+                    priceClose.compareTo(capitalPoc) > 0) {
+                return BacktestSignal.GO_LONG_100;
             }
         }
 

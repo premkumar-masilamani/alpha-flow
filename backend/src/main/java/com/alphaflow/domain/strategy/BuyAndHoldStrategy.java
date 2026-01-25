@@ -19,7 +19,7 @@ public class BuyAndHoldStrategy implements BacktestStrategy {
     @Override
     public BacktestSignal generateSignal(MarketData marketData, Map<String, BigDecimal> indicators, PositionType currentPosition) {
         if (currentPosition == PositionType.NONE) {
-            return BacktestSignal.LONG_ENTRY;
+            return BacktestSignal.GO_LONG_100;
         }
         return BacktestSignal.HOLD;
     }

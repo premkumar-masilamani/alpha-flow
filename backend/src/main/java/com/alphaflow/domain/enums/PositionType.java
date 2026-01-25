@@ -1,7 +1,8 @@
 package com.alphaflow.domain.enums;
 
 public enum PositionType {
-    LONG,
-    SHORT,
-    NONE
+    NONE,
+    LONG_100,
+    LONG_50,
+    SHORT_100
 }
