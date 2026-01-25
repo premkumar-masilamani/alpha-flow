@@ -20,20 +20,20 @@ public class CronScheduler {
     private final TickDataDownloader tickDataDownloader;
     private final MarketDataComputer marketDataComputer;
     private final MarketStateComputer marketStateComputer;
-    private final MomentumComputer momentumComputer;
+    private final MarketStateDerivativeComputer marketStateDerivativeComputer;
     private final RenkoDataComputer renkoDataComputer;
 
     public CronScheduler(
             TickDataDownloader tickDataDownloader,
             MarketDataComputer marketDataComputer,
             MarketStateComputer marketStateComputer,
-            MomentumComputer momentumComputer,
+            MarketStateDerivativeComputer marketStateDerivativeComputer,
             RenkoDataComputer renkoDataComputer
     ) {
         this.tickDataDownloader = tickDataDownloader;
         this.marketDataComputer = marketDataComputer;
         this.marketStateComputer = marketStateComputer;
-        this.momentumComputer = momentumComputer;
+        this.marketStateDerivativeComputer = marketStateDerivativeComputer;
         this.renkoDataComputer = renkoDataComputer;
     }
 
@@ -67,7 +67,7 @@ public class CronScheduler {
             marketStateComputer.compute();
 
             log.info("Step 4/5: Computing capital momentum...");
-            momentumComputer.compute();
+            marketStateDerivativeComputer.compute();
 
             log.info("Step 5/5: Computing Renko bricks...");
             renkoDataComputer.compute();

@@ -1,8 +1,5 @@
 package com.alphaflow.core;
 
-import com.alphaflow.domain.enums.MarketDataMetricType;
-import com.alphaflow.domain.enums.TransformationType;
-import com.alphaflow.domain.enums.WindowPeriod;
 import com.alphaflow.infrastructure.persistence.entities.MarketState;
 import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
@@ -22,11 +19,10 @@ import java.util.Optional;
 import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class MomentumComputerTest {
+class MarketStateDerivativeComputerTest {
 
     @Mock
     private MarketStateRepository marketStateRepository;
@@ -34,11 +30,11 @@ class MomentumComputerTest {
     @Mock
     private TickerRepository tickerRepository;
 
-    private MomentumComputer momentumComputer;
+    private MarketStateDerivativeComputer marketStateDerivativeComputer;
 
     @BeforeEach
     void setUp() {
-        momentumComputer = new MomentumComputer(marketStateRepository, tickerRepository);
+        marketStateDerivativeComputer = new MarketStateDerivativeComputer(marketStateRepository, tickerRepository);
     }
 
     @Test
@@ -73,12 +69,12 @@ class MomentumComputerTest {
         when(marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
                 ticker, "T_CAP", "EMA", 20, EPOCH_START)).thenReturn(List.of(ema20));
 
-        momentumComputer.compute();
+        marketStateDerivativeComputer.compute();
 
         ArgumentCaptor<List<MarketState>> captor = ArgumentCaptor.forClass(List.class);
         verify(marketStateRepository).saveAll(captor.capture());
 
-        MarketState saved = captor.getValue().get(0);
+        MarketState saved = captor.getValue().getFirst();
         assertEquals("CAP_MOM", saved.getMetric());
         assertEquals(new BigDecimal("10.00"), saved.getValue());
         assertEquals("NONE", saved.getMaType());
@@ -105,7 +101,7 @@ class MomentumComputerTest {
         when(marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
                 ticker, "T_CAP", "EMA", 10)).thenReturn(Optional.of(latestEma10));
 
-        momentumComputer.compute();
+        marketStateDerivativeComputer.compute();
 
         verify(marketStateRepository, never()).save(any());
     }

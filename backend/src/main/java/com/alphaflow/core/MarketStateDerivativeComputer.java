@@ -4,7 +4,6 @@ import com.alphaflow.domain.enums.MarketDataMetricType;
 import com.alphaflow.domain.enums.TransformationType;
 import com.alphaflow.domain.enums.WindowPeriod;
 import com.alphaflow.infrastructure.persistence.entities.MarketState;
-import com.alphaflow.infrastructure.persistence.entities.Ticker;
 import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -20,18 +19,22 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.alphaflow.domain.enums.MarketDataMetricType.TOTAL_CAPITAL;
+import static com.alphaflow.domain.enums.TransformationType.EMA;
+import static com.alphaflow.domain.enums.WindowPeriod.TEN_DAYS;
+import static com.alphaflow.domain.enums.WindowPeriod.TWENTY_DAYS;
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
 import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
 
 @Service
-public class MomentumComputer {
+public class MarketStateDerivativeComputer {
 
-    private static final Logger log = LoggerFactory.getLogger(MomentumComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketStateDerivativeComputer.class);
 
     private final MarketStateRepository marketStateRepository;
     private final TickerRepository tickerRepository;
 
-    public MomentumComputer(
+    public MarketStateDerivativeComputer(
             MarketStateRepository marketStateRepository,
             TickerRepository tickerRepository
     ) {
@@ -43,45 +46,45 @@ public class MomentumComputer {
         log.info("Starting Capital Momentum Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
-            log.info("Processing Capital Momentum for {}", ticker.getTickerSymbol());
+            log.info("Calculating Capital Momentum for {}", ticker.getTickerSymbol());
 
-            Optional<MarketState> latestMom = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+            Optional<MarketState> latestCapitalMomentum = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
                     ticker, MarketDataMetricType.CAPITAL_MOMENTUM.code(), TransformationType.NONE.code(), WindowPeriod.NONE.days()
             );
 
-            Optional<MarketState> latestEma10 = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                    ticker, MarketDataMetricType.TOTAL_CAPITAL.code(), TransformationType.EMA.code(), 10
+            Optional<MarketState> latestTotalCapitalEma10 = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                    ticker, TOTAL_CAPITAL.code(), EMA.code(), TEN_DAYS.days()
             );
 
-            if (latestEma10.isEmpty()) {
-                log.debug("No T_CAP EMA 10 found for {}, skipping momentum.", ticker.getTickerSymbol());
+            if (latestTotalCapitalEma10.isEmpty()) {
+                log.debug("No {} EMA 10 found for {}, skipping momentum.", TOTAL_CAPITAL.code(), ticker.getTickerSymbol());
                 return;
             }
 
-            LocalDate startDate = latestMom.map(m -> m.getMarketStateDate().plusDays(1)).orElse(EPOCH_START);
+            LocalDate startDate = latestCapitalMomentum.map(m -> m.getMarketStateDate().plusDays(1)).orElse(EPOCH_START);
 
-            if (startDate.isAfter(latestEma10.get().getMarketStateDate())) {
+            if (startDate.isAfter(latestTotalCapitalEma10.get().getMarketStateDate())) {
                 log.debug("Capital Momentum is up to date for {}", ticker.getTickerSymbol());
                 return;
             }
 
             log.info("Computing Capital Momentum for {} from {} to {}",
-                    ticker.getTickerSymbol(), startDate, latestEma10.get().getMarketStateDate());
+                    ticker.getTickerSymbol(), startDate, latestTotalCapitalEma10.get().getMarketStateDate());
 
-            List<MarketState> ema10Series = marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
-                    ticker, MarketDataMetricType.TOTAL_CAPITAL.code(), TransformationType.EMA.code(), 10, startDate
+            List<MarketState> totalCapitalEma10Series = marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
+                    ticker, TOTAL_CAPITAL.code(), EMA.code(), TEN_DAYS.days(), startDate
             );
 
-            List<MarketState> ema20Series = marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
-                    ticker, MarketDataMetricType.TOTAL_CAPITAL.code(), TransformationType.EMA.code(), 20, startDate
+            List<MarketState> totalCapitalEma20Series = marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
+                    ticker, TOTAL_CAPITAL.code(), EMA.code(), TWENTY_DAYS.days(), startDate
             );
 
-            Map<LocalDate, MarketState> ema20Map = ema20Series.stream()
+            Map<LocalDate, MarketState> totalCapitalEma20Map = totalCapitalEma20Series.stream()
                     .collect(Collectors.toMap(MarketState::getMarketStateDate, Function.identity()));
 
             List<MarketState> toSave = new ArrayList<>();
-            for (MarketState ema10 : ema10Series) {
-                MarketState ema20 = ema20Map.get(ema10.getMarketStateDate());
+            for (MarketState ema10 : totalCapitalEma10Series) {
+                MarketState ema20 = totalCapitalEma20Map.get(ema10.getMarketStateDate());
                 if (ema20 != null) {
                     BigDecimal momentum = ema10.getValue().subtract(ema20.getValue(), DB_MATH_CONTEXT);
 
