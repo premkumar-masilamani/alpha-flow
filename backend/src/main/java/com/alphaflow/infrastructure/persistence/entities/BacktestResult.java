@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtest_results")
+@Table(name = "backtests")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,7 +20,7 @@ public class BacktestResult {
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "date")
+    @Column(name = "backtest_date")
     private LocalDate date;
 
     @ManyToOne(fetch = FetchType.LAZY)

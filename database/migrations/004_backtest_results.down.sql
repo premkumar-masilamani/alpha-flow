@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS backtest_results;
+DROP TABLE IF EXISTS backtests;

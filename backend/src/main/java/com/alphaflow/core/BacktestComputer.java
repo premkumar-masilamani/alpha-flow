@@ -76,6 +76,7 @@ public class BacktestComputer {
 
             for (BacktestStrategy strategy : strategies) {
                 log.info("Running strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
+                backtestResultRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
                 runBacktest(ticker, strategy, marketDataList, indicatorMap);
             }
         });
