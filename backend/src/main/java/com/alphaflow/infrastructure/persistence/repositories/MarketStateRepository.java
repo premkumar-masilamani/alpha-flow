@@ -35,4 +35,6 @@ public interface MarketStateRepository extends JpaRepository<MarketState, Long> 
             int period,
             LocalDate startDate
     );
+
+    List<MarketState> findByTickerOrderByMarketStateDateAsc(Ticker ticker);
 }
