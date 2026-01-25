@@ -48,7 +48,14 @@ public enum MarketDataMetricType {
             )
     ),
 
-//    TODO: capital_momentum = EMA_10(total_capital) − EMA_20(total_capital) - in a different class
+    CAPITAL_MOMENTUM(
+            "CAP_MOM",
+            null,
+            new MetricTransformSpec(
+                    EnumSet.noneOf(TransformationType.class),
+                    EnumSet.noneOf(WindowPeriod.class)
+            )
+    ),
 
     BUYER_CAPITAL_RATIO(
             "B_CAP_RATIO",
