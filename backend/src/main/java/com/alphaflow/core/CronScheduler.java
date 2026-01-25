@@ -20,17 +20,20 @@ public class CronScheduler {
     private final TickDataDownloader tickDataDownloader;
     private final MarketDataComputer marketDataComputer;
     private final MarketStateComputer marketStateComputer;
+    private final MarketStateDerivativeComputer marketStateDerivativeComputer;
     private final RenkoDataComputer renkoDataComputer;
 
     public CronScheduler(
             TickDataDownloader tickDataDownloader,
             MarketDataComputer marketDataComputer,
             MarketStateComputer marketStateComputer,
+            MarketStateDerivativeComputer marketStateDerivativeComputer,
             RenkoDataComputer renkoDataComputer
     ) {
         this.tickDataDownloader = tickDataDownloader;
         this.marketDataComputer = marketDataComputer;
         this.marketStateComputer = marketStateComputer;
+        this.marketStateDerivativeComputer = marketStateDerivativeComputer;
         this.renkoDataComputer = renkoDataComputer;
     }
 
@@ -54,16 +57,19 @@ public class CronScheduler {
 
     private void run() {
         try {
-            log.info("Step 1/4: Downloading tick data...");
+            log.info("Step 1/5: Downloading tick data...");
             tickDataDownloader.download();
 
-            log.info("Step 2/4: Computing market data metrics...");
+            log.info("Step 2/5: Computing market data metrics...");
             marketDataComputer.compute();
 
-            log.info("Step 3/4: Computing market state indicators...");
+            log.info("Step 3/5: Computing market state indicators...");
             marketStateComputer.compute();
 
-            log.info("Step 4/4: Computing Renko bricks...");
+            log.info("Step 4/5: Computing capital momentum...");
+            marketStateDerivativeComputer.compute();
+
+            log.info("Step 5/5: Computing Renko bricks...");
             renkoDataComputer.compute();
 
             log.info("Scheduled data update cycle completed successfully.");

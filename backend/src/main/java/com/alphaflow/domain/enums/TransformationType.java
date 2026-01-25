@@ -3,7 +3,8 @@ package com.alphaflow.domain.enums;
 public enum TransformationType {
 
     SMA("SMA"),
-    EMA("EMA");
+    EMA("EMA"),
+    NONE("NONE");
 
     private final String code;
 
