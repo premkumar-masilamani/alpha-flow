@@ -31,6 +31,4 @@ public class MarketState {
 
     private BigDecimal value;
 
-    private BigDecimal capitalMomentum;
-
 }

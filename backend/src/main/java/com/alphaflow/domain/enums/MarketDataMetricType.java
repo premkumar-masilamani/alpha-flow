@@ -52,8 +52,8 @@ public enum MarketDataMetricType {
             "CAP_MOM",
             null,
             new MetricTransformSpec(
-                    EnumSet.noneOf(TransformationType.class),
-                    EnumSet.noneOf(WindowPeriod.class)
+                    EnumSet.of(TransformationType.NONE),
+                    EnumSet.of(WindowPeriod.NONE)
             )
     ),
 
