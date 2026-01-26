@@ -16,7 +16,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
+import static java.time.LocalDate.EPOCH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -64,10 +64,10 @@ class MarketStateDerivativeComputerTest {
                 ticker, "T_CAP", "EMA", 10)).thenReturn(Optional.of(latestEma10));
 
         when(marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
-                ticker, "T_CAP", "EMA", 10, EPOCH_START)).thenReturn(List.of(ema10));
+                ticker, "T_CAP", "EMA", 10, EPOCH)).thenReturn(List.of(ema10));
 
         when(marketStateRepository.findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
-                ticker, "T_CAP", "EMA", 20, EPOCH_START)).thenReturn(List.of(ema20));
+                ticker, "T_CAP", "EMA", 20, EPOCH)).thenReturn(List.of(ema20));
 
         marketStateDerivativeComputer.compute();
 

@@ -24,7 +24,7 @@ import static com.alphaflow.domain.enums.TransformationType.EMA;
 import static com.alphaflow.domain.enums.WindowPeriod.TEN_DAYS;
 import static com.alphaflow.domain.enums.WindowPeriod.TWENTY_DAYS;
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
-import static com.alphaflow.infrastructure.config.Constants.EPOCH_START;
+import static java.time.LocalDate.EPOCH;
 
 @Service
 public class MarketStateDerivativeComputer {
@@ -61,7 +61,7 @@ public class MarketStateDerivativeComputer {
                 return;
             }
 
-            LocalDate startDate = latestCapitalMomentum.map(m -> m.getMarketStateDate().plusDays(1)).orElse(EPOCH_START);
+            LocalDate startDate = latestCapitalMomentum.map(m -> m.getMarketStateDate().plusDays(1)).orElse(EPOCH);
 
             if (startDate.isAfter(latestTotalCapitalEma10.get().getMarketStateDate())) {
                 log.debug("Capital Momentum is up to date for {}", ticker.getTickerSymbol());

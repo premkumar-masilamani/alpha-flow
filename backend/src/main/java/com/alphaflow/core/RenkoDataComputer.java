@@ -19,6 +19,7 @@ import java.util.List;
 import static com.alphaflow.infrastructure.config.Constants.*;
 import static com.alphaflow.infrastructure.util.RenkoUtil.getZoneFromTrend;
 import static java.math.BigDecimal.valueOf;
+import static java.time.LocalDate.EPOCH;
 
 @Service
 public class RenkoDataComputer {
@@ -47,7 +48,7 @@ public class RenkoDataComputer {
             log.info("Computing Renko Data for {}", ticker.getTickerSymbol());
 
             List<MarketData> allSeries = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
-                    ticker, EPOCH_START);
+                    ticker, EPOCH);
 
             if (allSeries.isEmpty()) {
                 log.error("No market data found for {}", ticker.getTickerSymbol());

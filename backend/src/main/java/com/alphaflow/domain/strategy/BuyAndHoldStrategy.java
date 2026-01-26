@@ -1,7 +1,8 @@
 package com.alphaflow.domain.strategy;
 
-import com.alphaflow.domain.enums.BacktestSignal;
 import com.alphaflow.domain.enums.PositionType;
+import com.alphaflow.domain.enums.TradeAction;
+import com.alphaflow.domain.enums.TradeSignal;
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import org.springframework.stereotype.Component;
 
@@ -17,10 +18,13 @@ public class BuyAndHoldStrategy implements BacktestStrategy {
     }
 
     @Override
-    public BacktestSignal generateSignal(MarketData marketData, Map<String, BigDecimal> indicators, PositionType currentPosition) {
-        if (currentPosition == PositionType.NONE) {
-            return BacktestSignal.GO_LONG_100;
+    public TradeSignal generateSignal(MarketData currentDayMarketData, Map<String, BigDecimal> currentDayIndicators, PositionType currentDayPosition) {
+        // Enter once, at full size
+        if (currentDayPosition == PositionType.NONE) {
+            return new TradeSignal(TradeAction.ENTER_LONG, PositionType.LONG_100);
         }
-        return BacktestSignal.HOLD;
+        // Hold forever
+        return new TradeSignal(TradeAction.HOLD, currentDayPosition);
     }
+
 }
