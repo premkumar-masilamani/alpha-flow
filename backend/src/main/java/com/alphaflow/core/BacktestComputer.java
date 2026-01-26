@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -33,22 +34,24 @@ public class BacktestComputer {
     private final MarketStateRepository marketStateRepository;
     private final BacktestResultRepository backtestResultRepository;
     private final List<BacktestStrategy> strategies;
+    private final TransactionTemplate transactionTemplate;
 
     public BacktestComputer(
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
             BacktestResultRepository backtestResultRepository,
-            List<BacktestStrategy> strategies
+            List<BacktestStrategy> strategies,
+            TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
         this.marketDataRepository = marketDataRepository;
         this.marketStateRepository = marketStateRepository;
         this.backtestResultRepository = backtestResultRepository;
         this.strategies = strategies;
+        this.transactionTemplate = transactionTemplate;
     }
 
-    @Transactional
     public void compute() {
         log.info("Starting Backtest Computation for all active tickers");
 
@@ -76,8 +79,11 @@ public class BacktestComputer {
 
             for (BacktestStrategy strategy : strategies) {
                 log.info("Running strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
-                backtestResultRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                runBacktest(ticker, strategy, marketDataList, indicatorMap);
+                transactionTemplate.execute(status -> {
+                    backtestResultRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
+                    runBacktest(ticker, strategy, marketDataList, indicatorMap);
+                    return null;
+                });
             }
         });
 
@@ -157,6 +163,6 @@ public class BacktestComputer {
             pendingSignal = nextSignal;
         }
 
-        backtestResultRepository.saveAll(results);
+        backtestResultRepository.saveAllAndFlush(results);
     }
 }

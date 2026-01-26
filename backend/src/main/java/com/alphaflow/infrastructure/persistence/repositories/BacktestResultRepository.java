@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public interface BacktestResultRepository extends JpaRepository<BacktestResult, Long> {
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Transactional
-    @Query("DELETE FROM BacktestResult br WHERE br.ticker = :ticker AND br.strategyName = :strategyName")
-    void deleteByTickerAndStrategyName(Ticker ticker, String strategyName);
+    @Query("DELETE FROM BacktestResult br WHERE br.ticker.tickerId = :tickerId AND br.strategyName = :strategyName")
+    void deleteByTickerIdAndStrategyName(Long tickerId, String strategyName);
 }
