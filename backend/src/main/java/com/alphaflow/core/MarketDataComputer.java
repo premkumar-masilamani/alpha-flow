@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import tech.tablesaw.api.Table;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -172,6 +173,9 @@ public class MarketDataComputer {
 
         marketData.setBuyerCapital(orderFlowMetrics.buyerCapital());
         marketData.setTotalCapital(orderFlowMetrics.totalCapital());
+
+        marketData.setVwapOHLC4(ohlcvMetrics.vwapOHLC4());
+        marketData.setVwapHLC3(ohlcvMetrics.vwapHLC3());
 
         return marketData;
     }
