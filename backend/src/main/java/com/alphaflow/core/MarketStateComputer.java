@@ -98,7 +98,7 @@ public class MarketStateComputer {
             }
         } else {
             // First day's OBV is 0
-            persist(allSeries.get(0), metric, TransformationType.OBV, WindowPeriod.NONE.days(), BigDecimal.ZERO);
+            persist(allSeries.getFirst(), metric, TransformationType.OBV, WindowPeriod.NONE.days(), BigDecimal.ZERO);
             obv = BigDecimal.ZERO;
             startIndex = 1;
         }
