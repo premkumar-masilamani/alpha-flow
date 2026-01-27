@@ -32,7 +32,6 @@ public class MetricsComputer {
                     BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, BigDecimal.ZERO,
-                    BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, BigDecimal.ZERO
             );
         }
@@ -70,20 +69,7 @@ public class MetricsComputer {
                 .add(close, DB_MATH_CONTEXT)
                 .divide(BigDecimal.valueOf(3), DB_MATH_CONTEXT);
 
-        BigDecimal vwapOHLC4Diff = BigDecimal.ZERO;
-        BigDecimal vwapHLC3Diff = BigDecimal.ZERO;
-
-        if (vwap.signum() > 0) {
-            vwapOHLC4Diff = vwapOHLC4.subtract(vwap, DB_MATH_CONTEXT)
-                    .divide(vwap, DB_MATH_CONTEXT)
-                    .multiply(BigDecimal.valueOf(100), DB_MATH_CONTEXT);
-
-            vwapHLC3Diff = vwapHLC3.subtract(vwap, DB_MATH_CONTEXT)
-                    .divide(vwap, DB_MATH_CONTEXT)
-                    .multiply(BigDecimal.valueOf(100), DB_MATH_CONTEXT);
-        }
-
-        return new OHLCVMetrics(open, high, low, close, volume, vwap, vwapOHLC4, vwapHLC3, vwapOHLC4Diff, vwapHLC3Diff);
+        return new OHLCVMetrics(open, high, low, close, volume, vwap, vwapOHLC4, vwapHLC3);
     }
 
     public OrderFlowMetrics computeOrderFlow(Table table) {
