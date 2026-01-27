@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import tech.tablesaw.api.Table;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -54,6 +55,8 @@ public class MarketDataComputer {
      */
     public void compute() {
         log.info("Starting Market Data Computation");
+
+        backfillVwapMetrics();
 
         int totalProcessed = 0;
         while (true) {
@@ -173,7 +176,63 @@ public class MarketDataComputer {
         marketData.setBuyerCapital(orderFlowMetrics.buyerCapital());
         marketData.setTotalCapital(orderFlowMetrics.totalCapital());
 
+        marketData.setVwapOHLC4(ohlcvMetrics.vwapOHLC4());
+        marketData.setVwapHLC3(ohlcvMetrics.vwapHLC3());
+        marketData.setVwapOHLC4Diff(ohlcvMetrics.vwapOHLC4Diff());
+        marketData.setVwapHLC3Diff(ohlcvMetrics.vwapHLC3Diff());
+
         return marketData;
+    }
+
+    private void backfillVwapMetrics() {
+        log.info("Checking for MarketData records needing VWAP metrics backfill...");
+        java.util.List<MarketData> missing = marketDataRepository.findByVwapOHLC4IsNull();
+        if (missing.isEmpty()) {
+            log.info("No records need backfill.");
+            return;
+        }
+
+        log.info("Backfilling VWAP metrics for {} records...", missing.size());
+        for (MarketData md : missing) {
+            BigDecimal open = md.getPriceOpen();
+            BigDecimal high = md.getPriceHigh();
+            BigDecimal low = md.getPriceLow();
+            BigDecimal close = md.getPriceClose();
+            BigDecimal vwap = md.getVwap();
+
+            if (open == null || high == null || low == null || close == null || vwap == null) {
+                continue;
+            }
+
+            BigDecimal vwapOHLC4 = open.add(high, DB_MATH_CONTEXT)
+                    .add(low, DB_MATH_CONTEXT)
+                    .add(close, DB_MATH_CONTEXT)
+                    .divide(BigDecimal.valueOf(4), DB_MATH_CONTEXT);
+
+            BigDecimal vwapHLC3 = high.add(low, DB_MATH_CONTEXT)
+                    .add(close, DB_MATH_CONTEXT)
+                    .divide(BigDecimal.valueOf(3), DB_MATH_CONTEXT);
+
+            BigDecimal vwapOHLC4Diff = BigDecimal.ZERO;
+            BigDecimal vwapHLC3Diff = BigDecimal.ZERO;
+
+            if (vwap.signum() > 0) {
+                vwapOHLC4Diff = vwapOHLC4.subtract(vwap, DB_MATH_CONTEXT)
+                        .divide(vwap, DB_MATH_CONTEXT)
+                        .multiply(BigDecimal.valueOf(100), DB_MATH_CONTEXT);
+
+                vwapHLC3Diff = vwapHLC3.subtract(vwap, DB_MATH_CONTEXT)
+                        .divide(vwap, DB_MATH_CONTEXT)
+                        .multiply(BigDecimal.valueOf(100), DB_MATH_CONTEXT);
+            }
+
+            md.setVwapOHLC4(vwapOHLC4);
+            md.setVwapHLC3(vwapHLC3);
+            md.setVwapOHLC4Diff(vwapOHLC4Diff);
+            md.setVwapHLC3Diff(vwapHLC3Diff);
+        }
+        marketDataRepository.saveAll(missing);
+        log.info("Backfill completed.");
     }
 
 }

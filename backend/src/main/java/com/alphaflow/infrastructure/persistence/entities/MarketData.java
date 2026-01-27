@@ -48,6 +48,14 @@ public class MarketData {
 
     private BigDecimal totalCapital;
 
+    private BigDecimal vwapOHLC4;
+
+    private BigDecimal vwapHLC3;
+
+    private BigDecimal vwapOHLC4Diff;
+
+    private BigDecimal vwapHLC3Diff;
+
     public MarketData merge(MarketData other) {
         this.priceOpen = other.priceOpen;
         this.priceHigh = other.priceHigh;
@@ -60,6 +68,10 @@ public class MarketData {
         this.capitalVAL = other.capitalVAL;
         this.buyerCapital = other.buyerCapital;
         this.totalCapital = other.totalCapital;
+        this.vwapOHLC4 = other.vwapOHLC4;
+        this.vwapHLC3 = other.vwapHLC3;
+        this.vwapOHLC4Diff = other.vwapOHLC4Diff;
+        this.vwapHLC3Diff = other.vwapHLC3Diff;
         return this;
     }
 
