@@ -17,8 +17,8 @@ public enum MarketDataMetricType {
             "VWAP",
             MarketData::getVwap,
             new MetricTransformSpec(
-                    EnumSet.of(EMA),
-                    EnumSet.of(FIVE_DAYS, TWENTY_ONE_DAYS)
+                    EnumSet.of(EMA, SMA),
+                    EnumSet.of(FIVE_DAYS, TEN_DAYS, TWENTY_ONE_DAYS)
             )
     ),
 

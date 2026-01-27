@@ -4,14 +4,13 @@ import com.alphaflow.domain.enums.PositionType;
 import com.alphaflow.domain.enums.TradeAction;
 import com.alphaflow.domain.enums.TradeSignal;
 import com.alphaflow.domain.strategy.BacktestStrategy;
-import com.alphaflow.infrastructure.persistence.entities.BacktestResult;
-import com.alphaflow.infrastructure.persistence.entities.MarketData;
-import com.alphaflow.infrastructure.persistence.entities.MarketState;
-import com.alphaflow.infrastructure.persistence.entities.Ticker;
+import com.alphaflow.domain.strategy.RenkoBacktestStrategy;
+import com.alphaflow.infrastructure.persistence.entities.*;
 import com.alphaflow.infrastructure.persistence.repositories.BacktestResultRepository;
 import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
+import com.alphaflow.infrastructure.util.RenkoUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,10 +19,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,6 +33,7 @@ public class BacktestComputer {
     private final MarketStateRepository marketStateRepository;
     private final BacktestResultRepository backtestResultRepository;
     private final List<BacktestStrategy> strategies;
+    private final List<RenkoBacktestStrategy> renkoStrategies;
     private final TransactionTemplate transactionTemplate;
 
     public BacktestComputer(
@@ -45,6 +42,7 @@ public class BacktestComputer {
             MarketStateRepository marketStateRepository,
             BacktestResultRepository backtestResultRepository,
             List<BacktestStrategy> strategies,
+            List<RenkoBacktestStrategy> renkoStrategies,
             TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
@@ -52,6 +50,7 @@ public class BacktestComputer {
         this.marketStateRepository = marketStateRepository;
         this.backtestResultRepository = backtestResultRepository;
         this.strategies = strategies;
+        this.renkoStrategies = renkoStrategies;
         this.transactionTemplate = transactionTemplate;
     }
 
@@ -80,19 +79,30 @@ public class BacktestComputer {
                             )
                     ));
 
+            // Standard Strategies
             for (BacktestStrategy strategy : strategies) {
                 log.info("Running strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
                 List<BacktestResult> results = runBacktest(ticker, strategy, marketDataList, indicatorMap);
-                // Delete and Save in a single transaction
-                transactionTemplate.execute(status -> {
-                    backtestResultRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
-                    backtestResultRepository.saveAllAndFlush(results);
-                    return status;
-                });
+                saveResults(ticker, strategy.getName(), results);
+            }
+
+            // Renko Strategies
+            for (RenkoBacktestStrategy strategy : renkoStrategies) {
+                log.info("Running renko strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
+                List<BacktestResult> results = runRenkoBacktest(ticker, strategy, marketDataList, indicatorMap);
+                saveResults(ticker, strategy.getName(), results);
             }
         });
 
         log.info("Backtest Computation completed.");
+    }
+
+    private void saveResults(Ticker ticker, String strategyName, List<BacktestResult> results) {
+        transactionTemplate.execute(status -> {
+            backtestResultRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategyName);
+            backtestResultRepository.saveAllAndFlush(results);
+            return status;
+        });
     }
 
     private List<BacktestResult> runBacktest(
@@ -118,104 +128,156 @@ public class BacktestComputer {
             BigDecimal priceOpen = currentDay.getPriceOpen();
             BigDecimal priceClose = currentDay.getPriceClose();
 
-            // ─────────────────────────────────────────
             // 1. Execute pending signal at today's open
-            // ─────────────────────────────────────────
-            if (pendingSignal.action() != TradeAction.NO_SIGNAL &&
-                    pendingSignal.action() != TradeAction.HOLD) {
+            PositionUpdate update = executeSignal(pendingSignal, position, shares, currentCash, entryPrice, priceOpen);
+            position = update.position();
+            shares = update.shares();
+            currentCash = update.currentCash();
+            entryPrice = update.entryPrice();
 
-                BigDecimal totalEquityAtOpen =
-                        switch (position) {
-                            case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
-                                    shares.multiply(entryPrice.subtract(priceOpen))
-                            );
-                            case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceOpen));
-                            default -> currentCash;
-                        };
-
-                switch (pendingSignal.action()) {
-
-                    case ENTER_LONG, REDUCE -> {
-                        PositionType target = pendingSignal.targetPosition();
-                        BigDecimal allocation = positionFraction(target);
-
-                        shares = totalEquityAtOpen
-                                .multiply(allocation)
-                                .divide(priceOpen, 8, RoundingMode.HALF_UP);
-
-                        currentCash =
-                                totalEquityAtOpen.subtract(shares.multiply(priceOpen));
-
-                        position = target;
-                    }
-
-                    case ENTER_SHORT -> {
-                        PositionType target = pendingSignal.targetPosition();
-                        BigDecimal allocation = positionFraction(target);
-
-                        shares = totalEquityAtOpen
-                                .multiply(allocation)
-                                .divide(priceOpen, 8, RoundingMode.HALF_UP);
-
-                        currentCash = totalEquityAtOpen;
-                        entryPrice = priceOpen;
-                        position = target;
-                    }
-
-                    case EXIT -> {
-                        currentCash = totalEquityAtOpen;
-                        shares = BigDecimal.ZERO;
-                        position = PositionType.NONE;
-                    }
-
-                    default -> {
-                        // HOLD / NO_SIGNAL → no-op
-                    }
-                }
-            }
-
-            // ─────────────────────────────
             // 2. Equity at today's close
-            // ─────────────────────────────
-            BigDecimal dailyEquity =
-                    switch (position) {
-                        case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceClose));
+            BigDecimal dailyEquity = calculateEquity(position, shares, currentCash, entryPrice, priceClose);
 
-                        case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
-                                shares.multiply(entryPrice.subtract(priceClose))
-                        );
-
-                        default -> currentCash;
-                    };
-
-            // ─────────────────────────────
             // 3. Generate next signal
-            // ─────────────────────────────
             Map<String, BigDecimal> indicators =
                     indicatorMap.getOrDefault(date, Collections.emptyMap());
 
             TradeSignal nextSignal =
                     strategy.generateSignal(currentDay, indicators, position);
 
-            // ─────────────────────────────
             // 4. Record result
-            // ─────────────────────────────
-            results.add(
-                    BacktestResult.builder()
-                            .ticker(ticker)
-                            .date(date)
-                            .strategyName(strategy.getName())
-                            .equity(dailyEquity.setScale(8, RoundingMode.HALF_UP))
-                            .position(position.name())
-                            .price(priceClose)
-                            .signal(nextSignal.action().name())
-                            .build()
-            );
+            results.add(recordResult(ticker, strategy.getName(), date, dailyEquity, position, priceClose, nextSignal));
 
             pendingSignal = nextSignal;
         }
 
         return results;
+    }
+
+    private List<BacktestResult> runRenkoBacktest(
+            Ticker ticker,
+            RenkoBacktestStrategy strategy,
+            List<MarketData> marketDataList,
+            Map<LocalDate, Map<String, BigDecimal>> indicatorMap
+    ) {
+
+        BigDecimal currentCash = INITIAL_EQUITY;
+        PositionType position = PositionType.NONE;
+        BigDecimal shares = BigDecimal.ZERO;
+        BigDecimal entryPrice = BigDecimal.ZERO;
+
+        TradeSignal pendingSignal =
+                new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+
+        List<BacktestResult> results = new ArrayList<>();
+        Map<String, Object> strategyState = new HashMap<>();
+
+        for (int i = 0; i < marketDataList.size(); i++) {
+            MarketData currentDay = marketDataList.get(i);
+            LocalDate date = currentDay.getMarketDataDate();
+            BigDecimal priceOpen = currentDay.getPriceOpen();
+            BigDecimal priceClose = currentDay.getPriceClose();
+
+            // 1. Execute pending signal at today's open
+            PositionUpdate update = executeSignal(pendingSignal, position, shares, currentCash, entryPrice, priceOpen);
+            position = update.position();
+            shares = update.shares();
+            currentCash = update.currentCash();
+            entryPrice = update.entryPrice();
+
+            // 2. Equity at today's close
+            BigDecimal dailyEquity = calculateEquity(position, shares, currentCash, entryPrice, priceClose);
+
+            // 3. Generate next signal
+            // Recompute Renko bricks based on data up to today (Compute Intensive)
+            List<MarketData> subSeries = marketDataList.subList(0, i + 1);
+            BigDecimal brickSize = RenkoUtil.calculateBrickSize(subSeries);
+            List<RenkoData> bricks = RenkoUtil.generateRenkoBricks(ticker, subSeries, brickSize);
+
+            Map<String, BigDecimal> indicators =
+                    indicatorMap.getOrDefault(date, Collections.emptyMap());
+
+            TradeSignal nextSignal =
+                    strategy.generateSignal(currentDay, bricks, indicators, position, strategyState);
+
+            // 4. Record result
+            results.add(recordResult(ticker, strategy.getName(), date, dailyEquity, position, priceClose, nextSignal));
+
+            pendingSignal = nextSignal;
+        }
+
+        return results;
+    }
+
+    private PositionUpdate executeSignal(TradeSignal pendingSignal, PositionType position, BigDecimal shares, BigDecimal currentCash, BigDecimal entryPrice, BigDecimal priceOpen) {
+        PositionType newPosition = position;
+        BigDecimal newShares = shares;
+        BigDecimal newCash = currentCash;
+        BigDecimal newEntryPrice = entryPrice;
+
+        if (pendingSignal.action() != TradeAction.NO_SIGNAL &&
+                pendingSignal.action() != TradeAction.HOLD) {
+
+            BigDecimal totalEquityAtOpen =
+                    switch (position) {
+                        case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
+                                shares.multiply(entryPrice.subtract(priceOpen))
+                        );
+                        case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceOpen));
+                        default -> currentCash;
+                    };
+
+            switch (pendingSignal.action()) {
+                case ENTER_LONG, REDUCE -> {
+                    PositionType target = pendingSignal.targetPosition();
+                    BigDecimal allocation = positionFraction(target);
+                    newShares = totalEquityAtOpen
+                            .multiply(allocation)
+                            .divide(priceOpen, 8, RoundingMode.HALF_UP);
+                    newCash = totalEquityAtOpen.subtract(newShares.multiply(priceOpen));
+                    newPosition = target;
+                }
+                case ENTER_SHORT -> {
+                    PositionType target = pendingSignal.targetPosition();
+                    BigDecimal allocation = positionFraction(target);
+                    newShares = totalEquityAtOpen
+                            .multiply(allocation)
+                            .divide(priceOpen, 8, RoundingMode.HALF_UP);
+                    newCash = totalEquityAtOpen;
+                    newEntryPrice = priceOpen;
+                    newPosition = target;
+                }
+                case EXIT -> {
+                    newCash = totalEquityAtOpen;
+                    newShares = BigDecimal.ZERO;
+                    newPosition = PositionType.NONE;
+                }
+                default -> {}
+            }
+        }
+        return new PositionUpdate(newPosition, newShares, newCash, newEntryPrice);
+    }
+
+    private BigDecimal calculateEquity(PositionType position, BigDecimal shares, BigDecimal currentCash, BigDecimal entryPrice, BigDecimal priceClose) {
+        return switch (position) {
+            case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceClose));
+            case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
+                    shares.multiply(entryPrice.subtract(priceClose))
+            );
+            default -> currentCash;
+        };
+    }
+
+    private BacktestResult recordResult(Ticker ticker, String strategyName, LocalDate date, BigDecimal dailyEquity, PositionType position, BigDecimal priceClose, TradeSignal nextSignal) {
+        return BacktestResult.builder()
+                .ticker(ticker)
+                .date(date)
+                .strategyName(strategyName)
+                .equity(dailyEquity.setScale(8, RoundingMode.HALF_UP))
+                .position(position.name())
+                .price(priceClose)
+                .signal(nextSignal.action().name())
+                .build();
     }
 
     private BigDecimal positionFraction(PositionType positionType) {
@@ -227,4 +289,5 @@ public class BacktestComputer {
         };
     }
 
+    private record PositionUpdate(PositionType position, BigDecimal shares, BigDecimal currentCash, BigDecimal entryPrice) {}
 }
