@@ -64,6 +64,15 @@ public enum MarketDataMetricType {
                     EnumSet.of(SMA),
                     EnumSet.of(FIVE_DAYS)
             )
+    ),
+
+    OBV(
+            "OBV",
+            null,
+            new MetricTransformSpec(
+                    EnumSet.of(TransformationType.NONE),
+                    EnumSet.of(WindowPeriod.NONE)
+            )
     );
 
     private final String code;
