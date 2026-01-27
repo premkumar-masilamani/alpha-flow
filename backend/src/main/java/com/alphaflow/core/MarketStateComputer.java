@@ -66,6 +66,7 @@ public class MarketStateComputer {
                         switch (transformation) {
                             case SMA -> computeSMA(ticker, metric, period, allSeries);
                             case EMA -> computeEMA(ticker, metric, period, allSeries);
+                            case OBV -> computeOBV(ticker, metric, allSeries);
                         }
                     }
                 }
@@ -73,6 +74,51 @@ public class MarketStateComputer {
         });
 
         log.info("Completed Market State Computation");
+    }
+
+    private void computeOBV(Ticker ticker, MarketDataMetricType metric, List<MarketData> allSeries) {
+        if (allSeries.isEmpty()) {
+            return;
+        }
+
+        Optional<MarketState> latestObv = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+            ticker, metric.code(), TransformationType.OBV.code(), WindowPeriod.NONE.days()
+        );
+
+        BigDecimal obv;
+        int startIndex;
+
+        if (latestObv.isPresent()) {
+            MarketState lastObv = latestObv.get();
+            obv = lastObv.getValue();
+            startIndex = findIndexForDate(allSeries, lastObv.getMarketStateDate()) + 1;
+            if (startIndex <= 0 || startIndex >= allSeries.size()) {
+                log.debug("OBV is up to date for {}", ticker.getTickerSymbol());
+                return;
+            }
+        } else {
+            // First day's OBV is 0
+            persist(allSeries.get(0), metric, TransformationType.OBV, WindowPeriod.NONE.days(), BigDecimal.ZERO);
+            obv = BigDecimal.ZERO;
+            startIndex = 1;
+        }
+
+        for (int i = startIndex; i < allSeries.size(); i++) {
+            MarketData currentData = allSeries.get(i);
+            MarketData previousData = allSeries.get(i - 1);
+
+            int priceCompare = currentData.getPriceClose().compareTo(previousData.getPriceClose());
+
+            if (priceCompare > 0) {
+                obv = obv.add(currentData.getVolume());
+            } else if (priceCompare < 0) {
+                obv = obv.subtract(currentData.getVolume());
+            }
+            // If prices are equal, OBV is unchanged
+
+            persist(currentData, metric, TransformationType.OBV, WindowPeriod.NONE.days(), obv);
+        }
+        log.info("Computed OBV for {}", ticker.getTickerSymbol());
     }
 
     /**

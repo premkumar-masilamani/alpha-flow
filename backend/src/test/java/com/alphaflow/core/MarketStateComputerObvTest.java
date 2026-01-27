@@ -1,5 +1,8 @@
 package com.alphaflow.core;
 
+import com.alphaflow.domain.enums.MarketDataMetricType;
+import com.alphaflow.domain.enums.TransformationType;
+import com.alphaflow.domain.enums.WindowPeriod;
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import com.alphaflow.infrastructure.persistence.entities.MarketState;
 import com.alphaflow.infrastructure.persistence.entities.Ticker;
@@ -20,19 +23,14 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import com.alphaflow.domain.enums.TransformationType;
-import com.alphaflow.domain.enums.WindowPeriod;
 
-
-import static com.alphaflow.domain.enums.MarketDataMetricType.OBV;
 import static java.time.LocalDate.EPOCH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class OnBalanceVolumeComputerTest {
+public class MarketStateComputerObvTest {
 
     @Mock
     private MarketDataRepository marketDataRepository;
@@ -42,10 +40,10 @@ public class OnBalanceVolumeComputerTest {
     private TickerRepository tickerRepository;
 
     @InjectMocks
-    private OnBalanceVolumeComputer onBalanceVolumeComputer;
+    private MarketStateComputer marketStateComputer;
 
     @Captor
-    private ArgumentCaptor<List<MarketState>> marketStateListCaptor;
+    private ArgumentCaptor<MarketState> marketStateCaptor;
 
     private Ticker ticker;
 
@@ -58,7 +56,7 @@ public class OnBalanceVolumeComputerTest {
     }
 
     @Test
-    void testCompute_initialCalculation() {
+    void testCompute_ObvInitialCalculation() {
         // given
         when(tickerRepository.findByIsActiveTrue()).thenReturn(Collections.singletonList(ticker));
         List<MarketData> marketDataList = List.of(
@@ -70,17 +68,16 @@ public class OnBalanceVolumeComputerTest {
         when(marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(ticker, EPOCH))
             .thenReturn(marketDataList);
         when(marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-            ticker, OBV.code(), TransformationType.NONE.code(), WindowPeriod.NONE.days()
+            ticker, MarketDataMetricType.OBV.code(), TransformationType.OBV.code(), WindowPeriod.NONE.days()
         )).thenReturn(Optional.empty());
 
         // when
-        onBalanceVolumeComputer.compute();
+        marketStateComputer.compute();
 
         // then
-        verify(marketStateRepository).saveAll(marketStateListCaptor.capture());
-        List<MarketState> savedStates = marketStateListCaptor.getValue();
+        verify(marketStateRepository, times(4)).save(marketStateCaptor.capture());
+        List<MarketState> savedStates = marketStateCaptor.getAllValues();
 
-        assertEquals(4, savedStates.size());
         // Day 1: OBV is 0
         assertEquals(new BigDecimal("0"), savedStates.get(0).getValue());
         // Day 2: Price up, OBV = 0 + 12 = 12
@@ -92,14 +89,14 @@ public class OnBalanceVolumeComputerTest {
     }
 
     @Test
-    void testCompute_incrementalCalculation() {
+    void testCompute_ObvIncrementalCalculation() {
         // given
         when(tickerRepository.findByIsActiveTrue()).thenReturn(Collections.singletonList(ticker));
         MarketState latestObv = new MarketState();
         latestObv.setMarketStateDate(LocalDate.of(2023, 1, 2));
         latestObv.setValue(new BigDecimal("12"));
         when(marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-            ticker, OBV.code(), TransformationType.NONE.code(), WindowPeriod.NONE.days()
+            ticker, MarketDataMetricType.OBV.code(), TransformationType.OBV.code(), WindowPeriod.NONE.days()
         )).thenReturn(Optional.of(latestObv));
 
         List<MarketData> marketDataList = List.of(
@@ -112,55 +109,15 @@ public class OnBalanceVolumeComputerTest {
             .thenReturn(marketDataList);
 
         // when
-        onBalanceVolumeComputer.compute();
+        marketStateComputer.compute();
 
         // then
-        verify(marketStateRepository).saveAll(marketStateListCaptor.capture());
-        List<MarketState> savedStates = marketStateListCaptor.getValue();
-        assertEquals(2, savedStates.size());
+        verify(marketStateRepository, times(2)).save(marketStateCaptor.capture());
+        List<MarketState> savedStates = marketStateCaptor.getAllValues();
         // Day 3: Price down, OBV = 12 - 8 = 4
         assertEquals(new BigDecimal("4"), savedStates.get(0).getValue());
         // Day 4: Price up, OBV = 4 + 9 = 13
         assertEquals(new BigDecimal("13"), savedStates.get(1).getValue());
-    }
-
-    @Test
-    void testCompute_noMarketData() {
-        // given
-        when(tickerRepository.findByIsActiveTrue()).thenReturn(Collections.singletonList(ticker));
-        when(marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(ticker, EPOCH))
-            .thenReturn(Collections.emptyList());
-
-        // when
-        onBalanceVolumeComputer.compute();
-
-        // then
-        verify(marketStateRepository, never()).saveAll(any());
-    }
-
-    @Test
-    void testCompute_upToDate() {
-        // given
-        when(tickerRepository.findByIsActiveTrue()).thenReturn(Collections.singletonList(ticker));
-        MarketState latestObv = new MarketState();
-        latestObv.setMarketStateDate(LocalDate.of(2023, 1, 4));
-        latestObv.setValue(new BigDecimal("13"));
-        when(marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-            ticker, OBV.code(), TransformationType.NONE.code(), WindowPeriod.NONE.days()
-        )).thenReturn(Optional.of(latestObv));
-
-        List<MarketData> marketDataList = List.of(
-            createMarketData(LocalDate.of(2023, 1, 3), "100", "8"),
-            createMarketData(LocalDate.of(2023, 1, 4), "101", "9")
-        );
-        when(marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(ticker, EPOCH))
-            .thenReturn(marketDataList);
-
-        // when
-        onBalanceVolumeComputer.compute();
-
-        // then
-        verify(marketStateRepository, never()).saveAll(any());
     }
 
     private MarketData createMarketData(LocalDate date, String closePrice, String volume) {

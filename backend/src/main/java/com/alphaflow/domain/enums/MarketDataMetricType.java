@@ -68,9 +68,9 @@ public enum MarketDataMetricType {
 
     OBV(
             "OBV",
-            null,
+            MarketData::getVolume,
             new MetricTransformSpec(
-                    EnumSet.of(TransformationType.NONE),
+                    EnumSet.of(TransformationType.OBV),
                     EnumSet.of(WindowPeriod.NONE)
             )
     );
