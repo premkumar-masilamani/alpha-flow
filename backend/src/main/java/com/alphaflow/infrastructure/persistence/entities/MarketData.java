@@ -48,12 +48,16 @@ public class MarketData {
 
     private BigDecimal totalCapital;
 
+    @Column(name = "vwap_ohlc4")
     private BigDecimal vwapOHLC4;
 
+    @Column(name = "vwap_hlc3")
     private BigDecimal vwapHLC3;
 
+    @Column(name = "vwap_ohlc4_diff")
     private BigDecimal vwapOHLC4Diff;
 
+    @Column(name = "vwap_hlc3_diff")
     private BigDecimal vwapHLC3Diff;
 
     public MarketData merge(MarketData other) {
