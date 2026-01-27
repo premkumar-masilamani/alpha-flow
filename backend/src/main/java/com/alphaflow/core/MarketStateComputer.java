@@ -18,8 +18,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-import static com.alphaflow.domain.enums.TransformationType.EMA;
-import static com.alphaflow.domain.enums.TransformationType.SMA;
+import static com.alphaflow.domain.enums.TransformationType.*;
+import static com.alphaflow.domain.enums.WindowPeriod.NONE;
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
 import static java.math.BigDecimal.valueOf;
 import static java.time.LocalDate.EPOCH;
@@ -60,13 +60,19 @@ public class MarketStateComputer {
             }
 
             for (MarketDataMetricType metric : MarketDataMetricType.values()) {
+                // Base indicators (no transformations)
+                if (metric == MarketDataMetricType.OBV) {
+                    computeOBV(ticker, metric, allSeries);
+                    continue; // VERY IMPORTANT
+                }
+
+                // Transformations (SMA / EMA only)
                 var spec = metric.transformSpec();
                 for (TransformationType transformation : spec.transformations()) {
                     for (WindowPeriod period : spec.periods()) {
                         switch (transformation) {
                             case SMA -> computeSMA(ticker, metric, period, allSeries);
                             case EMA -> computeEMA(ticker, metric, period, allSeries);
-                            case OBV -> computeOBV(ticker, metric, allSeries);
                         }
                     }
                 }
@@ -81,25 +87,25 @@ public class MarketStateComputer {
             return;
         }
 
-        Optional<MarketState> latestObv = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-            ticker, metric.code(), TransformationType.OBV.code(), WindowPeriod.NONE.days()
+        Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                ticker, metric.code(), OBV.code(), NONE.days()
         );
 
-        BigDecimal obv;
+        BigDecimal onBalanceVolume;
         int startIndex;
 
-        if (latestObv.isPresent()) {
-            MarketState lastObv = latestObv.get();
-            obv = lastObv.getValue();
-            startIndex = findIndexForDate(allSeries, lastObv.getMarketStateDate()) + 1;
+        if (latestMarketState.isPresent()) {
+            MarketState lastOnBalanceVolume = latestMarketState.get();
+            onBalanceVolume = lastOnBalanceVolume.getValue();
+            startIndex = findIndexForDate(allSeries, lastOnBalanceVolume.getMarketStateDate()) + 1;
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
                 log.debug("OBV is up to date for {}", ticker.getTickerSymbol());
                 return;
             }
         } else {
             // First day's OBV is 0
-            persist(allSeries.getFirst(), metric, TransformationType.OBV, WindowPeriod.NONE.days(), BigDecimal.ZERO);
-            obv = BigDecimal.ZERO;
+            persist(allSeries.getFirst(), metric, OBV, NONE.days(), BigDecimal.ZERO);
+            onBalanceVolume = BigDecimal.ZERO;
             startIndex = 1;
         }
 
@@ -110,13 +116,13 @@ public class MarketStateComputer {
             int priceCompare = currentData.getPriceClose().compareTo(previousData.getPriceClose());
 
             if (priceCompare > 0) {
-                obv = obv.add(currentData.getVolume());
+                onBalanceVolume = onBalanceVolume.add(currentData.getVolume());
             } else if (priceCompare < 0) {
-                obv = obv.subtract(currentData.getVolume());
+                onBalanceVolume = onBalanceVolume.subtract(currentData.getVolume());
             }
             // If prices are equal, OBV is unchanged
 
-            persist(currentData, metric, TransformationType.OBV, WindowPeriod.NONE.days(), obv);
+            persist(currentData, metric, OBV, NONE.days(), onBalanceVolume);
         }
         log.info("Computed OBV for {}", ticker.getTickerSymbol());
     }
