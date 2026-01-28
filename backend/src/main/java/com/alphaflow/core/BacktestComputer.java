@@ -125,8 +125,8 @@ public class BacktestComputer {
 
         TradeSignal pendingSignal = new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
 
-        List<BacktestEquityDaily> equities = new ArrayList<>();
-        List<BacktestSignalIntent> signals = new ArrayList<>();
+        List<BacktestEquity> equities = new ArrayList<>();
+        List<BacktestSignal> signals = new ArrayList<>();
         List<BacktestTrade> completedTrades = new ArrayList<>();
 
         BacktestTrade activeTrade = null;
@@ -253,7 +253,7 @@ public class BacktestComputer {
             // ─────────────────────────────
             // 4. Record Daily Equity
             // ─────────────────────────────
-            equities.add(BacktestEquityDaily.builder()
+            equities.add(BacktestEquity.builder()
                     .ticker(ticker)
                     .strategyName(strategy.getName())
                     .equityDate(date)
@@ -268,7 +268,7 @@ public class BacktestComputer {
             // ─────────────────────────────
             LocalDate nextDate = (i + 1 < marketDataList.size()) ? marketDataList.get(i + 1).getMarketDataDate() : null;
 
-            signals.add(BacktestSignalIntent.builder()
+            signals.add(BacktestSignal.builder()
                     .ticker(ticker)
                     .strategyName(strategy.getName())
                     .signalDate(date)
@@ -306,8 +306,8 @@ public class BacktestComputer {
         // Calculate CAGR
         BacktestCagr cagrEntity = null;
         if (!equities.isEmpty()) {
-            BacktestEquityDaily first = equities.getFirst();
-            BacktestEquityDaily last = equities.getLast();
+            BacktestEquity first = equities.getFirst();
+            BacktestEquity last = equities.getLast();
 
             LocalDate startDate = first.getEquityDate();
             LocalDate endDate = last.getEquityDate();
@@ -337,8 +337,8 @@ public class BacktestComputer {
     }
 
     private record BacktestRunResult(
-            List<BacktestEquityDaily> equities,
-            List<BacktestSignalIntent> signals,
+            List<BacktestEquity> equities,
+            List<BacktestSignal> signals,
             List<BacktestTrade> trades,
             BacktestCagr cagr
     ) {

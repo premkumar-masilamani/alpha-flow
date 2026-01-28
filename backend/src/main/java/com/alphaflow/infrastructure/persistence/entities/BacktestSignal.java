@@ -8,16 +8,16 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtest_signal_intent")
+@Table(name = "backtest_signal")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestSignalIntent {
+public class BacktestSignal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestSignalIntentId;
+    private Long backtestSignalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")

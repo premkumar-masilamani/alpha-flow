@@ -24,5 +24,5 @@ ALTER TABLE backtests
 -- 2. Drop new tables
 DROP TABLE IF EXISTS backtest_cagr;
 DROP TABLE IF EXISTS backtest_trade;
-DROP TABLE IF EXISTS backtest_signal_intent;
-DROP TABLE IF EXISTS backtest_equity_daily;
+DROP TABLE IF EXISTS backtest_signal;
+DROP TABLE IF EXISTS backtest_equity;

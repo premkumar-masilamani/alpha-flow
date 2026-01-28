@@ -8,16 +8,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtest_equity_daily")
+@Table(name = "backtest_equity")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestEquityDaily {
+public class BacktestEquity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestEquityDailyId;
+    private Long backtestEquityId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")

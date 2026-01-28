@@ -1,10 +1,10 @@
 package com.alphaflow.infrastructure.persistence.repositories;
 
-import com.alphaflow.infrastructure.persistence.entities.BacktestSignalIntent;
+import com.alphaflow.infrastructure.persistence.entities.BacktestSignal;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface BacktestSignalIntentRepository extends JpaRepository<BacktestSignalIntent, Long> {
+public interface BacktestSignalIntentRepository extends JpaRepository<BacktestSignal, Long> {
 
 }
