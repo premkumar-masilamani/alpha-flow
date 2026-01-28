@@ -90,25 +90,25 @@ public class RenkoDataComputer {
             // Up bricks
             while (vwap.compareTo(currentPrice.add(brickSize)) >= 0) {
                 currentPrice = currentPrice.add(brickSize);
-                RenkoData brick = new RenkoData();
-                brick.setTicker(ticker);
-                brick.setRenkoDate(date);
-                brick.setBrickLow(currentPrice.subtract(brickSize));
-                brick.setBrickHigh(currentPrice);
-                brick.setDirection(RENKO_BRICK_DIRECTION_UP);
-                renkoBricks.add(brick);
+                renkoBricks.add(RenkoData.builder()
+                        .ticker(ticker)
+                        .renkoDate(date)
+                        .brickLow(currentPrice.subtract(brickSize))
+                        .brickHigh(currentPrice)
+                        .direction(RENKO_BRICK_DIRECTION_UP)
+                        .build());
             }
 
             // Down bricks
             while (vwap.compareTo(currentPrice.subtract(brickSize)) <= 0) {
                 currentPrice = currentPrice.subtract(brickSize);
-                RenkoData brick = new RenkoData();
-                brick.setTicker(ticker);
-                brick.setRenkoDate(date);
-                brick.setBrickLow(currentPrice);
-                brick.setBrickHigh(currentPrice.add(brickSize));
-                brick.setDirection(RENKO_BRICK_DIRECTION_DOWN);
-                renkoBricks.add(brick);
+                renkoBricks.add(RenkoData.builder()
+                        .ticker(ticker)
+                        .renkoDate(date)
+                        .brickLow(currentPrice)
+                        .brickHigh(currentPrice.add(brickSize))
+                        .direction(RENKO_BRICK_DIRECTION_DOWN)
+                        .build());
             }
         }
 
