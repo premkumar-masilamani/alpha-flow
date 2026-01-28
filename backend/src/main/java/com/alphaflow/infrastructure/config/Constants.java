@@ -2,7 +2,9 @@ package com.alphaflow.infrastructure.config;
 
 import tech.tablesaw.api.ColumnType;
 
+import java.math.BigDecimal;
 import java.math.MathContext;
+import java.math.RoundingMode;
 import java.time.temporal.TemporalAccessor;
 
 import static java.time.format.DateTimeFormatter.ofPattern;
@@ -28,6 +30,9 @@ public class Constants {
 
     public static final MathContext DB_MATH_CONTEXT = new MathContext(28);
     public static final int DB_QUERY_PAGE_SIZE = 10;
+
+    public static final int SCALE = 8;
+    public static final RoundingMode ROUNDING_MODE = RoundingMode.HALF_UP;
 
     public static final int RENKO_BRICK_SIZE_PERIOD = 9;
     public static final String RENKO_BRICK_DIRECTION_UP = "up";

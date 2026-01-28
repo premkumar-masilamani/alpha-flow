@@ -1,5 +1,6 @@
 package com.alphaflow.infrastructure.persistence.entities;
 
+import com.alphaflow.domain.enums.PositionType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,8 +32,9 @@ public class BacktestEquityDaily {
     @Column(name = "equity", precision = 28, scale = 8)
     private BigDecimal equity;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "position")
-    private String position; // LONG / SHORT / NONE
+    private PositionType position;
 
     @Column(name = "price_close", precision = 28, scale = 8)
     private BigDecimal priceClose;

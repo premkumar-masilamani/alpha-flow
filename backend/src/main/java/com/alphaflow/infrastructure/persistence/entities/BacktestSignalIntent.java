@@ -1,5 +1,7 @@
 package com.alphaflow.infrastructure.persistence.entities;
 
+import com.alphaflow.domain.enums.PositionType;
+import com.alphaflow.domain.enums.TradeAction;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -30,12 +32,15 @@ public class BacktestSignalIntent {
     @Column(name = "execute_date")
     private LocalDate executeDate;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "action")
-    private String action; // ENTER_LONG, ENTER_SHORT, EXIT, HOLD
+    private TradeAction action;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "from_position")
-    private String fromPosition;
+    private PositionType fromPosition;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "to_position")
-    private String toPosition;
+    private PositionType toPosition;
 }

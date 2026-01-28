@@ -1,5 +1,6 @@
 package com.alphaflow.infrastructure.persistence.entities;
 
+import com.alphaflow.domain.enums.TradeSide;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,8 +27,9 @@ public class BacktestTrade {
     @Column(name = "strategy_name")
     private String strategyName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "side")
-    private String side; // LONG / SHORT
+    private TradeSide side;
 
     @Column(name = "entry_date")
     private LocalDate entryDate;

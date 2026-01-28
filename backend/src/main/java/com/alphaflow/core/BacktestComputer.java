@@ -1,15 +1,8 @@
 package com.alphaflow.core;
 
-import com.alphaflow.domain.enums.PositionType;
-import com.alphaflow.domain.enums.TradeAction;
-import com.alphaflow.domain.enums.TradeSignal;
+import com.alphaflow.domain.enums.*;
 import com.alphaflow.domain.strategy.BacktestStrategy;
-import com.alphaflow.infrastructure.persistence.entities.BacktestEquityDaily;
-import com.alphaflow.infrastructure.persistence.entities.BacktestSignalIntent;
-import com.alphaflow.infrastructure.persistence.entities.BacktestTrade;
-import com.alphaflow.infrastructure.persistence.entities.MarketData;
-import com.alphaflow.infrastructure.persistence.entities.MarketState;
-import com.alphaflow.infrastructure.persistence.entities.Ticker;
+import com.alphaflow.infrastructure.persistence.entities.*;
 import com.alphaflow.infrastructure.persistence.repositories.BacktestEquityDailyRepository;
 import com.alphaflow.infrastructure.persistence.repositories.BacktestSignalIntentRepository;
 import com.alphaflow.infrastructure.persistence.repositories.BacktestTradeRepository;
@@ -18,11 +11,11 @@ import com.alphaflow.infrastructure.persistence.repositories.MarketStateReposito
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.alphaflow.infrastructure.config.Constants;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +25,8 @@ public class BacktestComputer {
 
     private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
+    private static final int SCALE = Constants.SCALE;
+    private static final java.math.RoundingMode ROUNDING_MODE = Constants.ROUNDING_MODE;
 
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
@@ -154,7 +149,7 @@ public class BacktestComputer {
                     case ENTER_LONG -> {
                         PositionType target = pendingSignal.targetPosition();
                         shares = totalEquityAtOpen
-                                .divide(priceOpen, 8, RoundingMode.HALF_UP);
+                                .divide(priceOpen, SCALE, ROUNDING_MODE);
 
                         currentCash =
                                 totalEquityAtOpen.subtract(shares.multiply(priceOpen));
@@ -166,7 +161,7 @@ public class BacktestComputer {
                                 .tradeId(UUID.randomUUID())
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
-                                .side("LONG")
+                                .side(TradeSide.LONG)
                                 .entryDate(date)
                                 .entryPrice(priceOpen)
                                 .quantity(shares)
@@ -177,7 +172,7 @@ public class BacktestComputer {
                     case ENTER_SHORT -> {
                         PositionType target = pendingSignal.targetPosition();
                         shares = totalEquityAtOpen
-                                .divide(priceOpen, 8, RoundingMode.HALF_UP);
+                                .divide(priceOpen, SCALE, ROUNDING_MODE);
 
                         currentCash = totalEquityAtOpen;
                         entryPrice = priceOpen;
@@ -188,7 +183,7 @@ public class BacktestComputer {
                                 .tradeId(UUID.randomUUID())
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
-                                .side("SHORT")
+                                .side(TradeSide.SHORT)
                                 .entryDate(date)
                                 .entryPrice(priceOpen)
                                 .quantity(shares)
@@ -200,10 +195,10 @@ public class BacktestComputer {
                         if (activeTrade != null) {
                             activeTrade.setExitDate(date);
                             activeTrade.setExitPrice(priceOpen);
-                            BigDecimal pnl = activeTrade.getSide().equals("LONG")
+                            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
                                     ? activeTrade.getQuantity().multiply(priceOpen.subtract(activeTrade.getEntryPrice()))
                                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(priceOpen));
-                            activeTrade.setPnl(pnl.setScale(8, RoundingMode.HALF_UP));
+                            activeTrade.setPnl(pnl.setScale(SCALE, ROUNDING_MODE));
                             completedTrades.add(activeTrade);
                             activeTrade = null;
                         }
@@ -254,8 +249,8 @@ public class BacktestComputer {
                             .ticker(ticker)
                             .strategyName(strategy.getName())
                             .date(date)
-                            .equity(dailyEquity.setScale(8, RoundingMode.HALF_UP))
-                            .position(position.name())
+                            .equity(dailyEquity.setScale(SCALE, ROUNDING_MODE))
+                            .position(position)
                             .priceClose(priceClose)
                             .build()
             );
@@ -264,10 +259,6 @@ public class BacktestComputer {
             // 5. Record Signal Intent
             // ─────────────────────────────
             LocalDate nextDate = (i + 1 < marketDataList.size()) ? marketDataList.get(i + 1).getMarketDataDate() : null;
-            String actionStr = nextSignal.action().name();
-            if (nextSignal.action() == TradeAction.NO_SIGNAL) {
-                actionStr = "HOLD";
-            }
 
             signals.add(
                     BacktestSignalIntent.builder()
@@ -275,13 +266,29 @@ public class BacktestComputer {
                             .strategyName(strategy.getName())
                             .signalDate(date)
                             .executeDate(nextDate)
-                            .action(actionStr)
-                            .fromPosition(position.name())
-                            .toPosition(nextSignal.targetPosition().name())
+                            .action(nextSignal.action())
+                            .fromPosition(position)
+                            .toPosition(nextSignal.targetPosition())
                             .build()
             );
 
             pendingSignal = nextSignal;
+        }
+
+        // Force-close any open trade on the final bar
+        if (activeTrade != null) {
+            MarketData lastDay = marketDataList.getLast();
+            BigDecimal lastClose = lastDay.getPriceClose();
+
+            activeTrade.setExitDate(lastDay.getMarketDataDate());
+            activeTrade.setExitPrice(lastClose);
+
+            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
+                    ? activeTrade.getQuantity().multiply(lastClose.subtract(activeTrade.getEntryPrice()))
+                    : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(lastClose));
+
+            activeTrade.setPnl(pnl.setScale(SCALE, ROUNDING_MODE));
+            completedTrades.add(activeTrade);
         }
 
         return new BacktestRunResult(equities, signals, completedTrades);
