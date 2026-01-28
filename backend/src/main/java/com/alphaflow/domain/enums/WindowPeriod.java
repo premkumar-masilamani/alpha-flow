@@ -6,7 +6,7 @@ public enum WindowPeriod {
     TEN_DAYS(10),
     TWENTY_DAYS(20),
     TWENTY_ONE_DAYS(21),
-    NONE(0);
+    ZERO(0);
 
     private final int days;
 

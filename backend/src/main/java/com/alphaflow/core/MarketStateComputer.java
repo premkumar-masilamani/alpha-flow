@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.alphaflow.domain.enums.TransformationType.*;
-import static com.alphaflow.domain.enums.WindowPeriod.NONE;
+import static com.alphaflow.domain.enums.WindowPeriod.ZERO;
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
 import static java.math.BigDecimal.valueOf;
 import static java.time.LocalDate.EPOCH;

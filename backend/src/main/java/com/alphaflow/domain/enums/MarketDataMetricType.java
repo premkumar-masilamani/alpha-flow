@@ -53,7 +53,16 @@ public enum MarketDataMetricType {
             null,
             new MetricTransformSpec(
                     EnumSet.of(TransformationType.NONE),
-                    EnumSet.of(NONE)
+                    EnumSet.of(WindowPeriod.ZERO)
+            )
+    ),
+
+    OBV(
+            "OBV",
+            MarketData::getVolume,
+            new MetricTransformSpec(
+                    EnumSet.of(TransformationType.NONE),
+                    EnumSet.of(WindowPeriod.ZERO)
             )
     ),
 
@@ -63,15 +72,6 @@ public enum MarketDataMetricType {
             new MetricTransformSpec(
                     EnumSet.of(SMA),
                     EnumSet.of(FIVE_DAYS)
-            )
-    ),
-
-    OBV(
-            "OBV",
-            MarketData::getVolume,
-            new MetricTransformSpec(
-                    EnumSet.of(TransformationType.OBV),
-                    EnumSet.of(NONE)
             )
     );
 

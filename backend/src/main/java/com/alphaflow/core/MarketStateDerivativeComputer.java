@@ -49,7 +49,7 @@ public class MarketStateDerivativeComputer {
             log.info("Calculating Capital Momentum for {}", ticker.getTickerSymbol());
 
             Optional<MarketState> latestCapitalMomentum = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                    ticker, MarketDataMetricType.CAPITAL_MOMENTUM.code(), TransformationType.NONE.code(), WindowPeriod.NONE.days()
+                    ticker, MarketDataMetricType.CAPITAL_MOMENTUM.code(), TransformationType.NONE.code(), WindowPeriod.ZERO.days()
             );
 
             Optional<MarketState> latestTotalCapitalEma10 = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
