@@ -4,7 +4,6 @@ public enum TransformationType {
 
     SMA("SMA"),
     EMA("EMA"),
-    OBV("OBV"),
     NONE("NONE");
 
     private final String code;
