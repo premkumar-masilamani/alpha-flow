@@ -199,6 +199,12 @@ public class BacktestComputer {
                                     ? activeTrade.getQuantity().multiply(priceOpen.subtract(activeTrade.getEntryPrice()))
                                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(priceOpen));
                             activeTrade.setPnl(pnl.setScale(SCALE, ROUNDING_MODE));
+
+                            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
+                                    ? priceOpen.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE)
+                                    : activeTrade.getEntryPrice().subtract(priceOpen).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE);
+                            activeTrade.setPnlPct(pnlPct);
+
                             completedTrades.add(activeTrade);
                             activeTrade = null;
                         }
@@ -286,8 +292,13 @@ public class BacktestComputer {
             BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
                     ? activeTrade.getQuantity().multiply(lastClose.subtract(activeTrade.getEntryPrice()))
                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(lastClose));
-
             activeTrade.setPnl(pnl.setScale(SCALE, ROUNDING_MODE));
+
+            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
+                    ? lastClose.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE)
+                    : activeTrade.getEntryPrice().subtract(lastClose).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE);
+            activeTrade.setPnlPct(pnlPct);
+
             completedTrades.add(activeTrade);
         }
 

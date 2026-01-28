@@ -49,6 +49,9 @@ public class BacktestTrade {
     @Column(name = "pnl", precision = 28, scale = 8)
     private BigDecimal pnl;
 
+    @Column(name = "pnl_pct", precision = 28, scale = 8)
+    private BigDecimal pnlPct;
+
     @Column(name = "holding_bars")
     private Integer holdingBars;
 }

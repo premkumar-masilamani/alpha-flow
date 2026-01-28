@@ -37,6 +37,7 @@ CREATE TABLE backtest_trade (
     exit_price    NUMERIC(28, 8),
     quantity      NUMERIC(28, 8) NOT NULL,
     pnl           NUMERIC(28, 8),
+    pnl_pct       NUMERIC(28, 8),
     holding_bars  INTEGER,
     CONSTRAINT fk_trade_ticker FOREIGN KEY (ticker_id) REFERENCES tickers(ticker_id) ON DELETE CASCADE
 );
