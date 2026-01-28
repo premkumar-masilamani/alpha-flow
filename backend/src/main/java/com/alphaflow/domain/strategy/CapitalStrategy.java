@@ -40,94 +40,44 @@ public class CapitalStrategy implements BacktestStrategy {
         BigDecimal priceClose = currentDayMarketData.getPriceClose();
         BigDecimal capitalVAH = currentDayMarketData.getCapitalVAH();
         BigDecimal capitalVAL = currentDayMarketData.getCapitalVAL();
-        BigDecimal capitalPOC = currentDayMarketData.getCapitalPOC();
 
-        // ───────────────── Structural hard exit ─────────────────
-        if (priceClose.compareTo(capitalVAL) < 0 &&
-                currentDayPosition.name().startsWith("LONG")) {
-            return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
-        }
-
-        if (priceClose.compareTo(capitalVAH) > 0 &&
-                currentDayPosition.name().startsWith("SHORT")) {
-            return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
-        }
-
-        return switch (currentDayPosition) {
-
-            // ───────────────── FLAT → ENTRY ─────────────────
-            case NONE -> {
-
-                boolean enterLong =
-                        ema5Vwap.compareTo(ema21Vwap) > 0 &&
-                                sma5Poc.compareTo(sma10Poc) > 0 &&
-                                capitalMomentum.compareTo(BigDecimal.ZERO) > 0 &&
-                                sma5BuyerRatio.compareTo(new BigDecimal("0.55")) > 0 &&
-                                priceClose.compareTo(capitalVAH) > 0;
-
-                boolean enterShort =
-                        ema5Vwap.compareTo(ema21Vwap) < 0 &&
-                                sma5Poc.compareTo(sma10Poc) < 0 &&
-                                capitalMomentum.compareTo(BigDecimal.ZERO) < 0 &&
-                                sma5BuyerRatio.compareTo(new BigDecimal("0.45")) < 0 &&
-                                priceClose.compareTo(capitalVAL) < 0;
-
-                if (enterLong) {
-                    yield new TradeSignal(TradeAction.ENTER_LONG, PositionType.LONG_100);
-                } else if (enterShort) {
-                    yield new TradeSignal(TradeAction.ENTER_SHORT, PositionType.SHORT_100);
-                } else {
-                    yield new TradeSignal(TradeAction.HOLD, PositionType.NONE);
-                }
-            }
-
-            // ───────────────── FULL LONG ─────────────────
-            case LONG_100 -> {
-                boolean reduce =
-                        capitalMomentum.compareTo(BigDecimal.ZERO) < 0 ||
-                                sma5BuyerRatio.compareTo(new BigDecimal("0.50")) < 0;
-
-                yield reduce
-                        ? new TradeSignal(TradeAction.REDUCE, PositionType.LONG_50)
-                        : new TradeSignal(TradeAction.HOLD, PositionType.LONG_100);
-            }
-
-            // ───────────────── HALF LONG ─────────────────
-            case LONG_50 -> {
-                boolean reAdd =
+        boolean enterLong =
+                ema5Vwap.compareTo(ema21Vwap) > 0 &&
+                        sma5Poc.compareTo(sma10Poc) > 0 &&
                         capitalMomentum.compareTo(BigDecimal.ZERO) > 0 &&
-                                priceClose.compareTo(capitalPOC) > 0;
+                        sma5BuyerRatio.compareTo(new BigDecimal("0.55")) > 0 &&
+                        priceClose.compareTo(capitalVAH) > 0;
 
-                yield reAdd
-                        ? new TradeSignal(TradeAction.ENTER_LONG, PositionType.LONG_100)
-                        : new TradeSignal(TradeAction.HOLD, PositionType.LONG_50);
-            }
-
-            // ───────────────── FULL SHORT ─────────────────
-            case SHORT_100 -> {
-                boolean reduce =
-                        capitalMomentum.compareTo(BigDecimal.ZERO) > 0 ||
-                                sma5BuyerRatio.compareTo(new BigDecimal("0.50")) > 0;
-
-                yield reduce
-                        ? new TradeSignal(TradeAction.REDUCE, PositionType.SHORT_50)
-                        : new TradeSignal(TradeAction.HOLD, PositionType.SHORT_100);
-            }
-
-            // ───────────────── HALF SHORT ─────────────────
-            case SHORT_50 -> {
-                boolean reAdd =
+        boolean enterShort =
+                ema5Vwap.compareTo(ema21Vwap) < 0 &&
+                        sma5Poc.compareTo(sma10Poc) < 0 &&
                         capitalMomentum.compareTo(BigDecimal.ZERO) < 0 &&
-                                priceClose.compareTo(capitalPOC) < 0;
+                        sma5BuyerRatio.compareTo(new BigDecimal("0.45")) < 0 &&
+                        priceClose.compareTo(capitalVAL) < 0;
 
-                yield reAdd
-                        ? new TradeSignal(TradeAction.ENTER_SHORT, PositionType.SHORT_100)
-                        : new TradeSignal(TradeAction.HOLD, PositionType.SHORT_50);
-            }
+        // 1. Structural hard exits
+        if (currentDayPosition == PositionType.LONG && priceClose.compareTo(capitalVAL) < 0) {
+            return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
+        }
+        if (currentDayPosition == PositionType.SHORT && priceClose.compareTo(capitalVAH) > 0) {
+            return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
+        }
 
-            // ───────────────── Other sizes / future ─────────────────
-            default -> new TradeSignal(TradeAction.HOLD, currentDayPosition);
-        };
+        // 2. Entry / Flip signals
+        if (enterLong) {
+            return (currentDayPosition == PositionType.LONG)
+                    ? new TradeSignal(TradeAction.HOLD, PositionType.LONG)
+                    : new TradeSignal(TradeAction.ENTER_LONG, PositionType.LONG);
+        }
+
+        if (enterShort) {
+            return (currentDayPosition == PositionType.SHORT)
+                    ? new TradeSignal(TradeAction.HOLD, PositionType.SHORT)
+                    : new TradeSignal(TradeAction.ENTER_SHORT, PositionType.SHORT);
+        }
+
+        // 3. If neither condition satisfies, hold current position
+        return new TradeSignal(TradeAction.HOLD, currentDayPosition);
     }
 
 }

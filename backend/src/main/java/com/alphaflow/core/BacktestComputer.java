@@ -126,21 +126,18 @@ public class BacktestComputer {
 
                 BigDecimal totalEquityAtOpen =
                         switch (position) {
-                            case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
+                            case SHORT -> currentCash.add(
                                     shares.multiply(entryPrice.subtract(priceOpen))
                             );
-                            case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceOpen));
+                            case LONG -> currentCash.add(shares.multiply(priceOpen));
                             default -> currentCash;
                         };
 
                 switch (pendingSignal.action()) {
 
-                    case ENTER_LONG, REDUCE -> {
+                    case ENTER_LONG -> {
                         PositionType target = pendingSignal.targetPosition();
-                        BigDecimal allocation = positionFraction(target);
-
                         shares = totalEquityAtOpen
-                                .multiply(allocation)
                                 .divide(priceOpen, 8, RoundingMode.HALF_UP);
 
                         currentCash =
@@ -151,10 +148,7 @@ public class BacktestComputer {
 
                     case ENTER_SHORT -> {
                         PositionType target = pendingSignal.targetPosition();
-                        BigDecimal allocation = positionFraction(target);
-
                         shares = totalEquityAtOpen
-                                .multiply(allocation)
                                 .divide(priceOpen, 8, RoundingMode.HALF_UP);
 
                         currentCash = totalEquityAtOpen;
@@ -179,9 +173,9 @@ public class BacktestComputer {
             // ─────────────────────────────
             BigDecimal dailyEquity =
                     switch (position) {
-                        case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceClose));
+                        case LONG -> currentCash.add(shares.multiply(priceClose));
 
-                        case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
+                        case SHORT -> currentCash.add(
                                 shares.multiply(entryPrice.subtract(priceClose))
                         );
 
@@ -216,15 +210,6 @@ public class BacktestComputer {
         }
 
         return results;
-    }
-
-    private BigDecimal positionFraction(PositionType positionType) {
-        return switch (positionType) {
-            case LONG_25, SHORT_25 -> new BigDecimal("0.25");
-            case LONG_50, SHORT_50 -> new BigDecimal("0.50");
-            case LONG_100, SHORT_100 -> BigDecimal.ONE;
-            default -> BigDecimal.ZERO;
-        };
     }
 
 }
