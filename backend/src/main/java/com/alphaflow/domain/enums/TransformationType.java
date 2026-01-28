@@ -5,7 +5,7 @@ public enum TransformationType {
     SMA("SMA"),
     EMA("EMA"),
     OBV("OBV"),
-    CAP_MOM("CAP_MOM");
+    NONE("NONE");
 
     private final String code;
 

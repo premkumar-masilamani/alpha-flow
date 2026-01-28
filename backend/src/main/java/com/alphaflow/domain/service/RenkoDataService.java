@@ -40,7 +40,7 @@ public class RenkoDataService {
 
     private RenkoResponseDTO calculatePricesAndCreateResponse(List<RenkoData> renkoBricks) {
         if (renkoBricks.isEmpty()) {
-            return RenkoResponseDTO.builder().build();
+            return new RenkoResponseDTO(List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
 
         RenkoData currentTrendBrick = getCurrentTrendBrick(renkoBricks);
@@ -64,11 +64,7 @@ public class RenkoDataService {
                 .map(RenkoDataMapper::toDTO)
                 .toList();
 
-        return RenkoResponseDTO.builder()
-                .bricks(brickDTOs)
-                .currentPrice(currentPrice)
-                .stopLossPrice(stopLossPrice)
-                .brickSize(brickSize).build();
+        return new RenkoResponseDTO(brickDTOs, currentPrice, stopLossPrice, brickSize);
     }
 
     private RenkoData getCurrentTrendBrick(List<RenkoData> renkoBricks) {

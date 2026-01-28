@@ -1,12 +1,10 @@
 package com.alphaflow.api.dtos;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Builder
 public record MarketDataDTO(
         @JsonProperty("date") LocalDate marketDataDate,
         @JsonProperty("open") BigDecimal priceOpen,

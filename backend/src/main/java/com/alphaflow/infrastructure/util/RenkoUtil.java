@@ -3,6 +3,8 @@ package com.alphaflow.infrastructure.util;
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import com.alphaflow.infrastructure.persistence.entities.RenkoData;
 import com.alphaflow.infrastructure.persistence.entities.Ticker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -13,6 +15,8 @@ import static com.alphaflow.infrastructure.config.Constants.*;
 import static java.math.BigDecimal.valueOf;
 
 public class RenkoUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(RenkoUtil.class);
 
     public static int getZoneFromTrend(int trend) {
         if (trend <= 3) return 0;
@@ -26,15 +30,23 @@ public class RenkoUtil {
         int loopbackStart = Math.max(0, allSeries.size() - RENKO_BRICK_SIZE_PERIOD);
         List<MarketData> loopbackMarketData = allSeries.subList(loopbackStart, allSeries.size());
 
+        log.info("Using the following periods for brick size calculation:");
         BigDecimal totalRange = BigDecimal.ZERO;
         for (MarketData marketData : loopbackMarketData) {
-            totalRange = totalRange.add(
-                    marketData.getPriceHigh().subtract(marketData.getPriceLow())
-            );
+            BigDecimal range = marketData.getPriceHigh().subtract(marketData.getPriceLow());
+            totalRange = totalRange.add(range);
+            log.info("  {}: High = {}, Low = {}, Range = {}",
+                marketData.getMarketDataDate(), marketData.getPriceHigh(), marketData.getPriceLow(), range);
         }
 
         BigDecimal avgRange = totalRange.divide(valueOf(RENKO_BRICK_SIZE_PERIOD), DB_MATH_CONTEXT);
-        return avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
+        BigDecimal brickSize = avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
+
+        log.info("Total range: {}", totalRange);
+        log.info("Average range: {}", avgRange);
+        log.info("Brick size (half of average range): {}", brickSize);
+
+        return brickSize;
     }
 
     public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, BigDecimal brickSize) {

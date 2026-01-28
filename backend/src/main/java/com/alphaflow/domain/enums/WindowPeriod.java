@@ -2,11 +2,11 @@ package com.alphaflow.domain.enums;
 
 public enum WindowPeriod {
 
-    ZERO_DAYS(0),
     FIVE_DAYS(5),
     TEN_DAYS(10),
     TWENTY_DAYS(20),
-    TWENTY_ONE_DAYS(21);
+    TWENTY_ONE_DAYS(21),
+    NONE(0);
 
     private final int days;
 

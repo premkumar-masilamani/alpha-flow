@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.alphaflow.domain.enums.TransformationType.*;
-import static com.alphaflow.domain.enums.WindowPeriod.ZERO_DAYS;
+import static com.alphaflow.domain.enums.WindowPeriod.NONE;
 import static com.alphaflow.infrastructure.config.Constants.DB_MATH_CONTEXT;
 import static java.math.BigDecimal.valueOf;
 import static java.time.LocalDate.EPOCH;
@@ -88,7 +88,7 @@ public class MarketStateComputer {
         }
 
         Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                ticker, metric.code(), OBV.code(), ZERO_DAYS.days()
+                ticker, metric.code(), OBV.code(), NONE.days()
         );
 
         BigDecimal onBalanceVolume;
@@ -104,7 +104,7 @@ public class MarketStateComputer {
             }
         } else {
             // First day's OBV is 0
-            persist(allSeries.getFirst(), metric, OBV, ZERO_DAYS.days(), BigDecimal.ZERO);
+            persist(allSeries.getFirst(), metric, OBV, NONE.days(), BigDecimal.ZERO);
             onBalanceVolume = BigDecimal.ZERO;
             startIndex = 1;
         }
@@ -122,7 +122,7 @@ public class MarketStateComputer {
             }
             // If prices are equal, OBV is unchanged
 
-            persist(currentData, metric, OBV, ZERO_DAYS.days(), onBalanceVolume);
+            persist(currentData, metric, OBV, NONE.days(), onBalanceVolume);
         }
         log.info("Computed OBV for {}", ticker.getTickerSymbol());
     }

@@ -117,16 +117,19 @@ public class TickDataDownloader {
     }
 
 
-    private void saveFileRecord(Ticker ticker, LocalDate fileDate, String fileUrl) {
+    private void saveFileRecord(Ticker ticker, LocalDate date, String baseUrl) {
+
+        File file = new File();
+        file.setTicker(ticker);
+        file.setFileDate(date);
+        file.setFileUrl(baseUrl);
+        file.setIsProcessed(false);
+
         try {
-            fileRepository.save(File.builder()
-                    .ticker(ticker)
-                    .fileDate(fileDate)
-                    .fileUrl(fileUrl)
-                    .isProcessed(false).build());
-            log.info("Saved file for {} on {}", ticker.getTickerSymbol(), fileDate);
+            fileRepository.save(file);
+            log.info("Saved file for {} on {}", ticker.getTickerSymbol(), date);
         } catch (DataIntegrityViolationException ignore) {
-            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getTickerSymbol(), fileDate);
+            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getTickerSymbol(), date);
         }
     }
 
