@@ -1,7 +1,8 @@
 package com.alphaflow.infrastructure.persistence.entities;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -9,9 +10,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "market_state")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 @ToString(exclude = "ticker")
 public class MarketState {
 

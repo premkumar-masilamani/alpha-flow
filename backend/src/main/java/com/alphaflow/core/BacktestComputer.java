@@ -2,20 +2,24 @@ package com.alphaflow.core;
 
 import com.alphaflow.domain.enums.PositionType;
 import com.alphaflow.domain.enums.TradeAction;
-import com.alphaflow.domain.enums.TradeSide;
 import com.alphaflow.domain.enums.TradeSignal;
 import com.alphaflow.domain.strategy.BacktestStrategy;
-import com.alphaflow.infrastructure.config.Constants;
-import com.alphaflow.infrastructure.persistence.entities.*;
-import com.alphaflow.infrastructure.persistence.repositories.*;
+import com.alphaflow.infrastructure.persistence.entities.BacktestResult;
+import com.alphaflow.infrastructure.persistence.entities.MarketData;
+import com.alphaflow.infrastructure.persistence.entities.MarketState;
+import com.alphaflow.infrastructure.persistence.entities.Ticker;
+import com.alphaflow.infrastructure.persistence.repositories.BacktestResultRepository;
+import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
+import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
+import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -25,16 +29,13 @@ import java.util.stream.Collectors;
 @Service
 public class BacktestComputer {
 
-    public static final double YEAR_IN_DAYS = 365.25;
     private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
+
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
-    private final BacktestEquityDailyRepository equityRepository;
-    private final BacktestSignalIntentRepository signalRepository;
-    private final BacktestTradeRepository tradeRepository;
-    private final BacktestCagrRepository cagrRepository;
+    private final BacktestResultRepository backtestResultRepository;
     private final List<BacktestStrategy> strategies;
     private final TransactionTemplate transactionTemplate;
 
@@ -42,35 +43,20 @@ public class BacktestComputer {
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
-            BacktestEquityDailyRepository equityRepository,
-            BacktestSignalIntentRepository signalRepository,
-            BacktestTradeRepository tradeRepository,
-            BacktestCagrRepository cagrRepository,
+            BacktestResultRepository backtestResultRepository,
             List<BacktestStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
         this.marketDataRepository = marketDataRepository;
         this.marketStateRepository = marketStateRepository;
-        this.equityRepository = equityRepository;
-        this.signalRepository = signalRepository;
-        this.tradeRepository = tradeRepository;
-        this.cagrRepository = cagrRepository;
+        this.backtestResultRepository = backtestResultRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
     }
 
     public void compute() {
         log.info("Starting Backtest Computation for all active tickers");
-
-        // Clear all previous results to ensure a clean slate
-        transactionTemplate.execute(status -> {
-            equityRepository.deleteAllInBatch();
-            signalRepository.deleteAllInBatch();
-            tradeRepository.deleteAllInBatch();
-            cagrRepository.deleteAllInBatch();
-            return status;
-        });
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Running backtests for {}", ticker.getTickerSymbol());
@@ -96,13 +82,11 @@ public class BacktestComputer {
 
             for (BacktestStrategy strategy : strategies) {
                 log.info("Running strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
-                BacktestRunResult result = runBacktest(ticker, strategy, marketDataList, indicatorMap);
-                // Save in a single transaction
+                List<BacktestResult> results = runBacktest(ticker, strategy, marketDataList, indicatorMap);
+                // Delete and Save in a single transaction
                 transactionTemplate.execute(status -> {
-                    equityRepository.saveAll(result.equities());
-                    signalRepository.saveAll(result.signals());
-                    tradeRepository.saveAll(result.trades());
-                    cagrRepository.save(result.cagr());
+                    backtestResultRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
+                    backtestResultRepository.saveAllAndFlush(results);
                     return status;
                 });
             }
@@ -111,7 +95,7 @@ public class BacktestComputer {
         log.info("Backtest Computation completed.");
     }
 
-    private BacktestRunResult runBacktest(
+    private List<BacktestResult> runBacktest(
             Ticker ticker,
             BacktestStrategy strategy,
             List<MarketData> marketDataList,
@@ -123,16 +107,13 @@ public class BacktestComputer {
         BigDecimal shares = BigDecimal.ZERO;
         BigDecimal entryPrice = BigDecimal.ZERO; // for shorts
 
-        TradeSignal pendingSignal = new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+        TradeSignal pendingSignal =
+                new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
 
-        List<BacktestEquity> equities = new ArrayList<>();
-        List<BacktestSignal> signals = new ArrayList<>();
-        List<BacktestTrade> completedTrades = new ArrayList<>();
+        List<BacktestResult> results = new ArrayList<>();
 
-        BacktestTrade activeTrade = null;
+        for (MarketData currentDay : marketDataList) {
 
-        for (int i = 0; i < marketDataList.size(); i++) {
-            MarketData currentDay = marketDataList.get(i);
             LocalDate date = currentDay.getMarketDataDate();
             BigDecimal priceOpen = currentDay.getPriceOpen();
             BigDecimal priceClose = currentDay.getPriceClose();
@@ -145,76 +126,43 @@ public class BacktestComputer {
 
                 BigDecimal totalEquityAtOpen =
                         switch (position) {
-                            case SHORT -> currentCash.add(
+                            case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
                                     shares.multiply(entryPrice.subtract(priceOpen))
                             );
-                            case LONG -> currentCash.add(shares.multiply(priceOpen));
+                            case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceOpen));
                             default -> currentCash;
                         };
 
                 switch (pendingSignal.action()) {
 
-                    case ENTER_LONG -> {
+                    case ENTER_LONG, REDUCE -> {
                         PositionType target = pendingSignal.targetPosition();
+                        BigDecimal allocation = positionFraction(target);
+
                         shares = totalEquityAtOpen
-                                .divide(priceOpen, Constants.DB_MATH_CONTEXT);
+                                .multiply(allocation)
+                                .divide(priceOpen, 8, RoundingMode.HALF_UP);
 
                         currentCash =
                                 totalEquityAtOpen.subtract(shares.multiply(priceOpen));
 
                         position = target;
-
-                        // Start trade record
-                        activeTrade = BacktestTrade.builder()
-                                .ticker(ticker)
-                                .strategyName(strategy.getName())
-                                .side(TradeSide.LONG)
-                                .entryDate(date)
-                                .entryPrice(priceOpen)
-                                .quantity(shares)
-                                .holdingBars(0)
-                                .build();
                     }
 
                     case ENTER_SHORT -> {
                         PositionType target = pendingSignal.targetPosition();
+                        BigDecimal allocation = positionFraction(target);
+
                         shares = totalEquityAtOpen
-                                .divide(priceOpen, Constants.DB_MATH_CONTEXT);
+                                .multiply(allocation)
+                                .divide(priceOpen, 8, RoundingMode.HALF_UP);
 
                         currentCash = totalEquityAtOpen;
                         entryPrice = priceOpen;
                         position = target;
-
-                        // Start trade record
-                        activeTrade = BacktestTrade.builder()
-                                .ticker(ticker)
-                                .strategyName(strategy.getName())
-                                .side(TradeSide.SHORT)
-                                .entryDate(date)
-                                .entryPrice(priceOpen)
-                                .quantity(shares)
-                                .holdingBars(0)
-                                .build();
                     }
 
                     case EXIT -> {
-                        if (activeTrade != null) {
-                            activeTrade.setExitDate(date);
-                            activeTrade.setExitPrice(priceOpen);
-                            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
-                                    ? activeTrade.getQuantity().multiply(priceOpen.subtract(activeTrade.getEntryPrice()))
-                                    : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(priceOpen));
-                            activeTrade.setPnl(pnl);
-
-                            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
-                                    ? priceOpen.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT)
-                                    : activeTrade.getEntryPrice().subtract(priceOpen).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT);
-                            activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
-
-                            completedTrades.add(activeTrade);
-                            activeTrade = null;
-                        }
-
                         currentCash = totalEquityAtOpen;
                         shares = BigDecimal.ZERO;
                         position = PositionType.NONE;
@@ -226,18 +174,14 @@ public class BacktestComputer {
                 }
             }
 
-            if (activeTrade != null) {
-                activeTrade.setHoldingBars(activeTrade.getHoldingBars() + 1);
-            }
-
             // ─────────────────────────────
             // 2. Equity at today's close
             // ─────────────────────────────
             BigDecimal dailyEquity =
                     switch (position) {
-                        case LONG -> currentCash.add(shares.multiply(priceClose));
+                        case LONG_25, LONG_50, LONG_100 -> currentCash.add(shares.multiply(priceClose));
 
-                        case SHORT -> currentCash.add(
+                        case SHORT_25, SHORT_50, SHORT_100 -> currentCash.add(
                                 shares.multiply(entryPrice.subtract(priceClose))
                         );
 
@@ -247,101 +191,40 @@ public class BacktestComputer {
             // ─────────────────────────────
             // 3. Generate next signal
             // ─────────────────────────────
-            Map<String, BigDecimal> indicators = indicatorMap.getOrDefault(date, Collections.emptyMap());
-            TradeSignal nextSignal = strategy.generateSignal(currentDay, indicators, position);
+            Map<String, BigDecimal> indicators =
+                    indicatorMap.getOrDefault(date, Collections.emptyMap());
+
+            TradeSignal nextSignal =
+                    strategy.generateSignal(currentDay, indicators, position);
 
             // ─────────────────────────────
-            // 4. Record Daily Equity
+            // 4. Record result
             // ─────────────────────────────
-            equities.add(BacktestEquity.builder()
-                    .ticker(ticker)
-                    .strategyName(strategy.getName())
-                    .equityDate(date)
-                    .equity(dailyEquity)
-                    .position(position)
-                    .priceClose(priceClose)
-                    .build()
-            );
-
-            // ─────────────────────────────
-            // 5. Record Signal Intent
-            // ─────────────────────────────
-            LocalDate nextDate = (i + 1 < marketDataList.size()) ? marketDataList.get(i + 1).getMarketDataDate() : null;
-
-            signals.add(BacktestSignal.builder()
-                    .ticker(ticker)
-                    .strategyName(strategy.getName())
-                    .signalDate(date)
-                    .executeDate(nextDate)
-                    .action(nextSignal.action())
-                    .fromPosition(position)
-                    .toPosition(nextSignal.targetPosition())
-                    .build()
+            results.add(
+                    BacktestResult.builder()
+                            .ticker(ticker)
+                            .date(date)
+                            .strategyName(strategy.getName())
+                            .equity(dailyEquity.setScale(8, RoundingMode.HALF_UP))
+                            .position(position.name())
+                            .price(priceClose)
+                            .signal(nextSignal.action().name())
+                            .build()
             );
 
             pendingSignal = nextSignal;
         }
 
-        // Force-close any open trade on the final bar
-        if (activeTrade != null) {
-            MarketData lastDay = marketDataList.getLast();
-            BigDecimal lastClose = lastDay.getPriceClose();
-
-            activeTrade.setExitDate(lastDay.getMarketDataDate());
-            activeTrade.setExitPrice(lastClose);
-
-            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
-                    ? activeTrade.getQuantity().multiply(lastClose.subtract(activeTrade.getEntryPrice()))
-                    : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(lastClose));
-            activeTrade.setPnl(pnl);
-
-            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
-                    ? lastClose.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT)
-                    : activeTrade.getEntryPrice().subtract(lastClose).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT);
-            activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
-
-            completedTrades.add(activeTrade);
-        }
-
-        // Calculate CAGR
-        BacktestCagr cagrEntity = null;
-        if (!equities.isEmpty()) {
-            BacktestEquity first = equities.getFirst();
-            BacktestEquity last = equities.getLast();
-
-            LocalDate startDate = first.getEquityDate();
-            LocalDate endDate = last.getEquityDate();
-
-            long days = ChronoUnit.DAYS.between(startDate, endDate);
-            if (days > 0) {
-                double years = days / YEAR_IN_DAYS;
-                double initialValue = INITIAL_EQUITY.doubleValue();
-                double finalValue = last.getEquity().doubleValue();
-
-                double cagrValue = (Math.pow(finalValue / initialValue, 1.0 / years) - 1.0) * 100.0;
-
-                cagrEntity = BacktestCagr.builder()
-                        .ticker(ticker)
-                        .strategyName(strategy.getName())
-                        .initialEquity(INITIAL_EQUITY)
-                        .finalEquity(last.getEquity())
-                        .startDate(startDate)
-                        .endDate(endDate)
-                        .years(new BigDecimal(years, Constants.DB_MATH_CONTEXT))
-                        .cagr(new BigDecimal(cagrValue, Constants.DB_MATH_CONTEXT))
-                        .build();
-            }
-        }
-
-        return new BacktestRunResult(equities, signals, completedTrades, cagrEntity);
+        return results;
     }
 
-    private record BacktestRunResult(
-            List<BacktestEquity> equities,
-            List<BacktestSignal> signals,
-            List<BacktestTrade> trades,
-            BacktestCagr cagr
-    ) {
+    private BigDecimal positionFraction(PositionType positionType) {
+        return switch (positionType) {
+            case LONG_25, SHORT_25 -> new BigDecimal("0.25");
+            case LONG_50, SHORT_50 -> new BigDecimal("0.50");
+            case LONG_100, SHORT_100 -> BigDecimal.ONE;
+            default -> BigDecimal.ZERO;
+        };
     }
 
 }

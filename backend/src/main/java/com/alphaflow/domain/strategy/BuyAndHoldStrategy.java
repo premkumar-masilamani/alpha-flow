@@ -21,7 +21,7 @@ public class BuyAndHoldStrategy implements BacktestStrategy {
     public TradeSignal generateSignal(MarketData currentDayMarketData, Map<String, BigDecimal> currentDayIndicators, PositionType currentDayPosition) {
         // Enter once, at full size
         if (currentDayPosition == PositionType.NONE) {
-            return new TradeSignal(TradeAction.ENTER_LONG, PositionType.LONG);
+            return new TradeSignal(TradeAction.ENTER_LONG, PositionType.LONG_100);
         }
         // Hold forever
         return new TradeSignal(TradeAction.HOLD, currentDayPosition);

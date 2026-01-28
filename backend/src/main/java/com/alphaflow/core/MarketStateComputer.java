@@ -60,19 +60,17 @@ public class MarketStateComputer {
             }
 
             for (MarketDataMetricType metric : MarketDataMetricType.values()) {
-                // Base indicators (no transformations)
-                if (metric == MarketDataMetricType.OBV) {
-                    computeOBV(ticker, metric, allSeries);
-                    continue; // VERY IMPORTANT
-                }
-
-                // Transformations (SMA / EMA only)
                 var spec = metric.transformSpec();
                 for (TransformationType transformation : spec.transformations()) {
                     for (WindowPeriod period : spec.periods()) {
                         switch (transformation) {
                             case SMA -> computeSMA(ticker, metric, period, allSeries);
                             case EMA -> computeEMA(ticker, metric, period, allSeries);
+                            case NONE -> {
+                                if (metric == MarketDataMetricType.OBV) {
+                                    computeOBV(ticker, allSeries);
+                                }
+                            }
                         }
                     }
                 }
@@ -80,51 +78,6 @@ public class MarketStateComputer {
         });
 
         log.info("Completed Market State Computation");
-    }
-
-    private void computeOBV(Ticker ticker, MarketDataMetricType metric, List<MarketData> allSeries) {
-        if (allSeries.isEmpty()) {
-            return;
-        }
-
-        Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                ticker, metric.code(), OBV.code(), NONE.days()
-        );
-
-        BigDecimal onBalanceVolume;
-        int startIndex;
-
-        if (latestMarketState.isPresent()) {
-            MarketState lastOnBalanceVolume = latestMarketState.get();
-            onBalanceVolume = lastOnBalanceVolume.getValue();
-            startIndex = findIndexForDate(allSeries, lastOnBalanceVolume.getMarketStateDate()) + 1;
-            if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.debug("OBV is up to date for {}", ticker.getTickerSymbol());
-                return;
-            }
-        } else {
-            // First day's OBV is 0
-            persist(allSeries.getFirst(), metric, OBV, NONE.days(), BigDecimal.ZERO);
-            onBalanceVolume = BigDecimal.ZERO;
-            startIndex = 1;
-        }
-
-        for (int i = startIndex; i < allSeries.size(); i++) {
-            MarketData currentData = allSeries.get(i);
-            MarketData previousData = allSeries.get(i - 1);
-
-            int priceCompare = currentData.getPriceClose().compareTo(previousData.getPriceClose());
-
-            if (priceCompare > 0) {
-                onBalanceVolume = onBalanceVolume.add(currentData.getVolume());
-            } else if (priceCompare < 0) {
-                onBalanceVolume = onBalanceVolume.subtract(currentData.getVolume());
-            }
-            // If prices are equal, OBV is unchanged
-
-            persist(currentData, metric, OBV, NONE.days(), onBalanceVolume);
-        }
-        log.info("Computed OBV for {}", ticker.getTickerSymbol());
     }
 
     /**
@@ -240,6 +193,56 @@ public class MarketStateComputer {
             }
         }
         return -1;
+    }
+
+    /**
+     * On-Balance Volume (OBV) calculation.
+     * Formula:
+     * If Close > Close_prev: OBV = OBV_prev + Volume
+     * If Close < Close_prev: OBV = OBV_prev - Volume
+     * If Close = Close_prev: OBV = OBV_prev
+     * Initial OBV is the volume of the first period.
+     */
+    private void computeOBV(Ticker ticker, List<MarketData> allSeries) {
+        if (allSeries.isEmpty()) return;
+
+        Optional<MarketState> latestObv = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                ticker, MarketDataMetricType.OBV.code(), NONE.code(), ZERO.days()
+        );
+
+        BigDecimal currentObv;
+        int startIndex;
+
+        if (latestObv.isPresent()) {
+            currentObv = latestObv.get().getValue();
+            LocalDate lastDate = latestObv.get().getMarketStateDate();
+            startIndex = findIndexForDate(allSeries, lastDate) + 1;
+            if (startIndex <= 0 || startIndex >= allSeries.size()) {
+                return;
+            }
+        } else {
+            // First record: OBV = first day's volume
+            currentObv = allSeries.getFirst().getVolume();
+            persist(allSeries.getFirst(), MarketDataMetricType.OBV, NONE, ZERO.days(), currentObv);
+            startIndex = 1;
+        }
+
+        int count = 0;
+        for (int i = startIndex; i < allSeries.size(); i++) {
+            MarketData current = allSeries.get(i);
+            MarketData previous = allSeries.get(i - 1);
+
+            int cmp = current.getPriceClose().compareTo(previous.getPriceClose());
+            if (cmp > 0) {
+                currentObv = currentObv.add(current.getVolume(), DB_MATH_CONTEXT);
+            } else if (cmp < 0) {
+                currentObv = currentObv.subtract(current.getVolume(), DB_MATH_CONTEXT);
+            }
+
+            persist(current, MarketDataMetricType.OBV, NONE, ZERO.days(), currentObv);
+            count++;
+        }
+        log.info("Computed {} new OBV records for {}", count, ticker.getTickerSymbol());
     }
 
     private void persist(MarketData marketData, MarketDataMetricType metric, TransformationType maType, int period, BigDecimal value) {

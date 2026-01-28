@@ -31,7 +31,6 @@ public class MetricsComputer {
             return new OHLCVMetrics(
                     BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, BigDecimal.ZERO,
-                    BigDecimal.ZERO, BigDecimal.ZERO,
                     BigDecimal.ZERO, BigDecimal.ZERO
             );
         }
@@ -60,16 +59,7 @@ public class MetricsComputer {
                 ? quoteVolume.divide(volume, DB_MATH_CONTEXT)
                 : BigDecimal.ZERO;
 
-        BigDecimal vwapOHLC4 = open.add(high, DB_MATH_CONTEXT)
-                .add(low, DB_MATH_CONTEXT)
-                .add(close, DB_MATH_CONTEXT)
-                .divide(BigDecimal.valueOf(4), DB_MATH_CONTEXT);
-
-        BigDecimal vwapHLC3 = high.add(low, DB_MATH_CONTEXT)
-                .add(close, DB_MATH_CONTEXT)
-                .divide(BigDecimal.valueOf(3), DB_MATH_CONTEXT);
-
-        return new OHLCVMetrics(open, high, low, close, volume, vwap, vwapOHLC4, vwapHLC3);
+        return new OHLCVMetrics(open, high, low, close, volume, vwap);
     }
 
     public OrderFlowMetrics computeOrderFlow(Table table) {

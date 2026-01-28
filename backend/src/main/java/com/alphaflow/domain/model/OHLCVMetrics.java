@@ -8,8 +8,6 @@ public record OHLCVMetrics(
         BigDecimal low,
         BigDecimal close,
         BigDecimal volume,
-        BigDecimal vwap,
-        BigDecimal vwapOHLC4,
-        BigDecimal vwapHLC3
+        BigDecimal vwap
 ) {
 }
