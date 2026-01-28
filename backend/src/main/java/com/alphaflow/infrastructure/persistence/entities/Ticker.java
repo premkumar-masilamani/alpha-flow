@@ -1,13 +1,19 @@
 package com.alphaflow.infrastructure.persistence.entities;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "tickers")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Ticker {
 
     @Id

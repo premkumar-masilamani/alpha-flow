@@ -49,7 +49,7 @@ public class MarketStateDerivativeComputer {
             log.info("Calculating Capital Momentum for {}", ticker.getTickerSymbol());
 
             Optional<MarketState> latestCapitalMomentum = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
-                    ticker, MarketDataMetricType.CAPITAL_MOMENTUM.code(), TransformationType.NONE.code(), WindowPeriod.NONE.days()
+                    ticker, MarketDataMetricType.CAPITAL_MOMENTUM.code(), TransformationType.CAP_MOM.code(), WindowPeriod.ZERO_DAYS.days()
             );
 
             Optional<MarketState> latestTotalCapitalEma10 = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
@@ -87,15 +87,14 @@ public class MarketStateDerivativeComputer {
                 MarketState ema20 = totalCapitalEma20Map.get(ema10.getMarketStateDate());
                 if (ema20 != null) {
                     BigDecimal momentum = ema10.getValue().subtract(ema20.getValue(), DB_MATH_CONTEXT);
-
-                    MarketState state = new MarketState();
-                    state.setTicker(ticker);
-                    state.setMarketStateDate(ema10.getMarketStateDate());
-                    state.setMetric(MarketDataMetricType.CAPITAL_MOMENTUM.code());
-                    state.setMaType(TransformationType.NONE.code());
-                    state.setPeriod(WindowPeriod.NONE.days());
-                    state.setValue(momentum);
-                    toSave.add(state);
+                    toSave.add(MarketState.builder()
+                            .ticker(ticker)
+                            .marketStateDate(ema10.getMarketStateDate())
+                            .metric(MarketDataMetricType.CAPITAL_MOMENTUM.code())
+                            .maType(TransformationType.CAP_MOM.code())
+                            .period(WindowPeriod.ZERO_DAYS.days())
+                            .value(momentum)
+                            .build());
                 }
             }
             if (!toSave.isEmpty()) {

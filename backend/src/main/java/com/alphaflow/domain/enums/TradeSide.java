@@ -1,7 +1,6 @@
 package com.alphaflow.domain.enums;
 
-public enum PositionType {
-    NONE,
+public enum TradeSide {
     LONG,
     SHORT
 }

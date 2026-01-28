@@ -7,30 +7,32 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "market_state")
+@Table(name = "backtest_cagr")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "ticker")
-public class MarketState {
+public class BacktestCagr {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long marketStateId;
-
-    private LocalDate marketStateDate;
+    private Long backtestCagrId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
     private Ticker ticker;
 
-    private String metric;
+    private String strategyName;
 
-    private String maType;
+    private BigDecimal cagr;
 
-    private Integer period;
+    private BigDecimal initialEquity;
 
-    private BigDecimal value;
+    private BigDecimal finalEquity;
 
+    private LocalDate startDate;
+
+    private LocalDate endDate;
+
+    private BigDecimal years;
 }
