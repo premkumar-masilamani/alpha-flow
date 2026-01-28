@@ -1,5 +1,6 @@
 package com.alphaflow.infrastructure.persistence.entities;
 
+import com.alphaflow.domain.enums.PositionType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -7,30 +8,29 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "market_state")
+@Table(name = "backtest_equity")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "ticker")
-public class MarketState {
+public class BacktestEquity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long marketStateId;
-
-    private LocalDate marketStateDate;
+    private Long backtestEquityId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
     private Ticker ticker;
 
-    private String metric;
+    private String strategyName;
 
-    private String maType;
+    private LocalDate equityDate;
 
-    private Integer period;
+    private BigDecimal equity;
 
-    private BigDecimal value;
+    @Enumerated(EnumType.STRING)
+    private PositionType position;
 
+    private BigDecimal priceClose;
 }
