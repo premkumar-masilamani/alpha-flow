@@ -1,13 +1,13 @@
 package com.alphaflow.core;
 
+import com.alphaflow.domain.model.CapitalProfileMetrics;
+import com.alphaflow.domain.model.OHLCVMetrics;
+import com.alphaflow.domain.model.OrderFlowMetrics;
 import com.alphaflow.infrastructure.config.AppConfig;
 import com.alphaflow.infrastructure.persistence.entities.File;
 import com.alphaflow.infrastructure.persistence.entities.MarketData;
 import com.alphaflow.infrastructure.persistence.repositories.FileRepository;
 import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
-import com.alphaflow.domain.model.OHLCVMetrics;
-import com.alphaflow.domain.model.OrderFlowMetrics;
-import com.alphaflow.domain.model.CapitalProfileMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import tech.tablesaw.api.Table;
 
 import java.io.InputStream;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -156,28 +155,23 @@ public class MarketDataComputer {
         OrderFlowMetrics orderFlowMetrics = metricsComputer.computeOrderFlow(table);
         CapitalProfileMetrics capitalProfileMetrics = metricsComputer.computeCapitalProfile(table, ohlcvMetrics);
 
-        MarketData marketData = new MarketData();
-        marketData.setTicker(file.getTicker());
-        marketData.setMarketDataDate(file.getFileDate());
-
-        marketData.setPriceOpen(ohlcvMetrics.open());
-        marketData.setPriceHigh(ohlcvMetrics.high());
-        marketData.setPriceLow(ohlcvMetrics.low());
-        marketData.setPriceClose(ohlcvMetrics.close());
-
-        marketData.setVolume(ohlcvMetrics.volume());
-        marketData.setVwap(ohlcvMetrics.vwap());
-        marketData.setCapitalPOC(capitalProfileMetrics.pointOfControl());
-        marketData.setCapitalVAH(capitalProfileMetrics.valueAreaHigh());
-        marketData.setCapitalVAL(capitalProfileMetrics.valueAreaLow());
-
-        marketData.setBuyerCapital(orderFlowMetrics.buyerCapital());
-        marketData.setTotalCapital(orderFlowMetrics.totalCapital());
-
-        marketData.setVwapOHLC4(ohlcvMetrics.vwapOHLC4());
-        marketData.setVwapHLC3(ohlcvMetrics.vwapHLC3());
-
-        return marketData;
+        return MarketData.builder()
+                .ticker(file.getTicker())
+                .marketDataDate(file.getFileDate())
+                .priceOpen(ohlcvMetrics.open())
+                .priceHigh(ohlcvMetrics.high())
+                .priceLow(ohlcvMetrics.low())
+                .priceClose(ohlcvMetrics.close())
+                .volume(ohlcvMetrics.volume())
+                .vwap(ohlcvMetrics.vwap())
+                .vwapOHLC4(ohlcvMetrics.vwapOHLC4())
+                .vwapHLC3(ohlcvMetrics.vwapHLC3())
+                .buyerCapital(orderFlowMetrics.buyerCapital())
+                .totalCapital(orderFlowMetrics.totalCapital())
+                .capitalPOC(capitalProfileMetrics.pointOfControl())
+                .capitalVAH(capitalProfileMetrics.valueAreaHigh())
+                .capitalVAL(capitalProfileMetrics.valueAreaLow())
+                .build();
     }
 
 }
