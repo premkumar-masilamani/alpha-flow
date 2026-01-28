@@ -10,11 +10,11 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @Component
-public class CapitalStrategy implements BacktestStrategy {
+public class CapitalStrategyAllIn implements BacktestStrategy {
 
     @Override
     public String getName() {
-        return "Capital Strategy";
+        return "Capital Strategy All In";
     }
 
     @Override
