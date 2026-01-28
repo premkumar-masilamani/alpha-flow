@@ -59,6 +59,15 @@ public class BacktestComputer {
     public void compute() {
         log.info("Starting Backtest Computation for all active tickers");
 
+        // Clear all previous results to ensure a clean slate
+        transactionTemplate.execute(status -> {
+            equityRepository.deleteAllInBatch();
+            signalRepository.deleteAllInBatch();
+            tradeRepository.deleteAllInBatch();
+            cagrRepository.deleteAllInBatch();
+            return status;
+        });
+
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Running backtests for {}", ticker.getTickerSymbol());
 
@@ -84,13 +93,8 @@ public class BacktestComputer {
             for (BacktestStrategy strategy : strategies) {
                 log.info("Running strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
                 BacktestRunResult result = runBacktest(ticker, strategy, marketDataList, indicatorMap);
-                // Delete and Save in a single transaction
+                // Save in a single transaction
                 transactionTemplate.execute(status -> {
-                    equityRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
-                    signalRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
-                    tradeRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
-                    cagrRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
-
                     equityRepository.saveAll(result.equities());
                     signalRepository.saveAll(result.signals());
                     tradeRepository.saveAll(result.trades());
