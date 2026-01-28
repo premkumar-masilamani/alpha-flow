@@ -27,7 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class MarketStateComputerTest {
+class OBVComputerTest {
 
     @Mock
     private MarketDataRepository marketDataRepository;
@@ -38,11 +38,11 @@ class MarketStateComputerTest {
     @Mock
     private TickerRepository tickerRepository;
 
-    private MarketStateComputer marketStateComputer;
+    private OBVComputer obvComputer;
 
     @BeforeEach
     void setUp() {
-        marketStateComputer = new MarketStateComputer(marketDataRepository, marketStateRepository, tickerRepository);
+        obvComputer = new OBVComputer(marketDataRepository, marketStateRepository, tickerRepository);
     }
 
     @Test
@@ -72,7 +72,7 @@ class MarketStateComputerTest {
         when(marketStateRepository.findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(any(), any(), any(), any(), anyInt()))
                 .thenReturn(Optional.empty());
 
-        marketStateComputer.compute();
+        obvComputer.compute();
 
         ArgumentCaptor<MarketState> captor = ArgumentCaptor.forClass(MarketState.class);
         verify(marketStateRepository, times(4)).save(captor.capture());
@@ -125,7 +125,7 @@ class MarketStateComputerTest {
         when(marketStateRepository.findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(any(), any(), any(), any(), anyInt()))
                 .thenReturn(Optional.empty());
 
-        marketStateComputer.compute();
+        obvComputer.compute();
 
         ArgumentCaptor<MarketState> captor = ArgumentCaptor.forClass(MarketState.class);
         // Should only save for Day 1
