@@ -17,25 +17,20 @@ public class BacktestEquityDaily {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long backtestEquityDailyId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
     private Ticker ticker;
 
-    @Column(name = "strategy_name")
     private String strategyName;
 
-    @Column(name = "date")
-    private LocalDate date;
+    private LocalDate equityDate;
 
-    @Column(name = "equity", precision = 28, scale = 8)
     private BigDecimal equity;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "position")
     private PositionType position;
 
-    @Column(name = "price_close", precision = 28, scale = 8)
     private BigDecimal priceClose;
 }

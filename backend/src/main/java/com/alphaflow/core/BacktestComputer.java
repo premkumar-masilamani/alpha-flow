@@ -1,29 +1,33 @@
 package com.alphaflow.core;
 
-import com.alphaflow.domain.enums.*;
+import com.alphaflow.domain.enums.PositionType;
+import com.alphaflow.domain.enums.TradeAction;
+import com.alphaflow.domain.enums.TradeSide;
+import com.alphaflow.domain.enums.TradeSignal;
 import com.alphaflow.domain.strategy.BacktestStrategy;
+import com.alphaflow.infrastructure.config.Constants;
 import com.alphaflow.infrastructure.persistence.entities.*;
 import com.alphaflow.infrastructure.persistence.repositories.*;
-import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
-import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.alphaflow.infrastructure.config.Constants;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class BacktestComputer {
 
+    public static final double YEAR_IN_DAYS = 365.25;
     private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
-
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
@@ -98,9 +102,7 @@ public class BacktestComputer {
                     equityRepository.saveAll(result.equities());
                     signalRepository.saveAll(result.signals());
                     tradeRepository.saveAll(result.trades());
-                    if (result.cagr() != null) {
-                        cagrRepository.save(result.cagr());
-                    }
+                    cagrRepository.save(result.cagr());
                     return status;
                 });
             }
@@ -121,8 +123,7 @@ public class BacktestComputer {
         BigDecimal shares = BigDecimal.ZERO;
         BigDecimal entryPrice = BigDecimal.ZERO; // for shorts
 
-        TradeSignal pendingSignal =
-                new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+        TradeSignal pendingSignal = new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
 
         List<BacktestEquityDaily> equities = new ArrayList<>();
         List<BacktestSignalIntent> signals = new ArrayList<>();
@@ -165,7 +166,6 @@ public class BacktestComputer {
 
                         // Start trade record
                         activeTrade = BacktestTrade.builder()
-                                .tradeId(UUID.randomUUID())
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
                                 .side(TradeSide.LONG)
@@ -187,7 +187,6 @@ public class BacktestComputer {
 
                         // Start trade record
                         activeTrade = BacktestTrade.builder()
-                                .tradeId(UUID.randomUUID())
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
                                 .side(TradeSide.SHORT)
@@ -248,24 +247,20 @@ public class BacktestComputer {
             // ─────────────────────────────
             // 3. Generate next signal
             // ─────────────────────────────
-            Map<String, BigDecimal> indicators =
-                    indicatorMap.getOrDefault(date, Collections.emptyMap());
-
-            TradeSignal nextSignal =
-                    strategy.generateSignal(currentDay, indicators, position);
+            Map<String, BigDecimal> indicators = indicatorMap.getOrDefault(date, Collections.emptyMap());
+            TradeSignal nextSignal = strategy.generateSignal(currentDay, indicators, position);
 
             // ─────────────────────────────
             // 4. Record Daily Equity
             // ─────────────────────────────
-            equities.add(
-                    BacktestEquityDaily.builder()
-                            .ticker(ticker)
-                            .strategyName(strategy.getName())
-                            .date(date)
-                            .equity(dailyEquity)
-                            .position(position)
-                            .priceClose(priceClose)
-                            .build()
+            equities.add(BacktestEquityDaily.builder()
+                    .ticker(ticker)
+                    .strategyName(strategy.getName())
+                    .equityDate(date)
+                    .equity(dailyEquity)
+                    .position(position)
+                    .priceClose(priceClose)
+                    .build()
             );
 
             // ─────────────────────────────
@@ -273,16 +268,15 @@ public class BacktestComputer {
             // ─────────────────────────────
             LocalDate nextDate = (i + 1 < marketDataList.size()) ? marketDataList.get(i + 1).getMarketDataDate() : null;
 
-            signals.add(
-                    BacktestSignalIntent.builder()
-                            .ticker(ticker)
-                            .strategyName(strategy.getName())
-                            .signalDate(date)
-                            .executeDate(nextDate)
-                            .action(nextSignal.action())
-                            .fromPosition(position)
-                            .toPosition(nextSignal.targetPosition())
-                            .build()
+            signals.add(BacktestSignalIntent.builder()
+                    .ticker(ticker)
+                    .strategyName(strategy.getName())
+                    .signalDate(date)
+                    .executeDate(nextDate)
+                    .action(nextSignal.action())
+                    .fromPosition(position)
+                    .toPosition(nextSignal.targetPosition())
+                    .build()
             );
 
             pendingSignal = nextSignal;
@@ -315,12 +309,12 @@ public class BacktestComputer {
             BacktestEquityDaily first = equities.getFirst();
             BacktestEquityDaily last = equities.getLast();
 
-            LocalDate startDate = first.getDate();
-            LocalDate endDate = last.getDate();
+            LocalDate startDate = first.getEquityDate();
+            LocalDate endDate = last.getEquityDate();
 
             long days = ChronoUnit.DAYS.between(startDate, endDate);
             if (days > 0) {
-                double years = days / 365.25;
+                double years = days / YEAR_IN_DAYS;
                 double initialValue = INITIAL_EQUITY.doubleValue();
                 double finalValue = last.getEquity().doubleValue();
 
@@ -347,6 +341,7 @@ public class BacktestComputer {
             List<BacktestSignalIntent> signals,
             List<BacktestTrade> trades,
             BacktestCagr cagr
-    ) {}
+    ) {
+    }
 
 }
