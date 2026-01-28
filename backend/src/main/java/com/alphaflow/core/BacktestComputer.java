@@ -3,10 +3,7 @@ package com.alphaflow.core;
 import com.alphaflow.domain.enums.*;
 import com.alphaflow.domain.strategy.BacktestStrategy;
 import com.alphaflow.infrastructure.persistence.entities.*;
-import com.alphaflow.infrastructure.persistence.repositories.BacktestEquityDailyRepository;
-import com.alphaflow.infrastructure.persistence.repositories.BacktestSignalIntentRepository;
-import com.alphaflow.infrastructure.persistence.repositories.BacktestTradeRepository;
-import com.alphaflow.infrastructure.persistence.repositories.MarketDataRepository;
+import com.alphaflow.infrastructure.persistence.repositories.*;
 import com.alphaflow.infrastructure.persistence.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -17,6 +14,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -34,6 +32,7 @@ public class BacktestComputer {
     private final BacktestEquityDailyRepository equityRepository;
     private final BacktestSignalIntentRepository signalRepository;
     private final BacktestTradeRepository tradeRepository;
+    private final BacktestCagrRepository cagrRepository;
     private final List<BacktestStrategy> strategies;
     private final TransactionTemplate transactionTemplate;
 
@@ -44,6 +43,7 @@ public class BacktestComputer {
             BacktestEquityDailyRepository equityRepository,
             BacktestSignalIntentRepository signalRepository,
             BacktestTradeRepository tradeRepository,
+            BacktestCagrRepository cagrRepository,
             List<BacktestStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
@@ -53,6 +53,7 @@ public class BacktestComputer {
         this.equityRepository = equityRepository;
         this.signalRepository = signalRepository;
         this.tradeRepository = tradeRepository;
+        this.cagrRepository = cagrRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
     }
@@ -90,10 +91,14 @@ public class BacktestComputer {
                     equityRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
                     signalRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
                     tradeRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
+                    cagrRepository.deleteByTickerIdAndStrategyName(ticker.getTickerId(), strategy.getName());
 
                     equityRepository.saveAll(result.equities());
                     signalRepository.saveAll(result.signals());
                     tradeRepository.saveAll(result.trades());
+                    if (result.cagr() != null) {
+                        cagrRepository.save(result.cagr());
+                    }
                     return status;
                 });
             }
@@ -302,13 +307,44 @@ public class BacktestComputer {
             completedTrades.add(activeTrade);
         }
 
-        return new BacktestRunResult(equities, signals, completedTrades);
+        // Calculate CAGR
+        BacktestCagr cagrEntity = null;
+        if (!equities.isEmpty()) {
+            BacktestEquityDaily first = equities.getFirst();
+            BacktestEquityDaily last = equities.getLast();
+
+            LocalDate startDate = first.getDate();
+            LocalDate endDate = last.getDate();
+
+            long days = ChronoUnit.DAYS.between(startDate, endDate);
+            if (days > 0) {
+                double years = days / 365.25;
+                double initialValue = INITIAL_EQUITY.doubleValue();
+                double finalValue = last.getEquity().doubleValue();
+
+                double cagrValue = Math.pow(finalValue / initialValue, 1.0 / years) - 1.0;
+
+                cagrEntity = BacktestCagr.builder()
+                        .ticker(ticker)
+                        .strategyName(strategy.getName())
+                        .initialEquity(INITIAL_EQUITY)
+                        .finalEquity(last.getEquity())
+                        .startDate(startDate)
+                        .endDate(endDate)
+                        .years(BigDecimal.valueOf(years).setScale(SCALE, ROUNDING_MODE))
+                        .cagr(BigDecimal.valueOf(cagrValue).setScale(SCALE, ROUNDING_MODE))
+                        .build();
+            }
+        }
+
+        return new BacktestRunResult(equities, signals, completedTrades, cagrEntity);
     }
 
     private record BacktestRunResult(
             List<BacktestEquityDaily> equities,
             List<BacktestSignalIntent> signals,
-            List<BacktestTrade> trades
+            List<BacktestTrade> trades,
+            BacktestCagr cagr
     ) {}
 
 }

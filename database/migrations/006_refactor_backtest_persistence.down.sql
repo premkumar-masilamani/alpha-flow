@@ -22,6 +22,7 @@ ALTER TABLE backtests
     ADD CONSTRAINT uk_backtests UNIQUE (backtest_date, ticker_id, strategy_name);
 
 -- 2. Drop new tables
+DROP TABLE IF EXISTS backtest_cagr;
 DROP TABLE IF EXISTS backtest_trade;
 DROP TABLE IF EXISTS backtest_signal_intent;
 DROP TABLE IF EXISTS backtest_equity_daily;
