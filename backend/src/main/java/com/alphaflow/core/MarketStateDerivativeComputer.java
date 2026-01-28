@@ -92,7 +92,7 @@ public class MarketStateDerivativeComputer {
                             .marketStateDate(ema10.getMarketStateDate())
                             .metric(MarketDataMetricType.CAPITAL_MOMENTUM.code())
                             .maType(TransformationType.NONE.code())
-                            .period(WindowPeriod.NONE.days())
+                            .period(WindowPeriod.ZERO.days())
                             .value(momentum)
                             .build());
                 }
