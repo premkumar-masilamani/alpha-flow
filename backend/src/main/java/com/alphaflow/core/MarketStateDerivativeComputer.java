@@ -87,15 +87,14 @@ public class MarketStateDerivativeComputer {
                 MarketState ema20 = totalCapitalEma20Map.get(ema10.getMarketStateDate());
                 if (ema20 != null) {
                     BigDecimal momentum = ema10.getValue().subtract(ema20.getValue(), DB_MATH_CONTEXT);
-
-                    MarketState state = new MarketState();
-                    state.setTicker(ticker);
-                    state.setMarketStateDate(ema10.getMarketStateDate());
-                    state.setMetric(MarketDataMetricType.CAPITAL_MOMENTUM.code());
-                    state.setMaType(TransformationType.NONE.code());
-                    state.setPeriod(WindowPeriod.NONE.days());
-                    state.setValue(momentum);
-                    toSave.add(state);
+                    toSave.add(MarketState.builder()
+                            .ticker(ticker)
+                            .marketStateDate(ema10.getMarketStateDate())
+                            .metric(MarketDataMetricType.CAPITAL_MOMENTUM.code())
+                            .maType(TransformationType.NONE.code())
+                            .period(WindowPeriod.NONE.days())
+                            .value(momentum)
+                            .build());
                 }
             }
             if (!toSave.isEmpty()) {
