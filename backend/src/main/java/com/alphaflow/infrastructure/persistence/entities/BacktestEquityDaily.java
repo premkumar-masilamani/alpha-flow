@@ -7,21 +7,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtests")
+@Table(name = "backtest_equity_daily")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "ticker")
-public class BacktestResult {
+public class BacktestEquityDaily {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
     private Long id;
-
-    @Column(name = "backtest_date")
-    private LocalDate date;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
@@ -30,15 +25,15 @@ public class BacktestResult {
     @Column(name = "strategy_name")
     private String strategyName;
 
+    @Column(name = "date")
+    private LocalDate date;
+
     @Column(name = "equity", precision = 28, scale = 8)
     private BigDecimal equity;
 
     @Column(name = "position")
-    private String position; // LONG_100, LONG_50, SHORT_100, NONE
+    private String position; // LONG / SHORT / NONE
 
-    @Column(name = "price", precision = 28, scale = 8)
-    private BigDecimal price; // price_close of the day
-
-    @Column(name = "signal")
-    private String signal;
+    @Column(name = "price_close", precision = 28, scale = 8)
+    private BigDecimal priceClose;
 }
