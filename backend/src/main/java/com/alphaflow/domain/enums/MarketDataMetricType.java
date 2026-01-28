@@ -73,6 +73,15 @@ public enum MarketDataMetricType {
                     EnumSet.of(TransformationType.OBV),
                     EnumSet.of(ZERO_DAYS)
             )
+    ),
+
+    PRICE_CLOSE(
+            "P_CLOSE",
+            MarketData::getPriceClose,
+            new MetricTransformSpec(
+                    EnumSet.of(SMA),
+                    EnumSet.of(TEN_DAYS)
+            )
     );
 
     private final String code;

@@ -35,4 +35,6 @@ public class RenkoData {
 
     private Integer zone;
 
+    private String priceSource;
+
 }
