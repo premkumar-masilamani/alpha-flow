@@ -23,8 +23,6 @@ public class BacktestComputer {
 
     private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
-    private static final int SCALE = Constants.SCALE;
-    private static final java.math.RoundingMode ROUNDING_MODE = Constants.ROUNDING_MODE;
 
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
@@ -154,7 +152,7 @@ public class BacktestComputer {
                     case ENTER_LONG -> {
                         PositionType target = pendingSignal.targetPosition();
                         shares = totalEquityAtOpen
-                                .divide(priceOpen, SCALE, ROUNDING_MODE);
+                                .divide(priceOpen, Constants.DB_MATH_CONTEXT);
 
                         currentCash =
                                 totalEquityAtOpen.subtract(shares.multiply(priceOpen));
@@ -177,7 +175,7 @@ public class BacktestComputer {
                     case ENTER_SHORT -> {
                         PositionType target = pendingSignal.targetPosition();
                         shares = totalEquityAtOpen
-                                .divide(priceOpen, SCALE, ROUNDING_MODE);
+                                .divide(priceOpen, Constants.DB_MATH_CONTEXT);
 
                         currentCash = totalEquityAtOpen;
                         entryPrice = priceOpen;
@@ -203,12 +201,12 @@ public class BacktestComputer {
                             BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
                                     ? activeTrade.getQuantity().multiply(priceOpen.subtract(activeTrade.getEntryPrice()))
                                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(priceOpen));
-                            activeTrade.setPnl(pnl.setScale(SCALE, ROUNDING_MODE));
+                            activeTrade.setPnl(pnl);
 
                             BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
-                                    ? priceOpen.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE)
-                                    : activeTrade.getEntryPrice().subtract(priceOpen).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE);
-                            activeTrade.setPnlPct(pnlPct);
+                                    ? priceOpen.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT)
+                                    : activeTrade.getEntryPrice().subtract(priceOpen).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT);
+                            activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
 
                             completedTrades.add(activeTrade);
                             activeTrade = null;
@@ -260,7 +258,7 @@ public class BacktestComputer {
                             .ticker(ticker)
                             .strategyName(strategy.getName())
                             .date(date)
-                            .equity(dailyEquity.setScale(SCALE, ROUNDING_MODE))
+                            .equity(dailyEquity)
                             .position(position)
                             .priceClose(priceClose)
                             .build()
@@ -297,12 +295,12 @@ public class BacktestComputer {
             BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
                     ? activeTrade.getQuantity().multiply(lastClose.subtract(activeTrade.getEntryPrice()))
                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(lastClose));
-            activeTrade.setPnl(pnl.setScale(SCALE, ROUNDING_MODE));
+            activeTrade.setPnl(pnl);
 
             BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
-                    ? lastClose.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE)
-                    : activeTrade.getEntryPrice().subtract(lastClose).divide(activeTrade.getEntryPrice(), SCALE, ROUNDING_MODE);
-            activeTrade.setPnlPct(pnlPct);
+                    ? lastClose.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT)
+                    : activeTrade.getEntryPrice().subtract(lastClose).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT);
+            activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
 
             completedTrades.add(activeTrade);
         }
@@ -322,7 +320,7 @@ public class BacktestComputer {
                 double initialValue = INITIAL_EQUITY.doubleValue();
                 double finalValue = last.getEquity().doubleValue();
 
-                double cagrValue = Math.pow(finalValue / initialValue, 1.0 / years) - 1.0;
+                double cagrValue = (Math.pow(finalValue / initialValue, 1.0 / years) - 1.0) * 100.0;
 
                 cagrEntity = BacktestCagr.builder()
                         .ticker(ticker)
@@ -331,8 +329,8 @@ public class BacktestComputer {
                         .finalEquity(last.getEquity())
                         .startDate(startDate)
                         .endDate(endDate)
-                        .years(BigDecimal.valueOf(years).setScale(SCALE, ROUNDING_MODE))
-                        .cagr(BigDecimal.valueOf(cagrValue).setScale(SCALE, ROUNDING_MODE))
+                        .years(new BigDecimal(years, Constants.DB_MATH_CONTEXT))
+                        .cagr(new BigDecimal(cagrValue, Constants.DB_MATH_CONTEXT))
                         .build();
             }
         }
