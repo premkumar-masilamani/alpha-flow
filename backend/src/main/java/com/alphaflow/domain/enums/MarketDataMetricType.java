@@ -52,8 +52,8 @@ public enum MarketDataMetricType {
             "CAP_MOM",
             null,
             new MetricTransformSpec(
-                    EnumSet.of(TransformationType.NONE),
-                    EnumSet.of(NONE)
+                    EnumSet.of(TransformationType.CAP_MOM),
+                    EnumSet.of(ZERO_DAYS)
             )
     ),
 
@@ -71,7 +71,7 @@ public enum MarketDataMetricType {
             MarketData::getVolume,
             new MetricTransformSpec(
                     EnumSet.of(TransformationType.OBV),
-                    EnumSet.of(NONE)
+                    EnumSet.of(ZERO_DAYS)
             )
     );
 
