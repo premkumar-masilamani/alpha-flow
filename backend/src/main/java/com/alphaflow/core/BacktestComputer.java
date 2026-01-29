@@ -34,7 +34,7 @@ public class BacktestComputer {
     private final BacktestEquityDailyRepository equityRepository;
     private final BacktestSignalIntentRepository signalRepository;
     private final BacktestTradeRepository tradeRepository;
-    private final BacktestCagrRepository cagrRepository;
+    private final BacktestResultRepository resultRepository;
     private final List<BacktestStrategy> strategies;
     private final TransactionTemplate transactionTemplate;
 
@@ -45,7 +45,7 @@ public class BacktestComputer {
             BacktestEquityDailyRepository equityRepository,
             BacktestSignalIntentRepository signalRepository,
             BacktestTradeRepository tradeRepository,
-            BacktestCagrRepository cagrRepository,
+            BacktestResultRepository resultRepository,
             List<BacktestStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
@@ -55,7 +55,7 @@ public class BacktestComputer {
         this.equityRepository = equityRepository;
         this.signalRepository = signalRepository;
         this.tradeRepository = tradeRepository;
-        this.cagrRepository = cagrRepository;
+        this.resultRepository = resultRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
     }
@@ -68,7 +68,7 @@ public class BacktestComputer {
             equityRepository.deleteAllInBatch();
             signalRepository.deleteAllInBatch();
             tradeRepository.deleteAllInBatch();
-            cagrRepository.deleteAllInBatch();
+            resultRepository.deleteAllInBatch();
             return status;
         });
 
@@ -102,7 +102,7 @@ public class BacktestComputer {
                     equityRepository.saveAll(result.equities());
                     signalRepository.saveAll(result.signals());
                     tradeRepository.saveAll(result.trades());
-                    cagrRepository.save(result.cagr());
+                    resultRepository.save(result.result());
                     return status;
                 });
             }
@@ -303,8 +303,8 @@ public class BacktestComputer {
             completedTrades.add(activeTrade);
         }
 
-        // Calculate CAGR
-        BacktestCagr cagrEntity = null;
+        // Calculate Backtest Results
+        BacktestResult resultEntity = null;
         if (!equities.isEmpty()) {
             BacktestEquity first = equities.getFirst();
             BacktestEquity last = equities.getLast();
@@ -330,7 +330,7 @@ public class BacktestComputer {
                         .multiply(BigDecimal.valueOf(100))
                         : BigDecimal.ZERO;
 
-                cagrEntity = BacktestCagr.builder()
+                resultEntity = BacktestResult.builder()
                         .ticker(ticker)
                         .strategyName(strategy.getName())
                         .initialEquity(INITIAL_EQUITY)
@@ -344,14 +344,14 @@ public class BacktestComputer {
             }
         }
 
-        return new BacktestRunResult(equities, signals, completedTrades, cagrEntity);
+        return new BacktestRunResult(equities, signals, completedTrades, resultEntity);
     }
 
     private record BacktestRunResult(
             List<BacktestEquity> equities,
             List<BacktestSignal> signals,
             List<BacktestTrade> trades,
-            BacktestCagr cagr
+            BacktestResult result
     ) {
     }
 
