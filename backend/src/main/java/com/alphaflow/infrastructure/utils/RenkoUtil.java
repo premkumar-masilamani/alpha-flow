@@ -3,6 +3,7 @@ package com.alphaflow.infrastructure.utils;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
+import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,16 +16,20 @@ import static java.math.BigDecimal.valueOf;
 public class RenkoUtil {
 
     public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries) {
+        return generateRenkoBricks(ticker, allSeries, RenkoPriceSource.PRICE_CLOSE);
+    }
+
+    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, RenkoPriceSource priceSource) {
         BigDecimal brickSize = calculateBrickSize(allSeries);
         if (brickSize.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of();
         }
 
         List<RenkoData> renkoBricks = new ArrayList<>();
-        BigDecimal currentPrice = allSeries.getFirst().getPriceClose();
+        BigDecimal currentPrice = priceSource.getPrice(allSeries.getFirst());
 
         for (MarketData row : allSeries) {
-            BigDecimal price = row.getPriceClose();
+            BigDecimal price = priceSource.getPrice(row);
             LocalDate date = row.getMarketDataDate();
 
             // Up bricks

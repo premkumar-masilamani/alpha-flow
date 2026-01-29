@@ -10,6 +10,8 @@ import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
+import com.alphaflow.backtest.strategies.Strategy;
+import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import com.alphaflow.infrastructure.utils.RenkoUtil;
 import org.springframework.stereotype.Service;
@@ -45,8 +47,12 @@ public class RenkoBacktester extends AbstractBacktester {
     }
 
     @Override
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index) {
-        return RenkoUtil.generateRenkoBricks(ticker, allData.subList(0, index + 1));
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index, Strategy strategy) {
+        RenkoPriceSource priceSource = RenkoPriceSource.PRICE_CLOSE;
+        if (strategy instanceof RenkoStrategy renkoStrategy) {
+            priceSource = renkoStrategy.getPriceSource();
+        }
+        return RenkoUtil.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
     }
 }
 
