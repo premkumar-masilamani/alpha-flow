@@ -64,6 +64,11 @@ public class MarketStateComputer {
                     continue; // VERY IMPORTANT
                 }
 
+                if (metric == MarketDataMetricType.CCF) {
+                    computeCCF(ticker, metric, allSeries);
+                    continue; // VERY IMPORTANT
+                }
+
                 // Transformations (SMA / EMA only)
                 var spec = metric.transformSpec();
                 for (TransformationType transformation : spec.transformations()) {
@@ -123,6 +128,42 @@ public class MarketStateComputer {
             persist(currentData, metric, OBV, ZERO_DAYS.days(), onBalanceVolume);
         }
         log.info("Computed OBV for {}", ticker.getTickerSymbol());
+    }
+
+    private void computeCCF(Ticker ticker, MarketDataMetricType metric, List<MarketData> allSeries) {
+        if (allSeries.isEmpty()) {
+            return;
+        }
+
+        Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+                ticker, metric.code(), CCF.code(), ZERO_DAYS.days()
+        );
+
+        BigDecimal cumulativeCapitalFlow;
+        int startIndex;
+
+        if (latestMarketState.isPresent()) {
+            MarketState lastCCF = latestMarketState.get();
+            cumulativeCapitalFlow = lastCCF.getValue();
+            startIndex = findIndexForDate(allSeries, lastCCF.getMarketStateDate()) + 1;
+            if (startIndex <= 0 || startIndex >= allSeries.size()) {
+                log.debug("CCF is up to date for {}", ticker.getTickerSymbol());
+                return;
+            }
+        } else {
+            // First day's CCF starts from zero and adds its daily signed capital
+            cumulativeCapitalFlow = BigDecimal.ZERO;
+            startIndex = 0;
+        }
+
+        for (int i = startIndex; i < allSeries.size(); i++) {
+            MarketData currentData = allSeries.get(i);
+            BigDecimal dailySignedCapital = metric.extract(currentData);
+            cumulativeCapitalFlow = cumulativeCapitalFlow.add(dailySignedCapital, DB_MATH_CONTEXT);
+
+            persist(currentData, metric, CCF, ZERO_DAYS.days(), cumulativeCapitalFlow);
+        }
+        log.info("Computed CCF for {}", ticker.getTickerSymbol());
     }
 
     /**
