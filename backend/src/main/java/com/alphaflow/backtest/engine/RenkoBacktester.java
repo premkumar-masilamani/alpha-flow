@@ -52,7 +52,7 @@ public class RenkoBacktester extends AbstractBacktester {
         if (strategy instanceof RenkoStrategy renkoStrategy) {
             priceSource = renkoStrategy.getPriceSource();
         }
-        return RenkoUtil.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
+        return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
     }
 }
 
