@@ -8,32 +8,23 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 
 import static com.alphaflow.infrastructure.config.Constants.*;
 import static java.math.BigDecimal.valueOf;
 
 public class RenkoUtil {
 
-    public static int getZoneFromTrend(int trend) {
-        if (trend <= 3) return 0;
-        if (trend <= 9) return 1;
-        if (trend <= 27) return 2;
-        if (trend <= 81) return 3;
-        return 4;
-    }
-
-    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, Function<MarketData, BigDecimal> priceExtractor) {
+    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries) {
         BigDecimal brickSize = calculateBrickSize(allSeries);
         if (brickSize.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of();
         }
 
         List<RenkoData> renkoBricks = new ArrayList<>();
-        BigDecimal currentPrice = priceExtractor.apply(allSeries.getFirst());
+        BigDecimal currentPrice = allSeries.getFirst().getVwap();
 
         for (MarketData row : allSeries) {
-            BigDecimal price = priceExtractor.apply(row);
+            BigDecimal price = row.getVwap();
             LocalDate date = row.getMarketDataDate();
 
             // Up bricks
@@ -78,9 +69,7 @@ public class RenkoUtil {
         }
 
         BigDecimal avgRange = totalRange.divide(valueOf(RENKO_BRICK_SIZE_PERIOD), DB_MATH_CONTEXT);
-        BigDecimal brickSize = avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
-
-        return brickSize;
+        return avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
     }
 
     private static List<RenkoData> removeConsecutiveDuplicates(List<RenkoData> bricks) {
@@ -138,4 +127,13 @@ public class RenkoUtil {
         }
         return bricks;
     }
+
+    public static int getZoneFromTrend(int trend) {
+        if (trend <= 3) return 0;
+        if (trend <= 9) return 1;
+        if (trend <= 27) return 2;
+        if (trend <= 81) return 3;
+        return 4;
+    }
+
 }

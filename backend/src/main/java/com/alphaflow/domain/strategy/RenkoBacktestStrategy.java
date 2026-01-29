@@ -14,11 +14,6 @@ public interface RenkoBacktestStrategy {
     String getName();
 
     /**
-     * The price source this strategy uses for Renko bricks (e.g., "vwap", "price_close").
-     */
-    String getPriceSource();
-
-    /**
      * Generates a signal based on current Renko brick series and other market data.
      *
      * @param renkoBricks          The full series of Renko bricks up to the current day.

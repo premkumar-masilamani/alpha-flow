@@ -25,11 +25,6 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
     }
 
     @Override
-    public String getPriceSource() {
-        return "price_close";
-    }
-
-    @Override
     public TradeSignal generateSignal(
             List<RenkoData> renkoBricks,
             MarketData currentDayMarketData,

@@ -18,7 +18,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -122,7 +121,6 @@ public class RenkoBacktestComputer {
 
         BacktestTrade activeTrade = null;
         Map<String, Object> strategyState = new HashMap<>();
-        Function<MarketData, BigDecimal> priceExtractor = getPriceExtractor(strategy.getPriceSource());
 
         for (int i = 0; i < marketDataList.size(); i++) {
             MarketData currentDay = marketDataList.get(i);
@@ -240,7 +238,7 @@ public class RenkoBacktestComputer {
 
             // Renko regeneration logic
             List<MarketData> subList = marketDataList.subList(0, i + 1);
-            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, subList, priceExtractor);
+            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, subList);
 
             TradeSignal nextSignal = strategy.generateSignal(renkoBricks, currentDay, indicators, position, strategyState);
 
@@ -329,12 +327,6 @@ public class RenkoBacktestComputer {
         activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
 
         completedTrades.add(activeTrade);
-    }
-
-    private Function<MarketData, BigDecimal> getPriceExtractor(String source) {
-        if ("vwap".equalsIgnoreCase(source)) return MarketData::getVwap;
-        if ("price_close".equalsIgnoreCase(source)) return MarketData::getPriceClose;
-        return MarketData::getVwap;
     }
 
     private record BacktestRunResult(

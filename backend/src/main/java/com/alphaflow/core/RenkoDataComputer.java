@@ -13,8 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-import static java.time.LocalDate.EPOCH;
-
 @Service
 public class RenkoDataComputer {
 
@@ -41,17 +39,17 @@ public class RenkoDataComputer {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Computing Renko Data for {}", ticker.getTickerSymbol());
 
-            List<MarketData> allSeries = marketDataRepository.findByTickerAndMarketDataDateGreaterThanEqualOrderByMarketDataDateAsc(
-                    ticker, EPOCH);
+            List<MarketData> allSeries = marketDataRepository.findByTickerOrderByMarketDataDateAsc(ticker);
 
             if (allSeries.isEmpty()) {
                 log.error("No market data found for {}", ticker.getTickerSymbol());
                 return;
             }
 
-            renkoDataRepository.deleteByTicker(ticker);
-            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, allSeries, MarketData::getVwap);
+            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, allSeries);
             if (!renkoBricks.isEmpty()) {
+                renkoDataRepository.deleteByTicker(ticker);
+                renkoDataRepository.flush();
                 renkoDataRepository.saveAll(renkoBricks);
                 log.info("Generated {} Renko bricks for {}", renkoBricks.size(), ticker.getTickerSymbol());
             }
