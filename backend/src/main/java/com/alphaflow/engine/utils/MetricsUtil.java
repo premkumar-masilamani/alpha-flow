@@ -20,7 +20,7 @@ import static java.util.Comparator.comparing;
 @Component
 public class MetricsUtil {
 
-    public OHLCVMetrics ohlcv(Table table) {
+    public static OHLCVMetrics ohlcv(Table table) {
 
         StringColumn priceColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_PRICE);
         StringColumn quantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUANTITY);
@@ -72,7 +72,7 @@ public class MetricsUtil {
         return new OHLCVMetrics(open, high, low, close, volume, vwap, vwapOHLC4, vwapHLC3);
     }
 
-    public OrderFlowMetrics orderFlow(Table table) {
+    public static OrderFlowMetrics orderFlow(Table table) {
 
         StringColumn quoteQuantityColumn = table.stringColumn(BINANCE_TICK_DATA_COLUMN_INDEX_QUOTE_QUANTITY);
         BooleanColumn isBuyerMakerColumn = table.booleanColumn(BINANCE_TICK_DATA_COLUMN_INDEX_IS_BUYER_THE_MAKER);
@@ -95,7 +95,7 @@ public class MetricsUtil {
         return new OrderFlowMetrics(buyerCapital, totalCapital);
     }
 
-    public CapitalProfileMetrics capitalProfile(Table table, OHLCVMetrics ohlcv) {
+    public static CapitalProfileMetrics capitalProfile(Table table, OHLCVMetrics ohlcv) {
 
         BigDecimal binSize = deriveBinSize(ohlcv);
 
@@ -135,7 +135,7 @@ public class MetricsUtil {
         return deriveCapitalMetrics(buckets);
     }
 
-    private BigDecimal deriveBinSize(OHLCVMetrics ohlcv) {
+    private static BigDecimal deriveBinSize(OHLCVMetrics ohlcv) {
 
         // Price Scale = Average of all 4 prices
         BigDecimal priceScale = ohlcv.open()
@@ -161,7 +161,7 @@ public class MetricsUtil {
                 .stripTrailingZeros();
     }
 
-    private CapitalProfileMetrics deriveCapitalMetrics(Map<Integer, CapitalBucket> buckets) {
+    private static CapitalProfileMetrics deriveCapitalMetrics(Map<Integer, CapitalBucket> buckets) {
 
         // --- Capital POC (max capital) ---
         int pocIdx = buckets.entrySet()

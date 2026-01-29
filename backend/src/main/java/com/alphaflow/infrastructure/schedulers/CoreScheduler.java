@@ -1,7 +1,7 @@
 package com.alphaflow.infrastructure.schedulers;
 
-import com.alphaflow.backtest.computers.BacktestComputer;
-import com.alphaflow.backtest.computers.RenkoBacktestComputer;
+import com.alphaflow.backtest.computers.CandlestickBacktester;
+import com.alphaflow.backtest.computers.RenkoBacktester;
 import com.alphaflow.engine.computers.*;
 import com.alphaflow.engine.downloaders.BinanceDataDownloader;
 import org.slf4j.Logger;
@@ -26,8 +26,8 @@ public class CoreScheduler {
     private final MarketStateComputer marketStateComputer;
     private final MarketStateDerivativeComputer marketStateDerivativeComputer;
     private final RenkoDataComputer renkoDataComputer;
-    private final BacktestComputer backtestComputer;
-    private final RenkoBacktestComputer renkoBacktestComputer;
+    private final CandlestickBacktester candlestickBacktester;
+    private final RenkoBacktester renkoBacktester;
 
     public CoreScheduler(
             BinanceDataDownloader binanceDataDownloader,
@@ -35,16 +35,16 @@ public class CoreScheduler {
             MarketStateComputer marketStateComputer,
             MarketStateDerivativeComputer marketStateDerivativeComputer,
             RenkoDataComputer renkoDataComputer,
-            BacktestComputer backtestComputer,
-            RenkoBacktestComputer renkoBacktestComputer
+            CandlestickBacktester candlestickBacktester,
+            RenkoBacktester renkoBacktester
     ) {
         this.binanceDataDownloader = binanceDataDownloader;
         this.marketDataComputer = marketDataComputer;
         this.marketStateComputer = marketStateComputer;
         this.marketStateDerivativeComputer = marketStateDerivativeComputer;
         this.renkoDataComputer = renkoDataComputer;
-        this.backtestComputer = backtestComputer;
-        this.renkoBacktestComputer = renkoBacktestComputer;
+        this.candlestickBacktester = candlestickBacktester;
+        this.renkoBacktester = renkoBacktester;
     }
 
     /**
@@ -82,11 +82,11 @@ public class CoreScheduler {
             log.info("Step 5/7: Computing Renko bricks...");
             renkoDataComputer.compute();
 
-            log.info("Step 6/7: Running backtests...");
-            backtestComputer.compute();
+            log.info("Step 6/7: Running Candlestick backtests...");
+            candlestickBacktester.compute();
 
             log.info("Step 7/7: Running Renko backtests...");
-            renkoBacktestComputer.compute();
+            renkoBacktester.compute();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {

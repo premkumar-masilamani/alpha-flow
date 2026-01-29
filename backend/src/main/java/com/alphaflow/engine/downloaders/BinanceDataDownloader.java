@@ -93,7 +93,7 @@ public class BinanceDataDownloader {
             try {
                 if (!Files.exists(localFile)) {
                     log.debug("Downloading {} to {}", url, localFile);
-                    downloadFileWithTimeout(url, localFile);
+                    downloadFile(url, localFile);
                 } else {
                     log.trace("File already exists locally: {}", fileName);
                 }
@@ -107,7 +107,7 @@ public class BinanceDataDownloader {
     /**
      * Downloads a file from a URL with basic timeout handling.
      */
-    private void downloadFileWithTimeout(String remoteFileURL, Path localFilePath) throws IOException {
+    private void downloadFile(String remoteFileURL, Path localFilePath) throws IOException {
         URLConnection connection = URI.create(remoteFileURL).toURL().openConnection();
         connection.setConnectTimeout(5000); // 5 seconds
         connection.setReadTimeout(10000);    // 10 seconds

@@ -28,8 +28,6 @@ public class BacktestResult {
 
     private String strategyName;
 
-    private BigDecimal cagr;
-
     private BigDecimal initialEquity;
 
     private BigDecimal finalEquity;
@@ -39,6 +37,8 @@ public class BacktestResult {
     private LocalDate endDate;
 
     private BigDecimal years;
+
+    private BigDecimal cagr;
 
     private BigDecimal winRate;
 }

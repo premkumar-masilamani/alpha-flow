@@ -34,18 +34,15 @@ public class MarketDataComputer {
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final MarketDataRepository marketDataRepository;
-    private final MetricsUtil metricsUtil;
 
     public MarketDataComputer(
             AppConfig appConfig,
             FileRepository fileRepository,
-            MarketDataRepository marketDataRepository,
-            MetricsUtil metricsUtil
+            MarketDataRepository marketDataRepository
     ) {
         this.appConfig = appConfig;
         this.fileRepository = fileRepository;
         this.marketDataRepository = marketDataRepository;
-        this.metricsUtil = metricsUtil;
     }
 
     /**
@@ -152,9 +149,9 @@ public class MarketDataComputer {
 
     private MarketData computeMetrics(File file, Table table) {
 
-        OHLCVMetrics ohlcvMetrics = metricsUtil.ohlcv(table);
-        OrderFlowMetrics orderFlowMetrics = metricsUtil.orderFlow(table);
-        CapitalProfileMetrics capitalProfileMetrics = metricsUtil.capitalProfile(table, ohlcvMetrics);
+        OHLCVMetrics ohlcvMetrics = MetricsUtil.ohlcv(table);
+        OrderFlowMetrics orderFlowMetrics = MetricsUtil.orderFlow(table);
+        CapitalProfileMetrics capitalProfileMetrics = MetricsUtil.capitalProfile(table, ohlcvMetrics);
 
         return MarketData.builder()
                 .ticker(file.getTicker())
