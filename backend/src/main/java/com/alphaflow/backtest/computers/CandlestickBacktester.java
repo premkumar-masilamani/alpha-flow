@@ -5,9 +5,8 @@ import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.entities.BacktestTrade;
 import com.alphaflow.backtest.enums.PositionType;
-import com.alphaflow.backtest.enums.TradeSignal;
-import com.alphaflow.backtest.enums.TradeSide;
 import com.alphaflow.backtest.enums.TradeAction;
+import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
@@ -36,10 +35,10 @@ import java.util.stream.Collectors;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
 @Service
-public class BacktestComputer {
+public class CandlestickBacktester {
 
     public static final double YEAR_IN_DAYS = 365.25;
-    private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(CandlestickBacktester.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
 
     private final TickerRepository tickerRepository;
@@ -52,7 +51,7 @@ public class BacktestComputer {
     private final List<BacktestStrategy> backtestStrategies;
     private final TransactionTemplate transactionTemplate;
 
-    public BacktestComputer(
+    public CandlestickBacktester(
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
@@ -182,7 +181,7 @@ public class BacktestComputer {
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
-                                .side(TradeSide.LONG)
+                                .side(PositionType.LONG)
                                 .entryDate(date)
                                 .entryPrice(priceOpen)
                                 .quantity(shares)
@@ -203,7 +202,7 @@ public class BacktestComputer {
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
-                                .side(TradeSide.SHORT)
+                                .side(PositionType.SHORT)
                                 .entryDate(date)
                                 .entryPrice(priceOpen)
                                 .quantity(shares)
@@ -215,12 +214,12 @@ public class BacktestComputer {
                         if (activeTrade != null) {
                             activeTrade.setExitDate(date);
                             activeTrade.setExitPrice(priceOpen);
-                            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
+                            BigDecimal pnl = activeTrade.getSide() == PositionType.LONG
                                     ? activeTrade.getQuantity().multiply(priceOpen.subtract(activeTrade.getEntryPrice()))
                                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(priceOpen));
                             activeTrade.setPnl(pnl);
 
-                            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
+                            BigDecimal pnlPct = activeTrade.getSide() == PositionType.LONG
                                     ? priceOpen.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), DB_MATH_CONTEXT)
                                     : activeTrade.getEntryPrice().subtract(priceOpen).divide(activeTrade.getEntryPrice(), DB_MATH_CONTEXT);
                             activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
@@ -304,12 +303,12 @@ public class BacktestComputer {
             activeTrade.setExitDate(lastDay.getMarketDataDate());
             activeTrade.setExitPrice(lastClose);
 
-            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
+            BigDecimal pnl = activeTrade.getSide() == PositionType.LONG
                     ? activeTrade.getQuantity().multiply(lastClose.subtract(activeTrade.getEntryPrice()))
                     : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(lastClose));
             activeTrade.setPnl(pnl);
 
-            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
+            BigDecimal pnlPct = activeTrade.getSide() == PositionType.LONG
                     ? lastClose.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), DB_MATH_CONTEXT)
                     : activeTrade.getEntryPrice().subtract(lastClose).divide(activeTrade.getEntryPrice(), DB_MATH_CONTEXT);
             activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));

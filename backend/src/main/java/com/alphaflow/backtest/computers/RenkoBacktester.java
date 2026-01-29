@@ -5,9 +5,8 @@ import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.entities.BacktestTrade;
 import com.alphaflow.backtest.enums.PositionType;
-import com.alphaflow.backtest.enums.TradeSignal;
-import com.alphaflow.backtest.enums.TradeSide;
 import com.alphaflow.backtest.enums.TradeAction;
+import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
@@ -35,10 +34,10 @@ import java.util.stream.Collectors;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
 @Service
-public class RenkoBacktestComputer {
+public class RenkoBacktester {
 
     public static final double YEAR_IN_DAYS = 365.25;
-    private static final Logger log = LoggerFactory.getLogger(RenkoBacktestComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(RenkoBacktester.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
 
     private final TickerRepository tickerRepository;
@@ -51,7 +50,7 @@ public class RenkoBacktestComputer {
     private final List<RenkoBacktestStrategy> renkoBacktestStrategies;
     private final TransactionTemplate transactionTemplate;
 
-    public RenkoBacktestComputer(
+    public RenkoBacktester(
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
@@ -177,7 +176,7 @@ public class RenkoBacktestComputer {
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
-                                .side(TradeSide.LONG)
+                                .side(PositionType.LONG)
                                 .entryDate(date)
                                 .entryPrice(priceOpen)
                                 .quantity(shares)
@@ -202,7 +201,7 @@ public class RenkoBacktestComputer {
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategyName(strategy.getName())
-                                .side(TradeSide.SHORT)
+                                .side(PositionType.SHORT)
                                 .entryDate(date)
                                 .entryPrice(priceOpen)
                                 .quantity(shares)
@@ -331,7 +330,7 @@ public class RenkoBacktestComputer {
     private void closeActiveTrade(BacktestTrade activeTrade, LocalDate exitDate, BigDecimal exitPrice, List<BacktestTrade> completedTrades) {
         activeTrade.setExitDate(exitDate);
         activeTrade.setExitPrice(exitPrice);
-        BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
+        BigDecimal pnl = activeTrade.getSide() == PositionType.LONG
                 ? activeTrade.getQuantity().multiply(exitPrice.subtract(activeTrade.getEntryPrice()))
                 : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(exitPrice));
         activeTrade.setPnl(pnl);
