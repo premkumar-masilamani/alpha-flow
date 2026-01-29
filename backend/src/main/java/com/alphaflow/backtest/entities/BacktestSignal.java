@@ -1,7 +1,7 @@
 package com.alphaflow.backtest.entities;
 
 import com.alphaflow.backtest.enums.PositionType;
-import com.alphaflow.backtest.enums.TradeAction;
+import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.infrastructure.entities.Ticker;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -34,7 +34,7 @@ public class BacktestSignal {
     private LocalDate executeDate;
 
     @Enumerated(EnumType.STRING)
-    private TradeAction action;
+    private TradeSignal action;
 
     @Enumerated(EnumType.STRING)
     private PositionType fromPosition;

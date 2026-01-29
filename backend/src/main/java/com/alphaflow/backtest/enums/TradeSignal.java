@@ -1,4 +1,9 @@
 package com.alphaflow.backtest.enums;
 
-public record TradeSignal(TradeAction action, PositionType targetPosition) {
+public enum TradeSignal {
+    ENTER_LONG,
+    ENTER_SHORT,
+    EXIT,
+    HOLD,
+    NO_SIGNAL
 }

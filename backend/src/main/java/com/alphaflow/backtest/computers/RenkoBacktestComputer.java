@@ -5,9 +5,9 @@ import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.entities.BacktestTrade;
 import com.alphaflow.backtest.enums.PositionType;
-import com.alphaflow.backtest.enums.TradeAction;
-import com.alphaflow.backtest.enums.TradeSide;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.enums.TradeSide;
+import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
@@ -127,7 +127,7 @@ public class RenkoBacktestComputer {
         BigDecimal shares = BigDecimal.ZERO;
         BigDecimal entryPrice = BigDecimal.ZERO; // for shorts
 
-        TradeSignal pendingSignal = new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+        TradeAction pendingSignal = new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
 
         List<BacktestEquity> equities = new ArrayList<>();
         List<BacktestSignal> signals = new ArrayList<>();
@@ -143,10 +143,10 @@ public class RenkoBacktestComputer {
             BigDecimal priceClose = currentDay.getPriceClose();
 
             // ─────────────────────────────────────────
-            // 1. Execute pending signal at today's open
+            // 1. Execute pending tradeSignal at today's open
             // ─────────────────────────────────────────
-            if (pendingSignal.action() != TradeAction.NO_SIGNAL &&
-                    pendingSignal.action() != TradeAction.HOLD) {
+            if (pendingSignal.tradeSignal() != TradeSignal.NO_SIGNAL &&
+                    pendingSignal.tradeSignal() != TradeSignal.HOLD) {
 
                 BigDecimal totalEquityAtOpen =
                         switch (position) {
@@ -157,14 +157,14 @@ public class RenkoBacktestComputer {
                             default -> currentCash;
                         };
 
-                switch (pendingSignal.action()) {
+                switch (pendingSignal.tradeSignal()) {
 
                     case ENTER_LONG -> {
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, date, priceOpen, completedTrades);
                         }
 
-                        PositionType target = pendingSignal.targetPosition();
+                        PositionType target = pendingSignal.positionType();
                         shares = totalEquityAtOpen
                                 .divide(priceOpen, DB_MATH_CONTEXT);
 
@@ -190,7 +190,7 @@ public class RenkoBacktestComputer {
                             closeActiveTrade(activeTrade, date, priceOpen, completedTrades);
                         }
 
-                        PositionType target = pendingSignal.targetPosition();
+                        PositionType target = pendingSignal.positionType();
                         shares = totalEquityAtOpen
                                 .divide(priceOpen, DB_MATH_CONTEXT);
 
@@ -246,7 +246,7 @@ public class RenkoBacktestComputer {
                     };
 
             // ─────────────────────────────
-            // 3. Generate next signal
+            // 3. Generate next tradeSignal
             // ─────────────────────────────
             Map<String, BigDecimal> indicators = indicatorMap.getOrDefault(date, Collections.emptyMap());
 
@@ -254,7 +254,7 @@ public class RenkoBacktestComputer {
             List<MarketData> subList = marketDataList.subList(0, i + 1);
             List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, subList);
 
-            TradeSignal nextSignal = strategy.generateSignal(renkoBricks, currentDay, indicators, position, strategyState);
+            TradeAction nextSignal = strategy.generateSignal(renkoBricks, currentDay, indicators, position, strategyState);
 
             // ─────────────────────────────
             // 4. Record Daily Equity
@@ -279,9 +279,9 @@ public class RenkoBacktestComputer {
                     .strategyName(strategy.getName())
                     .signalDate(date)
                     .executeDate(nextDate)
-                    .action(nextSignal.action())
+                    .action(nextSignal.tradeSignal())
                     .fromPosition(position)
-                    .toPosition(nextSignal.targetPosition())
+                    .toPosition(nextSignal.positionType())
                     .build()
             );
 

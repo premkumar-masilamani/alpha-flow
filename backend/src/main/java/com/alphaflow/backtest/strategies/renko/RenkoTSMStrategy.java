@@ -1,8 +1,8 @@
 package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.enums.PositionType;
-import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import org.springframework.stereotype.Component;
@@ -25,7 +25,7 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
     }
 
     @Override
-    public TradeSignal generateSignal(
+    public TradeAction generateSignal(
             List<RenkoData> renkoBricks,
             MarketData currentDayMarketData,
             Map<String, BigDecimal> currentDayIndicators,
@@ -33,7 +33,7 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
             Map<String, Object> strategyState
     ) {
         if (renkoBricks.isEmpty()) {
-            return new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+            return new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
         }
 
         RenkoData lastBrick = renkoBricks.getLast();
@@ -43,7 +43,7 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
         strategyState.put("prevObv", obv);
 
         if (sma10 == null || obv == null) {
-            return new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+            return new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
         }
 
         boolean isNewBrickToday = lastBrick.getRenkoDate().isEqual(currentDayMarketData.getMarketDataDate());
@@ -69,12 +69,12 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
             BigDecimal currentSL = (BigDecimal) strategyState.get("trailingSL");
             if (currentSL != null && currentDayMarketData.getPriceClose().compareTo(currentSL) < 0) {
                 strategyState.remove("trailingSL");
-                return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
+                return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
             }
 
             if (currentDayMarketData.getPriceClose().compareTo(sma10) < 0) {
                 strategyState.remove("trailingSL");
-                return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
+                return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
             }
 
             if (shortEntry) {
@@ -82,10 +82,10 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
                 if (renkoBricks.size() >= 3) {
                     strategyState.put("trailingSL", renkoBricks.get(renkoBricks.size() - 3).getBrickHigh());
                 }
-                return new TradeSignal(TradeAction.ENTER_SHORT, SHORT);
+                return new TradeAction(TradeSignal.ENTER_SHORT, SHORT);
             }
 
-            return new TradeSignal(TradeAction.HOLD, LONG);
+            return new TradeAction(TradeSignal.HOLD, LONG);
 
         } else if (currentDayPosition == SHORT) {
             // Trailing SL logic
@@ -102,12 +102,12 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
             BigDecimal currentSL = (BigDecimal) strategyState.get("trailingSL");
             if (currentSL != null && currentDayMarketData.getPriceClose().compareTo(currentSL) > 0) {
                 strategyState.remove("trailingSL");
-                return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
+                return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
             }
 
             if (currentDayMarketData.getPriceClose().compareTo(sma10) > 0) {
                 strategyState.remove("trailingSL");
-                return new TradeSignal(TradeAction.EXIT, PositionType.NONE);
+                return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
             }
 
             if (longEntry) {
@@ -115,10 +115,10 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
                 if (renkoBricks.size() >= 3) {
                     strategyState.put("trailingSL", renkoBricks.get(renkoBricks.size() - 3).getBrickLow());
                 }
-                return new TradeSignal(TradeAction.ENTER_LONG, LONG);
+                return new TradeAction(TradeSignal.ENTER_LONG, LONG);
             }
 
-            return new TradeSignal(TradeAction.HOLD, SHORT);
+            return new TradeAction(TradeSignal.HOLD, SHORT);
         }
 
         // NO POSITION
@@ -126,15 +126,15 @@ public class RenkoTSMStrategy implements RenkoBacktestStrategy {
             if (renkoBricks.size() >= 3) {
                 strategyState.put("trailingSL", renkoBricks.get(renkoBricks.size() - 3).getBrickLow());
             }
-            return new TradeSignal(TradeAction.ENTER_LONG, LONG);
+            return new TradeAction(TradeSignal.ENTER_LONG, LONG);
         }
         if (shortEntry) {
             if (renkoBricks.size() >= 3) {
                 strategyState.put("trailingSL", renkoBricks.get(renkoBricks.size() - 3).getBrickHigh());
             }
-            return new TradeSignal(TradeAction.ENTER_SHORT, SHORT);
+            return new TradeAction(TradeSignal.ENTER_SHORT, SHORT);
         }
 
-        return new TradeSignal(TradeAction.NO_SIGNAL, PositionType.NONE);
+        return new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
     }
 }
