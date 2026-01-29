@@ -78,12 +78,10 @@ public abstract class AbstractBacktester {
         };
     }
 
-    // TODO: Implement null in the Abstract so that I dont have to implement it everywhere else
-    protected abstract List<RenkoData> buildRenkoBricks(
-            Ticker ticker,
-            List<MarketData> allData,
-            int index
-    );
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index) {
+        // Only the RenkoBacktester will implement the logic
+        return null;
+    }
 
     public void compute() {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {

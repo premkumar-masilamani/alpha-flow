@@ -5,9 +5,6 @@ import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.CandlestickStrategy;
-import com.alphaflow.infrastructure.entities.MarketData;
-import com.alphaflow.infrastructure.entities.RenkoData;
-import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
@@ -41,14 +38,5 @@ public class CandlestickBacktester extends AbstractBacktester {
                 strategies,
                 transactionTemplate
         );
-    }
-
-    @Override
-    protected List<RenkoData> buildRenkoBricks(
-            Ticker ticker,
-            List<MarketData> allData,
-            int index
-    ) {
-        return null; // candles only
     }
 }

@@ -13,7 +13,6 @@ public record StrategyContext(
         Map<String, BigDecimal> indicators,
         PositionType currentPosition,
         List<RenkoData> renkoBricks,
-        //TODO: Remove the state, use the index to get the previous obv
         Map<String, Object> state
 ) {
 }

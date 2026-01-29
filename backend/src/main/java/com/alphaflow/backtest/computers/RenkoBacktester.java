@@ -45,11 +45,7 @@ public class RenkoBacktester extends AbstractBacktester {
     }
 
     @Override
-    protected List<RenkoData> buildRenkoBricks(
-            Ticker ticker,
-            List<MarketData> allData,
-            int index
-    ) {
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index) {
         return RenkoUtil.generateRenkoBricks(ticker, allData.subList(0, index + 1));
     }
 }
