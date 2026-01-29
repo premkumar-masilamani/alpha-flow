@@ -4,10 +4,11 @@ import com.alphaflow.domain.enums.PositionType;
 import com.alphaflow.domain.enums.TradeAction;
 import com.alphaflow.domain.enums.TradeSide;
 import com.alphaflow.domain.enums.TradeSignal;
-import com.alphaflow.domain.strategy.BacktestStrategy;
+import com.alphaflow.domain.strategy.RenkoBacktestStrategy;
 import com.alphaflow.infrastructure.config.Constants;
 import com.alphaflow.infrastructure.persistence.entities.*;
 import com.alphaflow.infrastructure.persistence.repositories.*;
+import com.alphaflow.infrastructure.util.RenkoUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,14 +18,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-public class BacktestComputer {
+public class RenkoBacktestComputer {
 
     public static final double YEAR_IN_DAYS = 365.25;
-    private static final Logger log = LoggerFactory.getLogger(BacktestComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(RenkoBacktestComputer.class);
     private static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000.00000000");
+
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
@@ -32,10 +35,10 @@ public class BacktestComputer {
     private final BacktestSignalIntentRepository signalRepository;
     private final BacktestTradeRepository tradeRepository;
     private final BacktestCagrRepository cagrRepository;
-    private final List<BacktestStrategy> strategies;
+    private final List<RenkoBacktestStrategy> renkoStrategies;
     private final TransactionTemplate transactionTemplate;
 
-    public BacktestComputer(
+    public RenkoBacktestComputer(
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
@@ -43,7 +46,7 @@ public class BacktestComputer {
             BacktestSignalIntentRepository signalRepository,
             BacktestTradeRepository tradeRepository,
             BacktestCagrRepository cagrRepository,
-            List<BacktestStrategy> strategies,
+            List<RenkoBacktestStrategy> renkoStrategies,
             TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
@@ -53,24 +56,15 @@ public class BacktestComputer {
         this.signalRepository = signalRepository;
         this.tradeRepository = tradeRepository;
         this.cagrRepository = cagrRepository;
-        this.strategies = strategies;
+        this.renkoStrategies = renkoStrategies;
         this.transactionTemplate = transactionTemplate;
     }
 
     public void compute() {
-        log.info("Starting Backtest Computation for all active tickers");
-
-        // Clear all previous results to ensure a clean slate
-        transactionTemplate.execute(status -> {
-            equityRepository.deleteAllInBatch();
-            signalRepository.deleteAllInBatch();
-            tradeRepository.deleteAllInBatch();
-            cagrRepository.deleteAllInBatch();
-            return status;
-        });
+        log.info("Starting Renko Backtest Computation for all active tickers");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
-            log.info("Running backtests for {}", ticker.getTickerSymbol());
+            log.info("Running Renko backtests for {}", ticker.getTickerSymbol());
 
             List<MarketData> marketDataList = marketDataRepository.findByTickerOrderByMarketDataDateAsc(ticker);
             List<MarketState> marketStateList = marketStateRepository.findByTickerOrderByMarketStateDateAsc(ticker);
@@ -91,9 +85,9 @@ public class BacktestComputer {
                             )
                     ));
 
-            for (BacktestStrategy strategy : strategies) {
-                log.info("Running strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
-                BacktestRunResult result = runBacktest(ticker, strategy, marketDataList, indicatorMap);
+            for (RenkoBacktestStrategy strategy : renkoStrategies) {
+                log.info("Running Renko strategy: {} for {}", strategy.getName(), ticker.getTickerSymbol());
+                BacktestRunResult result = runRenkoBacktest(ticker, strategy, marketDataList, indicatorMap);
                 // Save in a single transaction
                 transactionTemplate.execute(status -> {
                     equityRepository.saveAll(result.equities());
@@ -105,12 +99,12 @@ public class BacktestComputer {
             }
         });
 
-        log.info("Backtest Computation completed.");
+        log.info("Renko Backtest Computation completed.");
     }
 
-    private BacktestRunResult runBacktest(
+    private BacktestRunResult runRenkoBacktest(
             Ticker ticker,
-            BacktestStrategy strategy,
+            RenkoBacktestStrategy strategy,
             List<MarketData> marketDataList,
             Map<LocalDate, Map<String, BigDecimal>> indicatorMap
     ) {
@@ -127,6 +121,8 @@ public class BacktestComputer {
         List<BacktestTrade> completedTrades = new ArrayList<>();
 
         BacktestTrade activeTrade = null;
+        Map<String, Object> strategyState = new HashMap<>();
+        Function<MarketData, BigDecimal> priceExtractor = getPriceExtractor(strategy.getPriceSource());
 
         for (int i = 0; i < marketDataList.size(); i++) {
             MarketData currentDay = marketDataList.get(i);
@@ -241,7 +237,12 @@ public class BacktestComputer {
             // 3. Generate next signal
             // ─────────────────────────────
             Map<String, BigDecimal> indicators = indicatorMap.getOrDefault(date, Collections.emptyMap());
-            TradeSignal nextSignal = strategy.generateSignal(currentDay, indicators, position);
+
+            // Renko regeneration logic
+            List<MarketData> subList = marketDataList.subList(0, i + 1);
+            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, subList, priceExtractor);
+
+            TradeSignal nextSignal = strategy.generateSignal(renkoBricks, currentDay, indicators, position, strategyState);
 
             // ─────────────────────────────
             // 4. Record Daily Equity
@@ -328,6 +329,12 @@ public class BacktestComputer {
         activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
 
         completedTrades.add(activeTrade);
+    }
+
+    private Function<MarketData, BigDecimal> getPriceExtractor(String source) {
+        if ("vwap".equalsIgnoreCase(source)) return MarketData::getVwap;
+        if ("price_close".equalsIgnoreCase(source)) return MarketData::getPriceClose;
+        return MarketData::getVwap;
     }
 
     private record BacktestRunResult(

@@ -23,6 +23,7 @@ public class CronScheduler {
     private final MarketStateDerivativeComputer marketStateDerivativeComputer;
     private final RenkoDataComputer renkoDataComputer;
     private final BacktestComputer backtestComputer;
+    private final RenkoBacktestComputer renkoBacktestComputer;
 
     public CronScheduler(
             TickDataDownloader tickDataDownloader,
@@ -30,7 +31,8 @@ public class CronScheduler {
             MarketStateComputer marketStateComputer,
             MarketStateDerivativeComputer marketStateDerivativeComputer,
             RenkoDataComputer renkoDataComputer,
-            BacktestComputer backtestComputer
+            BacktestComputer backtestComputer,
+            RenkoBacktestComputer renkoBacktestComputer
     ) {
         this.tickDataDownloader = tickDataDownloader;
         this.marketDataComputer = marketDataComputer;
@@ -38,6 +40,7 @@ public class CronScheduler {
         this.marketStateDerivativeComputer = marketStateDerivativeComputer;
         this.renkoDataComputer = renkoDataComputer;
         this.backtestComputer = backtestComputer;
+        this.renkoBacktestComputer = renkoBacktestComputer;
     }
 
     /**
@@ -60,23 +63,26 @@ public class CronScheduler {
 
     private void run() {
         try {
-            log.info("Step 1/6: Downloading tick data...");
+            log.info("Step 1/7: Downloading tick data...");
             tickDataDownloader.download();
 
-            log.info("Step 2/6: Computing market data metrics...");
+            log.info("Step 2/7: Computing market data metrics...");
             marketDataComputer.compute();
 
-            log.info("Step 3/6: Computing market state indicators...");
+            log.info("Step 3/7: Computing market state indicators...");
             marketStateComputer.compute();
 
-            log.info("Step 4/6: Computing capital momentum...");
+            log.info("Step 4/7: Computing capital momentum...");
             marketStateDerivativeComputer.compute();
 
-            log.info("Step 5/6: Computing Renko bricks...");
+            log.info("Step 5/7: Computing Renko bricks...");
             renkoDataComputer.compute();
 
-            log.info("Step 6/6: Running backtests...");
+            log.info("Step 6/7: Running backtests...");
             backtestComputer.compute();
+
+            log.info("Step 7/7: Running Renko backtests...");
+            renkoBacktestComputer.compute();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {
