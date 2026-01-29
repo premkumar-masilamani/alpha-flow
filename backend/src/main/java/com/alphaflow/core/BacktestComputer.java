@@ -16,7 +16,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,7 +34,7 @@ public class BacktestComputer {
     private final BacktestEquityDailyRepository equityRepository;
     private final BacktestSignalIntentRepository signalRepository;
     private final BacktestTradeRepository tradeRepository;
-    private final BacktestCagrRepository cagrRepository;
+    private final BacktestResultRepository resultRepository;
     private final List<BacktestStrategy> strategies;
     private final TransactionTemplate transactionTemplate;
 
@@ -42,7 +45,7 @@ public class BacktestComputer {
             BacktestEquityDailyRepository equityRepository,
             BacktestSignalIntentRepository signalRepository,
             BacktestTradeRepository tradeRepository,
-            BacktestCagrRepository cagrRepository,
+            BacktestResultRepository resultRepository,
             List<BacktestStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
@@ -52,7 +55,7 @@ public class BacktestComputer {
         this.equityRepository = equityRepository;
         this.signalRepository = signalRepository;
         this.tradeRepository = tradeRepository;
-        this.cagrRepository = cagrRepository;
+        this.resultRepository = resultRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
     }
@@ -65,7 +68,7 @@ public class BacktestComputer {
             equityRepository.deleteAllInBatch();
             signalRepository.deleteAllInBatch();
             tradeRepository.deleteAllInBatch();
-            cagrRepository.deleteAllInBatch();
+            resultRepository.deleteAllInBatch();
             return status;
         });
 
@@ -99,7 +102,7 @@ public class BacktestComputer {
                     equityRepository.saveAll(result.equities());
                     signalRepository.saveAll(result.signals());
                     tradeRepository.saveAll(result.trades());
-                    cagrRepository.save(result.cagr());
+                    resultRepository.save(result.result());
                     return status;
                 });
             }
@@ -152,10 +155,6 @@ public class BacktestComputer {
                 switch (pendingSignal.action()) {
 
                     case ENTER_LONG -> {
-                        if (activeTrade != null) {
-                            closeActiveTrade(activeTrade, date, priceOpen, completedTrades);
-                        }
-
                         PositionType target = pendingSignal.targetPosition();
                         shares = totalEquityAtOpen
                                 .divide(priceOpen, Constants.DB_MATH_CONTEXT);
@@ -178,10 +177,6 @@ public class BacktestComputer {
                     }
 
                     case ENTER_SHORT -> {
-                        if (activeTrade != null) {
-                            closeActiveTrade(activeTrade, date, priceOpen, completedTrades);
-                        }
-
                         PositionType target = pendingSignal.targetPosition();
                         shares = totalEquityAtOpen
                                 .divide(priceOpen, Constants.DB_MATH_CONTEXT);
@@ -204,7 +199,19 @@ public class BacktestComputer {
 
                     case EXIT -> {
                         if (activeTrade != null) {
-                            closeActiveTrade(activeTrade, date, priceOpen, completedTrades);
+                            activeTrade.setExitDate(date);
+                            activeTrade.setExitPrice(priceOpen);
+                            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
+                                    ? activeTrade.getQuantity().multiply(priceOpen.subtract(activeTrade.getEntryPrice()))
+                                    : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(priceOpen));
+                            activeTrade.setPnl(pnl);
+
+                            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
+                                    ? priceOpen.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT)
+                                    : activeTrade.getEntryPrice().subtract(priceOpen).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT);
+                            activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
+
+                            completedTrades.add(activeTrade);
                             activeTrade = null;
                         }
 
@@ -279,11 +286,25 @@ public class BacktestComputer {
         if (activeTrade != null) {
             MarketData lastDay = marketDataList.getLast();
             BigDecimal lastClose = lastDay.getPriceClose();
-            closeActiveTrade(activeTrade, lastDay.getMarketDataDate(), lastClose, completedTrades);
+
+            activeTrade.setExitDate(lastDay.getMarketDataDate());
+            activeTrade.setExitPrice(lastClose);
+
+            BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
+                    ? activeTrade.getQuantity().multiply(lastClose.subtract(activeTrade.getEntryPrice()))
+                    : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(lastClose));
+            activeTrade.setPnl(pnl);
+
+            BigDecimal pnlPct = activeTrade.getSide() == TradeSide.LONG
+                    ? lastClose.subtract(activeTrade.getEntryPrice()).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT)
+                    : activeTrade.getEntryPrice().subtract(lastClose).divide(activeTrade.getEntryPrice(), Constants.DB_MATH_CONTEXT);
+            activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
+
+            completedTrades.add(activeTrade);
         }
 
-        // Calculate CAGR
-        BacktestCagr cagrEntity = null;
+        // Calculate Backtest Results
+        BacktestResult resultEntity = null;
         if (!equities.isEmpty()) {
             BacktestEquity first = equities.getFirst();
             BacktestEquity last = equities.getLast();
@@ -299,7 +320,17 @@ public class BacktestComputer {
 
                 double cagrValue = (Math.pow(finalValue / initialValue, 1.0 / years) - 1.0) * 100.0;
 
-                cagrEntity = BacktestCagr.builder()
+                long totalTrades = completedTrades.size();
+                long successfulTrades = completedTrades.stream()
+                        .filter(t -> t.getPnl().compareTo(BigDecimal.ZERO) > 0)
+                        .count();
+                BigDecimal winRate = totalTrades > 0
+                        ? BigDecimal.valueOf(successfulTrades)
+                        .divide(BigDecimal.valueOf(totalTrades), Constants.DB_MATH_CONTEXT)
+                        .multiply(BigDecimal.valueOf(100))
+                        : BigDecimal.ZERO;
+
+                resultEntity = BacktestResult.builder()
                         .ticker(ticker)
                         .strategyName(strategy.getName())
                         .initialEquity(INITIAL_EQUITY)
@@ -308,33 +339,19 @@ public class BacktestComputer {
                         .endDate(endDate)
                         .years(new BigDecimal(years, Constants.DB_MATH_CONTEXT))
                         .cagr(new BigDecimal(cagrValue, Constants.DB_MATH_CONTEXT))
+                        .winRate(winRate)
                         .build();
             }
         }
 
-        return new BacktestRunResult(equities, signals, completedTrades, cagrEntity);
-    }
-
-    private void closeActiveTrade(BacktestTrade activeTrade, LocalDate exitDate, BigDecimal exitPrice, List<BacktestTrade> completedTrades) {
-        activeTrade.setExitDate(exitDate);
-        activeTrade.setExitPrice(exitPrice);
-        BigDecimal pnl = activeTrade.getSide() == TradeSide.LONG
-                ? activeTrade.getQuantity().multiply(exitPrice.subtract(activeTrade.getEntryPrice()))
-                : activeTrade.getQuantity().multiply(activeTrade.getEntryPrice().subtract(exitPrice));
-        activeTrade.setPnl(pnl);
-
-        BigDecimal entryValue = activeTrade.getQuantity().multiply(activeTrade.getEntryPrice());
-        BigDecimal pnlPct = pnl.divide(entryValue, Constants.DB_MATH_CONTEXT);
-        activeTrade.setPnlPct(pnlPct.multiply(BigDecimal.valueOf(100)));
-
-        completedTrades.add(activeTrade);
+        return new BacktestRunResult(equities, signals, completedTrades, resultEntity);
     }
 
     private record BacktestRunResult(
             List<BacktestEquity> equities,
             List<BacktestSignal> signals,
             List<BacktestTrade> trades,
-            BacktestCagr cagr
+            BacktestResult result
     ) {
     }
 
