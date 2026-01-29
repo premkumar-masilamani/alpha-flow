@@ -487,7 +487,7 @@ public class BacktestComputer {
 
             // Renko regeneration logic
             List<MarketData> subList = marketDataList.subList(0, i + 1);
-            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, subList, priceExtractor, strategy.getPriceSource());
+            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, subList, priceExtractor);
 
             TradeSignal nextSignal = strategy.generateSignal(renkoBricks, currentDay, indicators, position, strategyState);
 

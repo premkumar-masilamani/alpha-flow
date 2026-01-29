@@ -34,7 +34,7 @@ public class RenkoDataService {
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
-        List<RenkoData> renkoBricks = renkoDataRepository.findByTickerAndPriceSourceOrderByRenkoDateAsc(ticker, "vwap");
+        List<RenkoData> renkoBricks = renkoDataRepository.findByTickerOrderByRenkoDateAsc(ticker);
         return calculatePricesAndCreateResponse(renkoBricks);
     }
 

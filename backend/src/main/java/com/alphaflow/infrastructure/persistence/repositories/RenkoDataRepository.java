@@ -12,10 +12,10 @@ import java.util.List;
 @Repository
 public interface RenkoDataRepository extends JpaRepository<RenkoData, Long> {
 
-    List<RenkoData> findByTickerAndPriceSourceOrderByRenkoDateAsc(Ticker ticker, String priceSource);
+    List<RenkoData> findByTickerOrderByRenkoDateAsc(Ticker ticker);
 
     @Modifying
     @Transactional
-    void deleteByTickerAndPriceSource(Ticker ticker, String priceSource);
+    void deleteByTicker(Ticker ticker);
 
 }

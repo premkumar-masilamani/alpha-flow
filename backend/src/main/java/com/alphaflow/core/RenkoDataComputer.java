@@ -49,20 +49,11 @@ public class RenkoDataComputer {
                 return;
             }
 
-            // VWAP source
-            renkoDataRepository.deleteByTickerAndPriceSource(ticker, "vwap");
-            List<RenkoData> vwapBricks = RenkoUtil.generateRenkoBricks(ticker, allSeries, MarketData::getVwap, "vwap");
-            if (!vwapBricks.isEmpty()) {
-                renkoDataRepository.saveAll(vwapBricks);
-                log.info("Generated {} VWAP Renko bricks for {}", vwapBricks.size(), ticker.getTickerSymbol());
-            }
-
-            // PRICE_CLOSE source
-            renkoDataRepository.deleteByTickerAndPriceSource(ticker, "price_close");
-            List<RenkoData> closeBricks = RenkoUtil.generateRenkoBricks(ticker, allSeries, MarketData::getPriceClose, "price_close");
-            if (!closeBricks.isEmpty()) {
-                renkoDataRepository.saveAll(closeBricks);
-                log.info("Generated {} CLOSE Renko bricks for {}", closeBricks.size(), ticker.getTickerSymbol());
+            renkoDataRepository.deleteByTicker(ticker);
+            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, allSeries, MarketData::getVwap);
+            if (!renkoBricks.isEmpty()) {
+                renkoDataRepository.saveAll(renkoBricks);
+                log.info("Generated {} Renko bricks for {}", renkoBricks.size(), ticker.getTickerSymbol());
             }
         });
 

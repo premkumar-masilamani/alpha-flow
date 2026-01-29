@@ -23,7 +23,7 @@ public class RenkoUtil {
         return 4;
     }
 
-    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, Function<MarketData, BigDecimal> priceExtractor, String priceSource) {
+    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, Function<MarketData, BigDecimal> priceExtractor) {
         BigDecimal brickSize = calculateBrickSize(allSeries);
         if (brickSize.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of();
@@ -45,7 +45,6 @@ public class RenkoUtil {
                         .brickLow(currentPrice.subtract(brickSize))
                         .brickHigh(currentPrice)
                         .direction(RENKO_BRICK_DIRECTION_UP)
-                        .priceSource(priceSource)
                         .build());
             }
 
@@ -58,7 +57,6 @@ public class RenkoUtil {
                         .brickLow(currentPrice)
                         .brickHigh(currentPrice.add(brickSize))
                         .direction(RENKO_BRICK_DIRECTION_DOWN)
-                        .priceSource(priceSource)
                         .build());
             }
         }
