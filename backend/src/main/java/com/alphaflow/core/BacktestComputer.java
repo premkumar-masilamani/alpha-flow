@@ -299,6 +299,16 @@ public class BacktestComputer {
 
                 double cagrValue = (Math.pow(finalValue / initialValue, 1.0 / years) - 1.0) * 100.0;
 
+                long totalTrades = completedTrades.size();
+                long successfulTrades = completedTrades.stream()
+                        .filter(t -> t.getPnl().compareTo(BigDecimal.ZERO) > 0)
+                        .count();
+                BigDecimal winRate = totalTrades > 0
+                        ? BigDecimal.valueOf(successfulTrades)
+                        .divide(BigDecimal.valueOf(totalTrades), Constants.DB_MATH_CONTEXT)
+                        .multiply(BigDecimal.valueOf(100))
+                        : BigDecimal.ZERO;
+
                 cagrEntity = BacktestCagr.builder()
                         .ticker(ticker)
                         .strategyName(strategy.getName())
@@ -308,6 +318,7 @@ public class BacktestComputer {
                         .endDate(endDate)
                         .years(new BigDecimal(years, Constants.DB_MATH_CONTEXT))
                         .cagr(new BigDecimal(cagrValue, Constants.DB_MATH_CONTEXT))
+                        .winRate(winRate)
                         .build();
             }
         }

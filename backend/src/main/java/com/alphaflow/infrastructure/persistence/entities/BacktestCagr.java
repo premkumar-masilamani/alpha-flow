@@ -35,4 +35,6 @@ public class BacktestCagr {
     private LocalDate endDate;
 
     private BigDecimal years;
+
+    private BigDecimal winRate;
 }
