@@ -11,6 +11,7 @@ public class RenkoDataMapper {
                 .high(renkoDataEntity.getBrickHigh())
                 .direction(renkoDataEntity.getDirection())
                 .trend(renkoDataEntity.getTrend())
-                .zone(renkoDataEntity.getZone()).build();
+                .zone(renkoDataEntity.getZone())
+                .priceSource(renkoDataEntity.getPriceSource()).build();
     }
 }
