@@ -21,10 +21,10 @@ public class RenkoUtil {
         }
 
         List<RenkoData> renkoBricks = new ArrayList<>();
-        BigDecimal currentPrice = allSeries.getFirst().getVwap();
+        BigDecimal currentPrice = allSeries.getFirst().getPriceClose();
 
         for (MarketData row : allSeries) {
-            BigDecimal price = row.getVwap();
+            BigDecimal price = row.getPriceClose();
             LocalDate date = row.getMarketDataDate();
 
             // Up bricks
