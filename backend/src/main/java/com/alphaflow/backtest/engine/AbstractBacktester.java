@@ -78,7 +78,7 @@ public abstract class AbstractBacktester {
         };
     }
 
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index) {
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index, Strategy strategy) {
         // Only the RenkoBacktester will implement the logic
         return null;
     }
@@ -231,7 +231,7 @@ public abstract class AbstractBacktester {
                     data,
                     indicatorMap.getOrDefault(currentDate, Collections.emptyMap()),
                     currentPosition,
-                    buildRenkoBricks(ticker, marketData, i), // used only for renko based strategies
+                    buildRenkoBricks(ticker, marketData, i, strategy), // used only for renko based strategies
                     strategyState // Placeholder to extra data
             );
             TradeAction nextAction = strategy.generateSignal(context);

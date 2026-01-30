@@ -1,8 +1,9 @@
-package com.alphaflow.backtest.strategies;
+package com.alphaflow.backtest.strategies.candlestick;
 
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.strategies.StrategyContext;
 import org.springframework.stereotype.Component;
 
 @Component

@@ -1,10 +1,12 @@
-package com.alphaflow.backtest.strategies;
+package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.constants.AppConstants;
 import com.alphaflow.infrastructure.entities.RenkoData;
+import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -21,6 +23,11 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     @Override
     public String getName() {
         return "Renko TSM";
+    }
+
+    @Override
+    public RenkoPriceSource getPriceSource() {
+        return RenkoPriceSource.PRICE_CLOSE;
     }
 
     @Override
