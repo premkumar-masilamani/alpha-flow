@@ -70,12 +70,13 @@ public class MarketStateCalculator {
                 }
 
                 // Transformations (SMA / EMA only)
-                var spec = metric.transformSpec();
-                for (TransformationType transformation : spec.transformations()) {
-                    for (WindowPeriod period : spec.periods()) {
-                        switch (transformation) {
-                            case SMA -> computeSMA(ticker, metric, period, allSeries);
-                            case EMA -> computeEMA(ticker, metric, period, allSeries);
+                for (var spec : metric.transformSpecs()) {
+                    for (TransformationType transformation : spec.transformations()) {
+                        for (WindowPeriod period : spec.periods()) {
+                            switch (transformation) {
+                                case SMA -> computeSMA(ticker, metric, period, allSeries);
+                                case EMA -> computeEMA(ticker, metric, period, allSeries);
+                            }
                         }
                     }
                 }
