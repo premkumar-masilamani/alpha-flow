@@ -1,4 +1,4 @@
-package com.alphaflow.engine.models;
+package com.alphaflow.engine.metrics;
 
 import java.math.BigDecimal;
 

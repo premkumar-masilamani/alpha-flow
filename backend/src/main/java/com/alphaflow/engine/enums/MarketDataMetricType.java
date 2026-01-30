@@ -76,6 +76,15 @@ public enum MarketDataMetricType {
             )
     ),
 
+    CCF(
+            "CCF",
+            md -> md.getBuyerCapital().multiply(BigDecimal.valueOf(2)).subtract(md.getTotalCapital(), DB_MATH_CONTEXT),
+            new MetricTransformSpec(
+                    EnumSet.of(TransformationType.CCF),
+                    EnumSet.of(ZERO_DAYS)
+            )
+    ),
+
     PRICE_CLOSE(
             "P_CLOSE",
             MarketData::getPriceClose,
