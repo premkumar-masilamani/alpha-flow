@@ -78,24 +78,7 @@ public enum MarketDataMetricType {
 
     CCF(
             "CCF",
-            md -> {
-                BigDecimal high = md.getPriceHigh();
-                BigDecimal low = md.getPriceLow();
-                BigDecimal close = md.getPriceClose();
-                BigDecimal volume = md.getVolume();
-
-                if (high.compareTo(low) == 0) {
-                    return BigDecimal.ZERO;
-                }
-
-                // mfm = ((close - low) - (high - close)) / (high - low)
-                BigDecimal numerator = close.subtract(low, DB_MATH_CONTEXT)
-                        .subtract(high.subtract(close, DB_MATH_CONTEXT), DB_MATH_CONTEXT);
-                BigDecimal denominator = high.subtract(low, DB_MATH_CONTEXT);
-                BigDecimal mfm = numerator.divide(denominator, DB_MATH_CONTEXT);
-
-                return mfm.multiply(volume, DB_MATH_CONTEXT);
-            },
+            md -> md.getBuyerCapital().multiply(BigDecimal.valueOf(2)).subtract(md.getTotalCapital(), DB_MATH_CONTEXT),
             new MetricTransformSpec(
                     EnumSet.of(TransformationType.CCF),
                     EnumSet.of(ZERO_DAYS)
