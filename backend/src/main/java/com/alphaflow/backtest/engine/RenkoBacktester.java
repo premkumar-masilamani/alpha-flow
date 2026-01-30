@@ -4,7 +4,6 @@ import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
-import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
 import com.alphaflow.infrastructure.entities.MarketData;
