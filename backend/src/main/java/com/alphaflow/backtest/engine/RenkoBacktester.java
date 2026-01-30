@@ -65,3 +65,4 @@ public class RenkoBacktester extends AbstractBacktester {
         return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
     }
 }
+
