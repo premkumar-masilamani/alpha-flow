@@ -1,4 +1,4 @@
-package com.alphaflow.engine.computers;
+package com.alphaflow.engine.calculation;
 
 import com.alphaflow.engine.enums.MarketDataMetricType;
 import com.alphaflow.engine.enums.TransformationType;
@@ -24,15 +24,15 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 import static java.math.BigDecimal.valueOf;
 
 @Service
-public class MarketStateComputer {
+public class MarketStateCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketStateComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketStateCalculator.class);
 
     private final MarketDataRepository marketDataRepository;
     private final MarketStateRepository marketStateRepository;
     private final TickerRepository tickerRepository;
 
-    public MarketStateComputer(
+    public MarketStateCalculator(
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
             TickerRepository tickerRepository
@@ -42,7 +42,7 @@ public class MarketStateComputer {
         this.tickerRepository = tickerRepository;
     }
 
-    public void compute() {
+    public void calculate() {
         log.info("Starting Market State Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {

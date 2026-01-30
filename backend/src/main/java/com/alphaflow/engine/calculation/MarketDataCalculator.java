@@ -1,12 +1,12 @@
-package com.alphaflow.engine.computers;
+package com.alphaflow.engine.calculation;
 
 import com.alphaflow.engine.configs.AppConfig;
 import com.alphaflow.engine.entities.File;
-import com.alphaflow.engine.models.CapitalProfileMetrics;
-import com.alphaflow.engine.models.OHLCVMetrics;
-import com.alphaflow.engine.models.OrderFlowMetrics;
+import com.alphaflow.engine.metrics.CapitalProfileMetrics;
+import com.alphaflow.engine.metrics.OHLCVMetrics;
+import com.alphaflow.engine.metrics.OrderFlowMetrics;
 import com.alphaflow.engine.repositories.FileRepository;
-import com.alphaflow.engine.utils.MetricsUtil;
+import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import org.slf4j.Logger;
@@ -27,15 +27,15 @@ import static com.alphaflow.infrastructure.constants.AppConstants.*;
 import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
-public class MarketDataComputer {
+public class MarketDataCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketDataComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketDataCalculator.class);
 
     private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final MarketDataRepository marketDataRepository;
 
-    public MarketDataComputer(
+    public MarketDataCalculator(
             AppConfig appConfig,
             FileRepository fileRepository,
             MarketDataRepository marketDataRepository
@@ -50,7 +50,7 @@ public class MarketDataComputer {
      * Iterates through all unprocessed files in the database, extracts tick data from ZIP archives,
      * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
      */
-    public void compute() {
+    public void calculate() {
         log.info("Starting Market Data Computation");
 
         int totalProcessed = 0;
@@ -149,9 +149,9 @@ public class MarketDataComputer {
 
     private MarketData computeMetrics(File file, Table table) {
 
-        OHLCVMetrics ohlcvMetrics = MetricsUtil.ohlcv(table);
-        OrderFlowMetrics orderFlowMetrics = MetricsUtil.orderFlow(table);
-        CapitalProfileMetrics capitalProfileMetrics = MetricsUtil.capitalProfile(table, ohlcvMetrics);
+        OHLCVMetrics ohlcvMetrics = MetricsCalculator.ohlcv(table);
+        OrderFlowMetrics orderFlowMetrics = MetricsCalculator.orderFlow(table);
+        CapitalProfileMetrics capitalProfileMetrics = MetricsCalculator.capitalProfile(table, ohlcvMetrics);
 
         return MarketData.builder()
                 .ticker(file.getTicker())

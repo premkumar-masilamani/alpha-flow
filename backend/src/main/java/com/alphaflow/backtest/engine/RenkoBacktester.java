@@ -1,22 +1,26 @@
-package com.alphaflow.backtest.computers;
+package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
-import com.alphaflow.backtest.strategies.CandlestickStrategy;
+import com.alphaflow.backtest.strategies.RenkoStrategy;
+import com.alphaflow.infrastructure.entities.MarketData;
+import com.alphaflow.infrastructure.entities.RenkoData;
+import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
 @Service
-public class CandlestickBacktester extends AbstractBacktester {
+public class RenkoBacktester extends AbstractBacktester {
 
-    public CandlestickBacktester(
+    public RenkoBacktester(
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
@@ -24,7 +28,7 @@ public class CandlestickBacktester extends AbstractBacktester {
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
-            List<CandlestickStrategy> strategies,
+            List<RenkoStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
         super(
@@ -39,4 +43,10 @@ public class CandlestickBacktester extends AbstractBacktester {
                 transactionTemplate
         );
     }
+
+    @Override
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index) {
+        return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1));
+    }
 }
+

@@ -1,4 +1,4 @@
-package com.alphaflow.engine.computers;
+package com.alphaflow.engine.calculation;
 
 import com.alphaflow.engine.enums.MarketDataMetricType;
 import com.alphaflow.engine.enums.TransformationType;
@@ -27,14 +27,14 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 import static java.time.LocalDate.EPOCH;
 
 @Service
-public class MarketStateDerivativeComputer {
+public class MarketStateDerivativeCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketStateDerivativeComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(MarketStateDerivativeCalculator.class);
 
     private final MarketStateRepository marketStateRepository;
     private final TickerRepository tickerRepository;
 
-    public MarketStateDerivativeComputer(
+    public MarketStateDerivativeCalculator(
             MarketStateRepository marketStateRepository,
             TickerRepository tickerRepository
     ) {
@@ -42,7 +42,7 @@ public class MarketStateDerivativeComputer {
         this.tickerRepository = tickerRepository;
     }
 
-    public void compute() {
+    public void calculate() {
         log.info("Starting Capital Momentum Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {

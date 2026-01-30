@@ -1,11 +1,11 @@
-package com.alphaflow.engine.computers;
+package com.alphaflow.engine.calculation;
 
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.RenkoDataRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
-import com.alphaflow.infrastructure.utils.RenkoUtil;
+import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,15 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-public class RenkoDataComputer {
+public class RenkoDataCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(RenkoDataComputer.class);
+    private static final Logger log = LoggerFactory.getLogger(RenkoDataCalculator.class);
 
     private final MarketDataRepository marketDataRepository;
     private final RenkoDataRepository renkoDataRepository;
     private final TickerRepository tickerRepository;
 
-    public RenkoDataComputer(
+    public RenkoDataCalculator(
             MarketDataRepository marketDataRepository,
             RenkoDataRepository renkoDataRepository,
             TickerRepository tickerRepository
@@ -33,7 +33,7 @@ public class RenkoDataComputer {
     }
 
     @Transactional
-    public void compute() {
+    public void calculate() {
         log.info("Starting Renko Data Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
@@ -46,7 +46,7 @@ public class RenkoDataComputer {
                 return;
             }
 
-            List<RenkoData> renkoBricks = RenkoUtil.generateRenkoBricks(ticker, allSeries);
+            List<RenkoData> renkoBricks = RenkoBricksGenerator.generateRenkoBricks(ticker, allSeries);
             if (!renkoBricks.isEmpty()) {
                 renkoDataRepository.deleteByTicker(ticker);
                 renkoDataRepository.flush();

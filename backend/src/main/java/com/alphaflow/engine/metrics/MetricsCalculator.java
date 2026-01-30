@@ -1,8 +1,5 @@
-package com.alphaflow.engine.utils;
+package com.alphaflow.engine.metrics;
 
-import com.alphaflow.engine.models.CapitalProfileMetrics;
-import com.alphaflow.engine.models.OHLCVMetrics;
-import com.alphaflow.engine.models.OrderFlowMetrics;
 import org.springframework.stereotype.Component;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.StringColumn;
@@ -18,7 +15,7 @@ import static java.math.BigDecimal.valueOf;
 import static java.util.Comparator.comparing;
 
 @Component
-public class MetricsUtil {
+public class MetricsCalculator {
 
     public static OHLCVMetrics ohlcv(Table table) {
 

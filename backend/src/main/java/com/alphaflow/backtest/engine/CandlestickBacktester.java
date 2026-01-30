@@ -1,26 +1,22 @@
-package com.alphaflow.backtest.computers;
+package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
-import com.alphaflow.backtest.strategies.RenkoStrategy;
-import com.alphaflow.infrastructure.entities.MarketData;
-import com.alphaflow.infrastructure.entities.RenkoData;
-import com.alphaflow.infrastructure.entities.Ticker;
+import com.alphaflow.backtest.strategies.CandlestickStrategy;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
-import com.alphaflow.infrastructure.utils.RenkoUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 
 @Service
-public class RenkoBacktester extends AbstractBacktester {
+public class CandlestickBacktester extends AbstractBacktester {
 
-    public RenkoBacktester(
+    public CandlestickBacktester(
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
             MarketStateRepository marketStateRepository,
@@ -28,7 +24,7 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
-            List<RenkoStrategy> strategies,
+            List<CandlestickStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
         super(
@@ -43,10 +39,4 @@ public class RenkoBacktester extends AbstractBacktester {
                 transactionTemplate
         );
     }
-
-    @Override
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index) {
-        return RenkoUtil.generateRenkoBricks(ticker, allData.subList(0, index + 1));
-    }
 }
-
