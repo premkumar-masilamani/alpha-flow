@@ -15,6 +15,7 @@ import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
