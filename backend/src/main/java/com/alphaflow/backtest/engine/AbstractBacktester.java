@@ -241,14 +241,14 @@ public abstract class AbstractBacktester {
             if (marketData.size() > i + 1) {
                 executeDate = marketData.get(i + 1).getMarketDataDate();
             }
+
             signals.add(BacktestSignal.builder()
                     .ticker(ticker)
                     .strategyName(strategy.getName())
                     .signalDate(currentDate)
                     .executeDate(executeDate)
                     .action(nextAction.tradeSignal())
-                    .fromPosition(currentPosition)
-                    .toPosition(nextAction.positionType())
+                    .signalData(nextAction.signalData().toString())
                     .build());
 
             pendingAction = nextAction;

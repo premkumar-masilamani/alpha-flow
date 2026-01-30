@@ -1,6 +1,5 @@
 package com.alphaflow.backtest.entities;
 
-import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.infrastructure.entities.Ticker;
 import jakarta.persistence.*;
@@ -36,9 +35,6 @@ public class BacktestSignal {
     @Enumerated(EnumType.STRING)
     private TradeSignal action;
 
-    @Enumerated(EnumType.STRING)
-    private PositionType fromPosition;
-
-    @Enumerated(EnumType.STRING)
-    private PositionType toPosition;
+    @Column(columnDefinition = "TEXT")
+    private String signalData;
 }
