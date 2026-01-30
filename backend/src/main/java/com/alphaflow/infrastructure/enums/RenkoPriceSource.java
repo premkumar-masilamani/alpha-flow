@@ -9,12 +9,12 @@ public enum RenkoPriceSource {
     VWAP_OHLC4,
     VWAP_HLC3;
 
-    public BigDecimal getPrice(MarketData data) {
+    public BigDecimal getPrice(MarketData marketData) {
         return switch (this) {
-            case PRICE_CLOSE -> data.getPriceClose();
-            case VWAP -> data.getVwap();
-            case VWAP_OHLC4 -> data.getVwapOHLC4();
-            case VWAP_HLC3 -> data.getVwapHLC3();
+            case PRICE_CLOSE -> marketData.getPriceClose();
+            case VWAP -> marketData.getVwap();
+            case VWAP_OHLC4 -> marketData.getVwapOHLC4();
+            case VWAP_HLC3 -> marketData.getVwapHLC3();
         };
     }
 }
