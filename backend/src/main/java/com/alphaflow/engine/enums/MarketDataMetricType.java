@@ -21,7 +21,9 @@ public enum MarketDataMetricType {
             MarketData::getVwap,
             new MetricTransformSpec(
                     EnumSet.of(EMA, SMA),
-                    EnumSet.of(FIVE_DAYS, TEN_DAYS, TWENTY_ONE_DAYS)
+                    EnumSet.of(FIVE_DAYS,
+                            TEN_DAYS,
+                            TWENTY_ONE_DAYS)
             )
     ),
 
@@ -48,7 +50,8 @@ public enum MarketDataMetricType {
             MarketData::getCapitalPOC,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
-                    EnumSet.of(FIVE_DAYS, TEN_DAYS)
+                    EnumSet.of(FIVE_DAYS,
+                            TEN_DAYS)
             )
     ),
 
@@ -65,7 +68,8 @@ public enum MarketDataMetricType {
             MarketData::getTotalCapital,
             new MetricTransformSpec(
                     EnumSet.of(EMA),
-                    EnumSet.of(TEN_DAYS, TWENTY_DAYS)
+                    EnumSet.of(TEN_DAYS,
+                            TWENTY_DAYS)
             )
     ),
 
@@ -110,11 +114,23 @@ public enum MarketDataMetricType {
             MarketData::getPriceClose,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
-                    EnumSet.of(TEN_DAYS, TWO_HUNDRED_DAYS)
+                    EnumSet.of(TEN_DAYS,
+                            TWO_HUNDRED_DAYS)
             ),
             new MetricTransformSpec(
                     EnumSet.of(EMA),
-                    EnumSet.of(THREE_DAYS, FIVE_DAYS, EIGHT_DAYS, TEN_DAYS, TWELVE_DAYS, FIFTEEN_DAYS, THIRTY_DAYS, THIRTY_FIVE_DAYS, FORTY_DAYS, FORTY_FIVE_DAYS, FIFTY_DAYS, SIXTY_DAYS)
+                    EnumSet.of(THREE_DAYS,
+                            FIVE_DAYS,
+                            EIGHT_DAYS,
+                            TEN_DAYS,
+                            TWELVE_DAYS,
+                            FIFTEEN_DAYS,
+                            THIRTY_DAYS,
+                            THIRTY_FIVE_DAYS,
+                            FORTY_DAYS,
+                            FORTY_FIVE_DAYS,
+                            FIFTY_DAYS,
+                            SIXTY_DAYS)
             )
     );
 
