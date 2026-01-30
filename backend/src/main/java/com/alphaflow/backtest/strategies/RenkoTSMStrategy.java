@@ -8,6 +8,7 @@ import com.alphaflow.infrastructure.entities.RenkoData;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -52,15 +53,22 @@ public class RenkoTSMStrategy implements RenkoStrategy {
                 lastBrick.getBrickLow().compareTo(priceCloseSma10) < 0 &&
                 obv.compareTo(prevObv) < 0;
 
+        Map<String, Object> signalData = new HashMap<>();
+        signalData.put(INDICATOR_PRICE_CLOSE_SMA_10, priceCloseSma10);
+        signalData.put(INDICATOR_OBV, obv);
+        signalData.put(INDICATOR_PREVIOUS_OBV, prevObv);
+        signalData.put("lastBrickHigh", lastBrick.getBrickHigh());
+        signalData.put("lastBrickLow", lastBrick.getBrickLow());
+        signalData.put("lastBrickDirection", lastBrick.getDirection());
+
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.LONG) && shortEntry) {
-            return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT);
+            return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.SHORT) && longEntry) {
-            return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG);
+            return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 
-        return new TradeAction(TradeSignal.HOLD, currentPosition);
+        return new TradeAction(TradeSignal.HOLD, currentPosition, signalData);
     }
 }
-
