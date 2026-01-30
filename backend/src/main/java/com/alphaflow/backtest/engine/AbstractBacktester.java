@@ -47,6 +47,7 @@ public abstract class AbstractBacktester {
     protected final BacktestResultRepository backtestResultRepository;
     protected final List<? extends Strategy> strategies;
     protected final TransactionTemplate transactionTemplate;
+    protected final PerformanceScoringService performanceScoringService;
 
     protected AbstractBacktester(
             TickerRepository tickerRepository,
@@ -57,7 +58,8 @@ public abstract class AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<? extends Strategy> strategies,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            PerformanceScoringService performanceScoringService
     ) {
         this.tickerRepository = tickerRepository;
         this.marketDataRepository = marketDataRepository;
@@ -68,6 +70,7 @@ public abstract class AbstractBacktester {
         this.backtestResultRepository = backtestResultRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
+        this.performanceScoringService = performanceScoringService;
     }
 
     private static BigDecimal calculateEquity(PositionType currentPosition, BigDecimal cash, BigDecimal shares, BigDecimal open, BigDecimal entryPrice) {
@@ -92,6 +95,11 @@ public abstract class AbstractBacktester {
 
             for (Strategy strategy : strategies) {
                 BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
+                if (runResult.backtestResult() != null) {
+                    performanceScoringService.calculateScores(runResult.backtestResult());
+                    performanceScoringService.applyFilters(runResult.backtestResult());
+                }
+
                 transactionTemplate.execute(status -> {
                     backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
                     backtestSignalRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
@@ -101,11 +109,14 @@ public abstract class AbstractBacktester {
                     backtestEquityRepository.saveAll(runResult.backtestEquities());
                     backtestSignalRepository.saveAll(runResult.backtestSignals());
                     backtestTradeRepository.saveAll(runResult.backtestTrades());
-                    backtestResultRepository.save(runResult.backtestResult());
+                    if (runResult.backtestResult() != null) {
+                        backtestResultRepository.save(runResult.backtestResult());
+                    }
                     return status;
                 });
             }
         });
+        performanceScoringService.updateAllScores();
     }
 
     //TODO: Flatten the structure as market_data in the future
@@ -311,17 +322,58 @@ public abstract class AbstractBacktester {
         double years = days / YEAR_IN_DAYS;
         double cagr = (Math.pow(growthFactor, 1.0 / years) - 1) * 100;
 
+        // Total Return Calculation
+        BigDecimal totalReturnPct = last.getEquity().subtract(INITIAL_EQUITY)
+                .divide(INITIAL_EQUITY, DB_MATH_CONTEXT).multiply(HUNDRED);
+
         // Win Rate Calculation
-        long totalTrades = trades.size();
-        long winningTrades = trades.stream()
-                .filter(trade -> trade.getPnl() != null &&
-                        trade.getPnl().compareTo(BigDecimal.ZERO) > 0)
-                .count();
+        int totalTrades = trades.size();
+        List<BacktestTrade> winningTradesList = trades.stream()
+                .filter(trade -> trade.getPnl() != null && trade.getPnl().compareTo(BigDecimal.ZERO) > 0)
+                .toList();
+        List<BacktestTrade> losingTradesList = trades.stream()
+                .filter(trade -> trade.getPnl() != null && trade.getPnl().compareTo(BigDecimal.ZERO) < 0)
+                .toList();
+
         BigDecimal winRate = BigDecimal.ZERO;
+        BigDecimal avgWin = BigDecimal.ZERO;
+        BigDecimal avgLoss = BigDecimal.ZERO;
+        BigDecimal profitFactor = BigDecimal.ZERO;
+        BigDecimal expectancy = BigDecimal.ZERO;
+
         if (totalTrades > 0) {
-            BigDecimal wins = BigDecimal.valueOf(winningTrades);
+            BigDecimal wins = BigDecimal.valueOf(winningTradesList.size());
             BigDecimal total = BigDecimal.valueOf(totalTrades);
             winRate = wins.divide(total, DB_MATH_CONTEXT).multiply(HUNDRED);
+
+            avgWin = winningTradesList.isEmpty() ? BigDecimal.ZERO :
+                    winningTradesList.stream()
+                            .map(BacktestTrade::getPnlPct)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                            .divide(BigDecimal.valueOf(winningTradesList.size()), DB_MATH_CONTEXT);
+
+            avgLoss = losingTradesList.isEmpty() ? BigDecimal.ZERO :
+                    losingTradesList.stream()
+                            .map(BacktestTrade::getPnlPct)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add)
+                            .divide(BigDecimal.valueOf(losingTradesList.size()), DB_MATH_CONTEXT);
+
+            BigDecimal grossProfit = winningTradesList.stream()
+                    .map(BacktestTrade::getPnl)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal grossLoss = losingTradesList.stream()
+                    .map(BacktestTrade::getPnl)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add).abs();
+
+            if (grossLoss.compareTo(BigDecimal.ZERO) > 0) {
+                profitFactor = grossProfit.divide(grossLoss, DB_MATH_CONTEXT);
+            } else if (grossProfit.compareTo(BigDecimal.ZERO) > 0) {
+                profitFactor = BigDecimal.valueOf(99.99);
+            }
+
+            BigDecimal winRateDecimal = winRate.divide(HUNDRED, DB_MATH_CONTEXT);
+            BigDecimal lossRateDecimal = BigDecimal.ONE.subtract(winRateDecimal);
+            expectancy = winRateDecimal.multiply(avgWin).add(lossRateDecimal.multiply(avgLoss));
         }
 
         return BacktestResult.builder()
@@ -334,7 +386,50 @@ public abstract class AbstractBacktester {
                 .years(BigDecimal.valueOf(years))
                 .cagr(BigDecimal.valueOf(cagr))
                 .winRate(winRate)
+                .totalReturnPct(totalReturnPct)
+                .maxDrawdownPct(calculateMaxDrawdown(equities))
+                .sharpeRatio(calculateSharpeRatio(equities))
+                .totalTrades(totalTrades)
+                .avgWin(avgWin)
+                .avgLoss(avgLoss)
+                .profitFactor(profitFactor)
+                .expectancy(expectancy)
                 .build();
+    }
+
+    private BigDecimal calculateMaxDrawdown(List<BacktestEquity> equities) {
+        if (equities.isEmpty()) return BigDecimal.ZERO;
+        BigDecimal maxDrawdown = BigDecimal.ZERO;
+        BigDecimal peak = equities.getFirst().getEquity();
+        for (BacktestEquity equity : equities) {
+            if (equity.getEquity().compareTo(peak) > 0) {
+                peak = equity.getEquity();
+            }
+            BigDecimal drawdown = peak.subtract(equity.getEquity()).divide(peak, DB_MATH_CONTEXT).multiply(HUNDRED);
+            if (drawdown.compareTo(maxDrawdown) > 0) {
+                maxDrawdown = drawdown;
+            }
+        }
+        return maxDrawdown;
+    }
+
+    private BigDecimal calculateSharpeRatio(List<BacktestEquity> equities) {
+        if (equities.size() < 2) return BigDecimal.ZERO;
+        List<Double> returns = new ArrayList<>();
+        for (int i = 1; i < equities.size(); i++) {
+            double prev = equities.get(i - 1).getEquity().doubleValue();
+            double curr = equities.get(i).getEquity().doubleValue();
+            if (prev != 0) {
+                returns.add((curr / prev) - 1.0);
+            }
+        }
+        if (returns.isEmpty()) return BigDecimal.ZERO;
+        double mean = returns.stream().mapToDouble(d -> d).average().orElse(0.0);
+        double variance = returns.stream().mapToDouble(d -> Math.pow(d - mean, 2)).sum() / returns.size();
+        double stdDev = Math.sqrt(variance);
+        if (stdDev == 0) return BigDecimal.ZERO;
+        double sharpe = (mean / stdDev) * Math.sqrt(252);
+        return BigDecimal.valueOf(sharpe);
     }
 
     protected record BacktestRunResult(

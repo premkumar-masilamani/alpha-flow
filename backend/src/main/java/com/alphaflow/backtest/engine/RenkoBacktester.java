@@ -33,7 +33,8 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<RenkoStrategy> strategies,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            PerformanceScoringService performanceScoringService
     ) {
         super(
                 tickerRepository,
@@ -44,7 +45,8 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestTradeRepository,
                 backtestResultRepository,
                 strategies,
-                transactionTemplate
+                transactionTemplate,
+                performanceScoringService
         );
     }
 

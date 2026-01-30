@@ -25,7 +25,8 @@ public class CandlestickBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<CandlestickStrategy> strategies,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            PerformanceScoringService performanceScoringService
     ) {
         super(
                 tickerRepository,
@@ -36,7 +37,8 @@ public class CandlestickBacktester extends AbstractBacktester {
                 backtestTradeRepository,
                 backtestResultRepository,
                 strategies,
-                transactionTemplate
+                transactionTemplate,
+                performanceScoringService
         );
     }
 }
