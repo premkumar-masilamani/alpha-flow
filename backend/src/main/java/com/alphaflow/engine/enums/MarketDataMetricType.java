@@ -108,7 +108,7 @@ public enum MarketDataMetricType {
             MarketData::getPriceClose,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
-                    EnumSet.of(TEN_DAYS)
+                    EnumSet.of(TEN_DAYS, TWO_HUNDRED_DAYS)
             )
     );
 
