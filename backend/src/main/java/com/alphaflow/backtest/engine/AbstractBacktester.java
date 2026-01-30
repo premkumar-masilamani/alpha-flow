@@ -20,9 +20,6 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
@@ -35,7 +32,6 @@ import static com.alphaflow.backtest.enums.PositionType.LONG;
 import static com.alphaflow.backtest.enums.PositionType.SHORT;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
-@Slf4j
 public abstract class AbstractBacktester {
 
     protected static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000");
@@ -51,7 +47,6 @@ public abstract class AbstractBacktester {
     protected final BacktestResultRepository backtestResultRepository;
     protected final List<? extends Strategy> strategies;
     protected final TransactionTemplate transactionTemplate;
-    protected final ObjectMapper objectMapper;
 
     protected AbstractBacktester(
             TickerRepository tickerRepository,
@@ -62,8 +57,7 @@ public abstract class AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<? extends Strategy> strategies,
-            TransactionTemplate transactionTemplate,
-            ObjectMapper objectMapper
+            TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
         this.marketDataRepository = marketDataRepository;
@@ -74,7 +68,6 @@ public abstract class AbstractBacktester {
         this.backtestResultRepository = backtestResultRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
-        this.objectMapper = objectMapper;
     }
 
     private static BigDecimal calculateEquity(PositionType currentPosition, BigDecimal cash, BigDecimal shares, BigDecimal open, BigDecimal entryPrice) {
@@ -249,22 +242,13 @@ public abstract class AbstractBacktester {
                 executeDate = marketData.get(i + 1).getMarketDataDate();
             }
 
-            String signalDataJson = null;
-            if (nextAction.signalData() != null && !nextAction.signalData().isEmpty()) {
-                try {
-                    signalDataJson = objectMapper.writeValueAsString(nextAction.signalData());
-                } catch (JsonProcessingException e) {
-                    log.error("Error serializing signal data for strategy: {}", strategy.getName(), e);
-                }
-            }
-
             signals.add(BacktestSignal.builder()
                     .ticker(ticker)
                     .strategyName(strategy.getName())
                     .signalDate(currentDate)
                     .executeDate(executeDate)
                     .action(nextAction.tradeSignal())
-                    .signalData(signalDataJson)
+                    .signalData(nextAction.signalData().toString())
                     .build());
 
             pendingAction = nextAction;

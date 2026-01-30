@@ -10,6 +10,7 @@ import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,12 +62,12 @@ public class RenkoTSMStrategy implements RenkoStrategy {
                 obv.compareTo(prevObv) < 0;
 
         Map<String, Object> signalData = new HashMap<>();
-        signalData.put(INDICATOR_PRICE_CLOSE_SMA_10, priceCloseSma10);
-        signalData.put(INDICATOR_OBV, obv);
-        signalData.put(INDICATOR_PREVIOUS_OBV, prevObv);
-        signalData.put("lastBrickHigh", lastBrick.getBrickHigh());
-        signalData.put("lastBrickLow", lastBrick.getBrickLow());
-        signalData.put("lastBrickDirection", lastBrick.getDirection());
+        signalData.put(INDICATOR_PRICE_CLOSE_SMA_10, scale2(priceCloseSma10));
+        signalData.put(INDICATOR_OBV, scale2(obv));
+        signalData.put(INDICATOR_PREVIOUS_OBV, scale2(prevObv));
+        signalData.put("high", scale2(lastBrick.getBrickHigh()));
+        signalData.put("low", scale2(lastBrick.getBrickLow()));
+        signalData.put("direction", lastBrick.getDirection());
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.LONG) && shortEntry) {
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
@@ -78,4 +79,9 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
         return new TradeAction(TradeSignal.HOLD, currentPosition, signalData);
     }
+
+    private BigDecimal scale2(BigDecimal value) {
+        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
+    }
+
 }

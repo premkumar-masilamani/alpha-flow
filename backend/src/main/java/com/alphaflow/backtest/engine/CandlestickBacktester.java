@@ -8,7 +8,6 @@ import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -26,8 +25,7 @@ public class CandlestickBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<CandlestickStrategy> strategies,
-            TransactionTemplate transactionTemplate,
-            ObjectMapper objectMapper
+            TransactionTemplate transactionTemplate
     ) {
         super(
                 tickerRepository,
@@ -38,8 +36,7 @@ public class CandlestickBacktester extends AbstractBacktester {
                 backtestTradeRepository,
                 backtestResultRepository,
                 strategies,
-                transactionTemplate,
-                objectMapper
+                transactionTemplate
         );
     }
 }

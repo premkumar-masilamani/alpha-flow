@@ -15,7 +15,6 @@ import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -33,8 +32,7 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<RenkoStrategy> strategies,
-            TransactionTemplate transactionTemplate,
-            ObjectMapper objectMapper
+            TransactionTemplate transactionTemplate
     ) {
         super(
                 tickerRepository,
@@ -45,8 +43,7 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestTradeRepository,
                 backtestResultRepository,
                 strategies,
-                transactionTemplate,
-                objectMapper
+                transactionTemplate
         );
     }
 
