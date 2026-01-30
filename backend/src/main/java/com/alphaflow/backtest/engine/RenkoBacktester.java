@@ -1,4 +1,4 @@
-package com.alphaflow.backtest.computers;
+package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
@@ -13,7 +13,7 @@ import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
-import com.alphaflow.infrastructure.utils.RenkoUtil;
+import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 

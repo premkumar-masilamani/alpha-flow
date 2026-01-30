@@ -1,8 +1,8 @@
 package com.alphaflow.infrastructure.schedulers;
 
-import com.alphaflow.backtest.computers.CandlestickBacktester;
-import com.alphaflow.backtest.computers.RenkoBacktester;
-import com.alphaflow.engine.computers.*;
+import com.alphaflow.backtest.engine.CandlestickBacktester;
+import com.alphaflow.backtest.engine.RenkoBacktester;
+import com.alphaflow.engine.calculation.*;
 import com.alphaflow.engine.downloaders.BinanceDataDownloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,27 +22,27 @@ public class CoreScheduler {
     private static final Logger log = LoggerFactory.getLogger(CoreScheduler.class);
 
     private final BinanceDataDownloader binanceDataDownloader;
-    private final MarketDataComputer marketDataComputer;
-    private final MarketStateComputer marketStateComputer;
-    private final MarketStateDerivativeComputer marketStateDerivativeComputer;
-    private final RenkoDataComputer renkoDataComputer;
+    private final MarketDataCalculator marketDataCalculator;
+    private final MarketStateCalculator marketStateCalculator;
+    private final MarketStateDerivativeCalculator marketStateDerivativeCalculator;
+    private final RenkoDataCalculator renkoDataCalculator;
     private final CandlestickBacktester candlestickBacktester;
     private final RenkoBacktester renkoBacktester;
 
     public CoreScheduler(
             BinanceDataDownloader binanceDataDownloader,
-            MarketDataComputer marketDataComputer,
-            MarketStateComputer marketStateComputer,
-            MarketStateDerivativeComputer marketStateDerivativeComputer,
-            RenkoDataComputer renkoDataComputer,
+            MarketDataCalculator marketDataCalculator,
+            MarketStateCalculator marketStateCalculator,
+            MarketStateDerivativeCalculator marketStateDerivativeCalculator,
+            RenkoDataCalculator renkoDataCalculator,
             CandlestickBacktester candlestickBacktester,
             RenkoBacktester renkoBacktester
     ) {
         this.binanceDataDownloader = binanceDataDownloader;
-        this.marketDataComputer = marketDataComputer;
-        this.marketStateComputer = marketStateComputer;
-        this.marketStateDerivativeComputer = marketStateDerivativeComputer;
-        this.renkoDataComputer = renkoDataComputer;
+        this.marketDataCalculator = marketDataCalculator;
+        this.marketStateCalculator = marketStateCalculator;
+        this.marketStateDerivativeCalculator = marketStateDerivativeCalculator;
+        this.renkoDataCalculator = renkoDataCalculator;
         this.candlestickBacktester = candlestickBacktester;
         this.renkoBacktester = renkoBacktester;
     }
@@ -71,16 +71,16 @@ public class CoreScheduler {
             binanceDataDownloader.download();
 
             log.info("Step 2/7: Computing market data metrics...");
-            marketDataComputer.compute();
+            marketDataCalculator.calculate();
 
             log.info("Step 3/7: Computing market state indicators...");
-            marketStateComputer.compute();
+            marketStateCalculator.calculate();
 
             log.info("Step 4/7: Computing capital momentum...");
-            marketStateDerivativeComputer.compute();
+            marketStateDerivativeCalculator.calculate();
 
             log.info("Step 5/7: Computing Renko bricks...");
-            renkoDataComputer.compute();
+            renkoDataCalculator.calculate();
 
             log.info("Step 6/7: Running Candlestick backtests...");
             candlestickBacktester.compute();

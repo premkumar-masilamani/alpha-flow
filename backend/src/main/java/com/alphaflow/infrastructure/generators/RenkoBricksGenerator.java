@@ -1,4 +1,4 @@
-package com.alphaflow.infrastructure.utils;
+package com.alphaflow.infrastructure.generators;
 
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
@@ -13,7 +13,7 @@ import java.util.List;
 import static com.alphaflow.infrastructure.constants.AppConstants.*;
 import static java.math.BigDecimal.valueOf;
 
-public class RenkoUtil {
+public class RenkoBricksGenerator {
 
     public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries) {
         return generateRenkoBricks(ticker, allSeries, RenkoPriceSource.PRICE_CLOSE);

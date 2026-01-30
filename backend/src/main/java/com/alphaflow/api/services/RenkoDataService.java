@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static com.alphaflow.infrastructure.constants.AppConstants.*;
-import static com.alphaflow.infrastructure.utils.RenkoUtil.getZoneFromTrend;
+import static com.alphaflow.infrastructure.generators.RenkoBricksGenerator.getZoneFromTrend;
 import static java.math.BigDecimal.valueOf;
 
 @Service
