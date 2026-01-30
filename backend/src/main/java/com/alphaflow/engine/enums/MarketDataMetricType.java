@@ -3,7 +3,9 @@ package com.alphaflow.engine.enums;
 import com.alphaflow.infrastructure.entities.MarketData;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -109,21 +111,25 @@ public enum MarketDataMetricType {
             new MetricTransformSpec(
                     EnumSet.of(SMA),
                     EnumSet.of(TEN_DAYS, TWO_HUNDRED_DAYS)
+            ),
+            new MetricTransformSpec(
+                    EnumSet.of(EMA),
+                    EnumSet.of(THREE_DAYS, FIVE_DAYS, EIGHT_DAYS, TEN_DAYS, TWELVE_DAYS, FIFTEEN_DAYS, THIRTY_DAYS, THIRTY_FIVE_DAYS, FORTY_DAYS, FORTY_FIVE_DAYS, FIFTY_DAYS, SIXTY_DAYS)
             )
     );
 
     private final String code;
     private final Function<MarketData, BigDecimal> extractor;
-    private final MetricTransformSpec transformSpec;
+    private final List<MetricTransformSpec> transformSpecs;
 
     MarketDataMetricType(
             String code,
             Function<MarketData, BigDecimal> extractor,
-            MetricTransformSpec transformSpec
+            MetricTransformSpec... transformSpecs
     ) {
         this.code = code;
         this.extractor = extractor;
-        this.transformSpec = transformSpec;
+        this.transformSpecs = Arrays.asList(transformSpecs);
     }
 
     public BigDecimal extract(MarketData marketData) {
@@ -134,8 +140,8 @@ public enum MarketDataMetricType {
         return code;
     }
 
-    public MetricTransformSpec transformSpec() {
-        return transformSpec;
+    public List<MetricTransformSpec> transformSpecs() {
+        return transformSpecs;
     }
 
     public record MetricTransformSpec(
