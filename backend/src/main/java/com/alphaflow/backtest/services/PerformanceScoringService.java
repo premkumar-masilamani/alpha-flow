@@ -1,4 +1,4 @@
-package com.alphaflow.backtest.engine;
+package com.alphaflow.backtest.services;
 
 import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
@@ -9,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +40,7 @@ public class PerformanceScoringService {
 
     @Transactional
     public void updateAllScores() {
+        repository.updateFixedScoresAndFilters();
         repository.updateExpectancyScores();
         repository.updateFinalScores();
     }

@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import static com.alphaflow.backtest.enums.PositionType.LONG;
@@ -47,7 +48,6 @@ public abstract class AbstractBacktester {
     protected final BacktestResultRepository backtestResultRepository;
     protected final List<? extends Strategy> strategies;
     protected final TransactionTemplate transactionTemplate;
-    protected final PerformanceScoringService performanceScoringService;
 
     protected AbstractBacktester(
             TickerRepository tickerRepository,
@@ -58,8 +58,7 @@ public abstract class AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<? extends Strategy> strategies,
-            TransactionTemplate transactionTemplate,
-            PerformanceScoringService performanceScoringService
+            TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
         this.marketDataRepository = marketDataRepository;
@@ -70,7 +69,6 @@ public abstract class AbstractBacktester {
         this.backtestResultRepository = backtestResultRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
-        this.performanceScoringService = performanceScoringService;
     }
 
     private static BigDecimal calculateEquity(PositionType currentPosition, BigDecimal cash, BigDecimal shares, BigDecimal open, BigDecimal entryPrice) {
@@ -95,11 +93,6 @@ public abstract class AbstractBacktester {
 
             for (Strategy strategy : strategies) {
                 BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
-                if (runResult.backtestResult() != null) {
-                    performanceScoringService.calculateScores(runResult.backtestResult());
-                    performanceScoringService.applyFilters(runResult.backtestResult());
-                }
-
                 transactionTemplate.execute(status -> {
                     backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
                     backtestSignalRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
@@ -116,7 +109,6 @@ public abstract class AbstractBacktester {
                 });
             }
         });
-        performanceScoringService.updateAllScores();
     }
 
     //TODO: Flatten the structure as market_data in the future

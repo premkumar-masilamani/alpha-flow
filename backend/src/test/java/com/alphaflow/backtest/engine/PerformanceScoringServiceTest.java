@@ -2,6 +2,7 @@ package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
+import com.alphaflow.backtest.services.PerformanceScoringService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
