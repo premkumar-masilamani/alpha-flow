@@ -350,6 +350,7 @@ public abstract class AbstractBacktester {
             BigDecimal grossProfit = winningTradesList.stream()
                     .map(BacktestTrade::getPnl)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
+
             BigDecimal grossLoss = losingTradesList.stream()
                     .map(BacktestTrade::getPnl)
                     .reduce(BigDecimal.ZERO, BigDecimal::add).abs();
