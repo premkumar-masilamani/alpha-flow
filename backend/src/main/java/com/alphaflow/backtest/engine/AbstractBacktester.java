@@ -26,7 +26,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import static com.alphaflow.backtest.enums.PositionType.LONG;
@@ -102,9 +101,7 @@ public abstract class AbstractBacktester {
                     backtestEquityRepository.saveAll(runResult.backtestEquities());
                     backtestSignalRepository.saveAll(runResult.backtestSignals());
                     backtestTradeRepository.saveAll(runResult.backtestTrades());
-                    if (runResult.backtestResult() != null) {
-                        backtestResultRepository.save(runResult.backtestResult());
-                    }
+                    backtestResultRepository.save(runResult.backtestResult());
                     return status;
                 });
             }

@@ -7,6 +7,7 @@ import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
+import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -53,6 +54,8 @@ public class RenkoBacktester extends AbstractBacktester {
         // Strategies can have different price sources for their renko bricks
         if (strategy instanceof RenkoTSMStrategy renkoTSMStrategy) {
             priceSource = renkoTSMStrategy.getPriceSource();
+        } else if (strategy instanceof RenkoTSMV2Strategy renkoTSMV2Strategy) {
+            priceSource = renkoTSMV2Strategy.getPriceSource();
         } // Add other Renko Strategies here in else-if clauses
 
         if (priceSource == null) {
