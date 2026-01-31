@@ -41,4 +41,34 @@ public class BacktestResult {
     private BigDecimal cagr;
 
     private BigDecimal winRate;
+
+    private BigDecimal totalReturnPct;
+
+    private BigDecimal maxDrawdownPct;
+
+    private BigDecimal sharpeRatio;
+
+    private Integer totalTrades;
+
+    private BigDecimal avgWin;
+
+    private BigDecimal avgLoss;
+
+    private BigDecimal profitFactor;
+
+    private BigDecimal expectancy;
+
+    private Integer cagrScore;
+
+    private Integer mddScore;
+
+    private Integer sharpeScore;
+
+    private Integer profitFactorScore;
+
+    private Integer expectancyScore;
+
+    private BigDecimal finalScore;
+
+    private Boolean passesFilters;
 }

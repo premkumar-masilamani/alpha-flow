@@ -2,6 +2,7 @@ package com.alphaflow.infrastructure.schedulers;
 
 import com.alphaflow.backtest.engine.CandlestickBacktester;
 import com.alphaflow.backtest.engine.RenkoBacktester;
+import com.alphaflow.backtest.services.PerformanceScorer;
 import com.alphaflow.engine.calculation.*;
 import com.alphaflow.engine.downloaders.BinanceDataDownloader;
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ public class CoreScheduler {
     private final RenkoDataCalculator renkoDataCalculator;
     private final CandlestickBacktester candlestickBacktester;
     private final RenkoBacktester renkoBacktester;
+    private final PerformanceScorer performanceScorer;
 
     public CoreScheduler(
             BinanceDataDownloader binanceDataDownloader,
@@ -36,7 +38,8 @@ public class CoreScheduler {
             MarketStateDerivativeCalculator marketStateDerivativeCalculator,
             RenkoDataCalculator renkoDataCalculator,
             CandlestickBacktester candlestickBacktester,
-            RenkoBacktester renkoBacktester
+            RenkoBacktester renkoBacktester,
+            PerformanceScorer performanceScorer
     ) {
         this.binanceDataDownloader = binanceDataDownloader;
         this.marketDataCalculator = marketDataCalculator;
@@ -45,6 +48,7 @@ public class CoreScheduler {
         this.renkoDataCalculator = renkoDataCalculator;
         this.candlestickBacktester = candlestickBacktester;
         this.renkoBacktester = renkoBacktester;
+        this.performanceScorer = performanceScorer;
     }
 
     /**
@@ -85,8 +89,11 @@ public class CoreScheduler {
             log.info("Step 6/7: Running Candlestick backtests...");
             candlestickBacktester.compute();
 
-            log.info("Step 7/7: Running Renko backtests...");
+            log.info("Step 7/8: Running Renko backtests...");
             renkoBacktester.compute();
+
+            log.info("Step 8/8: Evaluating strategy performance...");
+            performanceScorer.score();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {
