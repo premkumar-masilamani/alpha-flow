@@ -22,12 +22,12 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     private static final String INDICATOR_SMA_200 = "P_CLOSE_SMA_200";
     private static final String INDICATOR_OBV = "OBV_OBV_0";
-    private static final String STATE_PREV_OBV = "prevObv";
+    private static final String INDICATOR_PREVIOUS_OBV = "PREV_OBV_OBV_0";
     private static final BigDecimal OBV_THRESHOLD = new BigDecimal("0.05");
 
     @Override
     public String getName() {
-        return "RenkoTSM_V2";
+        return "Renko TSM V2";
     }
 
     @Override
@@ -60,8 +60,8 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         String regime = bullishRegime ? "bullish" : (bearishRegime ? "bearish" : "neutral");
 
         // Rule 2: OBV Momentum Threshold
-        BigDecimal prevObv = (BigDecimal) state.get(STATE_PREV_OBV);
-        state.put(STATE_PREV_OBV, currentObv);
+        BigDecimal prevObv = (BigDecimal) state.get(INDICATOR_PREVIOUS_OBV);
+        state.put(INDICATOR_PREVIOUS_OBV, currentObv);
 
         if (prevObv == null) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
@@ -88,7 +88,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         signalData.put("OBV", scale2(currentObv));
         signalData.put("prevOBV", scale2(prevObv));
         signalData.put("obvMomentum", scale2(obvMomentum));
-        signalData.put("lastBrickDirection", renkoBricks.getLast().getDirection());
+        signalData.put("direction", renkoBricks.getLast().getDirection());
         signalData.put("regime", regime);
 
         // Entry Logic
