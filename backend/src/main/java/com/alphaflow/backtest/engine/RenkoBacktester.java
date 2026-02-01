@@ -6,6 +6,10 @@ import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
+import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
+import com.alphaflow.engine.enums.MarketDataMetricType;
+import com.alphaflow.engine.enums.TransformationType;
+import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -17,6 +21,7 @@ import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -41,9 +46,30 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestSignalRepository,
                 backtestTradeRepository,
                 backtestResultRepository,
-                strategies,
+                expandStrategies(strategies),
                 transactionTemplate
         );
+    }
+
+    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> strategies) {
+        List<RenkoStrategy> all = new ArrayList<>();
+
+        for (RenkoStrategy s : strategies) {
+            if (!(s instanceof RenkoTSMStrategy)) {
+                all.add(s);
+            }
+        }
+
+        for (RenkoPriceSource priceSource : RenkoPriceSource.values()) {
+            for (MarketDataMetricType momentumMetric : List.of(MarketDataMetricType.OBV, MarketDataMetricType.CCF)) {
+                for (TransformationType maType : List.of(TransformationType.SMA, TransformationType.EMA)) {
+                    for (int p = 3; p <= 21; p++) {
+                        all.add(new RenkoTSMStrategy(priceSource, maType, WindowPeriod.fromDays(p), momentumMetric));
+                    }
+                }
+            }
+        }
+        return all;
     }
 
     @Override

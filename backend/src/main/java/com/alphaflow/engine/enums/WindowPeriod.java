@@ -39,4 +39,13 @@ public enum WindowPeriod {
     public int days() {
         return days;
     }
+
+    public static WindowPeriod fromDays(int days) {
+        for (WindowPeriod period : WindowPeriod.values()) {
+            if (period.days == days) {
+                return period;
+            }
+        }
+        throw new IllegalArgumentException("No WindowPeriod found for " + days + " days");
+    }
 }
