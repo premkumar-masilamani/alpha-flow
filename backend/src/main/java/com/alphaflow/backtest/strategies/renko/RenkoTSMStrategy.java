@@ -46,25 +46,25 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         RenkoData lastBrick = renkoBricks.getLast();
 
         BigDecimal priceCloseSma10 = indicators.get(INDICATOR_PRICE_CLOSE_SMA_10);
-        BigDecimal obv = indicators.get(INDICATOR_OBV);
-        BigDecimal prevObv = (BigDecimal) strategyState.getOrDefault(INDICATOR_PREVIOUS_OBV, obv);
-        strategyState.put(INDICATOR_PREVIOUS_OBV, obv);
+        BigDecimal currentOBV = indicators.get(INDICATOR_OBV);
+        BigDecimal previousObv = (BigDecimal) strategyState.getOrDefault(INDICATOR_PREVIOUS_OBV, currentOBV);
+        strategyState.put(INDICATOR_PREVIOUS_OBV, currentOBV);
 
-        if (priceCloseSma10 == null || obv == null)
+        if (priceCloseSma10 == null || currentOBV == null)
             return new TradeAction(TradeSignal.NO_SIGNAL, currentPosition);
 
         boolean longEntry = lastBrick.getDirection().equals(AppConstants.RENKO_BRICK_DIRECTION_UP) &&
                 lastBrick.getBrickHigh().compareTo(priceCloseSma10) > 0 &&
-                obv.compareTo(prevObv) > 0;
+                currentOBV.compareTo(previousObv) > 0;
 
         boolean shortEntry = lastBrick.getDirection().equals(AppConstants.RENKO_BRICK_DIRECTION_DOWN) &&
                 lastBrick.getBrickLow().compareTo(priceCloseSma10) < 0 &&
-                obv.compareTo(prevObv) < 0;
+                currentOBV.compareTo(previousObv) < 0;
 
         Map<String, Object> signalData = new HashMap<>();
         signalData.put(INDICATOR_PRICE_CLOSE_SMA_10, scale2(priceCloseSma10));
-        signalData.put(INDICATOR_OBV, scale2(obv));
-        signalData.put(INDICATOR_PREVIOUS_OBV, scale2(prevObv));
+        signalData.put(INDICATOR_OBV, scale2(currentOBV));
+        signalData.put(INDICATOR_PREVIOUS_OBV, scale2(previousObv));
         signalData.put("high", scale2(lastBrick.getBrickHigh()));
         signalData.put("low", scale2(lastBrick.getBrickLow()));
         signalData.put("direction", lastBrick.getDirection());

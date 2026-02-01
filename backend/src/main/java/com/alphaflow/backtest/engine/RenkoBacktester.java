@@ -6,8 +6,6 @@ import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
-import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
-import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -52,12 +50,9 @@ public class RenkoBacktester extends AbstractBacktester {
     protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index, Strategy strategy) {
         RenkoPriceSource priceSource = null;
         // Strategies can have different price sources for their renko bricks
-        if (strategy instanceof RenkoTSMStrategy renkoTSMStrategy) {
-            priceSource = renkoTSMStrategy.getPriceSource();
-        } else if (strategy instanceof RenkoTSMV2Strategy renkoTSMV2Strategy) {
-            priceSource = renkoTSMV2Strategy.getPriceSource();
-        } // Add other Renko Strategies here in else-if clauses
-
+        if (strategy instanceof RenkoStrategy renkoStrategy) {
+            priceSource = renkoStrategy.getPriceSource();
+        }
         if (priceSource == null) {
             throw new IllegalStateException("RenkoPriceSource is not defined for strategy: " + strategy.getClass().getSimpleName());
         }
