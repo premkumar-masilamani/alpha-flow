@@ -44,7 +44,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
-        RenkoData currentBrick = renkoBricks.get(renkoBricks.size() - 1);
+        RenkoData currentBrick = renkoBricks.getLast();
         int trend = currentBrick.getTrend();
         int zone = currentBrick.getZone();
         String direction = currentBrick.getDirection();
