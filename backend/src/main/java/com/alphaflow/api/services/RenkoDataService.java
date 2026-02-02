@@ -8,6 +8,8 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.exceptions.ResourceNotFoundException;
 import com.alphaflow.infrastructure.repositories.RenkoDataRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,8 @@ import static java.math.BigDecimal.valueOf;
 @Transactional(readOnly = true)
 public class RenkoDataService {
 
+    private static final Logger log = LoggerFactory.getLogger(RenkoDataService.class);
+
     private final RenkoDataRepository renkoDataRepository;
     private final TickerRepository tickerRepository;
 
@@ -31,8 +35,12 @@ public class RenkoDataService {
     }
 
     public RenkoResponseDTO getRenkoData(String symbol) {
+        log.debug("Fetching renko data for symbol: {}", symbol);
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
-                .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+                .orElseThrow(() -> {
+                    log.warn("Ticker not found for symbol: {}", symbol);
+                    return new ResourceNotFoundException("Ticker not found: " + symbol);
+                });
 
         List<RenkoData> renkoBricks = renkoDataRepository.findByTickerOrderByRenkoDateAsc(ticker);
         return calculatePricesAndCreateResponse(renkoBricks);
