@@ -322,7 +322,12 @@ public abstract class AbstractBacktester {
         double endValue = last.getEquity().doubleValue();
         double growthFactor = endValue / startValue;
         double years = days / YEAR_IN_DAYS;
-        double cagr = (Math.pow(growthFactor, 1.0 / years) - 1) * 100;
+        double cagr;
+        if (growthFactor > 0) {
+            cagr = (Math.pow(growthFactor, 1.0 / years) - 1) * 100;
+        } else {
+            cagr = -100.0;
+        }
 
         // Total Return Calculation
         BigDecimal totalReturnPct = last.getEquity().subtract(INITIAL_EQUITY)
@@ -386,8 +391,8 @@ public abstract class AbstractBacktester {
                 .finalEquity(last.getEquity())
                 .startDate(first.getEquityDate())
                 .endDate(last.getEquityDate())
-                .years(BigDecimal.valueOf(years))
-                .cagr(BigDecimal.valueOf(cagr))
+                .years(safeBigDecimal(years))
+                .cagr(safeBigDecimal(cagr))
                 .winRate(winRate)
                 .totalReturnPct(totalReturnPct)
                 .maxDrawdownPct(calculateMaxDrawdown(equities))
@@ -422,7 +427,7 @@ public abstract class AbstractBacktester {
         for (int i = 1; i < equities.size(); i++) {
             double prev = equities.get(i - 1).getEquity().doubleValue();
             double curr = equities.get(i).getEquity().doubleValue();
-            if (prev != 0) {
+            if (prev > 0) {
                 returns.add((curr / prev) - 1.0);
             }
         }
@@ -432,7 +437,14 @@ public abstract class AbstractBacktester {
         double stdDev = Math.sqrt(variance);
         if (stdDev == 0) return BigDecimal.ZERO;
         double sharpe = (mean / stdDev) * Math.sqrt(252);
-        return BigDecimal.valueOf(sharpe);
+        return safeBigDecimal(sharpe);
+    }
+
+    private BigDecimal safeBigDecimal(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return BigDecimal.ZERO;
+        }
+        return BigDecimal.valueOf(value);
     }
 
     protected record BacktestRunResult(
