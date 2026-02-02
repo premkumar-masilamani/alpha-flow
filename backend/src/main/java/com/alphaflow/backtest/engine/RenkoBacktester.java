@@ -18,6 +18,8 @@ import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -26,6 +28,8 @@ import java.util.List;
 
 @Service
 public class RenkoBacktester extends AbstractBacktester {
+
+    private static final Logger log = LoggerFactory.getLogger(RenkoBacktester.class);
 
     public RenkoBacktester(
             TickerRepository tickerRepository,
@@ -52,6 +56,7 @@ public class RenkoBacktester extends AbstractBacktester {
     }
 
     private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> strategies) {
+        log.info("Expanding Renko strategies. Base count: {}", strategies.size());
         List<RenkoStrategy> all = new ArrayList<>();
 
         for (RenkoStrategy s : strategies) {
@@ -69,6 +74,7 @@ public class RenkoBacktester extends AbstractBacktester {
                 }
             }
         }
+        log.info("Total Renko strategies after expansion: {}", all.size());
         return all;
     }
 

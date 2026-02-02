@@ -10,6 +10,8 @@ import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.constants.AppConstants;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -20,6 +22,8 @@ import java.util.Map;
 
 @Component
 public class RenkoTSMStrategy implements RenkoStrategy {
+
+    private static final Logger log = LoggerFactory.getLogger(RenkoTSMStrategy.class);
 
     private final RenkoPriceSource priceSource;
     private final TransformationType maType;
@@ -83,8 +87,10 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         BigDecimal previousMomentum = (BigDecimal) strategyState.getOrDefault(momentumIndicatorPrevKey, currentMomentum);
         strategyState.put(momentumIndicatorPrevKey, currentMomentum);
 
-        if (maValue == null || currentMomentum == null)
+        if (maValue == null || currentMomentum == null) {
+            log.debug("Missing indicators for strategy {}: {}={}, {}={}", getName(), maIndicatorKey, maValue, momentumIndicatorKey, currentMomentum);
             return new TradeAction(TradeSignal.NO_SIGNAL, currentPosition);
+        }
 
         boolean longEntry = lastBrick.getDirection().equals(AppConstants.RENKO_BRICK_DIRECTION_UP) &&
                 lastBrick.getBrickHigh().compareTo(maValue) > 0 &&
@@ -103,10 +109,12 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         signalData.put("direction", lastBrick.getDirection());
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.LONG) && shortEntry) {
+            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), lastBrick.getRenkoDate());
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.SHORT) && longEntry) {
+            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), lastBrick.getRenkoDate());
             return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 

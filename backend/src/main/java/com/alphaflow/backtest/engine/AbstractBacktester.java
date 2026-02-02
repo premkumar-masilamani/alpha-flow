@@ -20,6 +20,8 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
@@ -33,6 +35,8 @@ import static com.alphaflow.backtest.enums.PositionType.SHORT;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
 public abstract class AbstractBacktester {
+
+    private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
 
     protected static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000");
     protected static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -85,12 +89,17 @@ public abstract class AbstractBacktester {
 
     public void compute() {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
+            log.info("Starting backtests for ticker: {}", ticker.getTickerSymbol());
             List<MarketData> marketData = marketDataRepository.findByTickerOrderByMarketDataDateAsc(ticker);
-            if (marketData.isEmpty()) return;
+            if (marketData.isEmpty()) {
+                log.warn("No market data found for ticker: {}", ticker.getTickerSymbol());
+                return;
+            }
 
             Map<LocalDate, Map<String, BigDecimal>> indicators = buildIndicatorMap(ticker);
 
             for (Strategy strategy : strategies) {
+                log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
                 BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
                 transactionTemplate.execute(status -> {
                     backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
@@ -105,6 +114,7 @@ public abstract class AbstractBacktester {
                     return status;
                 });
             }
+            log.info("Completed all backtests for ticker: {}", ticker.getTickerSymbol());
         });
     }
 
@@ -159,6 +169,7 @@ public abstract class AbstractBacktester {
                 switch (pendingAction.tradeSignal()) {
 
                     case ENTER_LONG -> {
+                        log.debug("Executing ENTER_LONG for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                         }
@@ -179,6 +190,7 @@ public abstract class AbstractBacktester {
                     }
 
                     case ENTER_SHORT -> {
+                        log.debug("Executing ENTER_SHORT for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                         }
@@ -200,6 +212,7 @@ public abstract class AbstractBacktester {
                     }
 
                     case EXIT -> {
+                        log.debug("Executing EXIT for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                             activeTrade = null;

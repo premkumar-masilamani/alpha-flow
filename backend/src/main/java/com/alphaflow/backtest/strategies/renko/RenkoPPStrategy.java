@@ -6,6 +6,8 @@ import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -17,6 +19,8 @@ import static com.alphaflow.infrastructure.constants.AppConstants.*;
 
 @Component
 public class RenkoPPStrategy implements RenkoStrategy {
+
+    private static final Logger log = LoggerFactory.getLogger(RenkoPPStrategy.class);
 
     private static final String PREV_SHORT_SPREAD_LONG = "PREV_SHORT_SPREAD_LONG";
     private static final String PREV_LONG_SPREAD_LONG = "PREV_LONG_SPREAD_LONG";
@@ -66,6 +70,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
         if (ema3 == null || ema5 == null || ema8 == null || ema10 == null || ema12 == null || ema15 == null ||
             ema30 == null || ema35 == null || ema40 == null || ema45 == null || ema50 == null || ema60 == null) {
+            log.debug("Strategy {} missing GMMA indicators", getName());
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
@@ -95,6 +100,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 if (listIdx >= 0) {
                     BigDecimal slPrice = renkoBricks.get(listIdx).getBrickLow();
                     if (priceClose.compareTo(slPrice) < 0) {
+                        log.debug("Strategy {} triggering LONG SL EXIT at {} price {} SL {}", getName(), context.marketData().getMarketDataDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -106,6 +112,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 if (listIdx >= 0) {
                     BigDecimal slPrice = renkoBricks.get(listIdx).getBrickHigh();
                     if (priceClose.compareTo(slPrice) > 0) {
+                        log.debug("Strategy {} triggering SHORT SL EXIT at {} price {} SL {}", getName(), context.marketData().getMarketDataDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -147,6 +154,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                                     longSpreadLong.compareTo(prevLongSpreadLong) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.LONG) {
+                log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getMarketDataDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadLong);
@@ -182,6 +190,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                                     longSpreadShort.compareTo(prevLongSpreadShort) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.SHORT) {
+                log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getMarketDataDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadShort);
