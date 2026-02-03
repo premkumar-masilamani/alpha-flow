@@ -1,11 +1,10 @@
-import sys
+import finplot as fplt
 import logging
+import pandas as pd
+import sys
+from helpers import load_timeseries_data, parse_chart_args, get_ohlcv_file_path
 from typing import Optional
 
-import pandas as pd
-import finplot as fplt
-
-from helpers import load_timeseries_data, parse_chart_args, get_ohlcv_file_path
 from constants import ZONE_COLORS, CHART_DISPLAY_ROWS
 
 logger = logging.getLogger(__name__)
@@ -28,7 +27,7 @@ def format_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def create_candlestick_plot(
-    df: pd.DataFrame, zones_df: Optional[pd.DataFrame] = None
+        df: pd.DataFrame, zones_df: Optional[pd.DataFrame] = None
 ) -> None:
     """Create and display a candlestick chart with support/resistance zones."""
     print("[INFO] Creating candlestick plot...")

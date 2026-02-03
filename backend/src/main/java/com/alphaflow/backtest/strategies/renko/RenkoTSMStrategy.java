@@ -51,17 +51,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
     @Override
     public String getName() {
-        if (isDefault()) {
-            return "Renko TSM";
-        }
         return String.format("Renko TSM %s %s %d %s", priceSource, maType, maPeriod.days(), momentumMetric);
-    }
-
-    private boolean isDefault() {
-        return priceSource == RenkoPriceSource.PRICE_CLOSE &&
-                maType == TransformationType.SMA &&
-                maPeriod == WindowPeriod.TEN_DAYS &&
-                momentumMetric == MarketDataMetricType.OBV;
     }
 
     @Override

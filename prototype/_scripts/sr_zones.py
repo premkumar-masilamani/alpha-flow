@@ -1,7 +1,7 @@
 import argparse
+import pandas as pd
 from pathlib import Path
 from typing import List, Tuple, Dict
-import pandas as pd
 
 from constants import (
     PIVOT_LOOKBACK,
@@ -54,11 +54,11 @@ def find_pivots(df: pd.DataFrame, n: int) -> Tuple[List[int], List[int]]:
 
 
 def cluster_zones_with_dates(
-    df: pd.DataFrame,
-    pivot_indices: List[int],
-    prices: List[float],
-    tolerance: float,
-    is_high: bool,
+        df: pd.DataFrame,
+        pivot_indices: List[int],
+        prices: List[float],
+        tolerance: float,
+        is_high: bool,
 ) -> List[Tuple[float, float, pd.Timestamp]]:
     if not prices:
         return []
@@ -95,7 +95,7 @@ def count_touches(df: pd.DataFrame, zone: Tuple[float, float], column: str) -> i
 
 
 def zone_was_broken(
-    df: pd.DataFrame, zone: Tuple[float, float], zone_type: str
+        df: pd.DataFrame, zone: Tuple[float, float], zone_type: str
 ) -> bool:
     recent = df.tail(RECENT_BARS)
     if zone_type == "resistance":
@@ -104,9 +104,9 @@ def zone_was_broken(
 
 
 def detect_flips(
-    support_zones: List[Tuple[float, float, pd.Timestamp]],
-    resistance_zones: List[Tuple[float, float, pd.Timestamp]],
-    df: pd.DataFrame,
+        support_zones: List[Tuple[float, float, pd.Timestamp]],
+        resistance_zones: List[Tuple[float, float, pd.Timestamp]],
+        df: pd.DataFrame,
 ) -> List[Dict]:
     flips: List[Dict] = []
     for s in support_zones:
@@ -120,9 +120,9 @@ def detect_flips(
                     count_touches(df, zone, "low"), count_touches(df, zone, "high")
                 )
                 if (
-                    touches >= MIN_TOUCHES
-                    and not zone_was_broken(df, zone, "support")
-                    and not zone_was_broken(df, zone, "resistance")
+                        touches >= MIN_TOUCHES
+                        and not zone_was_broken(df, zone, "support")
+                        and not zone_was_broken(df, zone, "resistance")
                 ):
                     flips.append(
                         {

@@ -36,10 +36,6 @@ public enum WindowPeriod {
         this.days = days;
     }
 
-    public int days() {
-        return days;
-    }
-
     public static WindowPeriod fromDays(int days) {
         for (WindowPeriod period : WindowPeriod.values()) {
             if (period.days == days) {
@@ -47,5 +43,9 @@ public enum WindowPeriod {
             }
         }
         throw new IllegalArgumentException("No WindowPeriod found for " + days + " days");
+    }
+
+    public int days() {
+        return days;
     }
 }

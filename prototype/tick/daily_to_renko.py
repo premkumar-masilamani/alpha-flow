@@ -12,11 +12,11 @@ The output is written to a CSV file.
 """
 
 import argparse
+import logging
 import pandas as pd
 import sys
 from pathlib import Path
 from typing import List, Dict, Any
-import logging
 
 # Configure logging
 logging.basicConfig(
@@ -94,7 +94,7 @@ def remove_consecutive_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     return df[
         (df["brick_low"] != df["brick_low"].shift())
         | (df["brick_high"] != df["brick_high"].shift())
-    ]
+        ]
 
 
 def calculate_zone_trend(df: pd.DataFrame) -> pd.DataFrame:
@@ -157,21 +157,21 @@ def generate_renko_chart_data(df: pd.DataFrame, period_count: int) -> pd.DataFra
     brick_size = calculate_brick_size(df, period_count)
     renko_data = []
     current_price = df["vwap"].iloc[0]
-    
+
     # Track contributing days for buyer_capital_ratio averaging
     contributing_days = []  # List of (date, buyer_capital_ratio) tuples
     last_brick_price = current_price
-    
+
     for idx, row in df.iterrows():
         vwap_price = row["vwap"]
         current_date = row["date"]
         buyer_capital_ratio = row.get("buyer_capital_ratio", None)
-        
+
         # Add current day to contributing days
         contributing_days.append((current_date, buyer_capital_ratio))
-        
+
         bricks_generated_this_iteration = []
-        
+
         # Generate up bricks
         while vwap_price >= current_price + brick_size:
             current_price += brick_size
@@ -193,18 +193,18 @@ def generate_renko_chart_data(df: pd.DataFrame, period_count: int) -> pd.DataFra
                 "direction": "down",
                 "trend": 0,
             })
-        
+
         # If bricks were generated, assign buyer_capital_ratio
         if bricks_generated_this_iteration:
             # Calculate average buyer_capital_ratio from contributing days
             valid_ratios = [ratio for _, ratio in contributing_days if ratio is not None and not pd.isna(ratio)]
             avg_buyer_ratio = sum(valid_ratios) / len(valid_ratios) if valid_ratios else None
-            
+
             # Assign the averaged ratio to all bricks generated
             for brick in bricks_generated_this_iteration:
                 brick["buyer_capital_ratio"] = avg_buyer_ratio
                 renko_data.append(brick)
-            
+
             # Reset contributing days for next brick(s)
             contributing_days = []
             last_brick_price = current_price

@@ -36,12 +36,10 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 
 public abstract class AbstractBacktester {
 
-    private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
-
     protected static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000");
     protected static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     protected static final double YEAR_IN_DAYS = 365.25;
-
+    private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
     protected final TickerRepository tickerRepository;
     protected final MarketDataRepository marketDataRepository;
     protected final MarketStateRepository marketStateRepository;
