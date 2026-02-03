@@ -1,5 +1,7 @@
 import pandas as pd
+
 from helpers import get_zone_from_trend
+
 
 def calculate_brick_size(df: pd.DataFrame, period_count: int) -> float:
     lookback_start = max(0, len(df) - period_count)
@@ -29,7 +31,7 @@ def remove_consecutive_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     return df[
         (df["brick_low"] != df["brick_low"].shift())
         | (df["brick_high"] != df["brick_high"].shift())
-    ]
+        ]
 
 
 def calculate_zone_trend(df: pd.DataFrame) -> pd.DataFrame:
@@ -54,12 +56,12 @@ def calculate_zone_trend(df: pd.DataFrame) -> pd.DataFrame:
             # Check if the current trend should resume from previous trend
             if row["direction"] == "up":
                 if trend <= get_zone_from_trend(previous_uptrend):
-                    trend = (previous_uptrend - trend)+1
+                    trend = (previous_uptrend - trend) + 1
                 else:
                     trend = 1
             elif row["direction"] == "down":
                 if trend <= get_zone_from_trend(previous_downtrend):
-                    trend = (previous_downtrend - trend)+1
+                    trend = (previous_downtrend - trend) + 1
                 else:
                     trend = 1
         df.at[i, "trend"] = trend

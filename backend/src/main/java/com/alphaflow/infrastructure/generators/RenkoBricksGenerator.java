@@ -4,6 +4,8 @@ import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,13 +17,17 @@ import static java.math.BigDecimal.valueOf;
 
 public class RenkoBricksGenerator {
 
+    private static final Logger log = LoggerFactory.getLogger(RenkoBricksGenerator.class);
+
     public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries) {
         return generateRenkoBricks(ticker, allSeries, RenkoPriceSource.PRICE_CLOSE);
     }
 
     public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, RenkoPriceSource priceSource) {
+        log.debug("Generating Renko bricks for {} using {}", ticker.getTickerSymbol(), priceSource);
         BigDecimal brickSize = calculateBrickSize(allSeries);
         if (brickSize.compareTo(BigDecimal.ZERO) <= 0) {
+            log.warn("Calculated brick size is zero or negative for {}. Skipping generation.", ticker.getTickerSymbol());
             return List.of();
         }
 

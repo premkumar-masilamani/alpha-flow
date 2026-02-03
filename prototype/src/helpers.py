@@ -1,7 +1,7 @@
 import argparse
-from pathlib import Path
-import pandas as pd
 import logging
+import pandas as pd
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 

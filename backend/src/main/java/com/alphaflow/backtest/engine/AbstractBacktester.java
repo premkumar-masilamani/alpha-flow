@@ -20,6 +20,8 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
@@ -37,7 +39,7 @@ public abstract class AbstractBacktester {
     protected static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000");
     protected static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     protected static final double YEAR_IN_DAYS = 365.25;
-
+    private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
     protected final TickerRepository tickerRepository;
     protected final MarketDataRepository marketDataRepository;
     protected final MarketStateRepository marketStateRepository;
@@ -85,12 +87,17 @@ public abstract class AbstractBacktester {
 
     public void compute() {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
+            log.info("Starting backtests for ticker: {}", ticker.getTickerSymbol());
             List<MarketData> marketData = marketDataRepository.findByTickerOrderByMarketDataDateAsc(ticker);
-            if (marketData.isEmpty()) return;
+            if (marketData.isEmpty()) {
+                log.warn("No market data found for ticker: {}", ticker.getTickerSymbol());
+                return;
+            }
 
             Map<LocalDate, Map<String, BigDecimal>> indicators = buildIndicatorMap(ticker);
 
             for (Strategy strategy : strategies) {
+                log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
                 BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
                 transactionTemplate.execute(status -> {
                     backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
@@ -105,6 +112,7 @@ public abstract class AbstractBacktester {
                     return status;
                 });
             }
+            log.info("Completed all backtests for ticker: {}", ticker.getTickerSymbol());
         });
     }
 
@@ -159,6 +167,7 @@ public abstract class AbstractBacktester {
                 switch (pendingAction.tradeSignal()) {
 
                     case ENTER_LONG -> {
+                        log.debug("Executing ENTER_LONG for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                         }
@@ -179,6 +188,7 @@ public abstract class AbstractBacktester {
                     }
 
                     case ENTER_SHORT -> {
+                        log.debug("Executing ENTER_SHORT for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                         }
@@ -200,6 +210,7 @@ public abstract class AbstractBacktester {
                     }
 
                     case EXIT -> {
+                        log.debug("Executing EXIT for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                             activeTrade = null;
@@ -309,7 +320,12 @@ public abstract class AbstractBacktester {
         double endValue = last.getEquity().doubleValue();
         double growthFactor = endValue / startValue;
         double years = days / YEAR_IN_DAYS;
-        double cagr = (Math.pow(growthFactor, 1.0 / years) - 1) * 100;
+        double cagr;
+        if (growthFactor > 0) {
+            cagr = (Math.pow(growthFactor, 1.0 / years) - 1) * 100;
+        } else {
+            cagr = -100.0;
+        }
 
         // Total Return Calculation
         BigDecimal totalReturnPct = last.getEquity().subtract(INITIAL_EQUITY)
@@ -373,8 +389,8 @@ public abstract class AbstractBacktester {
                 .finalEquity(last.getEquity())
                 .startDate(first.getEquityDate())
                 .endDate(last.getEquityDate())
-                .years(BigDecimal.valueOf(years))
-                .cagr(BigDecimal.valueOf(cagr))
+                .years(BigDecimal.valueOf(Double.isNaN(years) || Double.isInfinite(years) ? 0.0 : years))
+                .cagr(BigDecimal.valueOf(Double.isNaN(cagr) || Double.isInfinite(cagr) ? 0.0 : cagr))
                 .winRate(winRate)
                 .totalReturnPct(totalReturnPct)
                 .maxDrawdownPct(calculateMaxDrawdown(equities))
@@ -409,7 +425,7 @@ public abstract class AbstractBacktester {
         for (int i = 1; i < equities.size(); i++) {
             double prev = equities.get(i - 1).getEquity().doubleValue();
             double curr = equities.get(i).getEquity().doubleValue();
-            if (prev != 0) {
+            if (prev > 0) {
                 returns.add((curr / prev) - 1.0);
             }
         }
@@ -419,7 +435,7 @@ public abstract class AbstractBacktester {
         double stdDev = Math.sqrt(variance);
         if (stdDev == 0) return BigDecimal.ZERO;
         double sharpe = (mean / stdDev) * Math.sqrt(252);
-        return BigDecimal.valueOf(sharpe);
+        return BigDecimal.valueOf(Double.isNaN(sharpe) || Double.isInfinite(sharpe) ? 0.0 : sharpe);
     }
 
     protected record BacktestRunResult(

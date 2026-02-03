@@ -7,6 +7,8 @@ import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.constants.AppConstants;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -19,6 +21,8 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 
 @Component
 public class RenkoTSMV2Strategy implements RenkoStrategy {
+
+    private static final Logger log = LoggerFactory.getLogger(RenkoTSMV2Strategy.class);
 
     private static final String INDICATOR_SMA_200 = "P_CLOSE_SMA_200";
     private static final String INDICATOR_OBV = "OBV_OBV_0";
@@ -51,6 +55,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         BigDecimal currentObv = indicators.get(INDICATOR_OBV);
 
         if (priceClose == null || sma200 == null || currentObv == null) {
+            log.debug("Strategy {} missing indicators: priceClose={}, sma200={}, obv={}", getName(), priceClose, sma200, currentObv);
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
@@ -93,10 +98,12 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
         // Entry Logic
         if (bullishRegime && last3Up && obvBullish && currentPosition != PositionType.LONG) {
+            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getMarketDataDate());
             return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 
         if (bearishRegime && last3Down && obvBearish && currentPosition != PositionType.SHORT) {
+            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getMarketDataDate());
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 

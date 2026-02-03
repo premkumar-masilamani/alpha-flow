@@ -4,9 +4,14 @@ import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
+import com.alphaflow.engine.enums.MarketDataMetricType;
+import com.alphaflow.engine.enums.TransformationType;
+import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.constants.AppConstants;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -18,18 +23,50 @@ import java.util.Map;
 @Component
 public class RenkoTSMStrategy implements RenkoStrategy {
 
-    private static final String INDICATOR_PRICE_CLOSE_SMA_10 = "P_CLOSE_SMA_10";
-    private static final String INDICATOR_OBV = "OBV_OBV_0";
-    private static final String INDICATOR_PREVIOUS_OBV = "PREV_OBV_OBV_0";
+    private static final Logger log = LoggerFactory.getLogger(RenkoTSMStrategy.class);
+
+    private final RenkoPriceSource priceSource;
+    private final TransformationType maType;
+    private final WindowPeriod maPeriod;
+    private final MarketDataMetricType momentumMetric;
+
+    private final String maIndicatorKey;
+    private final String momentumIndicatorKey;
+    private final String momentumIndicatorPrevKey;
+
+    public RenkoTSMStrategy() {
+        this(RenkoPriceSource.PRICE_CLOSE, TransformationType.SMA, WindowPeriod.TEN_DAYS, MarketDataMetricType.OBV);
+    }
+
+    public RenkoTSMStrategy(RenkoPriceSource priceSource, TransformationType maType, WindowPeriod maPeriod, MarketDataMetricType momentumMetric) {
+        this.priceSource = priceSource;
+        this.maType = maType;
+        this.maPeriod = maPeriod;
+        this.momentumMetric = momentumMetric;
+
+        this.maIndicatorKey = priceSource.code() + "_" + maType.code() + "_" + maPeriod.days();
+        this.momentumIndicatorKey = momentumMetric.code() + "_" + momentumMetric.code() + "_0";
+        this.momentumIndicatorPrevKey = "PREV_" + this.momentumIndicatorKey;
+    }
 
     @Override
     public String getName() {
-        return "Renko TSM";
+        if (isDefault()) {
+            return "Renko TSM";
+        }
+        return String.format("Renko TSM %s %s %d %s", priceSource, maType, maPeriod.days(), momentumMetric);
+    }
+
+    private boolean isDefault() {
+        return priceSource == RenkoPriceSource.PRICE_CLOSE &&
+                maType == TransformationType.SMA &&
+                maPeriod == WindowPeriod.TEN_DAYS &&
+                momentumMetric == MarketDataMetricType.OBV;
     }
 
     @Override
     public RenkoPriceSource getPriceSource() {
-        return RenkoPriceSource.PRICE_CLOSE;
+        return priceSource;
     }
 
     @Override
@@ -45,35 +82,39 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
         RenkoData lastBrick = renkoBricks.getLast();
 
-        BigDecimal priceCloseSma10 = indicators.get(INDICATOR_PRICE_CLOSE_SMA_10);
-        BigDecimal currentOBV = indicators.get(INDICATOR_OBV);
-        BigDecimal previousObv = (BigDecimal) strategyState.getOrDefault(INDICATOR_PREVIOUS_OBV, currentOBV);
-        strategyState.put(INDICATOR_PREVIOUS_OBV, currentOBV);
+        BigDecimal maValue = indicators.get(maIndicatorKey);
+        BigDecimal currentMomentum = indicators.get(momentumIndicatorKey);
+        BigDecimal previousMomentum = (BigDecimal) strategyState.getOrDefault(momentumIndicatorPrevKey, currentMomentum);
+        strategyState.put(momentumIndicatorPrevKey, currentMomentum);
 
-        if (priceCloseSma10 == null || currentOBV == null)
+        if (maValue == null || currentMomentum == null) {
+            log.debug("Missing indicators for strategy {}: {}={}, {}={}", getName(), maIndicatorKey, maValue, momentumIndicatorKey, currentMomentum);
             return new TradeAction(TradeSignal.NO_SIGNAL, currentPosition);
+        }
 
         boolean longEntry = lastBrick.getDirection().equals(AppConstants.RENKO_BRICK_DIRECTION_UP) &&
-                lastBrick.getBrickHigh().compareTo(priceCloseSma10) > 0 &&
-                currentOBV.compareTo(previousObv) > 0;
+                lastBrick.getBrickHigh().compareTo(maValue) > 0 &&
+                currentMomentum.compareTo(previousMomentum) > 0;
 
         boolean shortEntry = lastBrick.getDirection().equals(AppConstants.RENKO_BRICK_DIRECTION_DOWN) &&
-                lastBrick.getBrickLow().compareTo(priceCloseSma10) < 0 &&
-                currentOBV.compareTo(previousObv) < 0;
+                lastBrick.getBrickLow().compareTo(maValue) < 0 &&
+                currentMomentum.compareTo(previousMomentum) < 0;
 
         Map<String, Object> signalData = new HashMap<>();
-        signalData.put(INDICATOR_PRICE_CLOSE_SMA_10, scale2(priceCloseSma10));
-        signalData.put(INDICATOR_OBV, scale2(currentOBV));
-        signalData.put(INDICATOR_PREVIOUS_OBV, scale2(previousObv));
+        signalData.put(maIndicatorKey, scale2(maValue));
+        signalData.put(momentumIndicatorKey, scale2(currentMomentum));
+        signalData.put(momentumIndicatorPrevKey, scale2(previousMomentum));
         signalData.put("high", scale2(lastBrick.getBrickHigh()));
         signalData.put("low", scale2(lastBrick.getBrickLow()));
         signalData.put("direction", lastBrick.getDirection());
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.LONG) && shortEntry) {
+            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), lastBrick.getRenkoDate());
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.SHORT) && longEntry) {
+            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), lastBrick.getRenkoDate());
             return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 

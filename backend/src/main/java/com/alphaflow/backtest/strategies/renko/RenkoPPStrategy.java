@@ -6,6 +6,8 @@ import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -13,10 +15,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.alphaflow.infrastructure.constants.AppConstants.*;
+import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_DOWN;
+import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_UP;
 
 @Component
 public class RenkoPPStrategy implements RenkoStrategy {
+
+    private static final Logger log = LoggerFactory.getLogger(RenkoPPStrategy.class);
 
     private static final String PREV_SHORT_SPREAD_LONG = "PREV_SHORT_SPREAD_LONG";
     private static final String PREV_LONG_SPREAD_LONG = "PREV_LONG_SPREAD_LONG";
@@ -65,7 +70,8 @@ public class RenkoPPStrategy implements RenkoStrategy {
         BigDecimal ema60 = indicators.get("P_CLOSE_EMA_60");
 
         if (ema3 == null || ema5 == null || ema8 == null || ema10 == null || ema12 == null || ema15 == null ||
-            ema30 == null || ema35 == null || ema40 == null || ema45 == null || ema50 == null || ema60 == null) {
+                ema30 == null || ema35 == null || ema40 == null || ema45 == null || ema50 == null || ema60 == null) {
+            log.debug("Strategy {} missing GMMA indicators", getName());
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
@@ -95,6 +101,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 if (listIdx >= 0) {
                     BigDecimal slPrice = renkoBricks.get(listIdx).getBrickLow();
                     if (priceClose.compareTo(slPrice) < 0) {
+                        log.debug("Strategy {} triggering LONG SL EXIT at {} price {} SL {}", getName(), context.marketData().getMarketDataDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -106,6 +113,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 if (listIdx >= 0) {
                     BigDecimal slPrice = renkoBricks.get(listIdx).getBrickHigh();
                     if (priceClose.compareTo(slPrice) > 0) {
+                        log.debug("Strategy {} triggering SHORT SL EXIT at {} price {} SL {}", getName(), context.marketData().getMarketDataDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -114,7 +122,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
         // ───── ENTRY Logic ─────
         if (prevShortSpreadLong == null || prevLongSpreadLong == null ||
-            prevShortSpreadShort == null || prevLongSpreadShort == null) {
+                prevShortSpreadShort == null || prevLongSpreadShort == null) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
@@ -138,15 +146,16 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
             // 2. GMMA Criteria
             boolean gmmaOrder = (ema3.compareTo(ema5) > 0 && ema5.compareTo(ema8) > 0 && ema8.compareTo(ema10) > 0 &&
-                                 ema10.compareTo(ema12) > 0 && ema12.compareTo(ema15) > 0 &&
-                                 ema15.compareTo(ema30) > 0 &&
-                                 ema30.compareTo(ema35) > 0 && ema35.compareTo(ema40) > 0 && ema40.compareTo(ema45) > 0 &&
-                                 ema45.compareTo(ema50) > 0 && ema50.compareTo(ema60) > 0);
+                    ema10.compareTo(ema12) > 0 && ema12.compareTo(ema15) > 0 &&
+                    ema15.compareTo(ema30) > 0 &&
+                    ema30.compareTo(ema35) > 0 && ema35.compareTo(ema40) > 0 && ema40.compareTo(ema45) > 0 &&
+                    ema45.compareTo(ema50) > 0 && ema50.compareTo(ema60) > 0);
 
             boolean gmmaExpansion = shortSpreadLong.compareTo(prevShortSpreadLong) > 0 &&
-                                    longSpreadLong.compareTo(prevLongSpreadLong) > 0;
+                    longSpreadLong.compareTo(prevLongSpreadLong) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.LONG) {
+                log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getMarketDataDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadLong);
@@ -173,15 +182,16 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
             // 2. GMMA Criteria
             boolean gmmaOrder = (ema3.compareTo(ema5) < 0 && ema5.compareTo(ema8) < 0 && ema8.compareTo(ema10) < 0 &&
-                                 ema10.compareTo(ema12) < 0 && ema12.compareTo(ema15) < 0 &&
-                                 ema15.compareTo(ema30) < 0 &&
-                                 ema30.compareTo(ema35) < 0 && ema35.compareTo(ema40) < 0 && ema40.compareTo(ema45) < 0 &&
-                                 ema45.compareTo(ema50) < 0 && ema50.compareTo(ema60) < 0);
+                    ema10.compareTo(ema12) < 0 && ema12.compareTo(ema15) < 0 &&
+                    ema15.compareTo(ema30) < 0 &&
+                    ema30.compareTo(ema35) < 0 && ema35.compareTo(ema40) < 0 && ema40.compareTo(ema45) < 0 &&
+                    ema45.compareTo(ema50) < 0 && ema50.compareTo(ema60) < 0);
 
             boolean gmmaExpansion = shortSpreadShort.compareTo(prevShortSpreadShort) > 0 &&
-                                    longSpreadShort.compareTo(prevLongSpreadShort) > 0;
+                    longSpreadShort.compareTo(prevLongSpreadShort) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.SHORT) {
+                log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getMarketDataDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadShort);

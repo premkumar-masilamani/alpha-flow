@@ -39,7 +39,6 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # === Chart Parameters ===
 CHART_DISPLAY_ROWS = 180
 
-
 OHLCV_FILE = DATA_DIR / f"{SYMBOL}_{TIMEFRAME}.csv"
 MA_FILE = DATA_DIR / f"{SYMBOL}_{TIMEFRAME}_{COLUMN_NAME_MA}.csv"
 MA_RESULTS_FILE = DATA_DIR / f"{SYMBOL}_{TIMEFRAME}_{COLUMN_NAME_MA}_results.csv"

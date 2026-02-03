@@ -1,6 +1,8 @@
 package com.alphaflow.api.controllers;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +17,8 @@ import static org.springframework.http.HttpStatus.valueOf;
 
 @RestController
 public class ApiController implements ErrorController {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiController.class);
 
     @RequestMapping("/api")
     public Map<String, Object> index() {
@@ -32,6 +36,8 @@ public class ApiController implements ErrorController {
         Integer status = (Integer) request.getAttribute("jakarta.servlet.error.status_code");
         Throwable exception = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
         String path = (String) request.getAttribute("jakarta.servlet.error.request_uri");
+
+        log.error("Handling error status {} for path {}. Exception: {}", status, path, exception != null ? exception.getMessage() : "None");
 
         HttpStatus httpStatus = valueOf(ofNullable(status)
                 .orElse(INTERNAL_SERVER_ERROR.value()));
