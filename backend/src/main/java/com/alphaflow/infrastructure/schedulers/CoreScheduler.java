@@ -8,6 +8,7 @@ import com.alphaflow.engine.calculation.MarketStateCalculator;
 import com.alphaflow.engine.calculation.MarketStateDerivativeCalculator;
 import com.alphaflow.engine.calculation.RenkoDataCalculator;
 import com.alphaflow.engine.downloaders.BinanceDataDownloader;
+import com.alphaflow.engine.downloaders.YahooFinanceDataDownloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -26,6 +27,7 @@ public class CoreScheduler {
     private static final Logger log = LoggerFactory.getLogger(CoreScheduler.class);
 
     private final BinanceDataDownloader binanceDataDownloader;
+    private final YahooFinanceDataDownloader yahooFinanceDataDownloader;
     private final MarketDataCalculator marketDataCalculator;
     private final MarketStateCalculator marketStateCalculator;
     private final MarketStateDerivativeCalculator marketStateDerivativeCalculator;
@@ -36,6 +38,7 @@ public class CoreScheduler {
 
     public CoreScheduler(
             BinanceDataDownloader binanceDataDownloader,
+            YahooFinanceDataDownloader yahooFinanceDataDownloader,
             MarketDataCalculator marketDataCalculator,
             MarketStateCalculator marketStateCalculator,
             MarketStateDerivativeCalculator marketStateDerivativeCalculator,
@@ -45,6 +48,7 @@ public class CoreScheduler {
             PerformanceScorer performanceScorer
     ) {
         this.binanceDataDownloader = binanceDataDownloader;
+        this.yahooFinanceDataDownloader = yahooFinanceDataDownloader;
         this.marketDataCalculator = marketDataCalculator;
         this.marketStateCalculator = marketStateCalculator;
         this.marketStateDerivativeCalculator = marketStateDerivativeCalculator;
@@ -74,8 +78,11 @@ public class CoreScheduler {
 
     private void run() {
         try {
-            log.info("Step 1/7: Downloading tick data...");
+            log.info("Step 1a/7: Downloading Binance tick data...");
             binanceDataDownloader.download();
+
+            log.info("Step 1b/7: Downloading Yahoo Finance daily data...");
+            yahooFinanceDataDownloader.download();
 
             log.info("Step 2/7: Computing market data metrics...");
             marketDataCalculator.calculate();

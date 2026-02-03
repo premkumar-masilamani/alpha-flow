@@ -4,6 +4,7 @@ import com.alphaflow.engine.configs.BinanceConfig;
 import com.alphaflow.engine.entities.File;
 import com.alphaflow.engine.repositories.FileRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
+import com.alphaflow.infrastructure.enums.DataSource;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,16 +45,16 @@ public class BinanceDataDownloader {
      * Downloads are processed sequentially to respect rate limits and system resources.
      */
     public void download() {
-        log.info("Starting tick data download process...");
+        log.info("Starting Binance tick data download process...");
         log.info("Remote Repository: {}", binanceConfig.getDownloadUrl());
         log.info("Local Storage: {}", binanceConfig.getDownloadDir());
 
-        var activeTickers = tickerRepository.findByIsActiveTrue();
-        log.info("Found {} active tickers to sync.", activeTickers.size());
+        var activeTickers = tickerRepository.findByIsActiveTrueAndSource(DataSource.BINANCE);
+        log.info("Found {} active Binance tickers to sync.", activeTickers.size());
 
         activeTickers.forEach(this::downloadTickDataForTicker);
 
-        log.info("All downloads completed!");
+        log.info("All Binance downloads completed!");
     }
 
     /**

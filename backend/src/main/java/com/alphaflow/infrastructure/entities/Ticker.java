@@ -1,5 +1,6 @@
 package com.alphaflow.infrastructure.entities;
 
+import com.alphaflow.infrastructure.enums.DataSource;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +26,10 @@ public class Ticker {
     private String tickerSymbol;
 
     private String tickerName;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private DataSource source = DataSource.BINANCE;
 
     private boolean isActive = true;
 
