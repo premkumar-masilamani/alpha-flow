@@ -1,9 +1,9 @@
 package com.alphaflow.infrastructure.enums;
 
 import com.alphaflow.infrastructure.entities.MarketData;
-import java.math.BigDecimal;
-
 import lombok.RequiredArgsConstructor;
+
+import java.math.BigDecimal;
 
 @RequiredArgsConstructor
 public enum RenkoPriceSource {

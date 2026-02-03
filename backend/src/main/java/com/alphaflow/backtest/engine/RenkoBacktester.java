@@ -1,9 +1,9 @@
 package com.alphaflow.backtest.engine;
 
+import com.alphaflow.backtest.configs.BacktestConfig;
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
-import com.alphaflow.backtest.configs.BacktestConfig;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
@@ -57,23 +57,23 @@ public class RenkoBacktester extends AbstractBacktester {
         );
     }
 
-    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> strategies, BacktestConfig config) {
+    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> renkoStrategies, BacktestConfig config) {
         if (!config.isGridSearchEnabled()) {
-            return strategies;
+            return renkoStrategies;
         }
 
-        log.info("Expanding Renko strategies. Base count: {}", strategies.size());
+        log.info("Expanding Renko renkoStrategies. Base count: {}", renkoStrategies.size());
         List<RenkoStrategy> all = new ArrayList<>();
 
-        for (RenkoStrategy s : strategies) {
-            if (s instanceof RenkoTSMStrategy) {
+        for (RenkoStrategy renkoStrategy : renkoStrategies) {
+            if (renkoStrategy instanceof RenkoTSMStrategy) {
                 all.addAll(gridSearchRenkoTSMStrategies());
             } else {
-                all.add(s);
+                all.add(renkoStrategy);
             }
         }
 
-        log.info("Total Renko strategies after expansion: {}", all.size());
+        log.info("Total Renko renkoStrategies after expansion: {}", all.size());
         return all;
     }
 

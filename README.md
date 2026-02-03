@@ -10,12 +10,14 @@ AlphaFlow studies the flow of buying and selling to make better trading decision
 ## Local Dev Setup.
 
 On a terminal, run
+
 ```
 make run_database
 make run_backend
 ```
 
 On another terminal, run
+
 ```
 make run_frontend
 ```

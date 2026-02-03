@@ -1,6 +1,7 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from ta.trend import EMAIndicator, SMAIndicator, WMAIndicator
+
 from constants import (
     INVESTMENT,
     MA_START,
@@ -25,12 +26,12 @@ def calculate_hma(series: pd.Series, period: int) -> pd.Series:
     sqrt_period = int(np.sqrt(period))
     wma_half = series.rolling(half_period).apply(
         lambda x: np.dot(x, np.arange(1, len(x) + 1))
-        / np.sum(np.arange(1, len(x) + 1)),
+                  / np.sum(np.arange(1, len(x) + 1)),
         raw=True,
     )
     wma_full = series.rolling(period).apply(
         lambda x: np.dot(x, np.arange(1, len(x) + 1))
-        / np.sum(np.arange(1, len(x) + 1)),
+                  / np.sum(np.arange(1, len(x) + 1)),
         raw=True,
     )
     hma = (
@@ -38,7 +39,7 @@ def calculate_hma(series: pd.Series, period: int) -> pd.Series:
         .rolling(sqrt_period)
         .apply(
             lambda x: np.dot(x, np.arange(1, len(x) + 1))
-            / np.sum(np.arange(1, len(x) + 1)),
+                      / np.sum(np.arange(1, len(x) + 1)),
             raw=True,
         )
     )
@@ -46,7 +47,7 @@ def calculate_hma(series: pd.Series, period: int) -> pd.Series:
 
 
 def calculate_alma(
-    series: pd.Series, period: int, offset: float = 0.85, sigma: float = 6
+        series: pd.Series, period: int, offset: float = 0.85, sigma: float = 6
 ) -> pd.Series:
     def alma_filter(x):
         m = offset * (period - 1)
@@ -141,9 +142,9 @@ def analyze_moving_averages():
 
     # Scoring
     df["score"] = (
-        0.5 * df["profit_norm"]
-        + 0.3 * df["profit_per_trade_norm"]
-        + 0.2 * df["trades_norm"]
+            0.5 * df["profit_norm"]
+            + 0.3 * df["profit_per_trade_norm"]
+            + 0.2 * df["trades_norm"]
     )
 
     # Range bucketing
