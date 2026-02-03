@@ -91,8 +91,9 @@ public class YahooFinanceDataDownloader {
         URLConnection connection = URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
-        // Add User-Agent to avoid 403 Forbidden responses
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0");
+        // Add a realistic User-Agent to avoid 401/403 errors
+        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        connection.setRequestProperty("Accept", "text/csv,text/plain,application/csv");
 
         try (InputStream in = connection.getInputStream()) {
             return Table.read().csv(CsvReadOptions.builder(in)
