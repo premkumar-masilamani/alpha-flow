@@ -1,7 +1,7 @@
-import pandas as pd
 import requests
-import time
+import pandas as pd
 from datetime import datetime, timedelta
+import time
 
 
 def fetch_all_daily_btc_data():

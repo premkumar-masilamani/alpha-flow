@@ -1,10 +1,9 @@
 import logging
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
-import numpy as np
 import pandas as pd
-
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.ticker as mticker
 from helpers import (
     load_timeseries_data,
     get_renko_file_path,
@@ -30,7 +29,6 @@ COLOR_SL_PRICE: str = "red"
 COLOR_GMMA_SHORT_EMA: str = "green"
 COLOR_GMMA_LONG_EMA: str = "red"
 
-
 def ewm_quantile(series, quantile, span=30):
     """
     Exponentially weighted quantile of a pandas Series.
@@ -39,7 +37,7 @@ def ewm_quantile(series, quantile, span=30):
     n = len(series)
 
     # exponential weights (newest gets most weight)
-    weights = (1 - alpha) ** np.arange(n - 1, -1, -1)
+    weights = (1 - alpha) ** np.arange(n-1, -1, -1)
     weights /= weights.sum()  # normalize
 
     # sort series & weights together
@@ -55,7 +53,7 @@ def ewm_quantile(series, quantile, span=30):
 
 
 def plot_renko(
-        renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str
+    renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str
 ):
     logger.info(f"Plotting Renko chart for {ticker} ({timeframe})")
 
@@ -90,6 +88,7 @@ def plot_renko(
     #     renko_df["buyer_capital_ratio"] >= renko_df["q75"], "green",
     #     np.where(renko_df["buyer_capital_ratio"] <= renko_df["q25"], "red", "yellow")
     # )
+
 
     # Exponential weighting span (~1 month of daily Renko bricks)
     span = 1

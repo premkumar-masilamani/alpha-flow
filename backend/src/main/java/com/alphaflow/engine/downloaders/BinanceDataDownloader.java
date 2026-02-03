@@ -1,6 +1,6 @@
 package com.alphaflow.engine.downloaders;
 
-import com.alphaflow.engine.configs.BinanceConfig;
+import com.alphaflow.engine.configs.AppConfig;
 import com.alphaflow.engine.entities.File;
 import com.alphaflow.engine.repositories.FileRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -28,12 +28,12 @@ public class BinanceDataDownloader {
 
     private static final Logger log = LoggerFactory.getLogger(BinanceDataDownloader.class);
 
-    private final BinanceConfig binanceConfig;
+    private final AppConfig appConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
 
-    public BinanceDataDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
-        this.binanceConfig = binanceConfig;
+    public BinanceDataDownloader(AppConfig appConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
+        this.appConfig = appConfig;
         this.tickerRepository = tickerRepository;
         this.fileRepository = fileRepository;
     }
@@ -45,8 +45,8 @@ public class BinanceDataDownloader {
      */
     public void download() {
         log.info("Starting tick data download process...");
-        log.info("Remote Repository: {}", binanceConfig.getDownloadUrl());
-        log.info("Local Storage: {}", binanceConfig.getDownloadDir());
+        log.info("Remote Repository: {}", appConfig.getDownloadUrl());
+        log.info("Local Storage: {}", appConfig.getDownloadDir());
 
         var activeTickers = tickerRepository.findByIsActiveTrue();
         log.info("Found {} active tickers to sync.", activeTickers.size());
@@ -68,7 +68,7 @@ public class BinanceDataDownloader {
                 .orElse(ticker.getTickerDate());
 
         String tickerSymbol = ticker.getTickerSymbol();
-        Path outDir = Path.of(binanceConfig.getDownloadDir(), tickerSymbol);
+        Path outDir = Path.of(appConfig.getDownloadDir(), tickerSymbol);
 
         try {
             Files.createDirectories(outDir);
@@ -79,7 +79,7 @@ public class BinanceDataDownloader {
 
         LocalDate today = LocalDate.now();
         log.info("Syncing {} from {} to {}", tickerSymbol, startDate, today);
-        String downloadPattern = binanceConfig.getDownloadUrl();
+        String downloadPattern = appConfig.getDownloadUrl();
 
         // Loop through each day and download sequentially
         // Usually, today's data isn't fully available on public archives yet.

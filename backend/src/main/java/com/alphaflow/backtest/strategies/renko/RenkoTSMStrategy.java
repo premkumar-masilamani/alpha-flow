@@ -44,14 +44,24 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         this.maPeriod = maPeriod;
         this.momentumMetric = momentumMetric;
 
-        this.maIndicatorKey = priceSource.getMetricCode() + "_" + maType.code() + "_" + maPeriod.days();
+        this.maIndicatorKey = priceSource.code() + "_" + maType.code() + "_" + maPeriod.days();
         this.momentumIndicatorKey = momentumMetric.code() + "_" + momentumMetric.code() + "_0";
         this.momentumIndicatorPrevKey = "PREV_" + this.momentumIndicatorKey;
     }
 
     @Override
     public String getName() {
+        if (isDefault()) {
+            return "Renko TSM";
+        }
         return String.format("Renko TSM %s %s %d %s", priceSource, maType, maPeriod.days(), momentumMetric);
+    }
+
+    private boolean isDefault() {
+        return priceSource == RenkoPriceSource.PRICE_CLOSE &&
+                maType == TransformationType.SMA &&
+                maPeriod == WindowPeriod.TEN_DAYS &&
+                momentumMetric == MarketDataMetricType.OBV;
     }
 
     @Override

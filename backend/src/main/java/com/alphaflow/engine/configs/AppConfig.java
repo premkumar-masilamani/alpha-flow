@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "alphaflow.binance")
 @Data
-public class BinanceConfig {
+public class AppConfig {
 
     private String downloadUrl;
     private String downloadDir;

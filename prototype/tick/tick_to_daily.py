@@ -1,8 +1,8 @@
-import numpy as np
-import os
 import pandas as pd
-import sys
+import numpy as np
 import zipfile
+import os
+import sys
 
 
 def detect_whales(df, percentile=0.999, k_std=3):
@@ -56,7 +56,7 @@ def process_file(filepath):
     micro_volatility = 0.0
     prices = df["price"].values
     if len(prices) > 1:
-        returns = np.array([(prices[i] - prices[i - 1]) / prices[i - 1] if prices[i - 1] != 0 else 0 for i in range(1, len(prices))])
+        returns = np.array([(prices[i] - prices[i-1]) / prices[i-1] if prices[i-1] != 0 else 0 for i in range(1, len(prices))])
         if len(returns) > 0:
             micro_volatility = np.std(returns)
     # --- VPIN Proxy ---

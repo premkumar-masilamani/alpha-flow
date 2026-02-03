@@ -36,10 +36,12 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 
 public abstract class AbstractBacktester {
 
+    private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
+
     protected static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000");
     protected static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     protected static final double YEAR_IN_DAYS = 365.25;
-    private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
+
     protected final TickerRepository tickerRepository;
     protected final MarketDataRepository marketDataRepository;
     protected final MarketStateRepository marketStateRepository;
@@ -389,8 +391,8 @@ public abstract class AbstractBacktester {
                 .finalEquity(last.getEquity())
                 .startDate(first.getEquityDate())
                 .endDate(last.getEquityDate())
-                .years(safeBigDecimal(years))
-                .cagr(safeBigDecimal(cagr))
+                .years(BigDecimal.valueOf(Double.isNaN(years) || Double.isInfinite(years) ? 0.0 : years))
+                .cagr(BigDecimal.valueOf(Double.isNaN(cagr) || Double.isInfinite(cagr) ? 0.0 : cagr))
                 .winRate(winRate)
                 .totalReturnPct(totalReturnPct)
                 .maxDrawdownPct(calculateMaxDrawdown(equities))
@@ -435,14 +437,7 @@ public abstract class AbstractBacktester {
         double stdDev = Math.sqrt(variance);
         if (stdDev == 0) return BigDecimal.ZERO;
         double sharpe = (mean / stdDev) * Math.sqrt(252);
-        return safeBigDecimal(sharpe);
-    }
-
-    private BigDecimal safeBigDecimal(double value) {
-        if (Double.isNaN(value) || Double.isInfinite(value)) {
-            return BigDecimal.ZERO;
-        }
-        return BigDecimal.valueOf(value);
+        return BigDecimal.valueOf(Double.isNaN(sharpe) || Double.isInfinite(sharpe) ? 0.0 : sharpe);
     }
 
     protected record BacktestRunResult(

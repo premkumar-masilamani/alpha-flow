@@ -1,9 +1,9 @@
 package com.alphaflow.backtest.engine;
 
-import com.alphaflow.backtest.configs.BacktestConfig;
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
+import com.alphaflow.backtest.configs.BacktestConfig;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
@@ -52,37 +52,43 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestSignalRepository,
                 backtestTradeRepository,
                 backtestResultRepository,
-                gridSearchStrategies(strategies, backtestConfig),
+                expandStrategies(strategies, backtestConfig),
                 transactionTemplate
         );
     }
 
-    private static List<RenkoStrategy> gridSearchStrategies(List<RenkoStrategy> strategies, BacktestConfig config) {
-
+    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> strategies, BacktestConfig config) {
         if (!config.isGridSearchEnabled()) {
             return strategies;
         }
 
-        log.info("Grid Searching Renko strategies. Base count: {}", strategies.size());
+        log.info("Expanding Renko strategies. Base count: {}", strategies.size());
         List<RenkoStrategy> all = new ArrayList<>();
 
-        for (RenkoStrategy strategy : strategies) {
-            if (!(strategy instanceof RenkoTSMStrategy)) {
-                all.add(strategy);
+        for (RenkoStrategy s : strategies) {
+            if (s instanceof RenkoTSMStrategy) {
+                all.addAll(gridSearchRenkoTSMStrategies());
+            } else {
+                all.add(s);
             }
         }
 
+        log.info("Total Renko strategies after expansion: {}", all.size());
+        return all;
+    }
+
+    private static List<RenkoStrategy> gridSearchRenkoTSMStrategies() {
+        List<RenkoStrategy> combinations = new ArrayList<>();
         for (RenkoPriceSource priceSource : RenkoPriceSource.values()) {
             for (MarketDataMetricType momentumMetric : List.of(MarketDataMetricType.OBV, MarketDataMetricType.CCF)) {
                 for (TransformationType maType : List.of(TransformationType.SMA, TransformationType.EMA)) {
                     for (int p = 3; p <= 21; p++) {
-                        all.add(new RenkoTSMStrategy(priceSource, maType, WindowPeriod.fromDays(p), momentumMetric));
+                        combinations.add(new RenkoTSMStrategy(priceSource, maType, WindowPeriod.fromDays(p), momentumMetric));
                     }
                 }
             }
         }
-        log.info("Total Renko strategies after expansion: {}", all.size());
-        return all;
+        return combinations;
     }
 
     @Override

@@ -12,11 +12,11 @@ The output is written to a CSV file.
 """
 
 import argparse
-import logging
 import pandas as pd
 import sys
 from pathlib import Path
 from typing import List, Dict, Any
+import logging
 
 # Configure logging
 logging.basicConfig(
@@ -94,7 +94,7 @@ def remove_consecutive_duplicates(df: pd.DataFrame) -> pd.DataFrame:
     return df[
         (df["brick_low"] != df["brick_low"].shift())
         | (df["brick_high"] != df["brick_high"].shift())
-        ]
+    ]
 
 
 def calculate_zone_trend(df: pd.DataFrame) -> pd.DataFrame:

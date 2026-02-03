@@ -1,7 +1,6 @@
-import argparse
 import os
+import argparse
 import pandas as pd
-
 from constants import MACD_FAST, MACD_SLOW, MACD_SIGNAL
 
 

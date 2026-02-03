@@ -1,7 +1,7 @@
 import argparse
-import logging
-import pandas as pd
 from pathlib import Path
+import pandas as pd
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +117,8 @@ def parse_chart_args() -> argparse.Namespace:
     parser.add_argument("--ticker", required=True, help="Ticker symbol (e.g. AAPL)")
     parser.add_argument("--timeframe", required=True, help="Timeframe (e.g. 1d, 1h)")
     return parser.parse_args()
+
+
 
 
 def get_zone_from_trend(trend: int) -> int:

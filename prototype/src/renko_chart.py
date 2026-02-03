@@ -1,9 +1,8 @@
 import logging
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import pandas as pd
-
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.ticker as mticker
 from helpers import (
     load_timeseries_data,
     get_renko_file_path,
@@ -31,7 +30,7 @@ COLOR_GMMA_LONG_EMA: str = "red"
 
 
 def plot_renko(
-        renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str
+    renko_df: pd.DataFrame, renko_ma_df: pd.DataFrame, ticker: str, timeframe: str
 ):
     logger.info(f"Plotting Renko chart for {ticker} ({timeframe})")
 

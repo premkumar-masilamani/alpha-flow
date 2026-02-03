@@ -1,10 +1,10 @@
-import logging
-import pandas as pd
 import time
+import logging
+from typing import Optional, Dict
+import pandas as pd
 import yfinance as yf
 from datetime import datetime
 from functools import lru_cache
-from typing import Optional, Dict
 
 from helpers import (
     load_timeseries_data,

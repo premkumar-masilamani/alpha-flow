@@ -1,12 +1,12 @@
 package com.alphaflow.engine.calculation;
 
-import com.alphaflow.engine.configs.BinanceConfig;
+import com.alphaflow.engine.configs.AppConfig;
 import com.alphaflow.engine.entities.File;
 import com.alphaflow.engine.metrics.CapitalProfileMetrics;
-import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.engine.metrics.OHLCVMetrics;
 import com.alphaflow.engine.metrics.OrderFlowMetrics;
 import com.alphaflow.engine.repositories.FileRepository;
+import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import org.slf4j.Logger;
@@ -31,16 +31,16 @@ public class MarketDataCalculator {
 
     private static final Logger log = LoggerFactory.getLogger(MarketDataCalculator.class);
 
-    private final BinanceConfig binanceConfig;
+    private final AppConfig appConfig;
     private final FileRepository fileRepository;
     private final MarketDataRepository marketDataRepository;
 
     public MarketDataCalculator(
-            BinanceConfig binanceConfig,
+            AppConfig appConfig,
             FileRepository fileRepository,
             MarketDataRepository marketDataRepository
     ) {
-        this.binanceConfig = binanceConfig;
+        this.appConfig = appConfig;
         this.fileRepository = fileRepository;
         this.marketDataRepository = marketDataRepository;
     }
@@ -89,7 +89,7 @@ public class MarketDataCalculator {
         final String tickerSymbol = file.getTicker().getTickerSymbol();
         final String dateStr = getBinanceDateString(file.getFileDate());
         final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
-        final Path filePath = Paths.get(binanceConfig.getDownloadDir(), tickerSymbol, baseFileName);
+        final Path filePath = Paths.get(appConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
         log.debug("Processing trades for ticker: {}, date: {}, file: {}", tickerSymbol, dateStr, baseFileName);
 

@@ -2,10 +2,10 @@ package com.alphaflow.engine.calculation;
 
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
-import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.RenkoDataRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
