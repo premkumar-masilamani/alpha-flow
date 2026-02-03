@@ -20,6 +20,7 @@ import java.net.URLConnection;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,18 +64,19 @@ public class YahooFinanceDataDownloader {
                 .map(md -> md.getMarketDataDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
-        // We only sync until yesterday to avoid partial daily bars.
-        LocalDate endDate = LocalDate.now().minusDays(1);
+        long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
+        // Use the start of today (UTC) as the end timestamp.
+        // This ensures the API only returns completed daily bars from previous days,
+        // as the current day's bar timestamp will be at market open (later than 00:00 UTC).
+        long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
 
-        if (startDate.isAfter(endDate)) {
+        if (startTs >= endTs) {
             log.info("Ticker {} is already up to date (last sync: {}).", ticker.getTickerSymbol(), startDate.minusDays(1));
             return;
         }
 
-        log.info("Syncing Yahoo Finance data for {} from {} to {}", ticker.getTickerSymbol(), startDate, endDate);
-
-        long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
-        long endTs = endDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond() + 86399; // End of day
+        log.info("Syncing Yahoo Finance data for {} from {} (timestamp: {}) to start of today (timestamp: {})",
+                ticker.getTickerSymbol(), startDate, startTs, endTs);
 
         String url = yahooFinanceConfig.getDownloadUrl()
                 .replace("{symbol}", ticker.getTickerSymbol())
