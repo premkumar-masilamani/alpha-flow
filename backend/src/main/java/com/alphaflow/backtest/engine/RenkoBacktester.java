@@ -3,6 +3,7 @@ package com.alphaflow.backtest.engine;
 import com.alphaflow.backtest.repositories.BacktestEquityRepository;
 import com.alphaflow.backtest.repositories.BacktestResultRepository;
 import com.alphaflow.backtest.repositories.BacktestSignalRepository;
+import com.alphaflow.backtest.configs.BacktestConfig;
 import com.alphaflow.backtest.repositories.BacktestTradeRepository;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
@@ -40,7 +41,8 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             List<RenkoStrategy> strategies,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            BacktestConfig backtestConfig
     ) {
         super(
                 tickerRepository,
@@ -50,12 +52,16 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestSignalRepository,
                 backtestTradeRepository,
                 backtestResultRepository,
-                expandStrategies(strategies),
+                expandStrategies(strategies, backtestConfig),
                 transactionTemplate
         );
     }
 
-    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> strategies) {
+    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> strategies, BacktestConfig config) {
+        if (!config.isGridSearchEnabled()) {
+            return strategies;
+        }
+
         log.info("Expanding Renko strategies. Base count: {}", strategies.size());
         List<RenkoStrategy> all = new ArrayList<>();
 
