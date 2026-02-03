@@ -9,6 +9,6 @@ import org.springframework.stereotype.Component;
 @Data
 public class YahooFinanceConfig {
 
-    private String downloadUrl = "https://query2.finance.yahoo.com/v7/finance/download/{symbol}?period1={start}&period2={end}&interval=1d&events=history&includeAdjustedClose=true";
+    private String downloadUrl = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?period1={start}&period2={end}&interval=1d";
 
 }

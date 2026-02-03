@@ -6,18 +6,18 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import tech.tablesaw.api.Row;
-import tech.tablesaw.api.Table;
-import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLConnection;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -33,15 +33,18 @@ public class YahooFinanceDataDownloader {
     private final YahooFinanceConfig yahooFinanceConfig;
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
+    private final ObjectMapper objectMapper;
 
     public YahooFinanceDataDownloader(
             YahooFinanceConfig yahooFinanceConfig,
             TickerRepository tickerRepository,
-            MarketDataRepository marketDataRepository
+            MarketDataRepository marketDataRepository,
+            ObjectMapper objectMapper
     ) {
         this.yahooFinanceConfig = yahooFinanceConfig;
         this.tickerRepository = tickerRepository;
         this.marketDataRepository = marketDataRepository;
+        this.objectMapper = objectMapper;
     }
 
     public void download() {
@@ -79,41 +82,59 @@ public class YahooFinanceDataDownloader {
                 .replace("{end}", String.valueOf(endTs));
 
         try {
-            Table table = downloadAndParseCsv(url);
-            saveMarketData(ticker, table);
-            log.info("Successfully synced {} rows for {}", table.rowCount(), ticker.getTickerSymbol());
+            List<MarketData> data = fetchAndParseJson(url, ticker);
+            if (!data.isEmpty()) {
+                marketDataRepository.saveAll(data);
+                log.info("Successfully synced {} rows for {}", data.size(), ticker.getTickerSymbol());
+            }
         } catch (Exception e) {
             log.error("Failed to download Yahoo Finance data for {}: {}", ticker.getTickerSymbol(), e.getMessage());
         }
     }
 
-    private Table downloadAndParseCsv(String url) throws IOException {
+    private List<MarketData> fetchAndParseJson(String url, Ticker ticker) throws IOException {
         URLConnection connection = URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
         // Add a realistic User-Agent to avoid 401/403 errors
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        connection.setRequestProperty("Accept", "text/csv,text/plain,application/csv");
+        connection.setRequestProperty("Accept", "application/json");
 
         try (InputStream in = connection.getInputStream()) {
-            return Table.read().csv(CsvReadOptions.builder(in)
-                    .header(true)
-                    .missingValueIndicator("null")
-                    .build());
-        }
-    }
+            JsonNode root = objectMapper.readTree(in);
+            JsonNode result = root.path("chart").path("result").get(0);
+            if (result == null || result.isNull()) {
+                return List.of();
+            }
 
-    private void saveMarketData(Ticker ticker, Table table) {
-        List<MarketData> toSave = new ArrayList<>();
-        for (Row row : table) {
-            try {
-                LocalDate date = row.getDate("Date");
-                BigDecimal open = BigDecimal.valueOf(row.getDouble("Open"));
-                BigDecimal high = BigDecimal.valueOf(row.getDouble("High"));
-                BigDecimal low = BigDecimal.valueOf(row.getDouble("Low"));
-                BigDecimal close = BigDecimal.valueOf(row.getDouble("Close"));
-                BigDecimal volume = BigDecimal.valueOf(row.getDouble("Volume"));
+            JsonNode timestamps = result.path("timestamp");
+            JsonNode indicators = result.path("indicators").path("quote").get(0);
+            if (timestamps.isMissingNode() || indicators.isMissingNode()) {
+                return List.of();
+            }
 
+            JsonNode opens = indicators.path("open");
+            JsonNode highs = indicators.path("high");
+            JsonNode lows = indicators.path("low");
+            JsonNode closes = indicators.path("close");
+            JsonNode volumes = indicators.path("volume");
+
+            List<MarketData> list = new ArrayList<>();
+            for (int i = 0; i < timestamps.size(); i++) {
+                if (opens.get(i).isNull() || highs.get(i).isNull() || lows.get(i).isNull() || closes.get(i).isNull()) {
+                    continue;
+                }
+
+                LocalDate date = Instant.ofEpochSecond(timestamps.get(i).asLong())
+                        .atZone(ZoneId.of("UTC")).toLocalDate();
+
+                BigDecimal open = opens.get(i).decimalValue();
+                BigDecimal high = highs.get(i).decimalValue();
+                BigDecimal low = lows.get(i).decimalValue();
+                BigDecimal close = closes.get(i).decimalValue();
+                BigDecimal volume = volumes.get(i).decimalValue();
+
+                // Compute VWAP metrics
                 BigDecimal vwapOHLC4 = open.add(high, DB_MATH_CONTEXT)
                         .add(low, DB_MATH_CONTEXT)
                         .add(close, DB_MATH_CONTEXT)
@@ -123,7 +144,7 @@ public class YahooFinanceDataDownloader {
                         .add(close, DB_MATH_CONTEXT)
                         .divide(BigDecimal.valueOf(3), DB_MATH_CONTEXT);
 
-                MarketData marketData = MarketData.builder()
+                list.add(MarketData.builder()
                         .ticker(ticker)
                         .marketDataDate(date)
                         .priceOpen(open)
@@ -133,15 +154,9 @@ public class YahooFinanceDataDownloader {
                         .volume(volume)
                         .vwapOHLC4(vwapOHLC4)
                         .vwapHLC3(vwapHLC3)
-                        .build();
-
-                toSave.add(marketData);
-            } catch (Exception e) {
-                log.warn("Failed to process row for ticker {}: {}", ticker.getTickerSymbol(), e.getMessage());
+                        .build());
             }
-        }
-        if (!toSave.isEmpty()) {
-            marketDataRepository.saveAll(toSave);
+            return list;
         }
     }
 }
