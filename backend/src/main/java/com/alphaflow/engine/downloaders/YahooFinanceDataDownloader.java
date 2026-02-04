@@ -136,16 +136,6 @@ public class YahooFinanceDataDownloader {
                 BigDecimal close = closes.get(i).decimalValue();
                 BigDecimal volume = volumes.get(i).decimalValue();
 
-                // Compute VWAP metrics
-                BigDecimal vwapOHLC4 = open.add(high, DB_MATH_CONTEXT)
-                        .add(low, DB_MATH_CONTEXT)
-                        .add(close, DB_MATH_CONTEXT)
-                        .divide(BigDecimal.valueOf(4), DB_MATH_CONTEXT);
-
-                BigDecimal vwapHLC3 = high.add(low, DB_MATH_CONTEXT)
-                        .add(close, DB_MATH_CONTEXT)
-                        .divide(BigDecimal.valueOf(3), DB_MATH_CONTEXT);
-
                 list.add(MarketData.builder()
                         .ticker(ticker)
                         .marketDataDate(date)
@@ -154,8 +144,6 @@ public class YahooFinanceDataDownloader {
                         .priceLow(low)
                         .priceClose(close)
                         .volume(volume)
-                        .vwapOHLC4(vwapOHLC4)
-                        .vwapHLC3(vwapHLC3)
                         .build());
             }
             return list;
