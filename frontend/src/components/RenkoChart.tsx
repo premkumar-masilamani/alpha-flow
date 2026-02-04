@@ -7,11 +7,14 @@ interface RenkoChartProps {
     data: RenkoData;
 }
 
+const SHORT_GMMA_PERIODS = [3, 5, 8, 10, 12, 15];
+const LONG_GMMA_PERIODS = [30, 35, 40, 45, 50, 60];
+
 const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const gmmaSeriesRef = useRef<Record<number, ISeriesApi<'Line'>>>({});
     const seriesMarkersRef = useRef<any>(null);
     const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
     const slPriceLineRightRef = useRef<IPriceLine | null>(null);
@@ -58,13 +61,23 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         });
         candlestickSeriesRef.current = candlestickSeries;
 
-        const emaSeries = chart.addSeries(LineSeries, {
-            color: '#3b82f6',
-            lineWidth: 1,
-            priceScaleId: 'right',
-            title: 'EMA 12',
+        SHORT_GMMA_PERIODS.forEach(period => {
+            gmmaSeriesRef.current[period] = chart.addSeries(LineSeries, {
+                color: '#22c55e', // Green
+                lineWidth: 1,
+                priceScaleId: 'right',
+                title: `EMA ${period}`,
+            });
         });
-        emaSeriesRef.current = emaSeries;
+
+        LONG_GMMA_PERIODS.forEach(period => {
+            gmmaSeriesRef.current[period] = chart.addSeries(LineSeries, {
+                color: '#ef4444', // Red
+                lineWidth: 1,
+                priceScaleId: 'right',
+                title: `EMA ${period}`,
+            });
+        });
 
         chart.priceScale('right').applyOptions({
             visible: true,
@@ -107,22 +120,25 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
 
         candlestickSeriesRef.current.setData(formattedBricks);
 
-        // Calculate and set EMA 12
-        if (emaSeriesRef.current) {
-            const emaPeriod = 12;
-            const k = 2 / (emaPeriod + 1);
-            let emaValue = formattedBricks[0].close;
-            const emaData = formattedBricks.map((brick, i) => {
-                if (i > 0) {
-                    emaValue = (brick.close * k) + (emaValue * (1 - k));
-                }
-                return {
-                    time: brick.time,
-                    value: emaValue,
-                };
-            });
-            emaSeriesRef.current.setData(emaData);
-        }
+        // Calculate and set GMMA
+        const allPeriods = [...SHORT_GMMA_PERIODS, ...LONG_GMMA_PERIODS];
+        allPeriods.forEach(period => {
+            const series = gmmaSeriesRef.current[period];
+            if (series) {
+                const k = 2 / (period + 1);
+                let emaValue = formattedBricks[0].close;
+                const emaData = formattedBricks.map((brick, i) => {
+                    if (i > 0) {
+                        emaValue = (brick.close * k) + (emaValue * (1 - k));
+                    }
+                    return {
+                        time: brick.time,
+                        value: emaValue,
+                    };
+                });
+                series.setData(emaData);
+            }
+        });
 
         // Set markers for trend numbers
         const markers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
