@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time,} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries,} from 'lightweight-charts';
 import type {RenkoData} from '../services/api';
@@ -7,31 +7,15 @@ interface RenkoChartProps {
     data: RenkoData;
 }
 
-const SHORT_GMMA_PERIODS = [3, 5, 8, 10, 12, 15];
-const LONG_GMMA_PERIODS = [30, 35, 40, 45, 50, 60];
-
 const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const gmmaSeriesRef = useRef<Record<number, ISeriesApi<'Line'>>>({});
+    const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const seriesMarkersRef = useRef<any>(null);
     const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
     const slPriceLineRightRef = useRef<IPriceLine | null>(null);
-    const dateMapping = useRef<string[]>([]);
-
-    const [visiblePeriods, setVisiblePeriods] = useState<number[]>([
-        ...SHORT_GMMA_PERIODS,
-        ...LONG_GMMA_PERIODS
-    ]);
-
-    const togglePeriod = (period: number) => {
-        setVisiblePeriods(prev =>
-            prev.includes(period)
-                ? prev.filter(p => p !== period)
-                : [...prev, period]
-        );
-    };
+    const dateMappingRef = useRef<string[]>([]);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -52,13 +36,13 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
                 timeVisible: false,
                 tickMarkFormatter: (time: Time) => {
                     const index = typeof time === 'number' ? time : 0;
-                    return dateMapping.current[index] || '';
+                    return dateMappingRef.current[index] || '';
                 },
             },
             localization: {
                 timeFormatter: (time: Time) => {
                     const index = typeof time === 'number' ? time : 0;
-                    return dateMapping.current[index] || '';
+                    return dateMappingRef.current[index] || '';
                 }
             }
         });
@@ -70,32 +54,15 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
             downColor: '#ef4444',
             borderVisible: false,
             wickVisible: false,
-            priceScaleId: 'right',
         });
         candlestickSeriesRef.current = candlestickSeries;
 
-        SHORT_GMMA_PERIODS.forEach(period => {
-            gmmaSeriesRef.current[period] = chart.addSeries(LineSeries, {
-                color: '#22c55e', // Green
-                lineWidth: 1,
-                priceScaleId: 'right',
-                title: `EMA ${period}`,
-            });
+        const emaSeries = chart.addSeries(LineSeries, {
+            color: '#2962FF', // Blue
+            lineWidth: 1,
+            title: 'EMA 12',
         });
-
-        LONG_GMMA_PERIODS.forEach(period => {
-            gmmaSeriesRef.current[period] = chart.addSeries(LineSeries, {
-                color: '#ef4444', // Red
-                lineWidth: 1,
-                priceScaleId: 'right',
-                title: `EMA ${period}`,
-            });
-        });
-
-        chart.priceScale('right').applyOptions({
-            visible: true,
-            borderColor: '#334155',
-        });
+        emaSeriesRef.current = emaSeries;
 
         const handleResize = () => {
             if (chartContainerRef.current) {
@@ -111,13 +78,12 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
     }, []);
 
     useEffect(() => {
-        if (!chartRef.current || !candlestickSeriesRef.current || data.bricks.length === 0) return;
+        if (!chartRef.current || !candlestickSeriesRef.current || !emaSeriesRef.current || data.bricks.length === 0) return;
 
         // Store date mapping for the formatters
-        dateMapping.current = data.bricks.map(b => b.date);
+        dateMappingRef.current = data.bricks.map(b => b.date);
 
         // Process bricks to ensure unique timestamps
-        // We'll use a sequence of numbers as timestamps to keep bricks equally spaced
         const formattedBricks = data.bricks.map((b, i) => {
             const isUp = b.direction === 'up';
             const high = Number(b.high);
@@ -133,25 +99,20 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
 
         candlestickSeriesRef.current.setData(formattedBricks);
 
-        // Calculate and set GMMA
-        const allPeriods = [...SHORT_GMMA_PERIODS, ...LONG_GMMA_PERIODS];
-        allPeriods.forEach(period => {
-            const series = gmmaSeriesRef.current[period];
-            if (series) {
-                const k = 2 / (period + 1);
-                let emaValue = formattedBricks[0].close;
-                const emaData = formattedBricks.map((brick, i) => {
-                    if (i > 0) {
-                        emaValue = (brick.close * k) + (emaValue * (1 - k));
-                    }
-                    return {
-                        time: brick.time,
-                        value: emaValue,
-                    };
-                });
-                series.setData(emaData);
+        // Calculate and set EMA 12
+        const period = 12;
+        const k = 2 / (period + 1);
+        let emaValue = formattedBricks[0].close;
+        const emaData = formattedBricks.map((brick, i) => {
+            if (i > 0) {
+                emaValue = (brick.close * k) + (emaValue * (1 - k));
             }
+            return {
+                time: brick.time,
+                value: emaValue,
+            };
         });
+        emaSeriesRef.current.setData(emaData);
 
         // Set markers for trend numbers
         const markers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
@@ -181,7 +142,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         const latestBrick = data.bricks[data.bricks.length - 1];
         const currentColor = latestBrick.direction === 'up' ? '#22c55e' : '#ef4444';
 
-        // Add Current Price line (Right)
+        // Add Current Price line
         currentPriceLineRightRef.current = candlestickSeriesRef.current.createPriceLine({
             price: data.current_price,
             color: currentColor,
@@ -190,7 +151,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
             axisLabelVisible: true,
         });
 
-        // Add SL Price line (Right)
+        // Add SL Price line
         slPriceLineRightRef.current = candlestickSeriesRef.current.createPriceLine({
             price: data.stop_loss_price,
             color: '#3b82f6',
@@ -206,7 +167,6 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
         const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
 
-        // Find the first index that is >= sixMonthsAgoStr
         let startIndex = data.bricks.findIndex(b => b.date >= sixMonthsAgoStr);
         if (startIndex === -1) startIndex = 0;
 
@@ -216,57 +176,8 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         });
     }, [data]);
 
-    useEffect(() => {
-        Object.entries(gmmaSeriesRef.current).forEach(([period, series]) => {
-            series.applyOptions({
-                visible: visiblePeriods.includes(Number(period))
-            });
-        });
-    }, [visiblePeriods]);
-
     return (
-        <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap gap-4 p-4 bg-slate-900/50 border border-slate-800 rounded-lg">
-                <div className="flex flex-col gap-2">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Short GMMA</span>
-                    <div className="flex flex-wrap gap-2">
-                        {SHORT_GMMA_PERIODS.map(period => (
-                            <label key={period} className="flex items-center gap-2 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    checked={visiblePeriods.includes(period)}
-                                    onChange={() => togglePeriod(period)}
-                                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
-                                />
-                                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                                    EMA {period}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                </div>
-                <div className="w-px bg-slate-800 self-stretch" />
-                <div className="flex flex-col gap-2">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Long GMMA</span>
-                    <div className="flex flex-wrap gap-2">
-                        {LONG_GMMA_PERIODS.map(period => (
-                            <label key={period} className="flex items-center gap-2 cursor-pointer group">
-                                <input
-                                    type="checkbox"
-                                    checked={visiblePeriods.includes(period)}
-                                    onChange={() => togglePeriod(period)}
-                                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
-                                />
-                                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                                    EMA {period}
-                                </span>
-                            </label>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>
-        </div>
+        <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>
     );
 };
 
