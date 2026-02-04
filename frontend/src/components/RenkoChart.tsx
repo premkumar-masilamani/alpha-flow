@@ -1,6 +1,6 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time,} from 'lightweight-charts';
-import {CandlestickSeries, ColorType, createChart, createSeriesMarkers,} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries,} from 'lightweight-charts';
 import type {RenkoData} from '../services/api';
 
 interface RenkoChartProps {
@@ -11,6 +11,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+    const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const seriesMarkersRef = useRef<any>(null);
     const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
     const slPriceLineRightRef = useRef<IPriceLine | null>(null);
@@ -57,6 +58,14 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         });
         candlestickSeriesRef.current = candlestickSeries;
 
+        const emaSeries = chart.addSeries(LineSeries, {
+            color: '#3b82f6',
+            lineWidth: 1,
+            priceScaleId: 'right',
+            title: 'EMA 12',
+        });
+        emaSeriesRef.current = emaSeries;
+
         chart.priceScale('right').applyOptions({
             visible: true,
             borderColor: '#334155',
@@ -97,6 +106,23 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         });
 
         candlestickSeriesRef.current.setData(formattedBricks);
+
+        // Calculate and set EMA 12
+        if (emaSeriesRef.current) {
+            const emaPeriod = 12;
+            const k = 2 / (emaPeriod + 1);
+            let emaValue = formattedBricks[0].close;
+            const emaData = formattedBricks.map((brick, i) => {
+                if (i > 0) {
+                    emaValue = (brick.close * k) + (emaValue * (1 - k));
+                }
+                return {
+                    time: brick.time,
+                    value: emaValue,
+                };
+            });
+            emaSeriesRef.current.setData(emaData);
+        }
 
         // Set markers for trend numbers
         const markers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({

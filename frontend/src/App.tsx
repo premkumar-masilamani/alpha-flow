@@ -1,14 +1,12 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useState} from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import CapitalGravityChart from './components/CapitalGravityChart';
-import MarketAcceptanceMatrix from './components/MarketAcceptanceMatrix';
 import {getMarketData, getRenkoData, getTickers, type MarketData, type RenkoData, type Ticker} from './services/api';
 import {Loader2} from 'lucide-react';
 
-const TABS = ['Candlestick', 'CCS', 'Renko', 'CGC', 'MAM'];
+const TABS = ['Candlestick', 'Renko'];
 
 function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
@@ -55,19 +53,6 @@ function App() {
         };
         fetchData();
     }, [selectedTicker]);
-
-    const displayData = useMemo(() => {
-        if (activeTab === 'CCS') {
-            return marketData.map((d) => ({
-                ...d,
-                open: d.vwap,
-                close: d.capital_poc,
-                high: d.capital_vah,
-                low: d.capital_val,
-            }));
-        }
-        return marketData;
-    }, [marketData, activeTab]);
 
     const renderContent = () => {
         if (!selectedTicker) {
@@ -118,25 +103,9 @@ function App() {
                                 {loading ? 'Loading data...' : 'No Renko data available for this ticker'}
                             </div>
                         )
-                    ) : (activeTab === 'Candlestick' || activeTab === 'CCS') ? (
+                    ) : activeTab === 'Candlestick' ? (
                         hasMarketData ? (
-                            <Chart data={displayData}/>
-                        ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                                {loading ? 'Loading data...' : 'No data available for this ticker'}
-                            </div>
-                        )
-                    ) : activeTab === 'CGC' ? (
-                        hasMarketData ? (
-                            <CapitalGravityChart data={marketData}/>
-                        ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                                {loading ? 'Loading data...' : 'No data available for this ticker'}
-                            </div>
-                        )
-                    ) : activeTab === 'MAM' ? (
-                        hasMarketData ? (
-                            <MarketAcceptanceMatrix data={marketData}/>
+                            <Chart data={marketData}/>
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-slate-500">
                                 {loading ? 'Loading data...' : 'No data available for this ticker'}
