@@ -46,6 +46,9 @@ public class MarketStateDerivativeCalculator {
         log.info("Starting Capital Momentum Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
+            if (!MarketDataMetricType.CAPITAL_MOMENTUM.isEligibleFor(ticker.getSource())) {
+                return;
+            }
             log.info("Calculating Capital Momentum for {}", ticker.getTickerSymbol());
 
             Optional<MarketState> latestCapitalMomentum = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(

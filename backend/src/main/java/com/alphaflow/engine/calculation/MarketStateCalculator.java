@@ -58,6 +58,10 @@ public class MarketStateCalculator {
             }
 
             for (MarketDataMetricType metric : MarketDataMetricType.values()) {
+                if (!metric.isEligibleFor(ticker.getSource())) {
+                    continue;
+                }
+
                 // Base indicators (no transformations)
                 if (metric == MarketDataMetricType.OBV) {
                     computeOBV(ticker, metric, allSeries);

@@ -1,6 +1,7 @@
 package com.alphaflow.engine.enums;
 
 import com.alphaflow.infrastructure.entities.MarketData;
+import com.alphaflow.infrastructure.enums.DataSource;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -187,6 +188,16 @@ public enum MarketDataMetricType {
 
     public List<MetricTransformSpec> transformSpecs() {
         return transformSpecs;
+    }
+
+    public boolean isEligibleFor(DataSource source) {
+        if (source == DataSource.YAHOO_FINANCE) {
+            return switch (this) {
+                case VWAP, CAPITAL_POC, CAPITAL_VALUE_RANGE, TOTAL_CAPITAL, BUYER_CAPITAL_RATIO, CCF, CAPITAL_MOMENTUM -> false;
+                default -> true;
+            };
+        }
+        return true;
     }
 
     public record MetricTransformSpec(
