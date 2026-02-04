@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time,} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries,} from 'lightweight-charts';
 import type {RenkoData} from '../services/api';
@@ -19,6 +19,19 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
     const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
     const slPriceLineRightRef = useRef<IPriceLine | null>(null);
     const dateMapping = useRef<string[]>([]);
+
+    const [visiblePeriods, setVisiblePeriods] = useState<number[]>([
+        ...SHORT_GMMA_PERIODS,
+        ...LONG_GMMA_PERIODS
+    ]);
+
+    const togglePeriod = (period: number) => {
+        setVisiblePeriods(prev =>
+            prev.includes(period)
+                ? prev.filter(p => p !== period)
+                : [...prev, period]
+        );
+    };
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -203,7 +216,58 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         });
     }, [data]);
 
-    return <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>;
+    useEffect(() => {
+        Object.entries(gmmaSeriesRef.current).forEach(([period, series]) => {
+            series.applyOptions({
+                visible: visiblePeriods.includes(Number(period))
+            });
+        });
+    }, [visiblePeriods]);
+
+    return (
+        <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-4 p-4 bg-slate-900/50 border border-slate-800 rounded-lg">
+                <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Short GMMA</span>
+                    <div className="flex flex-wrap gap-2">
+                        {SHORT_GMMA_PERIODS.map(period => (
+                            <label key={period} className="flex items-center gap-2 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={visiblePeriods.includes(period)}
+                                    onChange={() => togglePeriod(period)}
+                                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
+                                />
+                                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                                    EMA {period}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <div className="w-px bg-slate-800 self-stretch" />
+                <div className="flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Long GMMA</span>
+                    <div className="flex flex-wrap gap-2">
+                        {LONG_GMMA_PERIODS.map(period => (
+                            <label key={period} className="flex items-center gap-2 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={visiblePeriods.includes(period)}
+                                    onChange={() => togglePeriod(period)}
+                                    className="w-4 h-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-900"
+                                />
+                                <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+                                    EMA {period}
+                                </span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>
+        </div>
+    );
 };
 
 export default RenkoChart;
