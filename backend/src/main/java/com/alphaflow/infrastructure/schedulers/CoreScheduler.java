@@ -7,7 +7,8 @@ import com.alphaflow.engine.calculation.MarketDataCalculator;
 import com.alphaflow.engine.calculation.MarketStateCalculator;
 import com.alphaflow.engine.calculation.MarketStateDerivativeCalculator;
 import com.alphaflow.engine.calculation.RenkoDataCalculator;
-import com.alphaflow.engine.downloaders.BinanceDataDownloader;
+import com.alphaflow.engine.downloaders.BinanceDownloader;
+import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -25,7 +26,8 @@ public class CoreScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(CoreScheduler.class);
 
-    private final BinanceDataDownloader binanceDataDownloader;
+    private final BinanceDownloader binanceDownloader;
+    private final YahooFinanceDownloader yahooFinanceDownloader;
     private final MarketDataCalculator marketDataCalculator;
     private final MarketStateCalculator marketStateCalculator;
     private final MarketStateDerivativeCalculator marketStateDerivativeCalculator;
@@ -35,7 +37,8 @@ public class CoreScheduler {
     private final PerformanceScorer performanceScorer;
 
     public CoreScheduler(
-            BinanceDataDownloader binanceDataDownloader,
+            BinanceDownloader binanceDownloader,
+            YahooFinanceDownloader yahooFinanceDownloader,
             MarketDataCalculator marketDataCalculator,
             MarketStateCalculator marketStateCalculator,
             MarketStateDerivativeCalculator marketStateDerivativeCalculator,
@@ -44,7 +47,8 @@ public class CoreScheduler {
             RenkoBacktester renkoBacktester,
             PerformanceScorer performanceScorer
     ) {
-        this.binanceDataDownloader = binanceDataDownloader;
+        this.binanceDownloader = binanceDownloader;
+        this.yahooFinanceDownloader = yahooFinanceDownloader;
         this.marketDataCalculator = marketDataCalculator;
         this.marketStateCalculator = marketStateCalculator;
         this.marketStateDerivativeCalculator = marketStateDerivativeCalculator;
@@ -74,8 +78,11 @@ public class CoreScheduler {
 
     private void run() {
         try {
-            log.info("Step 1/7: Downloading tick data...");
-            binanceDataDownloader.download();
+            log.info("Step 1a/7: Downloading Binance tick data...");
+            binanceDownloader.download();
+
+            log.info("Step 1b/7: Downloading Yahoo Finance daily data...");
+            yahooFinanceDownloader.download();
 
             log.info("Step 2/7: Computing market data metrics...");
             marketDataCalculator.calculate();

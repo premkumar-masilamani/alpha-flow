@@ -50,12 +50,6 @@ public class MarketData {
 
     private BigDecimal totalCapital;
 
-    @Column(name = "vwap_ohlc4")
-    private BigDecimal vwapOHLC4;
-
-    @Column(name = "vwap_hlc3")
-    private BigDecimal vwapHLC3;
-
     public MarketData merge(MarketData other) {
         this.priceOpen = other.priceOpen;
         this.priceHigh = other.priceHigh;
@@ -68,8 +62,6 @@ public class MarketData {
         this.capitalVAL = other.capitalVAL;
         this.buyerCapital = other.buyerCapital;
         this.totalCapital = other.totalCapital;
-        this.vwapOHLC4 = other.vwapOHLC4;
-        this.vwapHLC3 = other.vwapHLC3;
         return this;
     }
 

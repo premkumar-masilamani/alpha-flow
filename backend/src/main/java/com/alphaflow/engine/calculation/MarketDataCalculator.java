@@ -162,8 +162,6 @@ public class MarketDataCalculator {
                 .priceClose(ohlcvMetrics.close())
                 .volume(ohlcvMetrics.volume())
                 .vwap(ohlcvMetrics.vwap())
-                .vwapOHLC4(ohlcvMetrics.vwapOHLC4())
-                .vwapHLC3(ohlcvMetrics.vwapHLC3())
                 .buyerCapital(orderFlowMetrics.buyerCapital())
                 .totalCapital(orderFlowMetrics.totalCapital())
                 .capitalPOC(capitalProfileMetrics.pointOfControl())

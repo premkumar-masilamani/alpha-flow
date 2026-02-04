@@ -51,7 +51,7 @@ migrate_database:
 		--network $(DOCKER_NETWORK_NAME) \
 		$(DOCKER_IMAGE_DB_MIGRATE) \
 		-path=/migrations \
-		-database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@$(POSTGRES_DB):$(POSTGRES_PORT)/${POSTGRES_DB}?sslmode=disable" up
+		-database "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@$(POSTGRES_DB):5432/${POSTGRES_DB}?sslmode=disable" up
 # Usage:
 # make migrate_database up
 # make migrate_database down 1
