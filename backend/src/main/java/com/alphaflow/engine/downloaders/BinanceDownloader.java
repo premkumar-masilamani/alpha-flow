@@ -25,15 +25,15 @@ import static com.alphaflow.infrastructure.constants.AppConstants.getBinanceZipF
 
 
 @Service
-public class BinanceDataDownloader {
+public class BinanceDownloader {
 
-    private static final Logger log = LoggerFactory.getLogger(BinanceDataDownloader.class);
+    private static final Logger log = LoggerFactory.getLogger(BinanceDownloader.class);
 
     private final BinanceConfig binanceConfig;
     private final TickerRepository tickerRepository;
     private final FileRepository fileRepository;
 
-    public BinanceDataDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
+    public BinanceDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
         this.binanceConfig = binanceConfig;
         this.tickerRepository = tickerRepository;
         this.fileRepository = fileRepository;

@@ -24,19 +24,17 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
-
 @Service
-public class YahooFinanceDataDownloader {
+public class YahooFinanceDownloader {
 
-    private static final Logger log = LoggerFactory.getLogger(YahooFinanceDataDownloader.class);
+    private static final Logger log = LoggerFactory.getLogger(YahooFinanceDownloader.class);
 
     private final YahooFinanceConfig yahooFinanceConfig;
     private final TickerRepository tickerRepository;
     private final MarketDataRepository marketDataRepository;
     private final ObjectMapper objectMapper;
 
-    public YahooFinanceDataDownloader(
+    public YahooFinanceDownloader(
             YahooFinanceConfig yahooFinanceConfig,
             TickerRepository tickerRepository,
             MarketDataRepository marketDataRepository,
@@ -84,10 +82,10 @@ public class YahooFinanceDataDownloader {
                 .replace("{end}", String.valueOf(endTs));
 
         try {
-            List<MarketData> data = fetchAndParseJson(url, ticker);
-            if (!data.isEmpty()) {
-                marketDataRepository.saveAll(data);
-                log.info("Successfully synced {} rows for {}", data.size(), ticker.getTickerSymbol());
+            List<MarketData> marketDataList = fetchAndParseJson(url, ticker);
+            if (!marketDataList.isEmpty()) {
+                marketDataRepository.saveAll(marketDataList);
+                log.info("Successfully synced {} rows for {}", marketDataList.size(), ticker.getTickerSymbol());
             }
         } catch (Exception e) {
             log.error("Failed to download Yahoo Finance data for {}: {}", ticker.getTickerSymbol(), e.getMessage());
