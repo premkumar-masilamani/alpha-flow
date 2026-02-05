@@ -1,17 +1,27 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time,} from 'lightweight-charts';
-import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries,} from 'lightweight-charts';
-import type {RenkoData} from '../services/api';
+import {
+    CandlestickSeries,
+    ColorType,
+    createChart,
+    createSeriesMarkers,
+    HistogramSeries,
+    LineSeries,
+} from 'lightweight-charts';
+import type {BacktestTrade, RenkoData} from '../services/api';
 
 interface RenkoChartProps {
     data: RenkoData;
+    trades: BacktestTrade[];
+    selectedStrategy: string;
 }
 
-const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
+const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const tradeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const seriesMarkersRef = useRef<any>(null);
     const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
     const slPriceLineRightRef = useRef<IPriceLine | null>(null);
@@ -64,6 +74,23 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         });
         emaSeriesRef.current = emaSeries;
 
+        const tradeSeries = chart.addSeries(HistogramSeries, {
+            priceScaleId: 'trades',
+            priceFormat: {
+                type: 'volume',
+            },
+            lastValueVisible: false,
+            priceLineVisible: false,
+        });
+        chart.priceScale('trades').applyOptions({
+            scaleMargins: {
+                top: 0,
+                bottom: 0,
+            },
+            visible: false,
+        });
+        tradeSeriesRef.current = tradeSeries;
+
         const handleResize = () => {
             if (chartContainerRef.current) {
                 chart.applyOptions({width: chartContainerRef.current.clientWidth});
@@ -78,7 +105,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
     }, []);
 
     useEffect(() => {
-        if (!chartRef.current || !candlestickSeriesRef.current || !emaSeriesRef.current || data.bricks.length === 0) return;
+        if (!chartRef.current || !candlestickSeriesRef.current || !emaSeriesRef.current || !tradeSeriesRef.current || data.bricks.length === 0) return;
 
         // Store date mapping for the formatters
         dateMappingRef.current = data.bricks.map(b => b.date);
@@ -129,6 +156,38 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         } else {
             seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, markers);
         }
+
+        // Plot trade lines
+        const filteredTrades = selectedStrategy === 'All'
+            ? trades
+            : trades.filter(t => t.strategyName === selectedStrategy);
+
+        const tradeData = filteredTrades.flatMap(t => {
+            // Find the index of the first brick on this date
+            const brickIndex = data.bricks.findIndex(b => b.date === t.entryDate);
+            if (brickIndex === -1) return [];
+
+            return {
+                time: brickIndex as unknown as Time,
+                value: 1,
+                color: t.side === 'LONG' ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)',
+            };
+        });
+
+        // Sort trade data by time
+        tradeData.sort((a, b) => (a.time as unknown as number) - (b.time as unknown as number));
+
+        // Filter out duplicate timestamps
+        const uniqueTradeData = [];
+        const seenTimes = new Set();
+        for (const td of tradeData) {
+            if (!seenTimes.has(td.time)) {
+                uniqueTradeData.push(td);
+                seenTimes.add(td.time);
+            }
+        }
+
+        tradeSeriesRef.current.setData(uniqueTradeData);
 
         // Remove old price lines if they exist
         if (currentPriceLineRightRef.current) {

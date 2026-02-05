@@ -1,17 +1,20 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, ISeriesApi, Time,} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries,} from 'lightweight-charts';
-import type {MarketData} from '../services/api';
+import type {BacktestTrade, MarketData} from '../services/api';
 
 interface ChartProps {
     data: MarketData[];
+    trades: BacktestTrade[];
+    selectedStrategy: string;
 }
 
-const Chart: React.FC<ChartProps> = ({data}) => {
+const Chart: React.FC<ChartProps> = ({data, trades, selectedStrategy}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+    const tradeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -59,6 +62,23 @@ const Chart: React.FC<ChartProps> = ({data}) => {
         });
         volumeSeriesRef.current = volumeSeries;
 
+        const tradeSeries = chart.addSeries(HistogramSeries, {
+            priceScaleId: 'trades',
+            priceFormat: {
+                type: 'volume',
+            },
+            lastValueVisible: false,
+            priceLineVisible: false,
+        });
+        chart.priceScale('trades').applyOptions({
+            scaleMargins: {
+                top: 0,
+                bottom: 0,
+            },
+            visible: false,
+        });
+        tradeSeriesRef.current = tradeSeries;
+
         const handleResize = () => {
             if (chartContainerRef.current) {
                 chart.applyOptions({width: chartContainerRef.current.clientWidth});
@@ -73,7 +93,7 @@ const Chart: React.FC<ChartProps> = ({data}) => {
     }, []);
 
     useEffect(() => {
-        if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current || data.length === 0) return;
+        if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current || !tradeSeriesRef.current || data.length === 0) return;
 
         // Financial data usually comes sorted, but we ensure it for chart stability
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
@@ -105,6 +125,31 @@ const Chart: React.FC<ChartProps> = ({data}) => {
 
         candlestickSeriesRef.current.setData(formattedCandlestickData);
         volumeSeriesRef.current.setData(formattedVolumeData);
+
+        // Plot trade lines
+        const filteredTrades = selectedStrategy === 'All'
+            ? trades
+            : trades.filter(t => t.strategyName === selectedStrategy);
+
+        const tradeData = filteredTrades.map(t => ({
+            time: t.entryDate as Time,
+            value: 1,
+            color: t.side === 'LONG' ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)',
+        }));
+        // Sort trade data by time to avoid lightweight-charts warnings/errors
+        tradeData.sort((a, b) => (a.time as string).localeCompare(b.time as string));
+
+        // Filter out duplicate timestamps for histogram
+        const uniqueTradeData = [];
+        const seenTimes = new Set();
+        for (const td of tradeData) {
+            if (!seenTimes.has(td.time)) {
+                uniqueTradeData.push(td);
+                seenTimes.add(td.time);
+            }
+        }
+
+        tradeSeriesRef.current.setData(uniqueTradeData);
 
         // Set initial display to latest six months
         const lastDate = sortedData[sortedData.length - 1].date;

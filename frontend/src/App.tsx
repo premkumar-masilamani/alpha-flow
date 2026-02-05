@@ -3,8 +3,17 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {getMarketData, getRenkoData, getTickers, type MarketData, type RenkoData, type Ticker} from './services/api';
-import {Loader2} from 'lucide-react';
+import {
+    getBacktestTrades,
+    getMarketData,
+    getRenkoData,
+    getTickers,
+    type BacktestTrade,
+    type MarketData,
+    type RenkoData,
+    type Ticker
+} from './services/api';
+import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
 
@@ -13,6 +22,8 @@ function App() {
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [marketData, setMarketData] = useState<MarketData[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
+    const [trades, setTrades] = useState<BacktestTrade[]>([]);
+    const [selectedStrategy, setSelectedStrategy] = useState<string>('All');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
 
@@ -36,16 +47,21 @@ function App() {
             if (selectedTicker) {
                 setLoading(true);
                 try {
-                    const [mData, rData] = await Promise.all([
+                    const [mData, rData, tData] = await Promise.all([
                         getMarketData(selectedTicker),
-                        getRenkoData(selectedTicker)
+                        getRenkoData(selectedTicker),
+                        getBacktestTrades(selectedTicker)
                     ]);
                     setMarketData(mData);
                     setRenkoData(rData);
+                    setTrades(tData);
+                    setSelectedStrategy('All');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
                     setMarketData([]);
                     setRenkoData(null);
+                    setTrades([]);
+                    setSelectedStrategy('All');
                 } finally {
                     setLoading(false);
                 }
@@ -65,6 +81,7 @@ function App() {
 
         const hasMarketData = marketData.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
+        const strategies = ['All', ...new Set(trades.map(t => t.strategyName))];
 
         return (
             <>
@@ -75,7 +92,21 @@ function App() {
                             {tickers.find((t) => t.symbol === selectedTicker)?.name}
                         </p>
                     </div>
-                    {loading && <Loader2 className="animate-spin text-blue-500"/>}
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-md px-3 py-1.5">
+                            <Filter size={16} className="text-slate-400"/>
+                            <select
+                                value={selectedStrategy}
+                                onChange={(e) => setSelectedStrategy(e.target.value)}
+                                className="bg-transparent text-sm text-slate-200 focus:outline-none min-w-[150px]"
+                            >
+                                {strategies.map(s => (
+                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {loading && <Loader2 className="animate-spin text-blue-500"/>}
+                    </div>
                 </div>
 
                 <div className="flex border-b border-slate-800 bg-slate-900/50">
@@ -97,7 +128,11 @@ function App() {
                 <div className="flex-1 relative overflow-hidden p-4">
                     {activeTab === 'Renko' ? (
                         hasRenkoData ? (
-                            <RenkoChart data={renkoData!}/>
+                            <RenkoChart
+                                data={renkoData!}
+                                trades={trades}
+                                selectedStrategy={selectedStrategy}
+                            />
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-slate-500">
                                 {loading ? 'Loading data...' : 'No Renko data available for this ticker'}
@@ -105,7 +140,11 @@ function App() {
                         )
                     ) : activeTab === 'Candlestick' ? (
                         hasMarketData ? (
-                            <Chart data={marketData}/>
+                            <Chart
+                                data={marketData}
+                                trades={trades}
+                                selectedStrategy={selectedStrategy}
+                            />
                         ) : (
                             <div className="absolute inset-0 flex items-center justify-center text-slate-500">
                                 {loading ? 'Loading data...' : 'No data available for this ticker'}
