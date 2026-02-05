@@ -1,8 +1,9 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.BacktestTradeDTO;
-import com.alphaflow.backtest.entities.BacktestTrade;
-import com.alphaflow.backtest.repositories.BacktestTradeRepository;
+import com.alphaflow.api.dtos.BacktestSignalDTO;
+import com.alphaflow.backtest.entities.BacktestSignal;
+import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.exceptions.ResourceNotFoundException;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
@@ -16,36 +17,34 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class BacktestService {
 
-    private final BacktestTradeRepository backtestTradeRepository;
+    private final BacktestSignalRepository backtestSignalRepository;
     private final TickerRepository tickerRepository;
 
-    public BacktestService(BacktestTradeRepository backtestTradeRepository, TickerRepository tickerRepository) {
-        this.backtestTradeRepository = backtestTradeRepository;
+    public BacktestService(BacktestSignalRepository backtestSignalRepository,
+                           TickerRepository tickerRepository) {
+        this.backtestSignalRepository = backtestSignalRepository;
         this.tickerRepository = tickerRepository;
     }
 
-    public List<BacktestTradeDTO> getTradesByTicker(String symbol) {
+    public List<BacktestSignalDTO> getSignalsByTicker(String symbol) {
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
-        return backtestTradeRepository.findByTicker(ticker).stream()
-                .map(this::mapToDTO)
+        List<TradeSignal> relevantActions = List.of(TradeSignal.ENTER_LONG, TradeSignal.ENTER_SHORT, TradeSignal.EXIT);
+
+        return backtestSignalRepository.findByTickerAndActionIn(ticker, relevantActions).stream()
+                .map(this::mapToSignalDTO)
                 .collect(Collectors.toList());
     }
 
-    private BacktestTradeDTO mapToDTO(BacktestTrade trade) {
-        return BacktestTradeDTO.builder()
-                .backtestTradeId(trade.getBacktestTradeId())
-                .strategyName(trade.getStrategyName())
-                .side(trade.getSide())
-                .entryDate(trade.getEntryDate())
-                .entryPrice(trade.getEntryPrice())
-                .exitDate(trade.getExitDate())
-                .exitPrice(trade.getExitPrice())
-                .quantity(trade.getQuantity())
-                .pnl(trade.getPnl())
-                .pnlPct(trade.getPnlPct())
-                .holdingBars(trade.getHoldingBars())
+    private BacktestSignalDTO mapToSignalDTO(BacktestSignal signal) {
+        return BacktestSignalDTO.builder()
+                .backtestSignalId(signal.getBacktestSignalId())
+                .strategyName(signal.getStrategyName())
+                .signalDate(signal.getSignalDate())
+                .executeDate(signal.getExecuteDate())
+                .action(signal.getAction())
+                .signalData(signal.getSignalData())
                 .build();
     }
 }

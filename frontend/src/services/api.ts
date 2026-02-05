@@ -39,18 +39,13 @@ export interface RenkoData {
     brick_size: number;
 }
 
-export interface BacktestTrade {
-    backtestTradeId: number;
+export interface BacktestSignal {
+    backtestSignalId: number;
     strategyName: string;
-    side: 'LONG' | 'SHORT' | 'NONE';
-    entryDate: string;
-    entryPrice: number;
-    exitDate: string;
-    exitPrice: number;
-    quantity: number;
-    pnl: number;
-    pnlPct: number;
-    holdingBars: number;
+    signalDate: string;
+    executeDate: string;
+    action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT' | 'HOLD' | 'NO_SIGNAL';
+    signalData: string;
 }
 
 export const getTickers = async (): Promise<Ticker[]> => {
@@ -61,7 +56,7 @@ export const getTickers = async (): Promise<Ticker[]> => {
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 const marketDataCache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
 const renkoDataCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
-const tradeDataCache: { [symbol: string]: { data: BacktestTrade[]; timestamp: number } } = {};
+const signalDataCache: { [symbol: string]: { data: BacktestSignal[]; timestamp: number } } = {};
 
 export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
     const now = Date.now();
@@ -85,13 +80,13 @@ export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
     return response.data;
 };
 
-export const getBacktestTrades = async (symbol: string): Promise<BacktestTrade[]> => {
+export const getBacktestSignals = async (symbol: string): Promise<BacktestSignal[]> => {
     const now = Date.now();
-    if (tradeDataCache[symbol] && (now - tradeDataCache[symbol].timestamp < CACHE_DURATION)) {
-        return tradeDataCache[symbol].data;
+    if (signalDataCache[symbol] && (now - signalDataCache[symbol].timestamp < CACHE_DURATION)) {
+        return signalDataCache[symbol].data;
     }
 
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/trades`);
-    tradeDataCache[symbol] = {data: response.data, timestamp: now};
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/signals`);
+    signalDataCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };

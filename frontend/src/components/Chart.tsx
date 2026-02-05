@@ -7,15 +7,15 @@ import {
     createSeriesMarkers,
     HistogramSeries,
 } from 'lightweight-charts';
-import type {BacktestTrade, MarketData} from '../services/api';
+import type {BacktestSignal, MarketData} from '../services/api';
 
 interface ChartProps {
     data: MarketData[];
-    trades: BacktestTrade[];
+    signals: BacktestSignal[];
     selectedStrategy: string;
 }
 
-const Chart: React.FC<ChartProps> = ({data, trades, selectedStrategy}) => {
+const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -115,25 +115,25 @@ const Chart: React.FC<ChartProps> = ({data, trades, selectedStrategy}) => {
         candlestickSeriesRef.current.setData(formattedCandlestickData);
         volumeSeriesRef.current.setData(formattedVolumeData);
 
-        // Plot trade markers
-        const filteredTrades = selectedStrategy === 'All'
-            ? trades
-            : trades.filter(t => t.strategyName === selectedStrategy);
+        // Plot signal markers
+        const filteredSignals = selectedStrategy === 'All'
+            ? signals
+            : signals.filter(s => s.strategyName === selectedStrategy);
 
-        const tradeMarkers = filteredTrades.map(t => ({
-            time: t.entryDate as Time,
-            position: t.side === 'LONG' ? 'belowBar' : 'aboveBar' as any,
-            color: t.side === 'LONG' ? '#22c55e' : '#ef4444',
-            shape: t.side === 'LONG' ? 'arrowUp' : 'arrowDown' as any,
-            text: t.side === 'LONG' ? 'BUY' : 'SELL',
+        const signalMarkers = filteredSignals.map(s => ({
+            time: s.signalDate as Time,
+            position: s.action === 'ENTER_LONG' ? 'belowBar' : (s.action === 'ENTER_SHORT' ? 'aboveBar' : 'belowBar') as any,
+            color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
+            shape: s.action === 'ENTER_LONG' ? 'arrowUp' : (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,
+            text: s.action.replace('ENTER_', ''),
         }));
-        // Sort trade markers by time to avoid lightweight-charts warnings/errors
-        tradeMarkers.sort((a, b) => (a.time as string).localeCompare(b.time as string));
+        // Sort signal markers by time to avoid lightweight-charts warnings/errors
+        signalMarkers.sort((a, b) => (a.time as string).localeCompare(b.time as string));
 
         if (seriesMarkersRef.current) {
-            seriesMarkersRef.current.setMarkers(tradeMarkers);
+            seriesMarkersRef.current.setMarkers(signalMarkers);
         } else {
-            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, tradeMarkers);
+            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, signalMarkers);
         }
 
         // Set initial display to latest six months
@@ -147,7 +147,7 @@ const Chart: React.FC<ChartProps> = ({data, trades, selectedStrategy}) => {
             from: sixMonthsAgoStr as Time,
             to: lastDate as Time,
         });
-    }, [data, trades, selectedStrategy]);
+    }, [data, signals, selectedStrategy]);
 
     return <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>;
 };

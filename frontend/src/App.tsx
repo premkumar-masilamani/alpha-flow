@@ -4,11 +4,11 @@ import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
 import {
-    getBacktestTrades,
+    getBacktestSignals,
     getMarketData,
     getRenkoData,
     getTickers,
-    type BacktestTrade,
+    type BacktestSignal,
     type MarketData,
     type RenkoData,
     type Ticker
@@ -22,7 +22,7 @@ function App() {
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [marketData, setMarketData] = useState<MarketData[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [trades, setTrades] = useState<BacktestTrade[]>([]);
+    const [signals, setSignals] = useState<BacktestSignal[]>([]);
     const [selectedStrategy, setSelectedStrategy] = useState<string>('All');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
@@ -47,20 +47,20 @@ function App() {
             if (selectedTicker) {
                 setLoading(true);
                 try {
-                    const [mData, rData, tData] = await Promise.all([
+                    const [mData, rData, sData] = await Promise.all([
                         getMarketData(selectedTicker),
                         getRenkoData(selectedTicker),
-                        getBacktestTrades(selectedTicker)
+                        getBacktestSignals(selectedTicker)
                     ]);
                     setMarketData(mData);
                     setRenkoData(rData);
-                    setTrades(tData);
+                    setSignals(sData);
                     setSelectedStrategy('All');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
                     setMarketData([]);
                     setRenkoData(null);
-                    setTrades([]);
+                    setSignals([]);
                     setSelectedStrategy('All');
                 } finally {
                     setLoading(false);
@@ -81,7 +81,7 @@ function App() {
 
         const hasMarketData = marketData.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = ['All', ...new Set(trades.map(t => t.strategyName))];
+        const strategies = ['All', ...new Set(signals.map(s => s.strategyName))];
 
         return (
             <>
@@ -130,7 +130,7 @@ function App() {
                         hasRenkoData ? (
                             <RenkoChart
                                 data={renkoData!}
-                                trades={trades}
+                                signals={signals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
@@ -142,7 +142,7 @@ function App() {
                         hasMarketData ? (
                             <Chart
                                 data={marketData}
-                                trades={trades}
+                                signals={signals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (

@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.BacktestTradeDTO;
+import com.alphaflow.api.dtos.BacktestSignalDTO;
 import com.alphaflow.api.services.BacktestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +23,9 @@ public class BacktestController {
         this.backtestService = backtestService;
     }
 
-    @GetMapping("/tickers/{symbol}/trades")
-    public List<BacktestTradeDTO> getTradesForTicker(@PathVariable String symbol) {
-        log.info("Request to get backtest trades for ticker: {}", symbol);
-        return backtestService.getTradesByTicker(symbol);
+    @GetMapping("/tickers/{symbol}/signals")
+    public List<BacktestSignalDTO> getSignalsForTicker(@PathVariable String symbol) {
+        log.info("Request to get backtest signals for ticker: {}", symbol);
+        return backtestService.getSignalsByTicker(symbol);
     }
 }
