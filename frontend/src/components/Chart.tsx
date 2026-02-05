@@ -126,6 +126,7 @@ const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
             color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
             shape: s.action === 'ENTER_LONG' ? 'arrowUp' : (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,
             text: s.action.replace('ENTER_', ''),
+            size: 2,
         }));
         // Sort signal markers by time to avoid lightweight-charts warnings/errors
         signalMarkers.sort((a, b) => (a.time as string).localeCompare(b.time as string));

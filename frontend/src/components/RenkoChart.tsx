@@ -1,12 +1,6 @@
 import React, {useEffect, useRef} from 'react';
-import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time,} from 'lightweight-charts';
-import {
-    CandlestickSeries,
-    ColorType,
-    createChart,
-    createSeriesMarkers,
-    LineSeries,
-} from 'lightweight-charts';
+import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries} from 'lightweight-charts';
 import type {BacktestSignal, RenkoData} from '../services/api';
 
 interface RenkoChartProps {
@@ -137,9 +131,15 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
             ? signals
             : signals.filter(s => s.strategyName === selectedStrategy);
 
-        const signalMarkers: SeriesMarker<Time>[] = filteredSignals.flatMap(s => {
-            // Find the index of the first brick on this date
-            const brickIndex = data.bricks.findIndex(b => b.date === s.signalDate);
+        const signalMarkers: any[] = filteredSignals.flatMap(s => {
+            // Find the index of the last brick on this date
+            let brickIndex = -1;
+            for (let j = data.bricks.length - 1; j >= 0; j--) {
+                if (data.bricks[j].date === s.signalDate) {
+                    brickIndex = j;
+                    break;
+                }
+            }
             if (brickIndex === -1) return [];
 
             return {
@@ -148,6 +148,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
                 color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
                 shape: s.action === 'ENTER_LONG' ? 'arrowUp' : (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,
                 text: s.action.replace('ENTER_', ''),
+                size: 2,
             };
         });
 
