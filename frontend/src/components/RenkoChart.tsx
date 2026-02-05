@@ -5,7 +5,6 @@ import {
     ColorType,
     createChart,
     createSeriesMarkers,
-    HistogramSeries,
     LineSeries,
 } from 'lightweight-charts';
 import type {BacktestTrade, RenkoData} from '../services/api';
@@ -21,7 +20,6 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy})
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-    const tradeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const seriesMarkersRef = useRef<any>(null);
     const currentPriceLineRightRef = useRef<IPriceLine | null>(null);
     const slPriceLineRightRef = useRef<IPriceLine | null>(null);
@@ -74,23 +72,6 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy})
         });
         emaSeriesRef.current = emaSeries;
 
-        const tradeSeries = chart.addSeries(HistogramSeries, {
-            priceScaleId: 'trades',
-            priceFormat: {
-                type: 'volume',
-            },
-            lastValueVisible: false,
-            priceLineVisible: false,
-        });
-        chart.priceScale('trades').applyOptions({
-            scaleMargins: {
-                top: 0,
-                bottom: 0,
-            },
-            visible: false,
-        });
-        tradeSeriesRef.current = tradeSeries;
-
         const handleResize = () => {
             if (chartContainerRef.current) {
                 chart.applyOptions({width: chartContainerRef.current.clientWidth});
@@ -105,7 +86,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy})
     }, []);
 
     useEffect(() => {
-        if (!chartRef.current || !candlestickSeriesRef.current || !emaSeriesRef.current || !tradeSeriesRef.current || data.bricks.length === 0) return;
+        if (!chartRef.current || !candlestickSeriesRef.current || !emaSeriesRef.current || data.bricks.length === 0) return;
 
         // Store date mapping for the formatters
         dateMappingRef.current = data.bricks.map(b => b.date);
@@ -142,7 +123,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy})
         emaSeriesRef.current.setData(emaData);
 
         // Set markers for trend numbers
-        const markers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
+        const trendMarkers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
             time: i as unknown as Time,
             position: 'inBar',
             color: '#ffffff',
@@ -151,43 +132,34 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy})
             size: 1,
         }));
 
-        if (seriesMarkersRef.current) {
-            seriesMarkersRef.current.setMarkers(markers);
-        } else {
-            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, markers);
-        }
-
-        // Plot trade lines
+        // Plot trade markers
         const filteredTrades = selectedStrategy === 'All'
             ? trades
             : trades.filter(t => t.strategyName === selectedStrategy);
 
-        const tradeData = filteredTrades.flatMap(t => {
+        const tradeMarkers: SeriesMarker<Time>[] = filteredTrades.flatMap(t => {
             // Find the index of the first brick on this date
             const brickIndex = data.bricks.findIndex(b => b.date === t.entryDate);
             if (brickIndex === -1) return [];
 
             return {
                 time: brickIndex as unknown as Time,
-                value: 1,
-                color: t.side === 'LONG' ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)',
+                position: t.side === 'LONG' ? 'belowBar' : 'aboveBar' as any,
+                color: t.side === 'LONG' ? '#22c55e' : '#ef4444',
+                shape: t.side === 'LONG' ? 'arrowUp' : 'arrowDown' as any,
+                text: t.side === 'LONG' ? 'BUY' : 'SELL',
             };
         });
 
-        // Sort trade data by time
-        tradeData.sort((a, b) => (a.time as unknown as number) - (b.time as unknown as number));
+        const allMarkers = [...trendMarkers, ...tradeMarkers];
+        // Sort all markers by time
+        allMarkers.sort((a, b) => (a.time as unknown as number) - (b.time as unknown as number));
 
-        // Filter out duplicate timestamps
-        const uniqueTradeData = [];
-        const seenTimes = new Set();
-        for (const td of tradeData) {
-            if (!seenTimes.has(td.time)) {
-                uniqueTradeData.push(td);
-                seenTimes.add(td.time);
-            }
+        if (seriesMarkersRef.current) {
+            seriesMarkersRef.current.setMarkers(allMarkers);
+        } else {
+            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, allMarkers);
         }
-
-        tradeSeriesRef.current.setData(uniqueTradeData);
 
         // Remove old price lines if they exist
         if (currentPriceLineRightRef.current) {
@@ -233,7 +205,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, trades, selectedStrategy})
             from: startIndex as unknown as Time,
             to: (data.bricks.length - 1) as unknown as Time,
         });
-    }, [data]);
+    }, [data, trades, selectedStrategy]);
 
     return (
         <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>
