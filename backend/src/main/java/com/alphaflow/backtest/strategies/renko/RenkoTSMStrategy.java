@@ -2,6 +2,7 @@ package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -47,14 +48,14 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         this.priceSource = RenkoPriceSource.valueOf(entity.getPriceSource());
 
         BacktestStrategyIndicator maIndicator = entity.getIndicators().stream()
-                .filter(i -> "MA".equals(i.getIndicatorRole()))
+                .filter(i -> IndicatorRole.MA == i.getIndicatorRole())
                 .findFirst()
                 .orElseThrow();
         this.maType = TransformationType.valueOf(maIndicator.getTransformation());
         this.maPeriod = WindowPeriod.fromDays(maIndicator.getPeriod());
 
         BacktestStrategyIndicator momentumIndicator = entity.getIndicators().stream()
-                .filter(i -> "MOMENTUM".equals(i.getIndicatorRole()))
+                .filter(i -> IndicatorRole.MOMENTUM == i.getIndicatorRole())
                 .findFirst()
                 .orElseThrow();
         this.momentumMetric = MarketDataMetricType.valueOf(momentumIndicator.getMetric());

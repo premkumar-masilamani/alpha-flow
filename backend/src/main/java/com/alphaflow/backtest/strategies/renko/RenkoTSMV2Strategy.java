@@ -1,6 +1,8 @@
 package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -25,9 +27,9 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoTSMV2Strategy.class);
 
-    private static final String INDICATOR_SMA_200 = "P_CLOSE_SMA_200";
-    private static final String INDICATOR_OBV = "OBV_OBV_0";
-    private static final String INDICATOR_PREVIOUS_OBV = "PREV_OBV_OBV_0";
+    private String filterIndicatorKey = "P_CLOSE_SMA_200";
+    private String momentumIndicatorKey = "OBV_OBV_0";
+    private String prevMomentumIndicatorKey = "PREV_OBV_OBV_0";
     private static final BigDecimal OBV_THRESHOLD = new BigDecimal("0.05");
 
     private BacktestStrategy entity;
@@ -37,6 +39,14 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     public RenkoTSMV2Strategy(BacktestStrategy entity) {
         this.entity = entity;
+        for (BacktestStrategyIndicator i : entity.getIndicators()) {
+            if (i.getIndicatorRole() == IndicatorRole.FILTER) {
+                this.filterIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
+            } else if (i.getIndicatorRole() == IndicatorRole.MOMENTUM) {
+                this.momentumIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
+                this.prevMomentumIndicatorKey = "PREV_" + this.momentumIndicatorKey;
+            }
+        }
     }
 
     @Override
@@ -66,22 +76,22 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         }
 
         BigDecimal priceClose = context.marketData() != null ? context.marketData().getPriceClose() : null;
-        BigDecimal sma200 = indicators.get(INDICATOR_SMA_200);
-        BigDecimal currentObv = indicators.get(INDICATOR_OBV);
+        BigDecimal filterValue = indicators.get(filterIndicatorKey);
+        BigDecimal currentObv = indicators.get(momentumIndicatorKey);
 
-        if (priceClose == null || sma200 == null || currentObv == null) {
-            log.debug("Strategy {} missing indicators: priceClose={}, sma200={}, obv={}", getName(), priceClose, sma200, currentObv);
+        if (priceClose == null || filterValue == null || currentObv == null) {
+            log.debug("Strategy {} missing indicators: priceClose={}, filter={}, obv={}", getName(), priceClose, filterValue, currentObv);
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
         // Rule 1: Market Regime Filter
-        boolean bullishRegime = priceClose.compareTo(sma200) > 0;
-        boolean bearishRegime = priceClose.compareTo(sma200) < 0;
+        boolean bullishRegime = priceClose.compareTo(filterValue) > 0;
+        boolean bearishRegime = priceClose.compareTo(filterValue) < 0;
         String regime = bullishRegime ? "bullish" : (bearishRegime ? "bearish" : "neutral");
 
         // Rule 2: OBV Momentum Threshold
-        BigDecimal prevObv = (BigDecimal) state.get(INDICATOR_PREVIOUS_OBV);
-        state.put(INDICATOR_PREVIOUS_OBV, currentObv);
+        BigDecimal prevObv = (BigDecimal) state.get(prevMomentumIndicatorKey);
+        state.put(prevMomentumIndicatorKey, currentObv);
 
         if (prevObv == null) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
@@ -104,7 +114,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
         // Signal Data for logging
         Map<String, Object> signalData = new HashMap<>();
-        signalData.put("SMA200", scale2(sma200));
+        signalData.put("filter", scale2(filterValue));
         signalData.put("OBV", scale2(currentObv));
         signalData.put("prevOBV", scale2(prevObv));
         signalData.put("obvMomentum", scale2(obvMomentum));

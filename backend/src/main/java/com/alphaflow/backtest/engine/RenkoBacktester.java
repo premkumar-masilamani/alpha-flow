@@ -1,13 +1,9 @@
 package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
-import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
 import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.*;
-import com.alphaflow.engine.enums.MarketDataMetricType;
-import com.alphaflow.engine.enums.TransformationType;
-import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -38,7 +34,6 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             BacktestStrategyRepository backtestStrategyRepository,
-            List<RenkoStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
         super(
@@ -53,12 +48,10 @@ public class RenkoBacktester extends AbstractBacktester {
                 new ArrayList<>(),
                 transactionTemplate
         );
-        this.strategies = loadStrategiesFromDb(strategies);
+        this.strategies = loadStrategiesFromDb();
     }
 
-    private List<RenkoStrategy> loadStrategiesFromDb(List<RenkoStrategy> baseStrategies) {
-        syncStrategiesToDb(baseStrategies);
-
+    private List<RenkoStrategy> loadStrategiesFromDb() {
         List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
                 .filter(s -> s.getStrategyType().startsWith("RENKO"))
                 .toList();
@@ -68,98 +61,6 @@ public class RenkoBacktester extends AbstractBacktester {
         return entities.stream()
                 .map(this::instantiateStrategy)
                 .toList();
-    }
-
-    private void syncStrategiesToDb(List<RenkoStrategy> baseStrategies) {
-        log.info("Syncing strategies to database...");
-        for (RenkoStrategy s : baseStrategies) {
-            if (s instanceof RenkoTSMStrategy) {
-                ensureStrategyInDb(toEntity((RenkoTSMStrategy) s));
-            } else if (s instanceof RenkoPPStrategy pp) {
-                ensureStrategyInDb(toEntity(pp));
-            } else if (s instanceof RenkoTSMV2Strategy v2) {
-                ensureStrategyInDb(toEntity(v2));
-            }
-        }
-    }
-
-    private void ensureStrategyInDb(BacktestStrategy entity) {
-        if (backtestStrategyRepository.findByName(entity.getName()).isEmpty()) {
-            log.debug("Persisting strategy to DB: {}", entity.getName());
-            backtestStrategyRepository.save(entity);
-        }
-    }
-
-    private BacktestStrategy toEntity(RenkoTSMStrategy s) {
-        BacktestStrategy strategy = BacktestStrategy.builder()
-                .name(s.getName())
-                .strategyType("RENKO_TSM")
-                .priceSource(s.getPriceSource().name())
-                .build();
-
-        strategy.getIndicators().add(BacktestStrategyIndicator.builder()
-                .backtestStrategy(strategy)
-                .indicatorRole("MA")
-                .metric(s.getPriceSource().code())
-                .transformation(s.getMaType().name())
-                .period(s.getMaPeriod().days())
-                .build());
-
-        strategy.getIndicators().add(BacktestStrategyIndicator.builder()
-                .backtestStrategy(strategy)
-                .indicatorRole("MOMENTUM")
-                .metric(s.getMomentumMetric().name())
-                .transformation(s.getMomentumMetric().name())
-                .period(0)
-                .build());
-
-        return strategy;
-    }
-
-    private BacktestStrategy toEntity(RenkoPPStrategy s) {
-        BacktestStrategy strategy = BacktestStrategy.builder()
-                .name(s.getName())
-                .strategyType("RENKO_PP")
-                .priceSource(RenkoPriceSource.PRICE_CLOSE.name())
-                .build();
-
-        List.of(3, 5, 8, 10, 12, 15, 30, 35, 40, 45, 50, 60).forEach(p ->
-                strategy.getIndicators().add(BacktestStrategyIndicator.builder()
-                        .backtestStrategy(strategy)
-                        .indicatorRole("GMMA")
-                        .metric(MarketDataMetricType.PRICE_CLOSE.code())
-                        .transformation(TransformationType.EMA.name())
-                        .period(p)
-                        .build())
-        );
-
-        return strategy;
-    }
-
-    private BacktestStrategy toEntity(RenkoTSMV2Strategy s) {
-        BacktestStrategy strategy = BacktestStrategy.builder()
-                .name(s.getName())
-                .strategyType("RENKO_TSM_V2")
-                .priceSource(RenkoPriceSource.PRICE_CLOSE.name())
-                .build();
-
-        strategy.getIndicators().add(BacktestStrategyIndicator.builder()
-                .backtestStrategy(strategy)
-                .indicatorRole("FILTER")
-                .metric(MarketDataMetricType.PRICE_CLOSE.code())
-                .transformation(TransformationType.SMA.name())
-                .period(200)
-                .build());
-
-        strategy.getIndicators().add(BacktestStrategyIndicator.builder()
-                .backtestStrategy(strategy)
-                .indicatorRole("MOMENTUM")
-                .metric(MarketDataMetricType.OBV.name())
-                .transformation(MarketDataMetricType.OBV.name())
-                .period(0)
-                .build());
-
-        return strategy;
     }
 
     private RenkoStrategy instantiateStrategy(BacktestStrategy entity) {
@@ -185,4 +86,3 @@ public class RenkoBacktester extends AbstractBacktester {
         return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
     }
 }
-

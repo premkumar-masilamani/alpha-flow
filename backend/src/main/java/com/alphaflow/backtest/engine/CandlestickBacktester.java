@@ -28,7 +28,6 @@ public class CandlestickBacktester extends AbstractBacktester {
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             BacktestStrategyRepository backtestStrategyRepository,
-            List<CandlestickStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
         super(
@@ -43,12 +42,10 @@ public class CandlestickBacktester extends AbstractBacktester {
                 new ArrayList<>(),
                 transactionTemplate
         );
-        this.strategies = loadStrategiesFromDb(strategies);
+        this.strategies = loadStrategiesFromDb();
     }
 
-    private List<CandlestickStrategy> loadStrategiesFromDb(List<CandlestickStrategy> baseStrategies) {
-        syncStrategiesToDb(baseStrategies);
-
+    private List<CandlestickStrategy> loadStrategiesFromDb() {
         List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
                 .filter(s -> !s.getStrategyType().startsWith("RENKO"))
                 .toList();
@@ -58,40 +55,6 @@ public class CandlestickBacktester extends AbstractBacktester {
         return entities.stream()
                 .map(this::instantiateStrategy)
                 .toList();
-    }
-
-    private void syncStrategiesToDb(List<CandlestickStrategy> baseStrategies) {
-        log.info("Syncing Candlestick strategies to database...");
-        for (CandlestickStrategy s : baseStrategies) {
-            ensureStrategyInDb(toEntity(s));
-        }
-    }
-
-    private void ensureStrategyInDb(BacktestStrategy entity) {
-        if (backtestStrategyRepository.findByName(entity.getName()).isEmpty()) {
-            log.debug("Persisting strategy to DB: {}", entity.getName());
-            backtestStrategyRepository.save(entity);
-        }
-    }
-
-    private BacktestStrategy toEntity(CandlestickStrategy s) {
-        String type = s instanceof BuyAndHoldRiskOverlayStrategy ? "BUY_AND_HOLD_RISK_OVERLAY" : "BUY_AND_HOLD";
-        BacktestStrategy strategy = BacktestStrategy.builder()
-                .name(s.getName())
-                .strategyType(type)
-                .build();
-
-        if (s instanceof BuyAndHoldRiskOverlayStrategy) {
-            strategy.getIndicators().add(com.alphaflow.backtest.entities.BacktestStrategyIndicator.builder()
-                    .backtestStrategy(strategy)
-                    .indicatorRole("FILTER")
-                    .metric("P_CLOSE")
-                    .transformation("SMA")
-                    .period(200)
-                    .build());
-        }
-
-        return strategy;
     }
 
     private CandlestickStrategy instantiateStrategy(BacktestStrategy entity) {
