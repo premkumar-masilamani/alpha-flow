@@ -5,9 +5,7 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.UUID;
-
 @Repository
-public interface BacktestTradeRepository extends JpaRepository<BacktestTrade, UUID> {
+public interface BacktestTradeRepository extends JpaRepository<BacktestTrade, Long> {
     void deleteByTickerAndStrategyName(Ticker ticker, String strategyName);
 }

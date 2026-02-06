@@ -1,13 +1,15 @@
 import React, {useEffect, useRef} from 'react';
-import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time,} from 'lightweight-charts';
-import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries,} from 'lightweight-charts';
-import type {RenkoData} from '../services/api';
+import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries} from 'lightweight-charts';
+import type {BacktestSignal, RenkoData} from '../services/api';
 
 interface RenkoChartProps {
     data: RenkoData;
+    signals: BacktestSignal[];
+    selectedStrategy: string;
 }
 
-const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
+const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -115,7 +117,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
         emaSeriesRef.current.setData(emaData);
 
         // Set markers for trend numbers
-        const markers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
+        const trendMarkers: SeriesMarker<Time>[] = data.bricks.map((b, i) => ({
             time: i as unknown as Time,
             position: 'inBar',
             color: '#ffffff',
@@ -124,10 +126,40 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
             size: 1,
         }));
 
+        // Plot signal markers
+        const filteredSignals = selectedStrategy === 'All'
+            ? signals
+            : signals.filter(s => s.strategyName === selectedStrategy);
+
+        const signalMarkers: any[] = filteredSignals.flatMap(s => {
+            // Find the index of the last brick on this date
+            let brickIndex = -1;
+            for (let j = data.bricks.length - 1; j >= 0; j--) {
+                if (data.bricks[j].date === s.signalDate) {
+                    brickIndex = j;
+                    break;
+                }
+            }
+            if (brickIndex === -1) return [];
+
+            return {
+                time: brickIndex as unknown as Time,
+                position: s.action === 'ENTER_LONG' ? 'belowBar' : (s.action === 'ENTER_SHORT' ? 'aboveBar' : 'belowBar') as any,
+                color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
+                shape: s.action === 'ENTER_LONG' ? 'arrowUp' : (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,
+                text: s.action.replace('ENTER_', ''),
+                size: 2,
+            };
+        });
+
+        const allMarkers = [...trendMarkers, ...signalMarkers];
+        // Sort all markers by time
+        allMarkers.sort((a, b) => (a.time as unknown as number) - (b.time as unknown as number));
+
         if (seriesMarkersRef.current) {
-            seriesMarkersRef.current.setMarkers(markers);
+            seriesMarkersRef.current.setMarkers(allMarkers);
         } else {
-            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, markers);
+            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, allMarkers);
         }
 
         // Remove old price lines if they exist
@@ -174,7 +206,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data}) => {
             from: startIndex as unknown as Time,
             to: (data.bricks.length - 1) as unknown as Time,
         });
-    }, [data]);
+    }, [data, signals, selectedStrategy]);
 
     return (
         <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>

@@ -39,6 +39,12 @@ export interface RenkoData {
     brick_size: number;
 }
 
+export interface BacktestSignal {
+    strategy: string;
+    date: string;
+    action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT';
+}
+
 export const getTickers = async (): Promise<Ticker[]> => {
     const response = await axios.get(`${API_BASE_URL}/tickers`);
     return response.data;
@@ -47,6 +53,7 @@ export const getTickers = async (): Promise<Ticker[]> => {
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 const marketDataCache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
 const renkoDataCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
+const signalDataCache: { [symbol: string]: { data: BacktestSignal[]; timestamp: number } } = {};
 
 export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
     const now = Date.now();
@@ -67,5 +74,16 @@ export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
 
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/renko`);
     renkoDataCache[symbol] = {data: response.data, timestamp: now};
+    return response.data;
+};
+
+export const getBacktestSignals = async (symbol: string): Promise<BacktestSignal[]> => {
+    const now = Date.now();
+    if (signalDataCache[symbol] && (now - signalDataCache[symbol].timestamp < CACHE_DURATION)) {
+        return signalDataCache[symbol].data;
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/signals`);
+    signalDataCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };
