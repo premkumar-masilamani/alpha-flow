@@ -1,12 +1,6 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, ISeriesApi, Time,} from 'lightweight-charts';
-import {
-    CandlestickSeries,
-    ColorType,
-    createChart,
-    createSeriesMarkers,
-    HistogramSeries,
-} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, HistogramSeries,} from 'lightweight-charts';
 import type {BacktestSignal, MarketData} from '../services/api';
 
 interface ChartProps {
@@ -44,14 +38,13 @@ const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
 
         chartRef.current = chart;
 
-        const candlestickSeries = chart.addSeries(CandlestickSeries, {
+        candlestickSeriesRef.current = chart.addSeries(CandlestickSeries, {
             upColor: '#22c55e',
             downColor: '#ef4444',
             borderVisible: false,
             wickUpColor: '#22c55e',
             wickDownColor: '#ef4444',
         });
-        candlestickSeriesRef.current = candlestickSeries;
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
             color: '#3b82f6',
@@ -118,10 +111,10 @@ const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
         // Plot signal markers
         const filteredSignals = selectedStrategy === 'All'
             ? signals
-            : signals.filter(s => s.strategyName === selectedStrategy);
+            : signals.filter(s => s.strategy === selectedStrategy);
 
         const signalMarkers = filteredSignals.map(s => ({
-            time: s.signalDate as Time,
+            time: s.date as Time,
             position: s.action === 'ENTER_LONG' ? 'belowBar' : (s.action === 'ENTER_SHORT' ? 'aboveBar' : 'belowBar') as any,
             color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
             shape: s.action === 'ENTER_LONG' ? 'arrowUp' : (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,

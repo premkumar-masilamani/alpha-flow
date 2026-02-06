@@ -3,16 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {
-    getBacktestSignals,
-    getMarketData,
-    getRenkoData,
-    getTickers,
-    type BacktestSignal,
-    type MarketData,
-    type RenkoData,
-    type Ticker
-} from './services/api';
+import {type BacktestSignal, getBacktestSignals, getMarketData, getRenkoData, getTickers, type MarketData, type RenkoData, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
