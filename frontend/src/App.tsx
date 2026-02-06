@@ -81,7 +81,7 @@ function App() {
 
         const hasMarketData = marketData.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = ['All', ...new Set(signals.map(s => s.strategyName))];
+        const strategies = ['All', ...new Set(signals.map(s => s.strategy))];
 
         return (
             <>

@@ -1,10 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.MarketDataDTO;
-import com.alphaflow.api.dtos.RenkoResponseDTO;
 import com.alphaflow.api.dtos.TickerDTO;
-import com.alphaflow.api.services.MarketDataService;
-import com.alphaflow.api.services.RenkoDataService;
 import com.alphaflow.api.services.TickerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,13 +18,9 @@ public class TickerController {
     private static final Logger log = LoggerFactory.getLogger(TickerController.class);
 
     private final TickerService tickerService;
-    private final MarketDataService marketDataService;
-    private final RenkoDataService renkoDataService;
 
-    public TickerController(TickerService tickerService, MarketDataService marketDataService, RenkoDataService renkoDataService) {
+    public TickerController(TickerService tickerService) {
         this.tickerService = tickerService;
-        this.marketDataService = marketDataService;
-        this.renkoDataService = renkoDataService;
     }
 
     @GetMapping("/tickers")
@@ -41,17 +33,5 @@ public class TickerController {
     public TickerDTO getTickerBySymbol(@PathVariable String symbol) {
         log.info("Request to get ticker by symbol: {}", symbol);
         return tickerService.getTickerBySymbol(symbol);
-    }
-
-    @GetMapping("/tickers/{symbol}/data")
-    public List<MarketDataDTO> getMarketDataForTicker(@PathVariable String symbol) {
-        log.info("Request to get market data for ticker: {}", symbol);
-        return marketDataService.getMarketDataByTickerName(symbol);
-    }
-
-    @GetMapping("/tickers/{symbol}/renko")
-    public RenkoResponseDTO getRenkoDataForTicker(@PathVariable String symbol) {
-        log.info("Request to get renko data for ticker: {}", symbol);
-        return renkoDataService.getRenkoData(symbol);
     }
 }

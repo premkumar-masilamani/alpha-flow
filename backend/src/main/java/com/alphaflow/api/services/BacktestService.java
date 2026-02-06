@@ -20,8 +20,7 @@ public class BacktestService {
     private final BacktestSignalRepository backtestSignalRepository;
     private final TickerRepository tickerRepository;
 
-    public BacktestService(BacktestSignalRepository backtestSignalRepository,
-                           TickerRepository tickerRepository) {
+    public BacktestService(BacktestSignalRepository backtestSignalRepository, TickerRepository tickerRepository) {
         this.backtestSignalRepository = backtestSignalRepository;
         this.tickerRepository = tickerRepository;
     }
@@ -39,12 +38,9 @@ public class BacktestService {
 
     private BacktestSignalDTO mapToSignalDTO(BacktestSignal signal) {
         return BacktestSignalDTO.builder()
-                .backtestSignalId(signal.getBacktestSignalId())
                 .strategyName(signal.getStrategyName())
                 .signalDate(signal.getSignalDate())
-                .executeDate(signal.getExecuteDate())
                 .action(signal.getAction())
-                .signalData(signal.getSignalData())
                 .build();
     }
 }

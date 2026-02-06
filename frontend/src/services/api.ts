@@ -40,12 +40,9 @@ export interface RenkoData {
 }
 
 export interface BacktestSignal {
-    backtestSignalId: number;
-    strategyName: string;
-    signalDate: string;
-    executeDate: string;
-    action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT' | 'HOLD' | 'NO_SIGNAL';
-    signalData: string;
+    strategy: string;
+    date: string;
+    action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT';
 }
 
 export const getTickers = async (): Promise<Ticker[]> => {
