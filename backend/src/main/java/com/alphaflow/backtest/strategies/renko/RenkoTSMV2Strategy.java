@@ -1,5 +1,6 @@
 package com.alphaflow.backtest.strategies.renko;
 
+import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -29,9 +30,23 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
     private static final String INDICATOR_PREVIOUS_OBV = "PREV_OBV_OBV_0";
     private static final BigDecimal OBV_THRESHOLD = new BigDecimal("0.05");
 
+    private BacktestStrategy entity;
+
+    public RenkoTSMV2Strategy() {
+    }
+
+    public RenkoTSMV2Strategy(BacktestStrategy entity) {
+        this.entity = entity;
+    }
+
     @Override
     public String getName() {
-        return "Renko TSM V2";
+        return entity != null ? entity.getName() : "Renko TSM V2";
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        return entity;
     }
 
     @Override

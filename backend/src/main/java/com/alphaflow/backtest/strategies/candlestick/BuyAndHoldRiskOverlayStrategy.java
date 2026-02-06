@@ -1,5 +1,6 @@
 package com.alphaflow.backtest.strategies.candlestick;
 
+import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -17,9 +18,23 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
 
     private static final String SMA_200_KEY = "P_CLOSE_SMA_200";
 
+    private BacktestStrategy entity;
+
+    public BuyAndHoldRiskOverlayStrategy() {
+    }
+
+    public BuyAndHoldRiskOverlayStrategy(BacktestStrategy entity) {
+        this.entity = entity;
+    }
+
     @Override
     public String getName() {
-        return "Buy & Hold with Risk Overlay";
+        return entity != null ? entity.getName() : "Buy & Hold with Risk Overlay";
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        return entity;
     }
 
     @Override

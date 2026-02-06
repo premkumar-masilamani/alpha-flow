@@ -4,13 +4,11 @@ import com.alphaflow.backtest.entities.BacktestEquity;
 import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.entities.BacktestTrade;
+import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
-import com.alphaflow.backtest.repositories.BacktestEquityRepository;
-import com.alphaflow.backtest.repositories.BacktestResultRepository;
-import com.alphaflow.backtest.repositories.BacktestSignalRepository;
-import com.alphaflow.backtest.repositories.BacktestTradeRepository;
+import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.entities.MarketData;
@@ -47,7 +45,8 @@ public abstract class AbstractBacktester {
     protected final BacktestSignalRepository backtestSignalRepository;
     protected final BacktestTradeRepository backtestTradeRepository;
     protected final BacktestResultRepository backtestResultRepository;
-    protected final List<? extends Strategy> strategies;
+    protected final BacktestStrategyRepository backtestStrategyRepository;
+    protected List<? extends Strategy> strategies;
     protected final TransactionTemplate transactionTemplate;
 
     protected AbstractBacktester(
@@ -58,6 +57,7 @@ public abstract class AbstractBacktester {
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
+            BacktestStrategyRepository backtestStrategyRepository,
             List<? extends Strategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
@@ -68,6 +68,7 @@ public abstract class AbstractBacktester {
         this.backtestSignalRepository = backtestSignalRepository;
         this.backtestTradeRepository = backtestTradeRepository;
         this.backtestResultRepository = backtestResultRepository;
+        this.backtestStrategyRepository = backtestStrategyRepository;
         this.strategies = strategies;
         this.transactionTemplate = transactionTemplate;
     }
@@ -100,10 +101,17 @@ public abstract class AbstractBacktester {
                 log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
                 BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
                 transactionTemplate.execute(status -> {
-                    backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                    backtestSignalRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                    backtestTradeRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                    backtestResultRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
+                    if (strategy.getEntity() != null) {
+                        backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                        backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                        backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                        backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    } else {
+                        backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
+                        backtestSignalRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
+                        backtestTradeRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
+                        backtestResultRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
+                    }
 
                     backtestEquityRepository.saveAll(runResult.backtestEquities());
                     backtestSignalRepository.saveAll(runResult.backtestSignals());
@@ -178,6 +186,7 @@ public abstract class AbstractBacktester {
 
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
+                                .strategy(strategy.getEntity())
                                 .strategyName(strategy.getName())
                                 .side(LONG)
                                 .entryDate(currentDate)
@@ -200,6 +209,7 @@ public abstract class AbstractBacktester {
 
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
+                                .strategy(strategy.getEntity())
                                 .strategyName(strategy.getName())
                                 .side(SHORT)
                                 .entryDate(currentDate)
@@ -230,6 +240,7 @@ public abstract class AbstractBacktester {
             BigDecimal equityAtClose = calculateEquity(currentPosition, cash, shares, priceOpen, entryPrice);
             equities.add(BacktestEquity.builder()
                     .ticker(ticker)
+                    .strategy(strategy.getEntity())
                     .strategyName(strategy.getName())
                     .equityDate(currentDate)
                     .equity(equityAtClose)
@@ -255,6 +266,7 @@ public abstract class AbstractBacktester {
 
             signals.add(BacktestSignal.builder()
                     .ticker(ticker)
+                    .strategy(strategy.getEntity())
                     .strategyName(strategy.getName())
                     .signalDate(currentDate)
                     .executeDate(executeDate)
@@ -384,6 +396,7 @@ public abstract class AbstractBacktester {
 
         return BacktestResult.builder()
                 .ticker(ticker)
+                .strategy(strategy.getEntity())
                 .strategyName(strategy.getName())
                 .initialEquity(INITIAL_EQUITY)
                 .finalEquity(last.getEquity())

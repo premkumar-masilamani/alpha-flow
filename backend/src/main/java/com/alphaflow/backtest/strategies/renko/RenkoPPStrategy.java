@@ -1,5 +1,6 @@
 package com.alphaflow.backtest.strategies.renko;
 
+import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -28,9 +29,23 @@ public class RenkoPPStrategy implements RenkoStrategy {
     private static final String PREV_SHORT_SPREAD_SHORT = "PREV_SHORT_SPREAD_SHORT";
     private static final String PREV_LONG_SPREAD_SHORT = "PREV_LONG_SPREAD_SHORT";
 
+    private BacktestStrategy entity;
+
+    public RenkoPPStrategy() {
+    }
+
+    public RenkoPPStrategy(BacktestStrategy entity) {
+        this.entity = entity;
+    }
+
     @Override
     public String getName() {
-        return "Renko PP";
+        return entity != null ? entity.getName() : "Renko PP";
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        return entity;
     }
 
     @Override
