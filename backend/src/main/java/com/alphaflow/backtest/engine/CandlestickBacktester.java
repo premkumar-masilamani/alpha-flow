@@ -76,10 +76,22 @@ public class CandlestickBacktester extends AbstractBacktester {
 
     private BacktestStrategy toEntity(CandlestickStrategy s) {
         String type = s instanceof BuyAndHoldRiskOverlayStrategy ? "BUY_AND_HOLD_RISK_OVERLAY" : "BUY_AND_HOLD";
-        return BacktestStrategy.builder()
+        BacktestStrategy strategy = BacktestStrategy.builder()
                 .name(s.getName())
                 .strategyType(type)
                 .build();
+
+        if (s instanceof BuyAndHoldRiskOverlayStrategy) {
+            strategy.getIndicators().add(com.alphaflow.backtest.entities.BacktestStrategyIndicator.builder()
+                    .backtestStrategy(strategy)
+                    .indicatorRole("FILTER")
+                    .metric("P_CLOSE")
+                    .transformation("SMA")
+                    .period(200)
+                    .build());
+        }
+
+        return strategy;
     }
 
     private CandlestickStrategy instantiateStrategy(BacktestStrategy entity) {
