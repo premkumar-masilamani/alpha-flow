@@ -30,8 +30,6 @@ public class BacktestResult {
     @JoinColumn(name = "backtest_strategy_id")
     private BacktestStrategy strategy;
 
-    private String strategyName;
-
     private BigDecimal initialEquity;
 
     private BigDecimal finalEquity;

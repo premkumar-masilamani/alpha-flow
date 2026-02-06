@@ -8,7 +8,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface BacktestTradeRepository extends JpaRepository<BacktestTrade, Long> {
-    void deleteByTickerAndStrategyName(Ticker ticker, String strategyName);
-
     void deleteByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
 }

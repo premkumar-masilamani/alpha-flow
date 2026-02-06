@@ -31,8 +31,6 @@ public class BacktestTrade {
     @JoinColumn(name = "backtest_strategy_id")
     private BacktestStrategy strategy;
 
-    private String strategyName;
-
     @Enumerated(EnumType.STRING)
     private PositionType side;
 

@@ -31,8 +31,6 @@ public class BacktestEquity {
     @JoinColumn(name = "backtest_strategy_id")
     private BacktestStrategy strategy;
 
-    private String strategyName;
-
     private LocalDate equityDate;
 
     private BigDecimal equity;

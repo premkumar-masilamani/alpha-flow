@@ -101,17 +101,10 @@ public abstract class AbstractBacktester {
                 log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
                 BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
                 transactionTemplate.execute(status -> {
-                    if (strategy.getEntity() != null) {
-                        backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                        backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                        backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                        backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                    } else {
-                        backtestEquityRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                        backtestSignalRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                        backtestTradeRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                        backtestResultRepository.deleteByTickerAndStrategyName(ticker, strategy.getName());
-                    }
+                    backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
 
                     backtestEquityRepository.saveAll(runResult.backtestEquities());
                     backtestSignalRepository.saveAll(runResult.backtestSignals());
@@ -187,7 +180,6 @@ public abstract class AbstractBacktester {
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategy(strategy.getEntity())
-                                .strategyName(strategy.getName())
                                 .side(LONG)
                                 .entryDate(currentDate)
                                 .entryPrice(priceOpen)
@@ -210,7 +202,6 @@ public abstract class AbstractBacktester {
                         activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategy(strategy.getEntity())
-                                .strategyName(strategy.getName())
                                 .side(SHORT)
                                 .entryDate(currentDate)
                                 .entryPrice(priceOpen)
@@ -241,7 +232,6 @@ public abstract class AbstractBacktester {
             equities.add(BacktestEquity.builder()
                     .ticker(ticker)
                     .strategy(strategy.getEntity())
-                    .strategyName(strategy.getName())
                     .equityDate(currentDate)
                     .equity(equityAtClose)
                     .position(currentPosition)
@@ -267,7 +257,6 @@ public abstract class AbstractBacktester {
             signals.add(BacktestSignal.builder()
                     .ticker(ticker)
                     .strategy(strategy.getEntity())
-                    .strategyName(strategy.getName())
                     .signalDate(currentDate)
                     .executeDate(executeDate)
                     .action(nextAction.tradeSignal())
@@ -397,7 +386,6 @@ public abstract class AbstractBacktester {
         return BacktestResult.builder()
                 .ticker(ticker)
                 .strategy(strategy.getEntity())
-                .strategyName(strategy.getName())
                 .initialEquity(INITIAL_EQUITY)
                 .finalEquity(last.getEquity())
                 .startDate(first.getEquityDate())

@@ -30,8 +30,6 @@ public class BacktestSignal {
     @JoinColumn(name = "backtest_strategy_id")
     private BacktestStrategy strategy;
 
-    private String strategyName;
-
     private LocalDate signalDate;
 
     private LocalDate executeDate;
