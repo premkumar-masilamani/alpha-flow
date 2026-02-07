@@ -4,7 +4,6 @@ import com.alphaflow.backtest.entities.BacktestEquity;
 import com.alphaflow.backtest.entities.BacktestResult;
 import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.entities.BacktestTrade;
-import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -46,8 +45,8 @@ public abstract class AbstractBacktester {
     protected final BacktestTradeRepository backtestTradeRepository;
     protected final BacktestResultRepository backtestResultRepository;
     protected final BacktestStrategyRepository backtestStrategyRepository;
-    protected List<? extends Strategy> strategies;
     protected final TransactionTemplate transactionTemplate;
+    protected List<? extends Strategy> strategies;
 
     protected AbstractBacktester(
             TickerRepository tickerRepository,

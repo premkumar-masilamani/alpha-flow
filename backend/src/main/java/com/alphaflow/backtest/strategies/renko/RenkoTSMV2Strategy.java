@@ -26,12 +26,10 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoTSMV2Strategy.class);
-
+    private static final BigDecimal OBV_THRESHOLD = new BigDecimal("0.05");
     private String filterIndicatorKey = "P_CLOSE_SMA_200";
     private String momentumIndicatorKey = "OBV_OBV_0";
     private String prevMomentumIndicatorKey = "PREV_OBV_OBV_0";
-    private static final BigDecimal OBV_THRESHOLD = new BigDecimal("0.05");
-
     private BacktestStrategy entity;
 
     public RenkoTSMV2Strategy() {
