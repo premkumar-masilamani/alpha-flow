@@ -26,7 +26,9 @@ public class BacktestResult {
     @JoinColumn(name = "ticker_id")
     private Ticker ticker;
 
-    private String strategyName;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "backtest_strategy_id")
+    private BacktestStrategy strategy;
 
     private BigDecimal initialEquity;
 

@@ -1,16 +1,12 @@
 package com.alphaflow.backtest.engine;
 
-import com.alphaflow.backtest.configs.BacktestConfig;
-import com.alphaflow.backtest.repositories.BacktestEquityRepository;
-import com.alphaflow.backtest.repositories.BacktestResultRepository;
-import com.alphaflow.backtest.repositories.BacktestSignalRepository;
-import com.alphaflow.backtest.repositories.BacktestTradeRepository;
+import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
+import com.alphaflow.backtest.strategies.renko.RenkoPPStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
-import com.alphaflow.engine.enums.MarketDataMetricType;
-import com.alphaflow.engine.enums.TransformationType;
-import com.alphaflow.engine.enums.WindowPeriod;
+import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -40,9 +36,8 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
-            List<RenkoStrategy> strategies,
-            TransactionTemplate transactionTemplate,
-            BacktestConfig backtestConfig
+            BacktestStrategyRepository backtestStrategyRepository,
+            TransactionTemplate transactionTemplate
     ) {
         super(
                 tickerRepository,
@@ -52,43 +47,32 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestSignalRepository,
                 backtestTradeRepository,
                 backtestResultRepository,
-                expandStrategies(strategies, backtestConfig),
+                backtestStrategyRepository,
+                new ArrayList<>(),
                 transactionTemplate
         );
+        this.strategies = loadStrategiesFromDb();
     }
 
-    private static List<RenkoStrategy> expandStrategies(List<RenkoStrategy> renkoStrategies, BacktestConfig config) {
-        if (!config.isGridSearchEnabled()) {
-            return renkoStrategies;
-        }
+    private List<RenkoStrategy> loadStrategiesFromDb() {
+        List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
+                .filter(s -> s.getStrategyType().startsWith("RENKO"))
+                .toList();
 
-        log.info("Expanding Renko renkoStrategies. Base count: {}", renkoStrategies.size());
-        List<RenkoStrategy> all = new ArrayList<>();
+        log.info("Loaded {} Renko strategies from database", entities.size());
 
-        for (RenkoStrategy renkoStrategy : renkoStrategies) {
-            if (renkoStrategy instanceof RenkoTSMStrategy) {
-                all.addAll(gridSearchRenkoTSMStrategies());
-            } else {
-                all.add(renkoStrategy);
-            }
-        }
-
-        log.info("Total Renko renkoStrategies after expansion: {}", all.size());
-        return all;
+        return entities.stream()
+                .map(this::instantiateStrategy)
+                .toList();
     }
 
-    private static List<RenkoStrategy> gridSearchRenkoTSMStrategies() {
-        List<RenkoStrategy> combinations = new ArrayList<>();
-        for (RenkoPriceSource priceSource : RenkoPriceSource.values()) {
-            for (MarketDataMetricType momentumMetric : List.of(MarketDataMetricType.OBV, MarketDataMetricType.CCF)) {
-                for (TransformationType maType : List.of(TransformationType.SMA, TransformationType.EMA)) {
-                    for (int p = 3; p <= 21; p++) {
-                        combinations.add(new RenkoTSMStrategy(priceSource, maType, WindowPeriod.fromDays(p), momentumMetric));
-                    }
-                }
-            }
-        }
-        return combinations;
+    private RenkoStrategy instantiateStrategy(BacktestStrategy entity) {
+        return switch (entity.getStrategyType()) {
+            case "RENKO_TSM" -> new RenkoTSMStrategy(entity);
+            case "RENKO_PP" -> new RenkoPPStrategy(entity);
+            case "RENKO_TSM_V2" -> new RenkoTSMV2Strategy(entity);
+            default -> throw new IllegalArgumentException("Unknown Renko strategy type: " + entity.getStrategyType());
+        };
     }
 
     @Override
@@ -105,4 +89,3 @@ public class RenkoBacktester extends AbstractBacktester {
         return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
     }
 }
-
