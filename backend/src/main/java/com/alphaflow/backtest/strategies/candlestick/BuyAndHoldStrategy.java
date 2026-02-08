@@ -1,6 +1,5 @@
 package com.alphaflow.backtest.strategies.candlestick;
 
-import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -14,23 +13,9 @@ public class BuyAndHoldStrategy implements CandlestickStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(BuyAndHoldStrategy.class);
 
-    private BacktestStrategy entity;
-
-    public BuyAndHoldStrategy() {
-    }
-
-    public BuyAndHoldStrategy(BacktestStrategy entity) {
-        this.entity = entity;
-    }
-
     @Override
     public String getName() {
-        return entity != null ? entity.getName() : "Buy & Hold";
-    }
-
-    @Override
-    public BacktestStrategy getEntity() {
-        return entity;
+        return "Buy & Hold";
     }
 
     @Override
