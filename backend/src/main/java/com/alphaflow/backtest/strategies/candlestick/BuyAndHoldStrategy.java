@@ -5,12 +5,13 @@ import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
+import com.alphaflow.backtest.strategies.StrategyState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
-public class BuyAndHoldStrategy implements CandlestickStrategy {
+public class BuyAndHoldStrategy implements CandlestickStrategy<BuyAndHoldStrategy.State> {
 
     private static final Logger log = LoggerFactory.getLogger(BuyAndHoldStrategy.class);
 
@@ -34,7 +35,12 @@ public class BuyAndHoldStrategy implements CandlestickStrategy {
     }
 
     @Override
-    public TradeAction generateSignal(StrategyContext context) {
+    public State initialState() {
+        return new State();
+    }
+
+    @Override
+    public TradeAction generateSignal(StrategyContext<State> context) {
 
         if (context.currentPosition() == PositionType.NONE) {
             log.debug("Strategy {} generating initial ENTER_LONG signal", getName());
@@ -42,5 +48,8 @@ public class BuyAndHoldStrategy implements CandlestickStrategy {
         }
 
         return new TradeAction(TradeSignal.HOLD, context.currentPosition());
+    }
+
+    public static final class State implements StrategyState {
     }
 }

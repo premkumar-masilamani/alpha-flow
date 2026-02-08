@@ -6,7 +6,9 @@ import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.indicators.IndicatorKey;
 import com.alphaflow.backtest.strategies.StrategyContext;
+import com.alphaflow.backtest.strategies.StrategyState;
 import com.alphaflow.infrastructure.constants.AppConstants;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
@@ -23,13 +25,12 @@ import java.util.Map;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
 @Component
-public class RenkoTSMV2Strategy implements RenkoStrategy {
+public class RenkoTSMV2Strategy implements RenkoStrategy<RenkoTSMV2Strategy.State> {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoTSMV2Strategy.class);
     private static final BigDecimal OBV_THRESHOLD = new BigDecimal("0.05");
-    private String filterIndicatorKey = "P_CLOSE_SMA_200";
-    private String momentumIndicatorKey = "OBV_OBV_0";
-    private String prevMomentumIndicatorKey = "PREV_OBV_OBV_0";
+    private IndicatorKey filterIndicatorKey = new IndicatorKey("P_CLOSE", "SMA", 200);
+    private IndicatorKey momentumIndicatorKey = new IndicatorKey("OBV", "OBV", 0);
     private BacktestStrategy entity;
 
     public RenkoTSMV2Strategy() {
@@ -39,10 +40,9 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         this.entity = entity;
         for (BacktestStrategyIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.FILTER) {
-                this.filterIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
+                this.filterIndicatorKey = new IndicatorKey(i.getMetric(), i.getTransformation(), i.getPeriod());
             } else if (i.getIndicatorRole() == IndicatorRole.MOMENTUM) {
-                this.momentumIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
-                this.prevMomentumIndicatorKey = "PREV_" + this.momentumIndicatorKey;
+                this.momentumIndicatorKey = new IndicatorKey(i.getMetric(), i.getTransformation(), i.getPeriod());
             }
         }
     }
@@ -63,11 +63,16 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
     }
 
     @Override
-    public TradeAction generateSignal(StrategyContext context) {
+    public State initialState() {
+        return new State();
+    }
+
+    @Override
+    public TradeAction generateSignal(StrategyContext<State> context) {
         List<RenkoData> renkoBricks = context.renkoBricks();
-        Map<String, BigDecimal> indicators = context.indicators();
+        Map<IndicatorKey, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
-        Map<String, Object> state = context.state();
+        State state = context.state();
 
         if (renkoBricks == null || renkoBricks.size() < 3) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
@@ -88,8 +93,8 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         String regime = bullishRegime ? "bullish" : (bearishRegime ? "bearish" : "neutral");
 
         // Rule 2: OBV Momentum Threshold
-        BigDecimal prevObv = (BigDecimal) state.get(prevMomentumIndicatorKey);
-        state.put(prevMomentumIndicatorKey, currentObv);
+        BigDecimal prevObv = state.getPreviousMomentum();
+        state.setPreviousMomentum(currentObv);
 
         if (prevObv == null) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
@@ -135,5 +140,17 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     private BigDecimal scale2(BigDecimal value) {
         return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public static final class State implements StrategyState {
+        private BigDecimal previousMomentum;
+
+        public BigDecimal getPreviousMomentum() {
+            return previousMomentum;
+        }
+
+        public void setPreviousMomentum(BigDecimal previousMomentum) {
+            this.previousMomentum = previousMomentum;
+        }
     }
 }

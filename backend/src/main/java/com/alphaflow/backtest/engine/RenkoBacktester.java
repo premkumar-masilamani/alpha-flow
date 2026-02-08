@@ -6,6 +6,7 @@ import com.alphaflow.backtest.enums.StrategyType;
 import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
+import com.alphaflow.backtest.strategies.StrategyState;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -53,7 +54,7 @@ public class RenkoBacktester extends AbstractBacktester {
         this.strategies = loadStrategiesFromDb();
     }
 
-    private List<RenkoStrategy> loadStrategiesFromDb() {
+    private List<RenkoStrategy<? extends StrategyState>> loadStrategiesFromDb() {
         List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
                 .filter(entity -> StrategyType.fromDb(entity.getStrategyType()).getCategory() == StrategyCategory.RENKO)
                 .toList();
@@ -62,12 +63,12 @@ public class RenkoBacktester extends AbstractBacktester {
 
         return entities.stream()
                 .map(entity -> StrategyType.fromDb(entity.getStrategyType()).create(entity))
-                .map(strategy -> (RenkoStrategy) strategy)
+                .map(strategy -> (RenkoStrategy<? extends StrategyState>) strategy)
                 .toList();
     }
 
     @Override
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index, Strategy strategy) {
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index, Strategy<? extends StrategyState> strategy) {
         RenkoPriceSource priceSource = null;
         // Strategies can have different price sources for their renko bricks
         if (strategy instanceof RenkoStrategy renkoStrategy) {

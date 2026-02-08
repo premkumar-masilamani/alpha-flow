@@ -5,6 +5,7 @@ import com.alphaflow.backtest.enums.StrategyCategory;
 import com.alphaflow.backtest.enums.StrategyType;
 import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
+import com.alphaflow.backtest.strategies.StrategyState;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
@@ -47,7 +48,7 @@ public class CandlestickBacktester extends AbstractBacktester {
         this.strategies = loadStrategiesFromDb();
     }
 
-    private List<CandlestickStrategy> loadStrategiesFromDb() {
+    private List<CandlestickStrategy<? extends StrategyState>> loadStrategiesFromDb() {
         List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
                 .filter(entity -> StrategyType.fromDb(entity.getStrategyType()).getCategory() == StrategyCategory.CANDLESTICK)
                 .toList();
@@ -56,7 +57,7 @@ public class CandlestickBacktester extends AbstractBacktester {
 
         return entities.stream()
                 .map(entity -> StrategyType.fromDb(entity.getStrategyType()).create(entity))
-                .map(strategy -> (CandlestickStrategy) strategy)
+                .map(strategy -> (CandlestickStrategy<? extends StrategyState>) strategy)
                 .toList();
     }
 }

@@ -2,6 +2,7 @@ package com.alphaflow.backtest.enums;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.strategies.Strategy;
+import com.alphaflow.backtest.strategies.StrategyState;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldRiskOverlayStrategy;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoPPStrategy;
@@ -19,9 +20,9 @@ public enum StrategyType {
     RENKO_TSM_V2(StrategyCategory.RENKO, RenkoTSMV2Strategy::new);
 
     private final StrategyCategory category;
-    private final Function<BacktestStrategy, Strategy> factory;
+    private final Function<BacktestStrategy, Strategy<? extends StrategyState>> factory;
 
-    StrategyType(StrategyCategory category, Function<BacktestStrategy, Strategy> factory) {
+    StrategyType(StrategyCategory category, Function<BacktestStrategy, Strategy<? extends StrategyState>> factory) {
         this.category = category;
         this.factory = factory;
     }
@@ -30,7 +31,7 @@ public enum StrategyType {
         return category;
     }
 
-    public Strategy create(BacktestStrategy entity) {
+    public Strategy<? extends StrategyState> create(BacktestStrategy entity) {
         return factory.apply(entity);
     }
 

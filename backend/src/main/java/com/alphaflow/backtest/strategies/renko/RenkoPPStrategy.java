@@ -6,7 +6,9 @@ import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.indicators.IndicatorKey;
 import com.alphaflow.backtest.strategies.StrategyContext;
+import com.alphaflow.backtest.strategies.StrategyState;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
@@ -22,16 +24,11 @@ import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DI
 import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_UP;
 
 @Component
-public class RenkoPPStrategy implements RenkoStrategy {
+public class RenkoPPStrategy implements RenkoStrategy<RenkoPPStrategy.State> {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoPPStrategy.class);
 
-    private static final String PREV_SHORT_SPREAD_LONG = "PREV_SHORT_SPREAD_LONG";
-    private static final String PREV_LONG_SPREAD_LONG = "PREV_LONG_SPREAD_LONG";
-    private static final String PREV_SHORT_SPREAD_SHORT = "PREV_SHORT_SPREAD_SHORT";
-    private static final String PREV_LONG_SPREAD_SHORT = "PREV_LONG_SPREAD_SHORT";
-
-    private Map<Integer, String> gmmaKeys = new HashMap<>();
+    private Map<Integer, IndicatorKey> gmmaKeys = new HashMap<>();
 
     private BacktestStrategy entity;
 
@@ -42,13 +39,13 @@ public class RenkoPPStrategy implements RenkoStrategy {
         this.entity = entity;
         for (BacktestStrategyIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.GMMA) {
-                gmmaKeys.put(i.getPeriod(), i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod());
+                gmmaKeys.put(i.getPeriod(), new IndicatorKey(i.getMetric(), i.getTransformation(), i.getPeriod()));
             }
         }
     }
 
-    private String getGmmaKey(int period) {
-        return gmmaKeys.getOrDefault(period, "P_CLOSE_EMA_" + period);
+    private IndicatorKey getGmmaKey(int period) {
+        return gmmaKeys.getOrDefault(period, new IndicatorKey("P_CLOSE", "EMA", period));
     }
 
     @Override
@@ -67,11 +64,16 @@ public class RenkoPPStrategy implements RenkoStrategy {
     }
 
     @Override
-    public TradeAction generateSignal(StrategyContext context) {
+    public State initialState() {
+        return new State();
+    }
+
+    @Override
+    public TradeAction generateSignal(StrategyContext<State> context) {
         List<RenkoData> renkoBricks = context.renkoBricks();
-        Map<String, BigDecimal> indicators = context.indicators();
+        Map<IndicatorKey, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
-        Map<String, Object> state = context.state();
+        State state = context.state();
 
         if (renkoBricks == null || renkoBricks.isEmpty() || context.marketData() == null) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
@@ -110,16 +112,16 @@ public class RenkoPPStrategy implements RenkoStrategy {
         BigDecimal longSpreadShort = ema60.subtract(ema30);
 
         // Previous Spreads from state
-        BigDecimal prevShortSpreadLong = (BigDecimal) state.get(PREV_SHORT_SPREAD_LONG);
-        BigDecimal prevLongSpreadLong = (BigDecimal) state.get(PREV_LONG_SPREAD_LONG);
-        BigDecimal prevShortSpreadShort = (BigDecimal) state.get(PREV_SHORT_SPREAD_SHORT);
-        BigDecimal prevLongSpreadShort = (BigDecimal) state.get(PREV_LONG_SPREAD_SHORT);
+        BigDecimal prevShortSpreadLong = state.getPrevShortSpreadLong();
+        BigDecimal prevLongSpreadLong = state.getPrevLongSpreadLong();
+        BigDecimal prevShortSpreadShort = state.getPrevShortSpreadShort();
+        BigDecimal prevLongSpreadShort = state.getPrevLongSpreadShort();
 
         // Update state for next call
-        state.put(PREV_SHORT_SPREAD_LONG, shortSpreadLong);
-        state.put(PREV_LONG_SPREAD_LONG, longSpreadLong);
-        state.put(PREV_SHORT_SPREAD_SHORT, shortSpreadShort);
-        state.put(PREV_LONG_SPREAD_SHORT, longSpreadShort);
+        state.setPrevShortSpreadLong(shortSpreadLong);
+        state.setPrevLongSpreadLong(longSpreadLong);
+        state.setPrevShortSpreadShort(shortSpreadShort);
+        state.setPrevLongSpreadShort(longSpreadShort);
 
         // ───── EXIT Logic (Trailing Stop Loss) ─────
         if (currentPosition == PositionType.LONG) {
@@ -229,5 +231,44 @@ public class RenkoPPStrategy implements RenkoStrategy {
         }
 
         return new TradeAction(TradeSignal.HOLD, currentPosition);
+    }
+
+    public static final class State implements StrategyState {
+        private BigDecimal prevShortSpreadLong;
+        private BigDecimal prevLongSpreadLong;
+        private BigDecimal prevShortSpreadShort;
+        private BigDecimal prevLongSpreadShort;
+
+        public BigDecimal getPrevShortSpreadLong() {
+            return prevShortSpreadLong;
+        }
+
+        public void setPrevShortSpreadLong(BigDecimal prevShortSpreadLong) {
+            this.prevShortSpreadLong = prevShortSpreadLong;
+        }
+
+        public BigDecimal getPrevLongSpreadLong() {
+            return prevLongSpreadLong;
+        }
+
+        public void setPrevLongSpreadLong(BigDecimal prevLongSpreadLong) {
+            this.prevLongSpreadLong = prevLongSpreadLong;
+        }
+
+        public BigDecimal getPrevShortSpreadShort() {
+            return prevShortSpreadShort;
+        }
+
+        public void setPrevShortSpreadShort(BigDecimal prevShortSpreadShort) {
+            this.prevShortSpreadShort = prevShortSpreadShort;
+        }
+
+        public BigDecimal getPrevLongSpreadShort() {
+            return prevLongSpreadShort;
+        }
+
+        public void setPrevLongSpreadShort(BigDecimal prevLongSpreadShort) {
+            this.prevLongSpreadShort = prevLongSpreadShort;
+        }
     }
 }

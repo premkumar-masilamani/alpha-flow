@@ -6,7 +6,9 @@ import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.indicators.IndicatorKey;
 import com.alphaflow.backtest.strategies.StrategyContext;
+import com.alphaflow.backtest.strategies.StrategyState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -14,11 +16,11 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 
 @Component
-public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
+public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy<BuyAndHoldRiskOverlayStrategy.State> {
 
     private static final Logger log = LoggerFactory.getLogger(BuyAndHoldRiskOverlayStrategy.class);
 
-    private String filterIndicatorKey = "P_CLOSE_SMA_200";
+    private IndicatorKey filterIndicatorKey = new IndicatorKey("P_CLOSE", "SMA", 200);
 
     private BacktestStrategy entity;
 
@@ -29,7 +31,7 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
         this.entity = entity;
         for (BacktestStrategyIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.FILTER) {
-                this.filterIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
+                this.filterIndicatorKey = new IndicatorKey(i.getMetric(), i.getTransformation(), i.getPeriod());
             }
         }
     }
@@ -45,7 +47,12 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
     }
 
     @Override
-    public TradeAction generateSignal(StrategyContext context) {
+    public State initialState() {
+        return new State();
+    }
+
+    @Override
+    public TradeAction generateSignal(StrategyContext<State> context) {
         BigDecimal priceClose = context.marketData().getPriceClose();
         BigDecimal filterValue = context.indicators().get(filterIndicatorKey);
 
@@ -64,5 +71,8 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
         }
 
         return new TradeAction(TradeSignal.HOLD, context.currentPosition());
+    }
+
+    public static final class State implements StrategyState {
     }
 }

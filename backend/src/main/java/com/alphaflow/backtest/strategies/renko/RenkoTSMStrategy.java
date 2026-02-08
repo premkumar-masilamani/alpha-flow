@@ -6,7 +6,9 @@ import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
+import com.alphaflow.backtest.indicators.IndicatorKey;
 import com.alphaflow.backtest.strategies.StrategyContext;
+import com.alphaflow.backtest.strategies.StrategyState;
 import com.alphaflow.engine.enums.MarketDataMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
@@ -24,7 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class RenkoTSMStrategy implements RenkoStrategy {
+public class RenkoTSMStrategy implements RenkoStrategy<RenkoTSMStrategy.State> {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoTSMStrategy.class);
 
@@ -33,9 +35,8 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     private final WindowPeriod maPeriod;
     private final MarketDataMetricType momentumMetric;
 
-    private final String maIndicatorKey;
-    private final String momentumIndicatorKey;
-    private final String momentumIndicatorPrevKey;
+    private final IndicatorKey maIndicatorKey;
+    private final IndicatorKey momentumIndicatorKey;
 
     private BacktestStrategy entity;
 
@@ -60,9 +61,8 @@ public class RenkoTSMStrategy implements RenkoStrategy {
                 .orElseThrow();
         this.momentumMetric = MarketDataMetricType.valueOf(momentumIndicator.getMetric());
 
-        this.maIndicatorKey = priceSource.code() + "_" + maType.code() + "_" + maPeriod.days();
-        this.momentumIndicatorKey = momentumMetric.code() + "_" + momentumMetric.code() + "_0";
-        this.momentumIndicatorPrevKey = "PREV_" + this.momentumIndicatorKey;
+        this.maIndicatorKey = new IndicatorKey(priceSource.code(), maType.code(), maPeriod.days());
+        this.momentumIndicatorKey = new IndicatorKey(momentumMetric.code(), momentumMetric.code(), 0);
     }
 
     public RenkoTSMStrategy(RenkoPriceSource priceSource, TransformationType maType, WindowPeriod maPeriod, MarketDataMetricType momentumMetric) {
@@ -71,9 +71,8 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         this.maPeriod = maPeriod;
         this.momentumMetric = momentumMetric;
 
-        this.maIndicatorKey = priceSource.code() + "_" + maType.code() + "_" + maPeriod.days();
-        this.momentumIndicatorKey = momentumMetric.code() + "_" + momentumMetric.code() + "_0";
-        this.momentumIndicatorPrevKey = "PREV_" + this.momentumIndicatorKey;
+        this.maIndicatorKey = new IndicatorKey(priceSource.code(), maType.code(), maPeriod.days());
+        this.momentumIndicatorKey = new IndicatorKey(momentumMetric.code(), momentumMetric.code(), 0);
     }
 
     @Override
@@ -117,12 +116,17 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     }
 
     @Override
-    public TradeAction generateSignal(StrategyContext context) {
+    public State initialState() {
+        return new State();
+    }
+
+    @Override
+    public TradeAction generateSignal(StrategyContext<State> context) {
 
         List<RenkoData> renkoBricks = context.renkoBricks();
-        Map<String, BigDecimal> indicators = context.indicators();
+        Map<IndicatorKey, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
-        Map<String, Object> strategyState = context.state();
+        State strategyState = context.state();
 
         if (renkoBricks == null || renkoBricks.isEmpty())
             return new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
@@ -131,8 +135,11 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
         BigDecimal maValue = indicators.get(maIndicatorKey);
         BigDecimal currentMomentum = indicators.get(momentumIndicatorKey);
-        BigDecimal previousMomentum = (BigDecimal) strategyState.getOrDefault(momentumIndicatorPrevKey, currentMomentum);
-        strategyState.put(momentumIndicatorPrevKey, currentMomentum);
+        BigDecimal previousMomentum = strategyState.getPreviousMomentum();
+        if (previousMomentum == null) {
+            previousMomentum = currentMomentum;
+        }
+        strategyState.setPreviousMomentum(currentMomentum);
 
         if (maValue == null || currentMomentum == null) {
             log.debug("Missing indicators for strategy {}: {}={}, {}={}", getName(), maIndicatorKey, maValue, momentumIndicatorKey, currentMomentum);
@@ -148,9 +155,9 @@ public class RenkoTSMStrategy implements RenkoStrategy {
                 currentMomentum.compareTo(previousMomentum) < 0;
 
         Map<String, Object> signalData = new HashMap<>();
-        signalData.put(maIndicatorKey, scale2(maValue));
-        signalData.put(momentumIndicatorKey, scale2(currentMomentum));
-        signalData.put(momentumIndicatorPrevKey, scale2(previousMomentum));
+        signalData.put(maIndicatorKey.toString(), scale2(maValue));
+        signalData.put(momentumIndicatorKey.toString(), scale2(currentMomentum));
+        signalData.put("PREV_" + momentumIndicatorKey, scale2(previousMomentum));
         signalData.put("high", scale2(lastBrick.getBrickHigh()));
         signalData.put("low", scale2(lastBrick.getBrickLow()));
         signalData.put("direction", lastBrick.getDirection());
@@ -170,6 +177,18 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
     private BigDecimal scale2(BigDecimal value) {
         return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public static final class State implements StrategyState {
+        private BigDecimal previousMomentum;
+
+        public BigDecimal getPreviousMomentum() {
+            return previousMomentum;
+        }
+
+        public void setPreviousMomentum(BigDecimal previousMomentum) {
+            this.previousMomentum = previousMomentum;
+        }
     }
 
 }
