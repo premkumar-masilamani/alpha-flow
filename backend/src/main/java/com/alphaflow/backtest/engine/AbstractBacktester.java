@@ -17,6 +17,7 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -31,12 +32,15 @@ import static com.alphaflow.backtest.enums.PositionType.LONG;
 import static com.alphaflow.backtest.enums.PositionType.SHORT;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
+@RequiredArgsConstructor
 public abstract class AbstractBacktester {
 
     protected static final BigDecimal INITIAL_EQUITY = new BigDecimal("100000");
     protected static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     protected static final double YEAR_IN_DAYS = 365.25;
+
     private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
+
     protected final TickerRepository tickerRepository;
     protected final MarketDataRepository marketDataRepository;
     protected final MarketStateRepository marketStateRepository;
@@ -46,36 +50,13 @@ public abstract class AbstractBacktester {
     protected final BacktestResultRepository backtestResultRepository;
     protected final BacktestStrategyRepository backtestStrategyRepository;
     protected final TransactionTemplate transactionTemplate;
-    protected List<? extends Strategy> strategies;
+    protected final List<Strategy> strategies;
 
-    protected AbstractBacktester(
-            TickerRepository tickerRepository,
-            MarketDataRepository marketDataRepository,
-            MarketStateRepository marketStateRepository,
-            BacktestEquityRepository backtestEquityRepository,
-            BacktestSignalRepository backtestSignalRepository,
-            BacktestTradeRepository backtestTradeRepository,
-            BacktestResultRepository backtestResultRepository,
-            BacktestStrategyRepository backtestStrategyRepository,
-            List<? extends Strategy> strategies,
-            TransactionTemplate transactionTemplate
-    ) {
-        this.tickerRepository = tickerRepository;
-        this.marketDataRepository = marketDataRepository;
-        this.marketStateRepository = marketStateRepository;
-        this.backtestEquityRepository = backtestEquityRepository;
-        this.backtestSignalRepository = backtestSignalRepository;
-        this.backtestTradeRepository = backtestTradeRepository;
-        this.backtestResultRepository = backtestResultRepository;
-        this.backtestStrategyRepository = backtestStrategyRepository;
-        this.strategies = strategies;
-        this.transactionTemplate = transactionTemplate;
-    }
 
-    private static BigDecimal calculateEquity(PositionType currentPosition, BigDecimal cash, BigDecimal shares, BigDecimal open, BigDecimal entryPrice) {
+    private static BigDecimal calculateEquity(PositionType currentPosition, BigDecimal cash, BigDecimal shares, BigDecimal exitPrice, BigDecimal entryPrice) {
         return switch (currentPosition) {
-            case LONG -> cash.add(shares.multiply(open));
-            case SHORT -> cash.add(shares.multiply(entryPrice.subtract(open)));
+            case LONG -> cash.add(shares.multiply(exitPrice));
+            case SHORT -> cash.add(shares.multiply(entryPrice.subtract(exitPrice)));
             default -> cash;
         };
     }

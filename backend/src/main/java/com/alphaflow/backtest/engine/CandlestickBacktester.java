@@ -1,9 +1,9 @@
 package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.enums.StrategyCategory;
+import com.alphaflow.backtest.enums.StrategyType;
 import com.alphaflow.backtest.repositories.*;
-import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldRiskOverlayStrategy;
-import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldStrategy;
 import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
@@ -49,21 +49,14 @@ public class CandlestickBacktester extends AbstractBacktester {
 
     private List<CandlestickStrategy> loadStrategiesFromDb() {
         List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
-                .filter(s -> !s.getStrategyType().startsWith("RENKO"))
+                .filter(entity -> StrategyType.fromDb(entity.getStrategyType()).getCategory() == StrategyCategory.CANDLESTICK)
                 .toList();
 
         log.info("Loaded {} Candlestick strategies from database", entities.size());
 
         return entities.stream()
-                .map(this::instantiateStrategy)
+                .map(entity -> StrategyType.fromDb(entity.getStrategyType()).create(entity))
+                .map(strategy -> (CandlestickStrategy) strategy)
                 .toList();
-    }
-
-    private CandlestickStrategy instantiateStrategy(BacktestStrategy entity) {
-        return switch (entity.getStrategyType()) {
-            case "BUY_AND_HOLD" -> new BuyAndHoldStrategy(entity);
-            case "BUY_AND_HOLD_RISK_OVERLAY" -> new BuyAndHoldRiskOverlayStrategy(entity);
-            default -> throw new IllegalArgumentException("Unknown Candlestick strategy type: " + entity.getStrategyType());
-        };
     }
 }

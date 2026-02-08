@@ -1,12 +1,11 @@
 package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.enums.StrategyCategory;
+import com.alphaflow.backtest.enums.StrategyType;
 import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
-import com.alphaflow.backtest.strategies.renko.RenkoPPStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
-import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
-import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
 import com.alphaflow.infrastructure.entities.MarketData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -56,23 +55,15 @@ public class RenkoBacktester extends AbstractBacktester {
 
     private List<RenkoStrategy> loadStrategiesFromDb() {
         List<BacktestStrategy> entities = backtestStrategyRepository.findAll().stream()
-                .filter(s -> s.getStrategyType().startsWith("RENKO"))
+                .filter(entity -> StrategyType.fromDb(entity.getStrategyType()).getCategory() == StrategyCategory.RENKO)
                 .toList();
 
         log.info("Loaded {} Renko strategies from database", entities.size());
 
         return entities.stream()
-                .map(this::instantiateStrategy)
+                .map(entity -> StrategyType.fromDb(entity.getStrategyType()).create(entity))
+                .map(strategy -> (RenkoStrategy) strategy)
                 .toList();
-    }
-
-    private RenkoStrategy instantiateStrategy(BacktestStrategy entity) {
-        return switch (entity.getStrategyType()) {
-            case "RENKO_TSM" -> new RenkoTSMStrategy(entity);
-            case "RENKO_PP" -> new RenkoPPStrategy(entity);
-            case "RENKO_TSM_V2" -> new RenkoTSMV2Strategy(entity);
-            default -> throw new IllegalArgumentException("Unknown Renko strategy type: " + entity.getStrategyType());
-        };
     }
 
     @Override
