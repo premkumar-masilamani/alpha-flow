@@ -1,5 +1,7 @@
 package com.alphaflow.backtest.strategies.renko;
 
+import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -67,6 +69,35 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     @Override
     public RenkoPriceSource getPriceSource() {
         return priceSource;
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        BacktestStrategy strategy = BacktestStrategy.builder()
+                .name(getName())
+                .strategyType("RENKO_TSM")
+                .priceSource(priceSource)
+                .build();
+
+        List<BacktestStrategyIndicator> indicators = List.of(
+                BacktestStrategyIndicator.builder()
+                        .backtestStrategy(strategy)
+                        .indicatorRole("MA")
+                        .metric(priceSource.code())
+                        .transformation(maType.code())
+                        .period(maPeriod.days())
+                        .build(),
+                BacktestStrategyIndicator.builder()
+                        .backtestStrategy(strategy)
+                        .indicatorRole("MOMENTUM")
+                        .metric(momentumMetric.code())
+                        .transformation(momentumMetric.code())
+                        .period(0)
+                        .build()
+        );
+
+        strategy.setIndicators(indicators);
+        return strategy;
     }
 
     @Override

@@ -1,9 +1,6 @@
 package com.alphaflow.backtest.engine;
 
-import com.alphaflow.backtest.repositories.BacktestEquityRepository;
-import com.alphaflow.backtest.repositories.BacktestResultRepository;
-import com.alphaflow.backtest.repositories.BacktestSignalRepository;
-import com.alphaflow.backtest.repositories.BacktestTradeRepository;
+import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
 import com.alphaflow.infrastructure.repositories.MarketDataRepository;
 import com.alphaflow.infrastructure.repositories.MarketStateRepository;
@@ -24,6 +21,7 @@ public class CandlestickBacktester extends AbstractBacktester {
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
+            BacktestStrategyRepository backtestStrategyRepository,
             List<CandlestickStrategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
@@ -35,6 +33,7 @@ public class CandlestickBacktester extends AbstractBacktester {
                 backtestSignalRepository,
                 backtestTradeRepository,
                 backtestResultRepository,
+                backtestStrategyRepository,
                 strategies,
                 transactionTemplate
         );

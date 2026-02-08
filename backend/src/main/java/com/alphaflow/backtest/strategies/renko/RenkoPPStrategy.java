@@ -1,5 +1,7 @@
 package com.alphaflow.backtest.strategies.renko;
 
+import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -11,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,6 +39,29 @@ public class RenkoPPStrategy implements RenkoStrategy {
     @Override
     public RenkoPriceSource getPriceSource() {
         return RenkoPriceSource.PRICE_CLOSE;
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        BacktestStrategy strategy = BacktestStrategy.builder()
+                .name(getName())
+                .strategyType("RENKO_PP")
+                .priceSource(RenkoPriceSource.PRICE_CLOSE)
+                .build();
+
+        List<BacktestStrategyIndicator> indicators = new ArrayList<>();
+        int[] periods = {3, 5, 8, 10, 12, 15, 30, 35, 40, 45, 50, 60};
+        for (int p : periods) {
+            indicators.add(BacktestStrategyIndicator.builder()
+                    .backtestStrategy(strategy)
+                    .indicatorRole("GMMA")
+                    .metric("P_CLOSE")
+                    .transformation("EMA")
+                    .period(p)
+                    .build());
+        }
+        strategy.setIndicators(indicators);
+        return strategy;
     }
 
     @Override

@@ -1,10 +1,7 @@
 package com.alphaflow.backtest.engine;
 
 import com.alphaflow.backtest.configs.BacktestConfig;
-import com.alphaflow.backtest.repositories.BacktestEquityRepository;
-import com.alphaflow.backtest.repositories.BacktestResultRepository;
-import com.alphaflow.backtest.repositories.BacktestSignalRepository;
-import com.alphaflow.backtest.repositories.BacktestTradeRepository;
+import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
@@ -40,6 +37,7 @@ public class RenkoBacktester extends AbstractBacktester {
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
+            BacktestStrategyRepository backtestStrategyRepository,
             List<RenkoStrategy> strategies,
             TransactionTemplate transactionTemplate,
             BacktestConfig backtestConfig
@@ -52,6 +50,7 @@ public class RenkoBacktester extends AbstractBacktester {
                 backtestSignalRepository,
                 backtestTradeRepository,
                 backtestResultRepository,
+                backtestStrategyRepository,
                 expandStrategies(strategies, backtestConfig),
                 transactionTemplate
         );

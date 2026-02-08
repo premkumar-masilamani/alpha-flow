@@ -1,5 +1,7 @@
 package com.alphaflow.backtest.strategies.candlestick;
 
+import com.alphaflow.backtest.entities.BacktestStrategy;
+import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -9,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Component
 public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
@@ -20,6 +23,27 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
     @Override
     public String getName() {
         return "Buy & Hold with Risk Overlay";
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        BacktestStrategy strategy = BacktestStrategy.builder()
+                .name(getName())
+                .strategyType("CANDLESTICK_B&H_RISK")
+                .build();
+
+        List<BacktestStrategyIndicator> indicators = List.of(
+                BacktestStrategyIndicator.builder()
+                        .backtestStrategy(strategy)
+                        .indicatorRole("RISK_OVERLAY")
+                        .metric("P_CLOSE")
+                        .transformation("SMA")
+                        .period(200)
+                        .build()
+        );
+
+        strategy.setIndicators(indicators);
+        return strategy;
     }
 
     @Override
