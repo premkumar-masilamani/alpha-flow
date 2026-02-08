@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {type BacktestSignal, getBacktestSignals, getMarketData, getRenkoData, getTickers, type MarketData, type RenkoData, type Ticker} from './services/api';
+import {type BacktestSignalsMap, getBacktestSignals, getMarketData, getRenkoData, getTickers, type MarketData, type RenkoData, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
@@ -13,7 +13,7 @@ function App() {
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [marketData, setMarketData] = useState<MarketData[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [signals, setSignals] = useState<BacktestSignal[]>([]);
+    const [backtestSignals, setBacktestSignals] = useState<BacktestSignalsMap>({});
     const [selectedStrategy, setSelectedStrategy] = useState<string>('All');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
@@ -46,13 +46,13 @@ function App() {
                     ]);
                     setMarketData(mData);
                     setRenkoData(rData);
-                    setSignals(sData);
+                    setBacktestSignals(sData);
                     setSelectedStrategy('All');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
                     setMarketData([]);
                     setRenkoData(null);
-                    setSignals([]);
+                    setBacktestSignals({});
                     setSelectedStrategy('All');
                 } finally {
                     setLoading(false);
@@ -73,7 +73,7 @@ function App() {
 
         const hasMarketData = marketData.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = ['All', ...new Set(signals.map(s => s.strategy))];
+        const strategies = ['All', ...Object.keys(backtestSignals)];
 
         return (
             <>
@@ -122,7 +122,7 @@ function App() {
                         hasRenkoData ? (
                             <RenkoChart
                                 data={renkoData!}
-                                signals={signals}
+                                signals={backtestSignals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
@@ -134,7 +134,7 @@ function App() {
                         hasMarketData ? (
                             <Chart
                                 data={marketData}
-                                signals={signals}
+                                signals={backtestSignals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
