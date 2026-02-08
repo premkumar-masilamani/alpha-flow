@@ -29,5 +29,5 @@ public class BacktestStrategy {
 
     @OneToMany(mappedBy = "backtestStrategy", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
-    private List<BacktestStrategyIndicator> indicators = new ArrayList<>();
+    private List<BacktestIndicator> indicators = new ArrayList<>();
 }

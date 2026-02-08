@@ -1,13 +1,13 @@
 package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
-import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.entities.BacktestIndicator;
 import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
-import com.alphaflow.infrastructure.entities.RenkoData;
+import com.alphaflow.infrastructure.entities.Renko;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
     public RenkoPPStrategy(BacktestStrategy entity) {
         this.entity = entity;
-        for (BacktestStrategyIndicator i : entity.getIndicators()) {
+        for (BacktestIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.GMMA) {
                 gmmaKeys.put(i.getPeriod(), i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod());
             }
@@ -68,7 +68,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        List<RenkoData> renkoBricks = context.renkoBricks();
+        List<Renko> renkoBricks = context.renkoBricks();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> state = context.state();
@@ -77,7 +77,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
-        RenkoData currentBrick = renkoBricks.getLast();
+        Renko currentBrick = renkoBricks.getLast();
         int trend = currentBrick.getTrend();
         int zone = currentBrick.getZone();
         String direction = currentBrick.getDirection();
@@ -129,7 +129,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 if (listIdx >= 0) {
                     BigDecimal slPrice = renkoBricks.get(listIdx).getBrickLow();
                     if (priceClose.compareTo(slPrice) < 0) {
-                        log.debug("Strategy {} triggering LONG SL EXIT at {} price {} SL {}", getName(), context.marketData().getMarketDataDate(), priceClose, slPrice);
+                        log.debug("Strategy {} triggering LONG SL EXIT at {} price {} SL {}", getName(), context.marketData().getCandleDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -141,7 +141,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 if (listIdx >= 0) {
                     BigDecimal slPrice = renkoBricks.get(listIdx).getBrickHigh();
                     if (priceClose.compareTo(slPrice) > 0) {
-                        log.debug("Strategy {} triggering SHORT SL EXIT at {} price {} SL {}", getName(), context.marketData().getMarketDataDate(), priceClose, slPrice);
+                        log.debug("Strategy {} triggering SHORT SL EXIT at {} price {} SL {}", getName(), context.marketData().getCandleDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -165,7 +165,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 int firstGreenIdx = renkoBricks.size() - trend;
                 int lastRedIdx = firstGreenIdx - 1;
                 if (lastRedIdx >= 0) {
-                    RenkoData lastRedBrick = renkoBricks.get(lastRedIdx);
+                    Renko lastRedBrick = renkoBricks.get(lastRedIdx);
                     brickCriteria = lastRedBrick.getDirection().equals(RENKO_BRICK_DIRECTION_DOWN) && lastRedBrick.getTrend() >= 3;
                 } else {
                     brickCriteria = false;
@@ -183,7 +183,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                     longSpreadLong.compareTo(prevLongSpreadLong) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.LONG) {
-                log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getMarketDataDate());
+                log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getCandleDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadLong);
@@ -201,7 +201,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 int firstRedIdx = renkoBricks.size() - trend;
                 int lastGreenIdx = firstRedIdx - 1;
                 if (lastGreenIdx >= 0) {
-                    RenkoData lastGreenBrick = renkoBricks.get(lastGreenIdx);
+                    Renko lastGreenBrick = renkoBricks.get(lastGreenIdx);
                     brickCriteria = lastGreenBrick.getDirection().equals(RENKO_BRICK_DIRECTION_UP) && lastGreenBrick.getTrend() >= 3;
                 } else {
                     brickCriteria = false;
@@ -219,7 +219,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                     longSpreadShort.compareTo(prevLongSpreadShort) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.SHORT) {
-                log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getMarketDataDate());
+                log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getCandleDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadShort);

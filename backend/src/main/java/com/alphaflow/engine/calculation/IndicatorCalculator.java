@@ -1,13 +1,13 @@
 package com.alphaflow.engine.calculation;
 
-import com.alphaflow.engine.enums.MarketDataMetricType;
+import com.alphaflow.engine.enums.CandleMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
-import com.alphaflow.infrastructure.entities.MarketData;
-import com.alphaflow.infrastructure.entities.MarketState;
+import com.alphaflow.infrastructure.entities.Candle;
+import com.alphaflow.infrastructure.entities.Indicator;
 import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.repositories.MarketDataRepository;
-import com.alphaflow.infrastructure.repositories.MarketStateRepository;
+import com.alphaflow.infrastructure.repositories.CandleRepository;
+import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,51 +24,51 @@ import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEX
 import static java.math.BigDecimal.valueOf;
 
 @Service
-public class MarketStateCalculator {
+public class IndicatorCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketStateCalculator.class);
+    private static final Logger log = LoggerFactory.getLogger(IndicatorCalculator.class);
 
-    private final MarketDataRepository marketDataRepository;
-    private final MarketStateRepository marketStateRepository;
+    private final CandleRepository candleRepository;
+    private final IndicatorRepository indicatorRepository;
     private final TickerRepository tickerRepository;
 
-    public MarketStateCalculator(
-            MarketDataRepository marketDataRepository,
-            MarketStateRepository marketStateRepository,
+    public IndicatorCalculator(
+            CandleRepository candleRepository,
+            IndicatorRepository indicatorRepository,
             TickerRepository tickerRepository
     ) {
-        this.marketDataRepository = marketDataRepository;
-        this.marketStateRepository = marketStateRepository;
+        this.candleRepository = candleRepository;
+        this.indicatorRepository = indicatorRepository;
         this.tickerRepository = tickerRepository;
     }
 
     public void calculate() {
-        log.info("Starting Market State Computation");
+        log.info("Starting Indicator Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
-            log.info("Computing Market State for {}", ticker.getTickerSymbol());
+            log.info("Computing Indicators for {}", ticker.getTickerSymbol());
 
-            // 1. Fetch all available market data for the ticker, sorted by date
+            // 1. Fetch all available candle data for the ticker, sorted by date
             // We fetch everything once to avoid N+1 query problems and redundant DB round-trips
-            List<MarketData> allSeries = marketDataRepository.findByTickerOrderByMarketDataDateAsc(ticker);
+            List<Candle> allSeries = candleRepository.findByTickerOrderByCandleDateAsc(ticker);
 
             if (allSeries.isEmpty()) {
-                log.warn("No market data found for {}", ticker.getTickerSymbol());
+                log.warn("No candles found for {}", ticker.getTickerSymbol());
                 return;
             }
 
-            for (MarketDataMetricType metric : MarketDataMetricType.values()) {
+            for (CandleMetricType metric : CandleMetricType.values()) {
                 if (!metric.isEligibleFor(ticker.getSource())) {
                     continue;
                 }
 
                 // Base indicators (no transformations)
-                if (metric == MarketDataMetricType.OBV) {
+                if (metric == CandleMetricType.OBV) {
                     computeOBV(ticker, metric, allSeries);
                     continue; // VERY IMPORTANT
                 }
 
-                if (metric == MarketDataMetricType.CCF) {
+                if (metric == CandleMetricType.CCF) {
                     computeCCF(ticker, metric, allSeries);
                     continue; // VERY IMPORTANT
                 }
@@ -87,25 +87,25 @@ public class MarketStateCalculator {
             }
         });
 
-        log.info("Completed Market State Computation");
+        log.info("Completed Indicator Computation");
     }
 
-    private void computeOBV(Ticker ticker, MarketDataMetricType metric, List<MarketData> allSeries) {
+    private void computeOBV(Ticker ticker, CandleMetricType metric, List<Candle> allSeries) {
         if (allSeries.isEmpty()) {
             return;
         }
 
-        Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+        Optional<Indicator> latestIndicator = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
                 ticker, metric.code(), OBV.code(), ZERO_DAYS.days()
         );
 
         BigDecimal onBalanceVolume;
         int startIndex;
 
-        if (latestMarketState.isPresent()) {
-            MarketState lastOnBalanceVolume = latestMarketState.get();
+        if (latestIndicator.isPresent()) {
+            Indicator lastOnBalanceVolume = latestIndicator.get();
             onBalanceVolume = lastOnBalanceVolume.getValue();
-            startIndex = findIndexForDate(allSeries, lastOnBalanceVolume.getMarketStateDate()) + 1;
+            startIndex = findIndexForDate(allSeries, lastOnBalanceVolume.getIndicatorDate()) + 1;
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
                 log.debug("OBV is up to date for {}", ticker.getTickerSymbol());
                 return;
@@ -118,8 +118,8 @@ public class MarketStateCalculator {
         }
 
         for (int i = startIndex; i < allSeries.size(); i++) {
-            MarketData currentData = allSeries.get(i);
-            MarketData previousData = allSeries.get(i - 1);
+            Candle currentData = allSeries.get(i);
+            Candle previousData = allSeries.get(i - 1);
 
             int priceCompare = currentData.getPriceClose().compareTo(previousData.getPriceClose());
 
@@ -135,22 +135,22 @@ public class MarketStateCalculator {
         log.info("Computed OBV for {}", ticker.getTickerSymbol());
     }
 
-    private void computeCCF(Ticker ticker, MarketDataMetricType metric, List<MarketData> allSeries) {
+    private void computeCCF(Ticker ticker, CandleMetricType metric, List<Candle> allSeries) {
         if (allSeries.isEmpty()) {
             return;
         }
 
-        Optional<MarketState> latestMarketState = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+        Optional<Indicator> latestIndicator = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
                 ticker, metric.code(), CCF.code(), ZERO_DAYS.days()
         );
 
         BigDecimal cumulativeCapitalFlow;
         int startIndex;
 
-        if (latestMarketState.isPresent()) {
-            MarketState lastCCF = latestMarketState.get();
+        if (latestIndicator.isPresent()) {
+            Indicator lastCCF = latestIndicator.get();
             cumulativeCapitalFlow = lastCCF.getValue();
-            startIndex = findIndexForDate(allSeries, lastCCF.getMarketStateDate()) + 1;
+            startIndex = findIndexForDate(allSeries, lastCCF.getIndicatorDate()) + 1;
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
                 log.debug("CCF is up to date for {}", ticker.getTickerSymbol());
                 return;
@@ -162,7 +162,7 @@ public class MarketStateCalculator {
         }
 
         for (int i = startIndex; i < allSeries.size(); i++) {
-            MarketData currentData = allSeries.get(i);
+            Candle currentData = allSeries.get(i);
             BigDecimal dailySignedCapital = metric.extract(currentData);
             cumulativeCapitalFlow = cumulativeCapitalFlow.add(dailySignedCapital, DB_MATH_CONTEXT);
 
@@ -176,18 +176,18 @@ public class MarketStateCalculator {
      * Uses a sliding window approach for O(N) efficiency.
      * Formula: SMA = (Sum of values in window) / Period
      */
-    private void computeSMA(Ticker ticker, MarketDataMetricType metric, WindowPeriod maPeriod, List<MarketData> allSeries) {
+    private void computeSMA(Ticker ticker, CandleMetricType metric, WindowPeriod maPeriod, List<Candle> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
         // Find the latest SMA already in the database to resume computation
-        Optional<MarketState> latestSma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+        Optional<Indicator> latestSma = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
                 ticker, metric.code(), SMA.code(), period
         );
 
         int startIndex;
         if (latestSma.isPresent()) {
-            LocalDate lastDate = latestSma.get().getMarketStateDate();
+            LocalDate lastDate = latestSma.get().getIndicatorDate();
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
             // If up to date, skip
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
@@ -212,7 +212,7 @@ public class MarketStateCalculator {
 
             BigDecimal sma = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(i), metric, SMA, period, sma);
-            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getMarketDataDate(), sma);
+            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getCandleDate(), sma);
 
             // Slide window: subtract the oldest value (which will be out of window in next step)
             sum = sum.subtract(metric.extract(allSeries.get(i - period + 1)), DB_MATH_CONTEXT);
@@ -227,12 +227,12 @@ public class MarketStateCalculator {
      * where α = 2 / (Period + 1)
      * Initial Seed: The first EMA value is typically the SMA of the first 'Period' days.
      */
-    private void computeEMA(Ticker ticker, MarketDataMetricType metric, WindowPeriod maPeriod, List<MarketData> allSeries) {
+    private void computeEMA(Ticker ticker, CandleMetricType metric, WindowPeriod maPeriod, List<Candle> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
         // Find the latest EMA already in the database to resume computation
-        Optional<MarketState> latestEma = marketStateRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+        Optional<Indicator> latestEma = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
                 ticker, metric.code(), EMA.code(), period
         );
 
@@ -242,7 +242,7 @@ public class MarketStateCalculator {
 
         if (latestEma.isPresent()) {
             ema = latestEma.get().getValue();
-            LocalDate lastDate = latestEma.get().getMarketStateDate();
+            LocalDate lastDate = latestEma.get().getIndicatorDate();
             startIndex = findIndexForDate(allSeries, lastDate) + 1;
             // If up to date, skip
             if (startIndex <= 0 || startIndex >= allSeries.size()) {
@@ -256,7 +256,7 @@ public class MarketStateCalculator {
             }
             ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(period - 1), metric, EMA, period, ema);
-            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(period - 1).getMarketDataDate(), ema);
+            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(period - 1).getCandleDate(), ema);
             startIndex = period;
         }
 
@@ -271,38 +271,38 @@ public class MarketStateCalculator {
                     .add(ema, DB_MATH_CONTEXT);
 
             persist(allSeries.get(i), metric, EMA, period, ema);
-            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getMarketDataDate(), ema);
+            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getCandleDate(), ema);
             count++;
         }
         log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
     }
 
-    private int findIndexForDate(List<MarketData> allSeries, LocalDate date) {
+    private int findIndexForDate(List<Candle> allSeries, LocalDate date) {
         for (int i = 0; i < allSeries.size(); i++) {
-            if (allSeries.get(i).getMarketDataDate().isEqual(date)) {
+            if (allSeries.get(i).getCandleDate().isEqual(date)) {
                 return i;
             }
         }
         return -1;
     }
 
-    private void persist(MarketData marketData, MarketDataMetricType metric, TransformationType maType, int period, BigDecimal value) {
+    private void persist(Candle marketData, CandleMetricType metric, TransformationType maType, int period, BigDecimal value) {
         // We use findBy... to ensure idempotency and avoid duplicates if the computation is re-run for same dates
-        MarketState marketState = marketStateRepository.findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
+        Indicator marketState = indicatorRepository.findByTickerAndIndicatorDateAndMetricAndMaTypeAndPeriod(
                         marketData.getTicker(),
-                        marketData.getMarketDataDate(),
+                        marketData.getCandleDate(),
                         metric.code(),
                         maType.code(),
                         period)
-                .orElseGet(MarketState::new);
+                .orElseGet(Indicator::new);
 
         marketState.setTicker(marketData.getTicker());
-        marketState.setMarketStateDate(marketData.getMarketDataDate());
+        marketState.setIndicatorDate(marketData.getCandleDate());
         marketState.setMetric(metric.code());
         marketState.setMaType(maType.code());
         marketState.setPeriod(period);
         marketState.setValue(value);
 
-        marketStateRepository.save(marketState);
+        indicatorRepository.save(marketState);
     }
 }

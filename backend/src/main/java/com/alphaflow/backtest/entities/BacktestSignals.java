@@ -1,6 +1,6 @@
 package com.alphaflow.backtest.entities;
 
-import com.alphaflow.backtest.enums.PositionType;
+import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.infrastructure.entities.Ticker;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,20 +8,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtest_equity")
+@Table(name = "backtest_signals")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestEquity {
+public class BacktestSignals {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestEquityId;
+    private Long backtestSignalsId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
@@ -31,12 +30,13 @@ public class BacktestEquity {
     @JoinColumn(name = "backtest_strategy_id")
     private BacktestStrategy strategy;
 
-    private LocalDate equityDate;
+    private LocalDate signalDate;
 
-    private BigDecimal equity;
+    private LocalDate executeDate;
 
     @Enumerated(EnumType.STRING)
-    private PositionType position;
+    private TradeSignal action;
 
-    private BigDecimal priceClose;
+    @Column(columnDefinition = "TEXT")
+    private String signalData;
 }

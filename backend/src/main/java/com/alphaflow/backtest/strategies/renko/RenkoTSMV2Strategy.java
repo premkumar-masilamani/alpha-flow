@@ -1,14 +1,14 @@
 package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
-import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.entities.BacktestIndicator;
 import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.constants.AppConstants;
-import com.alphaflow.infrastructure.entities.RenkoData;
+import com.alphaflow.infrastructure.entities.Renko;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +37,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     public RenkoTSMV2Strategy(BacktestStrategy entity) {
         this.entity = entity;
-        for (BacktestStrategyIndicator i : entity.getIndicators()) {
+        for (BacktestIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.FILTER) {
                 this.filterIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
             } else if (i.getIndicatorRole() == IndicatorRole.MOMENTUM) {
@@ -64,7 +64,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        List<RenkoData> renkoBricks = context.renkoBricks();
+        List<Renko> renkoBricks = context.renkoBricks();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> state = context.state();
@@ -106,7 +106,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
         // Rule 3: 3-Brick Confirmation
         int size = renkoBricks.size();
-        List<RenkoData> last3Bricks = renkoBricks.subList(size - 3, size);
+        List<Renko> last3Bricks = renkoBricks.subList(size - 3, size);
         boolean last3Up = last3Bricks.stream().allMatch(b -> AppConstants.RENKO_BRICK_DIRECTION_UP.equals(b.getDirection()));
         boolean last3Down = last3Bricks.stream().allMatch(b -> AppConstants.RENKO_BRICK_DIRECTION_DOWN.equals(b.getDirection()));
 
@@ -121,12 +121,12 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
         // Entry Logic
         if (bullishRegime && last3Up && obvBullish && currentPosition != PositionType.LONG) {
-            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getMarketDataDate());
+            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getCandleDate());
             return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 
         if (bearishRegime && last3Down && obvBearish && currentPosition != PositionType.SHORT) {
-            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getMarketDataDate());
+            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getCandleDate());
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 

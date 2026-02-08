@@ -7,19 +7,19 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "market_data")
+@Table(name = "candles")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @ToString(exclude = "ticker")
-public class MarketData {
+public class Candle {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long marketDataId;
+    private Long candleId;
 
-    private LocalDate marketDataDate;
+    private LocalDate candleDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
@@ -50,7 +50,7 @@ public class MarketData {
 
     private BigDecimal totalCapital;
 
-    public MarketData merge(MarketData other) {
+    public Candle merge(Candle other) {
         this.priceOpen = other.priceOpen;
         this.priceHigh = other.priceHigh;
         this.priceLow = other.priceLow;

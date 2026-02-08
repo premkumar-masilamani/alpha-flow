@@ -7,17 +7,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "renko_data")
+@Table(name = "renko")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @ToString(exclude = "ticker")
-public class RenkoData {
+public class Renko {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long renkoDataId;
+    private Long renkoId;
 
     private LocalDate renkoDate;
 

@@ -3,10 +3,10 @@ package com.alphaflow.infrastructure.schedulers;
 import com.alphaflow.backtest.engine.CandlestickBacktester;
 import com.alphaflow.backtest.engine.RenkoBacktester;
 import com.alphaflow.backtest.services.PerformanceScorer;
-import com.alphaflow.engine.calculation.MarketDataCalculator;
-import com.alphaflow.engine.calculation.MarketStateCalculator;
-import com.alphaflow.engine.calculation.MarketStateDerivativeCalculator;
-import com.alphaflow.engine.calculation.RenkoDataCalculator;
+import com.alphaflow.engine.calculation.CandleCalculator;
+import com.alphaflow.engine.calculation.IndicatorCalculator;
+import com.alphaflow.engine.calculation.IndicatorDerivativeCalculator;
+import com.alphaflow.engine.calculation.RenkoCalculator;
 import com.alphaflow.engine.downloaders.BinanceDownloader;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import org.slf4j.Logger;
@@ -18,8 +18,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * CoreScheduler for periodic data updates.
- * This component automates the download of tick data, computation of market data metrics,
- * and calculation of market state indicators on a regular basis.
+ * This component automates the download of tick data, computation of candle metrics,
+ * and calculation of indicators on a regular basis.
  */
 @Component
 public class CoreScheduler {
@@ -28,10 +28,10 @@ public class CoreScheduler {
 
     private final BinanceDownloader binanceDownloader;
     private final YahooFinanceDownloader yahooFinanceDownloader;
-    private final MarketDataCalculator marketDataCalculator;
-    private final MarketStateCalculator marketStateCalculator;
-    private final MarketStateDerivativeCalculator marketStateDerivativeCalculator;
-    private final RenkoDataCalculator renkoDataCalculator;
+    private final CandleCalculator candleCalculator;
+    private final IndicatorCalculator indicatorCalculator;
+    private final IndicatorDerivativeCalculator indicatorDerivativeCalculator;
+    private final RenkoCalculator renkoCalculator;
     private final CandlestickBacktester candlestickBacktester;
     private final RenkoBacktester renkoBacktester;
     private final PerformanceScorer performanceScorer;
@@ -39,20 +39,20 @@ public class CoreScheduler {
     public CoreScheduler(
             BinanceDownloader binanceDownloader,
             YahooFinanceDownloader yahooFinanceDownloader,
-            MarketDataCalculator marketDataCalculator,
-            MarketStateCalculator marketStateCalculator,
-            MarketStateDerivativeCalculator marketStateDerivativeCalculator,
-            RenkoDataCalculator renkoDataCalculator,
+            CandleCalculator candleCalculator,
+            IndicatorCalculator indicatorCalculator,
+            IndicatorDerivativeCalculator indicatorDerivativeCalculator,
+            RenkoCalculator renkoCalculator,
             CandlestickBacktester candlestickBacktester,
             RenkoBacktester renkoBacktester,
             PerformanceScorer performanceScorer
     ) {
         this.binanceDownloader = binanceDownloader;
         this.yahooFinanceDownloader = yahooFinanceDownloader;
-        this.marketDataCalculator = marketDataCalculator;
-        this.marketStateCalculator = marketStateCalculator;
-        this.marketStateDerivativeCalculator = marketStateDerivativeCalculator;
-        this.renkoDataCalculator = renkoDataCalculator;
+        this.candleCalculator = candleCalculator;
+        this.indicatorCalculator = indicatorCalculator;
+        this.indicatorDerivativeCalculator = indicatorDerivativeCalculator;
+        this.renkoCalculator = renkoCalculator;
         this.candlestickBacktester = candlestickBacktester;
         this.renkoBacktester = renkoBacktester;
         this.performanceScorer = performanceScorer;
@@ -84,17 +84,17 @@ public class CoreScheduler {
             log.info("Step 1b/7: Downloading Yahoo Finance daily data...");
             yahooFinanceDownloader.download();
 
-            log.info("Step 2/7: Computing market data metrics...");
-            marketDataCalculator.calculate();
+            log.info("Step 2/7: Computing candle metrics...");
+            candleCalculator.calculate();
 
-            log.info("Step 3/7: Computing market state indicators...");
-            marketStateCalculator.calculate();
+            log.info("Step 3/7: Computing indicators...");
+            indicatorCalculator.calculate();
 
             log.info("Step 4/7: Computing capital momentum...");
-            marketStateDerivativeCalculator.calculate();
+            indicatorDerivativeCalculator.calculate();
 
             log.info("Step 5/7: Computing Renko bricks...");
-            renkoDataCalculator.calculate();
+            renkoCalculator.calculate();
 
             log.info("Step 6/7: Running Candlestick backtests...");
             candlestickBacktester.compute();

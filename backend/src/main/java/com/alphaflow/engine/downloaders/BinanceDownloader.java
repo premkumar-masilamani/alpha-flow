@@ -1,8 +1,8 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.engine.configs.BinanceConfig;
-import com.alphaflow.engine.entities.File;
-import com.alphaflow.engine.repositories.FileRepository;
+import com.alphaflow.engine.entities.DataFile;
+import com.alphaflow.engine.repositories.DataFileRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
@@ -31,12 +31,12 @@ public class BinanceDownloader {
 
     private final BinanceConfig binanceConfig;
     private final TickerRepository tickerRepository;
-    private final FileRepository fileRepository;
+    private final DataFileRepository dataFileRepository;
 
-    public BinanceDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, FileRepository fileRepository) {
+    public BinanceDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, DataFileRepository dataFileRepository) {
         this.binanceConfig = binanceConfig;
         this.tickerRepository = tickerRepository;
-        this.fileRepository = fileRepository;
+        this.dataFileRepository = dataFileRepository;
     }
 
     /**
@@ -64,8 +64,8 @@ public class BinanceDownloader {
      */
     private void downloadTickDataForTicker(Ticker ticker) {
         // Determine the start date: either the day after the last downloaded file, or the ticker's initial date.
-        LocalDate startDate = fileRepository.findTopByTickerOrderByFileDateDesc(ticker)
-                .map(file -> file.getFileDate().plusDays(1))
+        LocalDate startDate = dataFileRepository.findTopByTickerOrderByDataFileDateDesc(ticker)
+                .map(file -> file.getDataFileDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
         String tickerSymbol = ticker.getTickerSymbol();
@@ -119,16 +119,16 @@ public class BinanceDownloader {
     }
 
 
-    private void saveFileRecord(Ticker ticker, LocalDate fileDate, String fileUrl) {
+    private void saveFileRecord(Ticker ticker, LocalDate dataFileDate, String dataFileUrl) {
         try {
-            fileRepository.save(File.builder()
+            dataFileRepository.save(DataFile.builder()
                     .ticker(ticker)
-                    .fileDate(fileDate)
-                    .fileUrl(fileUrl)
+                    .dataFileDate(dataFileDate)
+                    .dataFileUrl(dataFileUrl)
                     .isProcessed(false).build());
-            log.info("Saved file for {} on {}", ticker.getTickerSymbol(), fileDate);
+            log.info("Saved file for {} on {}", ticker.getTickerSymbol(), dataFileDate);
         } catch (DataIntegrityViolationException ignore) {
-            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getTickerSymbol(), fileDate);
+            log.debug("FileRecord already exists for {} on {}. Skipped.", ticker.getTickerSymbol(), dataFileDate);
         }
     }
 

@@ -8,16 +8,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "backtest_strategy_indicators")
+@Table(name = "backtest_indicators")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestStrategyIndicator {
+public class BacktestIndicator {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestStrategyIndicatorId;
+    private Long backtestIndicatorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id", nullable = false)

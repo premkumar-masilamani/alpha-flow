@@ -1,7 +1,7 @@
 package com.alphaflow.infrastructure.generators;
 
-import com.alphaflow.infrastructure.entities.MarketData;
-import com.alphaflow.infrastructure.entities.RenkoData;
+import com.alphaflow.infrastructure.entities.Candle;
+import com.alphaflow.infrastructure.entities.Renko;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
@@ -19,11 +19,11 @@ public class RenkoBricksGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoBricksGenerator.class);
 
-    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries) {
+    public static List<Renko> generateRenkoBricks(Ticker ticker, List<Candle> allSeries) {
         return generateRenkoBricks(ticker, allSeries, RenkoPriceSource.PRICE_CLOSE);
     }
 
-    public static List<RenkoData> generateRenkoBricks(Ticker ticker, List<MarketData> allSeries, RenkoPriceSource priceSource) {
+    public static List<Renko> generateRenkoBricks(Ticker ticker, List<Candle> allSeries, RenkoPriceSource priceSource) {
         log.debug("Generating Renko bricks for {} using {}", ticker.getTickerSymbol(), priceSource);
         BigDecimal brickSize = calculateBrickSize(allSeries);
         if (brickSize.compareTo(BigDecimal.ZERO) <= 0) {
@@ -31,17 +31,17 @@ public class RenkoBricksGenerator {
             return List.of();
         }
 
-        List<RenkoData> renkoBricks = new ArrayList<>();
+        List<Renko> renkoBricks = new ArrayList<>();
         BigDecimal currentPrice = priceSource.getPrice(allSeries.getFirst());
 
-        for (MarketData row : allSeries) {
+        for (Candle row : allSeries) {
             BigDecimal price = priceSource.getPrice(row);
-            LocalDate date = row.getMarketDataDate();
+            LocalDate date = row.getCandleDate();
 
             // Up bricks
             while (price.compareTo(currentPrice.add(brickSize)) >= 0) {
                 currentPrice = currentPrice.add(brickSize);
-                renkoBricks.add(RenkoData.builder()
+                renkoBricks.add(Renko.builder()
                         .ticker(ticker)
                         .renkoDate(date)
                         .brickLow(currentPrice.subtract(brickSize))
@@ -53,7 +53,7 @@ public class RenkoBricksGenerator {
             // Down bricks
             while (price.compareTo(currentPrice.subtract(brickSize)) <= 0) {
                 currentPrice = currentPrice.subtract(brickSize);
-                renkoBricks.add(RenkoData.builder()
+                renkoBricks.add(Renko.builder()
                         .ticker(ticker)
                         .renkoDate(date)
                         .brickLow(currentPrice)
@@ -68,12 +68,12 @@ public class RenkoBricksGenerator {
         return calculateZoneTrend(removeConsecutiveDuplicates(renkoBricks));
     }
 
-    private static BigDecimal calculateBrickSize(List<MarketData> allSeries) {
+    private static BigDecimal calculateBrickSize(List<Candle> allSeries) {
         int loopbackStart = Math.max(0, allSeries.size() - RENKO_BRICK_SIZE_PERIOD);
-        List<MarketData> loopbackMarketData = allSeries.subList(loopbackStart, allSeries.size());
+        List<Candle> loopbackCandle = allSeries.subList(loopbackStart, allSeries.size());
 
         BigDecimal totalRange = BigDecimal.ZERO;
-        for (MarketData marketData : loopbackMarketData) {
+        for (Candle marketData : loopbackCandle) {
             totalRange = totalRange.add(
                     marketData.getPriceHigh().subtract(marketData.getPriceLow())
             );
@@ -83,14 +83,14 @@ public class RenkoBricksGenerator {
         return avgRange.divide(valueOf(2), DB_MATH_CONTEXT);
     }
 
-    private static List<RenkoData> removeConsecutiveDuplicates(List<RenkoData> bricks) {
+    private static List<Renko> removeConsecutiveDuplicates(List<Renko> bricks) {
         if (bricks.size() <= 1) return bricks;
-        List<RenkoData> filtered = new ArrayList<>();
+        List<Renko> filtered = new ArrayList<>();
         filtered.add(bricks.getFirst());
 
         for (int i = 1; i < bricks.size(); i++) {
-            RenkoData current = bricks.get(i);
-            RenkoData previous = filtered.getLast();
+            Renko current = bricks.get(i);
+            Renko previous = filtered.getLast();
 
             if (current.getBrickLow().compareTo(previous.getBrickLow()) != 0 ||
                     current.getBrickHigh().compareTo(previous.getBrickHigh()) != 0) {
@@ -100,13 +100,13 @@ public class RenkoBricksGenerator {
         return filtered;
     }
 
-    private static List<RenkoData> calculateZoneTrend(List<RenkoData> bricks) {
+    private static List<Renko> calculateZoneTrend(List<Renko> bricks) {
         String currentDir = RENKO_BRICK_DIRECTION_UP; // The first renko brick is always up.
         int previousUptrend = 0;
         int previousDowntrend = 0;
         int trend = 0;
 
-        for (RenkoData brick : bricks) {
+        for (Renko brick : bricks) {
             if (brick.getDirection().equals(currentDir)) {
                 trend++;
             } else {

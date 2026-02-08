@@ -1,10 +1,10 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.engine.configs.YahooFinanceConfig;
-import com.alphaflow.infrastructure.entities.MarketData;
+import com.alphaflow.infrastructure.entities.Candle;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
-import com.alphaflow.infrastructure.repositories.MarketDataRepository;
+import com.alphaflow.infrastructure.repositories.CandleRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,18 +31,18 @@ public class YahooFinanceDownloader {
 
     private final YahooFinanceConfig yahooFinanceConfig;
     private final TickerRepository tickerRepository;
-    private final MarketDataRepository marketDataRepository;
+    private final CandleRepository candleRepository;
     private final ObjectMapper objectMapper;
 
     public YahooFinanceDownloader(
             YahooFinanceConfig yahooFinanceConfig,
             TickerRepository tickerRepository,
-            MarketDataRepository marketDataRepository,
+            CandleRepository candleRepository,
             ObjectMapper objectMapper
     ) {
         this.yahooFinanceConfig = yahooFinanceConfig;
         this.tickerRepository = tickerRepository;
-        this.marketDataRepository = marketDataRepository;
+        this.candleRepository = candleRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -58,8 +58,8 @@ public class YahooFinanceDownloader {
     }
 
     private void downloadDataForTicker(Ticker ticker) {
-        LocalDate startDate = marketDataRepository.findTopByTickerOrderByMarketDataDateDesc(ticker)
-                .map(md -> md.getMarketDataDate().plusDays(1))
+        LocalDate startDate = candleRepository.findTopByTickerOrderByCandleDateDesc(ticker)
+                .map(md -> md.getCandleDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
         long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
@@ -82,9 +82,9 @@ public class YahooFinanceDownloader {
                 .replace("{end}", String.valueOf(endTs));
 
         try {
-            List<MarketData> marketDataList = fetchAndParseJson(url, ticker);
+            List<Candle> marketDataList = fetchAndParseJson(url, ticker);
             if (!marketDataList.isEmpty()) {
-                marketDataRepository.saveAll(marketDataList);
+                candleRepository.saveAll(marketDataList);
                 log.info("Successfully synced {} rows for {}", marketDataList.size(), ticker.getTickerSymbol());
             }
         } catch (Exception e) {
@@ -92,7 +92,7 @@ public class YahooFinanceDownloader {
         }
     }
 
-    private List<MarketData> fetchAndParseJson(String url, Ticker ticker) throws IOException {
+    private List<Candle> fetchAndParseJson(String url, Ticker ticker) throws IOException {
         URLConnection connection = URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
@@ -119,7 +119,7 @@ public class YahooFinanceDownloader {
             JsonNode closes = indicators.path("close");
             JsonNode volumes = indicators.path("volume");
 
-            List<MarketData> list = new ArrayList<>();
+            List<Candle> list = new ArrayList<>();
             for (int i = 0; i < timestamps.size(); i++) {
                 if (opens.get(i).isNull() || highs.get(i).isNull() || lows.get(i).isNull() || closes.get(i).isNull()) {
                     continue;
@@ -134,9 +134,9 @@ public class YahooFinanceDownloader {
                 BigDecimal close = closes.get(i).decimalValue();
                 BigDecimal volume = volumes.get(i).decimalValue();
 
-                list.add(MarketData.builder()
+                list.add(Candle.builder()
                         .ticker(ticker)
-                        .marketDataDate(date)
+                        .candleDate(date)
                         .priceOpen(open)
                         .priceHigh(high)
                         .priceLow(low)

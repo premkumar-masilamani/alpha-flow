@@ -1,7 +1,7 @@
 package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.RenkoResponseDTO;
-import com.alphaflow.api.services.RenkoDataService;
+import com.alphaflow.api.services.RenkoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,19 +11,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
-public class RenkoDataController {
+public class RenkoController {
 
-    private static final Logger log = LoggerFactory.getLogger(RenkoDataController.class);
+    private static final Logger log = LoggerFactory.getLogger(RenkoController.class);
 
-    private final RenkoDataService renkoDataService;
+    private final RenkoService renkoService;
 
-    public RenkoDataController(RenkoDataService renkoDataService) {
-        this.renkoDataService = renkoDataService;
+    public RenkoController(RenkoService renkoService) {
+        this.renkoService = renkoService;
     }
 
     @GetMapping("/tickers/{symbol}/renko")
-    public RenkoResponseDTO getRenkoDataForTicker(@PathVariable String symbol) {
+    public RenkoResponseDTO getRenkoForTicker(@PathVariable String symbol) {
         log.info("Request to get renko data for ticker: {}", symbol);
-        return renkoDataService.getRenkoData(symbol);
+        return renkoService.getRenko(symbol);
     }
 }

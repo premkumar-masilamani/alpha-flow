@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {type BacktestSignal, getBacktestSignals, getMarketData, getRenkoData, getTickers, type MarketData, type RenkoData, type Ticker} from './services/api';
+import {type BacktestSignals, getBacktestSignals, getCandles, getRenkoData, getTickers, type Candle, type RenkoData, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
@@ -11,9 +11,9 @@ const TABS = ['Candlestick', 'Renko'];
 function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-    const [marketData, setMarketData] = useState<MarketData[]>([]);
+    const [candles, setCandles] = useState<Candle[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [signals, setSignals] = useState<Record<string, BacktestSignal[]>>({});
+    const [signals, setSignals] = useState<Record<string, BacktestSignals[]>>({});
     const [selectedStrategy, setSelectedStrategy] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
@@ -40,18 +40,18 @@ function App() {
                 setLoading(true);
                 try {
                     const [mData, rData, sData] = await Promise.all([
-                        getMarketData(selectedTicker),
+                        getCandles(selectedTicker),
                         getRenkoData(selectedTicker),
                         getBacktestSignals(selectedTicker)
                     ]);
-                    setMarketData(mData);
+                    setCandles(mData);
                     setRenkoData(rData);
                     setSignals(sData);
                     const strategyNames = Object.keys(sData);
                     setSelectedStrategy(strategyNames.length > 0 ? strategyNames[0] : '');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
-                    setMarketData([]);
+                    setCandles([]);
                     setRenkoData(null);
                     setSignals({});
                     setSelectedStrategy('');
@@ -72,7 +72,7 @@ function App() {
             );
         }
 
-        const hasMarketData = marketData.length > 0;
+        const hasCandles = candles.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
         const strategies = Object.keys(signals);
         const currentSignals = signals[selectedStrategy] || [];
@@ -133,9 +133,9 @@ function App() {
                             </div>
                         )
                     ) : activeTab === 'Candlestick' ? (
-                        hasMarketData ? (
+                        hasCandles ? (
                             <Chart
-                                data={marketData}
+                                data={candles}
                                 signals={currentSignals}
                                 selectedStrategy={selectedStrategy}
                             />

@@ -1,18 +1,18 @@
 package com.alphaflow.backtest.strategies;
 
 import com.alphaflow.backtest.enums.PositionType;
-import com.alphaflow.infrastructure.entities.MarketData;
-import com.alphaflow.infrastructure.entities.RenkoData;
+import com.alphaflow.infrastructure.entities.Candle;
+import com.alphaflow.infrastructure.entities.Renko;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
 public record StrategyContext(
-        MarketData marketData,
+        Candle marketData,
         Map<String, BigDecimal> indicators,
         PositionType currentPosition,
-        List<RenkoData> renkoBricks,
+        List<Renko> renkoBricks,
         Map<String, Object> state
 ) {
 }

@@ -9,7 +9,7 @@ export interface Ticker {
     type: 'CRYPTO' | 'STOCKS' | 'COMMODITY';
 }
 
-export interface MarketData {
+export interface Candle {
     date: string;
     open: number;
     high: number;
@@ -40,7 +40,8 @@ export interface RenkoData {
     brick_size: number;
 }
 
-export interface BacktestSignal {
+export interface BacktestSignalss {
+    strategy: string;
     date: string;
     action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT';
 }
@@ -51,39 +52,39 @@ export const getTickers = async (): Promise<Ticker[]> => {
 };
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
-const marketDataCache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
-const renkoDataCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
-const signalDataCache: { [symbol: string]: { data: Record<string, BacktestSignal[]>; timestamp: number } } = {};
+const candleCache: { [symbol: string]: { data: Candle[]; timestamp: number } } = {};
+const renkoCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
+const signalsCache: { [symbol: string]: { data: Record<string, BacktestSignalss[]>; timestamp: number } } = {};
 
-export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
+export const getCandles = async (symbol: string): Promise<Candle[]> => {
     const now = Date.now();
-    if (marketDataCache[symbol] && (now - marketDataCache[symbol].timestamp < CACHE_DURATION)) {
-        return marketDataCache[symbol].data;
+    if (candleCache[symbol] && (now - candleCache[symbol].timestamp < CACHE_DURATION)) {
+        return candleCache[symbol].data;
     }
 
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
-    marketDataCache[symbol] = {data: response.data, timestamp: now};
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/candles`);
+    candleCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };
 
 export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
     const now = Date.now();
-    if (renkoDataCache[symbol] && (now - renkoDataCache[symbol].timestamp < CACHE_DURATION)) {
-        return renkoDataCache[symbol].data;
+    if (renkoCache[symbol] && (now - renkoCache[symbol].timestamp < CACHE_DURATION)) {
+        return renkoCache[symbol].data;
     }
 
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/renko`);
-    renkoDataCache[symbol] = {data: response.data, timestamp: now};
+    renkoCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };
 
-export const getBacktestSignals = async (symbol: string): Promise<Record<string, BacktestSignal[]>> => {
+export const getBacktestSignals = async (symbol: string): Promise<Record<string, BacktestSignalss[]>> => {
     const now = Date.now();
-    if (signalDataCache[symbol] && (now - signalDataCache[symbol].timestamp < CACHE_DURATION)) {
-        return signalDataCache[symbol].data;
+    if (signalsCache[symbol] && (now - signalsCache[symbol].timestamp < CACHE_DURATION)) {
+        return signalsCache[symbol].data;
     }
 
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/signals`);
-    signalDataCache[symbol] = {data: response.data, timestamp: now};
+    signalsCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };

@@ -5,8 +5,8 @@ import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldRiskOverlayStrategy;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldStrategy;
 import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
-import com.alphaflow.infrastructure.repositories.MarketDataRepository;
-import com.alphaflow.infrastructure.repositories.MarketStateRepository;
+import com.alphaflow.infrastructure.repositories.CandleRepository;
+import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,22 +23,22 @@ public class CandlestickBacktester extends AbstractBacktester {
 
     public CandlestickBacktester(
             TickerRepository tickerRepository,
-            MarketDataRepository marketDataRepository,
-            MarketStateRepository marketStateRepository,
-            BacktestEquityRepository backtestEquityRepository,
-            BacktestSignalRepository backtestSignalRepository,
-            BacktestTradeRepository backtestTradeRepository,
+            CandleRepository candleRepository,
+            IndicatorRepository indicatorRepository,
+            BacktestEquitiesRepository backtestEquitiesRepository,
+            BacktestSignalsRepository backtestSignalsRepository,
+            BacktestTradesRepository backtestTradesRepository,
             BacktestResultRepository backtestResultRepository,
             BacktestStrategyRepository backtestStrategyRepository,
             TransactionTemplate transactionTemplate
     ) {
         super(
                 tickerRepository,
-                marketDataRepository,
-                marketStateRepository,
-                backtestEquityRepository,
-                backtestSignalRepository,
-                backtestTradeRepository,
+                candleRepository,
+                indicatorRepository,
+                backtestEquitiesRepository,
+                backtestSignalsRepository,
+                backtestTradesRepository,
                 backtestResultRepository,
                 backtestStrategyRepository,
                 new ArrayList<>(),

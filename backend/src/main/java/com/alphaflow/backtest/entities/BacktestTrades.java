@@ -12,16 +12,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtest_trade")
+@Table(name = "backtest_trades")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestTrade {
+public class BacktestTrades {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestTradeId;
+    private Long backtestTradesId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")

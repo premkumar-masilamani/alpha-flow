@@ -1,11 +1,11 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, ISeriesApi, Time,} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, HistogramSeries,} from 'lightweight-charts';
-import type {BacktestSignal, MarketData} from '../services/api';
+import type {BacktestSignals, Candle} from '../services/api';
 
 interface ChartProps {
-    data: MarketData[];
-    signals: BacktestSignal[];
+    data: Candle[];
+    signals: BacktestSignals[];
     selectedStrategy: string;
 }
 

@@ -7,19 +7,19 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "market_state")
+@Table(name = "indicators")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @ToString(exclude = "ticker")
-public class MarketState {
+public class Indicator {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long marketStateId;
+    private Long indicatorId;
 
-    private LocalDate marketStateDate;
+    private LocalDate indicatorDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")
