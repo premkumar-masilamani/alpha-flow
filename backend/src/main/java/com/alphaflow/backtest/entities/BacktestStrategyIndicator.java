@@ -1,5 +1,6 @@
 package com.alphaflow.backtest.entities;
 
+import com.alphaflow.backtest.enums.IndicatorRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,13 +23,14 @@ public class BacktestStrategyIndicator {
     @JoinColumn(name = "backtest_strategy_id", nullable = false)
     private BacktestStrategy backtestStrategy;
 
-    @Column(name = "indicator_role", nullable = false, length = 100)
-    private String indicatorRole;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private IndicatorRole indicatorRole;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false)
     private String metric;
 
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false)
     private String transformation;
 
     @Column(nullable = false)

@@ -2,6 +2,7 @@ package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -13,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,37 +31,39 @@ public class RenkoPPStrategy implements RenkoStrategy {
     private static final String PREV_SHORT_SPREAD_SHORT = "PREV_SHORT_SPREAD_SHORT";
     private static final String PREV_LONG_SPREAD_SHORT = "PREV_LONG_SPREAD_SHORT";
 
+    private Map<Integer, String> gmmaKeys = new HashMap<>();
+
+    private BacktestStrategy entity;
+
+    public RenkoPPStrategy() {
+    }
+
+    public RenkoPPStrategy(BacktestStrategy entity) {
+        this.entity = entity;
+        for (BacktestStrategyIndicator i : entity.getIndicators()) {
+            if (i.getIndicatorRole() == IndicatorRole.GMMA) {
+                gmmaKeys.put(i.getPeriod(), i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod());
+            }
+        }
+    }
+
+    private String getGmmaKey(int period) {
+        return gmmaKeys.getOrDefault(period, "P_CLOSE_EMA_" + period);
+    }
+
     @Override
     public String getName() {
-        return "Renko PP";
+        return entity != null ? entity.getName() : "Renko PP";
+    }
+
+    @Override
+    public BacktestStrategy getEntity() {
+        return entity;
     }
 
     @Override
     public RenkoPriceSource getPriceSource() {
         return RenkoPriceSource.PRICE_CLOSE;
-    }
-
-    @Override
-    public BacktestStrategy getEntity() {
-        BacktestStrategy strategy = BacktestStrategy.builder()
-                .name(getName())
-                .strategyType("RENKO_PP")
-                .priceSource(RenkoPriceSource.PRICE_CLOSE)
-                .build();
-
-        List<BacktestStrategyIndicator> indicators = new ArrayList<>();
-        int[] periods = {3, 5, 8, 10, 12, 15, 30, 35, 40, 45, 50, 60};
-        for (int p : periods) {
-            indicators.add(BacktestStrategyIndicator.builder()
-                    .backtestStrategy(strategy)
-                    .indicatorRole("GMMA")
-                    .metric("P_CLOSE")
-                    .transformation("EMA")
-                    .period(p)
-                    .build());
-        }
-        strategy.setIndicators(indicators);
-        return strategy;
     }
 
     @Override
@@ -82,18 +84,18 @@ public class RenkoPPStrategy implements RenkoStrategy {
         BigDecimal priceClose = context.marketData().getPriceClose();
 
         // GMMA EMAs
-        BigDecimal ema3 = indicators.get("P_CLOSE_EMA_3");
-        BigDecimal ema5 = indicators.get("P_CLOSE_EMA_5");
-        BigDecimal ema8 = indicators.get("P_CLOSE_EMA_8");
-        BigDecimal ema10 = indicators.get("P_CLOSE_EMA_10");
-        BigDecimal ema12 = indicators.get("P_CLOSE_EMA_12");
-        BigDecimal ema15 = indicators.get("P_CLOSE_EMA_15");
-        BigDecimal ema30 = indicators.get("P_CLOSE_EMA_30");
-        BigDecimal ema35 = indicators.get("P_CLOSE_EMA_35");
-        BigDecimal ema40 = indicators.get("P_CLOSE_EMA_40");
-        BigDecimal ema45 = indicators.get("P_CLOSE_EMA_45");
-        BigDecimal ema50 = indicators.get("P_CLOSE_EMA_50");
-        BigDecimal ema60 = indicators.get("P_CLOSE_EMA_60");
+        BigDecimal ema3 = indicators.get(getGmmaKey(3));
+        BigDecimal ema5 = indicators.get(getGmmaKey(5));
+        BigDecimal ema8 = indicators.get(getGmmaKey(8));
+        BigDecimal ema10 = indicators.get(getGmmaKey(10));
+        BigDecimal ema12 = indicators.get(getGmmaKey(12));
+        BigDecimal ema15 = indicators.get(getGmmaKey(15));
+        BigDecimal ema30 = indicators.get(getGmmaKey(30));
+        BigDecimal ema35 = indicators.get(getGmmaKey(35));
+        BigDecimal ema40 = indicators.get(getGmmaKey(40));
+        BigDecimal ema45 = indicators.get(getGmmaKey(45));
+        BigDecimal ema50 = indicators.get(getGmmaKey(50));
+        BigDecimal ema60 = indicators.get(getGmmaKey(60));
 
         if (ema3 == null || ema5 == null || ema8 == null || ema10 == null || ema12 == null || ema15 == null ||
                 ema30 == null || ema35 == null || ema40 == null || ema45 == null || ema50 == null || ema60 == null) {

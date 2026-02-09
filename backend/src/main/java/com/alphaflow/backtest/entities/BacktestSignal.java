@@ -23,23 +23,20 @@ public class BacktestSignal {
     private Long backtestSignalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id", nullable = false)
+    @JoinColumn(name = "ticker_id")
     private Ticker ticker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id")
-    private BacktestStrategy backtestStrategy;
+    private BacktestStrategy strategy;
 
-    @Column(name = "signal_date", nullable = false)
     private LocalDate signalDate;
 
-    @Column(name = "execute_date")
     private LocalDate executeDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
     private TradeSignal action;
 
-    @Column(name = "signal_data", columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT")
     private String signalData;
 }

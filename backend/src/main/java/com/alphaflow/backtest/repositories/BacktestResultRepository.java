@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface BacktestResultRepository extends JpaRepository<BacktestResult, Long> {
-    void deleteByTickerAndBacktestStrategy(Ticker ticker, BacktestStrategy backtestStrategy);
+    void deleteByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
 
     @Modifying
     @Query(value = """

@@ -1,12 +1,9 @@
 package com.alphaflow.backtest.entities;
 
-import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -15,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = "indicators")
 public class BacktestStrategy {
 
     @Id
@@ -24,13 +22,12 @@ public class BacktestStrategy {
     @Column(unique = true, nullable = false)
     private String name;
 
-    @Column(name = "strategy_type", nullable = false, length = 100)
+    @Column(nullable = false)
     private String strategyType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "price_source", length = 50)
-    private RenkoPriceSource priceSource;
+    private String priceSource;
 
-    @OneToMany(mappedBy = "backtestStrategy", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<BacktestStrategyIndicator> indicators;
+    @OneToMany(mappedBy = "backtestStrategy", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Builder.Default
+    private List<BacktestStrategyIndicator> indicators = new ArrayList<>();
 }

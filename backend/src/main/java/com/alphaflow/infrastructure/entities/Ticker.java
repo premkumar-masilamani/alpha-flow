@@ -1,6 +1,7 @@
 package com.alphaflow.infrastructure.entities;
 
 import com.alphaflow.infrastructure.enums.DataSource;
+import com.alphaflow.infrastructure.enums.TickerType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,22 +22,19 @@ public class Ticker {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long tickerId;
 
-    @Column(name = "ticker_date", nullable = false)
     private LocalDate tickerDate;
 
-    @Column(name = "ticker_symbol", unique = true, nullable = false)
     private String tickerSymbol;
 
-    @Column(name = "ticker_name", nullable = false)
     private String tickerName;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
     private DataSource source = DataSource.BINANCE;
 
-    @Column(name = "is_active", nullable = false)
-    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    private TickerType tickerType;
+
     private boolean isActive = true;
 
 }

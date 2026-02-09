@@ -38,7 +38,7 @@ public class BacktestService {
 
     private BacktestSignalDTO mapToSignalDTO(BacktestSignal signal) {
         return BacktestSignalDTO.builder()
-                .strategyName(signal.getBacktestStrategy() != null ? signal.getBacktestStrategy().getName() : "Unknown")
+                .strategyName(signal.getStrategy().getName())
                 .signalDate(signal.getSignalDate())
                 .action(signal.getAction())
                 .build();
