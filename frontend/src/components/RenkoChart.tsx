@@ -127,15 +127,11 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
         }));
 
         // Plot signal markers
-        const filteredSignals = selectedStrategy === 'All'
-            ? signals
-            : signals.filter(s => s.strategyName === selectedStrategy);
-
-        const signalMarkers: any[] = filteredSignals.flatMap(s => {
+        const signalMarkers: any[] = signals.flatMap(s => {
             // Find the index of the last brick on this date
             let brickIndex = -1;
             for (let j = data.bricks.length - 1; j >= 0; j--) {
-                if (data.bricks[j].date === s.signalDate) {
+                if (data.bricks[j].date === s.date) {
                     brickIndex = j;
                     break;
                 }

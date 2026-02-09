@@ -13,8 +13,8 @@ function App() {
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [marketData, setMarketData] = useState<MarketData[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [signals, setSignals] = useState<BacktestSignal[]>([]);
-    const [selectedStrategy, setSelectedStrategy] = useState<string>('All');
+    const [signals, setSignals] = useState<Record<string, BacktestSignal[]>>({});
+    const [selectedStrategy, setSelectedStrategy] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
 
@@ -47,13 +47,14 @@ function App() {
                     setMarketData(mData);
                     setRenkoData(rData);
                     setSignals(sData);
-                    setSelectedStrategy('All');
+                    const strategyNames = Object.keys(sData);
+                    setSelectedStrategy(strategyNames.length > 0 ? strategyNames[0] : '');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
                     setMarketData([]);
                     setRenkoData(null);
-                    setSignals([]);
-                    setSelectedStrategy('All');
+                    setSignals({});
+                    setSelectedStrategy('');
                 } finally {
                     setLoading(false);
                 }
@@ -73,7 +74,8 @@ function App() {
 
         const hasMarketData = marketData.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = ['All', ...new Set(signals.map(s => s.strategy))];
+        const strategies = Object.keys(signals);
+        const currentSignals = signals[selectedStrategy] || [];
 
         return (
             <>
@@ -122,7 +124,7 @@ function App() {
                         hasRenkoData ? (
                             <RenkoChart
                                 data={renkoData!}
-                                signals={signals}
+                                signals={currentSignals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
@@ -134,7 +136,7 @@ function App() {
                         hasMarketData ? (
                             <Chart
                                 data={marketData}
-                                signals={signals}
+                                signals={currentSignals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
