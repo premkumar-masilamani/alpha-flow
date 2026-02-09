@@ -6,6 +6,7 @@ export interface Ticker {
     id: number;
     symbol: string;
     name: string;
+    type: 'CRYPTO' | 'STOCKS' | 'COMMODITY';
 }
 
 export interface MarketData {

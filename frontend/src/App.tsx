@@ -24,7 +24,8 @@ function App() {
                 const data = await getTickers();
                 setTickers(data);
                 if (data.length > 0) {
-                    setSelectedTicker(data[0].symbol);
+                    const btcUsd = data.find(t => t.symbol === 'BTC-USD');
+                    setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
                 }
             } catch (error) {
                 console.error('Failed to fetch tickers:', error);
