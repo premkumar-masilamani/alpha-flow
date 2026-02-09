@@ -9,7 +9,7 @@ public class TickerMapper {
                 .tickerId(tickerEntity.getTickerId())
                 .tickerSymbol(tickerEntity.getTickerSymbol())
                 .tickerName(tickerEntity.getTickerName())
-                .tickerType(tickerEntity.getTickerType() != null ? tickerEntity.getTickerType().name() : null)
+                .tickerType(tickerEntity.getTickerType().name())
                 .build();
     }
 }
