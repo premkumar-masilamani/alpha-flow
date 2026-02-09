@@ -21,13 +21,17 @@ public class File {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long fileId;
 
+    @Column(name = "file_date", nullable = false)
     private LocalDate fileDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id")
+    @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
 
+    @Column(name = "file_url", nullable = false)
     private String fileUrl;
 
+    @Column(name = "is_processed", nullable = false)
+    @Builder.Default
     private Boolean isProcessed = false;
 }

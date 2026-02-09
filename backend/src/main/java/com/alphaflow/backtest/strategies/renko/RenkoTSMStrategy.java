@@ -2,7 +2,6 @@ package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
-import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
@@ -37,32 +36,8 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     private final String momentumIndicatorKey;
     private final String momentumIndicatorPrevKey;
 
-    private BacktestStrategy entity;
-
     public RenkoTSMStrategy() {
         this(RenkoPriceSource.PRICE_CLOSE, TransformationType.SMA, WindowPeriod.TEN_DAYS, MarketDataMetricType.OBV);
-    }
-
-    public RenkoTSMStrategy(BacktestStrategy entity) {
-        this.entity = entity;
-        this.priceSource = RenkoPriceSource.valueOf(entity.getPriceSource());
-
-        BacktestStrategyIndicator maIndicator = entity.getIndicators().stream()
-                .filter(i -> IndicatorRole.MA == i.getIndicatorRole())
-                .findFirst()
-                .orElseThrow();
-        this.maType = TransformationType.valueOf(maIndicator.getTransformation());
-        this.maPeriod = WindowPeriod.fromDays(maIndicator.getPeriod());
-
-        BacktestStrategyIndicator momentumIndicator = entity.getIndicators().stream()
-                .filter(i -> IndicatorRole.MOMENTUM == i.getIndicatorRole())
-                .findFirst()
-                .orElseThrow();
-        this.momentumMetric = MarketDataMetricType.valueOf(momentumIndicator.getMetric());
-
-        this.maIndicatorKey = priceSource.code() + "_" + maType.code() + "_" + maPeriod.days();
-        this.momentumIndicatorKey = momentumMetric.code() + "_" + momentumMetric.code() + "_0";
-        this.momentumIndicatorPrevKey = "PREV_" + this.momentumIndicatorKey;
     }
 
     public RenkoTSMStrategy(RenkoPriceSource priceSource, TransformationType maType, WindowPeriod maPeriod, MarketDataMetricType momentumMetric) {
@@ -78,18 +53,10 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
     @Override
     public String getName() {
-        if (entity != null) {
-            return entity.getName();
-        }
         if (isDefault()) {
             return "Renko TSM";
         }
         return String.format("Renko TSM %s %s %d %s", priceSource, maType, maPeriod.days(), momentumMetric);
-    }
-
-    @Override
-    public BacktestStrategy getEntity() {
-        return entity;
     }
 
     private boolean isDefault() {
@@ -104,16 +71,33 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         return priceSource;
     }
 
-    public TransformationType getMaType() {
-        return maType;
-    }
+    @Override
+    public BacktestStrategy getEntity() {
+        BacktestStrategy strategy = BacktestStrategy.builder()
+                .name(getName())
+                .strategyType("RENKO_TSM")
+                .priceSource(priceSource)
+                .build();
 
-    public WindowPeriod getMaPeriod() {
-        return maPeriod;
-    }
+        List<BacktestStrategyIndicator> indicators = List.of(
+                BacktestStrategyIndicator.builder()
+                        .backtestStrategy(strategy)
+                        .indicatorRole("MA")
+                        .metric(priceSource.code())
+                        .transformation(maType.code())
+                        .period(maPeriod.days())
+                        .build(),
+                BacktestStrategyIndicator.builder()
+                        .backtestStrategy(strategy)
+                        .indicatorRole("MOMENTUM")
+                        .metric(momentumMetric.code())
+                        .transformation(momentumMetric.code())
+                        .period(0)
+                        .build()
+        );
 
-    public MarketDataMetricType getMomentumMetric() {
-        return momentumMetric;
+        strategy.setIndicators(indicators);
+        return strategy;
     }
 
     @Override

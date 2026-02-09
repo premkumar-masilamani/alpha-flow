@@ -24,19 +24,23 @@ public class BacktestEquity {
     private Long backtestEquityId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id")
+    @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id")
-    private BacktestStrategy strategy;
+    private BacktestStrategy backtestStrategy;
 
+    @Column(name = "equity_date", nullable = false)
     private LocalDate equityDate;
 
+    @Column(nullable = false, precision = 28, scale = 8)
     private BigDecimal equity;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 50)
     private PositionType position;
 
+    @Column(name = "price_close", nullable = false, precision = 28, scale = 8)
     private BigDecimal priceClose;
 }

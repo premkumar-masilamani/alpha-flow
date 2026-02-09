@@ -25,7 +25,7 @@ public class BacktestService {
         this.tickerRepository = tickerRepository;
     }
 
-    public List<BacktestSignalDTO> getSignalsByTicker(String symbol) {
+    public java.util.Map<String, List<BacktestSignalDTO>> getSignalsByTicker(String symbol) {
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
@@ -33,12 +33,12 @@ public class BacktestService {
 
         return backtestSignalRepository.findByTickerAndActionIn(ticker, relevantActions).stream()
                 .map(this::mapToSignalDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.groupingBy(BacktestSignalDTO::strategyName));
     }
 
     private BacktestSignalDTO mapToSignalDTO(BacktestSignal signal) {
         return BacktestSignalDTO.builder()
-                .strategyName(signal.getStrategy().getName())
+                .strategyName(signal.getBacktestStrategy() != null ? signal.getBacktestStrategy().getName() : "Unknown")
                 .signalDate(signal.getSignalDate())
                 .action(signal.getAction())
                 .build();

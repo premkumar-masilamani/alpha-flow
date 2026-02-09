@@ -9,7 +9,5 @@ public interface Strategy {
 
     TradeAction generateSignal(StrategyContext strategyContext);
 
-    default BacktestStrategy getEntity() {
-        return null;
-    }
+    BacktestStrategy getEntity();
 }

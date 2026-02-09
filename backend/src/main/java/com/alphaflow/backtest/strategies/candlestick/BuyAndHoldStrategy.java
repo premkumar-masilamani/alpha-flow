@@ -9,28 +9,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+
 @Component
 public class BuyAndHoldStrategy implements CandlestickStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(BuyAndHoldStrategy.class);
 
-    private BacktestStrategy entity;
-
-    public BuyAndHoldStrategy() {
-    }
-
-    public BuyAndHoldStrategy(BacktestStrategy entity) {
-        this.entity = entity;
-    }
-
     @Override
     public String getName() {
-        return entity != null ? entity.getName() : "Buy & Hold";
+        return "Buy & Hold";
     }
 
     @Override
     public BacktestStrategy getEntity() {
-        return entity;
+        return BacktestStrategy.builder()
+                .name(getName())
+                .strategyType("CANDLESTICK_B&H")
+                .indicators(Collections.emptyList())
+                .build();
     }
 
     @Override

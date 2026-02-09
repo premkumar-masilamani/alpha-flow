@@ -7,7 +7,6 @@ import lombok.Builder;
 public record TickerDTO(
         @JsonProperty("id") Long tickerId,
         @JsonProperty("symbol") String tickerSymbol,
-        @JsonProperty("name") String tickerName,
-        @JsonProperty("type") String tickerType
+        @JsonProperty("name") String tickerName
 ) {
 }

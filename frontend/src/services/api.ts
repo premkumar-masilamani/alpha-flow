@@ -6,7 +6,6 @@ export interface Ticker {
     id: number;
     symbol: string;
     name: string;
-    type: 'CRYPTO' | 'STOCKS' | 'COMMODITY';
 }
 
 export interface MarketData {
@@ -41,9 +40,12 @@ export interface RenkoData {
 }
 
 export interface BacktestSignal {
-    strategy: string;
     date: string;
     action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT';
+}
+
+export interface BacktestSignalsMap {
+    [strategy: string]: BacktestSignal[];
 }
 
 export const getTickers = async (): Promise<Ticker[]> => {
@@ -54,7 +56,7 @@ export const getTickers = async (): Promise<Ticker[]> => {
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 const marketDataCache: { [symbol: string]: { data: MarketData[]; timestamp: number } } = {};
 const renkoDataCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
-const signalDataCache: { [symbol: string]: { data: BacktestSignal[]; timestamp: number } } = {};
+const signalDataCache: { [symbol: string]: { data: BacktestSignalsMap; timestamp: number } } = {};
 
 export const getMarketData = async (symbol: string): Promise<MarketData[]> => {
     const now = Date.now();
@@ -78,7 +80,7 @@ export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
     return response.data;
 };
 
-export const getBacktestSignals = async (symbol: string): Promise<BacktestSignal[]> => {
+export const getBacktestSignals = async (symbol: string): Promise<BacktestSignalsMap> => {
     const now = Date.now();
     if (signalDataCache[symbol] && (now - signalDataCache[symbol].timestamp < CACHE_DURATION)) {
         return signalDataCache[symbol].data;
