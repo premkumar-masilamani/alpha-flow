@@ -29,7 +29,7 @@ public class BacktestTrade {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id")
-    private BacktestStrategy backtestStrategy;
+    private BacktestStrategy strategy;
 
     @Enumerated(EnumType.STRING)
     private PositionType side;

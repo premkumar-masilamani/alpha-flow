@@ -11,7 +11,7 @@ import java.util.List;
 
 @Repository
 public interface BacktestSignalRepository extends JpaRepository<BacktestSignal, Long> {
-    void deleteByTickerAndBacktestStrategy(Ticker ticker, BacktestStrategy backtestStrategy);
+    void deleteByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
 
     List<BacktestSignal> findByTickerAndActionIn(Ticker ticker, List<TradeSignal> actions);
 }

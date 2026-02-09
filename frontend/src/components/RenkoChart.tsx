@@ -1,11 +1,11 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries} from 'lightweight-charts';
-import type {BacktestSignal, BacktestSignalsMap, RenkoData} from '../services/api';
+import type {BacktestSignal, RenkoData} from '../services/api';
 
 interface RenkoChartProps {
     data: RenkoData;
-    signals: BacktestSignalsMap;
+    signals: BacktestSignal[];
     selectedStrategy: string;
 }
 
@@ -127,20 +127,15 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
         }));
 
         // Plot signal markers
-        const filteredSignals: BacktestSignal[] = [];
-        if (selectedStrategy === 'All') {
-            Object.values(signals).forEach(stratSignals => {
-                filteredSignals.push(...stratSignals);
-            });
-        } else if (signals[selectedStrategy]) {
-            filteredSignals.push(...signals[selectedStrategy]);
-        }
+        const filteredSignals = selectedStrategy === 'All'
+            ? signals
+            : signals.filter(s => s.strategyName === selectedStrategy);
 
         const signalMarkers: any[] = filteredSignals.flatMap(s => {
             // Find the index of the last brick on this date
             let brickIndex = -1;
             for (let j = data.bricks.length - 1; j >= 0; j--) {
-                if (data.bricks[j].date === s.date) {
+                if (data.bricks[j].date === s.signalDate) {
                     brickIndex = j;
                     break;
                 }
@@ -149,9 +144,9 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
 
             return {
                 time: brickIndex as unknown as Time,
-                position: (s.action === 'ENTER_SHORT' ? 'aboveBar' : 'belowBar') as any,
+                position: s.action === 'ENTER_LONG' ? 'belowBar' : (s.action === 'ENTER_SHORT' ? 'aboveBar' : 'belowBar') as any,
                 color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
-                shape: (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,
+                shape: s.action === 'ENTER_LONG' ? 'arrowUp' : (s.action === 'ENTER_SHORT' ? 'arrowDown' : 'arrowUp') as any,
                 text: s.action.replace('ENTER_', ''),
                 size: 2,
             };
@@ -163,10 +158,8 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
 
         if (seriesMarkersRef.current) {
             seriesMarkersRef.current.setMarkers(allMarkers);
-        } else if (allMarkers.length > 0) {
-            const markers = createSeriesMarkers(candlestickSeriesRef.current, allMarkers as any);
-            (candlestickSeriesRef.current as any).attachPrimitive(markers);
-            seriesMarkersRef.current = markers;
+        } else {
+            seriesMarkersRef.current = createSeriesMarkers(candlestickSeriesRef.current, allMarkers);
         }
 
         // Remove old price lines if they exist

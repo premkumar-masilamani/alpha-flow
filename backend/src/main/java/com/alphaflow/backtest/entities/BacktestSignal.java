@@ -28,7 +28,7 @@ public class BacktestSignal {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id")
-    private BacktestStrategy backtestStrategy;
+    private BacktestStrategy strategy;
 
     private LocalDate signalDate;
 
