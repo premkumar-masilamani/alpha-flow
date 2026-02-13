@@ -1,12 +1,12 @@
 package com.alphaflow.engine.calculation;
 
-import com.alphaflow.engine.enums.CandleMetricType;
+import com.alphaflow.engine.enums.CandleBarMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
-import com.alphaflow.infrastructure.entities.Candle;
+import com.alphaflow.infrastructure.entities.CandleBar;
 import com.alphaflow.infrastructure.entities.Indicator;
 import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.repositories.CandleRepository;
+import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -28,16 +28,16 @@ public class IndicatorCalculator {
 
     private static final Logger log = LoggerFactory.getLogger(IndicatorCalculator.class);
 
-    private final CandleRepository candleRepository;
+    private final CandleBarRepository candleBarRepository;
     private final IndicatorRepository indicatorRepository;
     private final TickerRepository tickerRepository;
 
     public IndicatorCalculator(
-            CandleRepository candleRepository,
+            CandleBarRepository candleBarRepository,
             IndicatorRepository indicatorRepository,
             TickerRepository tickerRepository
     ) {
-        this.candleRepository = candleRepository;
+        this.candleBarRepository = candleBarRepository;
         this.indicatorRepository = indicatorRepository;
         this.tickerRepository = tickerRepository;
     }
@@ -50,25 +50,25 @@ public class IndicatorCalculator {
 
             // 1. Fetch all available candle data for the ticker, sorted by date
             // We fetch everything once to avoid N+1 query problems and redundant DB round-trips
-            List<Candle> allSeries = candleRepository.findByTickerOrderByCandleDateAsc(ticker);
+            List<CandleBar> allSeries = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
 
             if (allSeries.isEmpty()) {
                 log.warn("No candles found for {}", ticker.getTickerSymbol());
                 return;
             }
 
-            for (CandleMetricType metric : CandleMetricType.values()) {
+            for (CandleBarMetricType metric : CandleBarMetricType.values()) {
                 if (!metric.isEligibleFor(ticker.getSource())) {
                     continue;
                 }
 
                 // Base indicators (no transformations)
-                if (metric == CandleMetricType.OBV) {
+                if (metric == CandleBarMetricType.OBV) {
                     computeOBV(ticker, metric, allSeries);
                     continue; // VERY IMPORTANT
                 }
 
-                if (metric == CandleMetricType.CCF) {
+                if (metric == CandleBarMetricType.CCF) {
                     computeCCF(ticker, metric, allSeries);
                     continue; // VERY IMPORTANT
                 }
@@ -90,7 +90,7 @@ public class IndicatorCalculator {
         log.info("Completed Indicator Computation");
     }
 
-    private void computeOBV(Ticker ticker, CandleMetricType metric, List<Candle> allSeries) {
+    private void computeOBV(Ticker ticker, CandleBarMetricType metric, List<CandleBar> allSeries) {
         if (allSeries.isEmpty()) {
             return;
         }
@@ -118,8 +118,8 @@ public class IndicatorCalculator {
         }
 
         for (int i = startIndex; i < allSeries.size(); i++) {
-            Candle currentData = allSeries.get(i);
-            Candle previousData = allSeries.get(i - 1);
+            CandleBar currentData = allSeries.get(i);
+            CandleBar previousData = allSeries.get(i - 1);
 
             int priceCompare = currentData.getPriceClose().compareTo(previousData.getPriceClose());
 
@@ -135,7 +135,7 @@ public class IndicatorCalculator {
         log.info("Computed OBV for {}", ticker.getTickerSymbol());
     }
 
-    private void computeCCF(Ticker ticker, CandleMetricType metric, List<Candle> allSeries) {
+    private void computeCCF(Ticker ticker, CandleBarMetricType metric, List<CandleBar> allSeries) {
         if (allSeries.isEmpty()) {
             return;
         }
@@ -162,7 +162,7 @@ public class IndicatorCalculator {
         }
 
         for (int i = startIndex; i < allSeries.size(); i++) {
-            Candle currentData = allSeries.get(i);
+            CandleBar currentData = allSeries.get(i);
             BigDecimal dailySignedCapital = metric.extract(currentData);
             cumulativeCapitalFlow = cumulativeCapitalFlow.add(dailySignedCapital, DB_MATH_CONTEXT);
 
@@ -176,7 +176,7 @@ public class IndicatorCalculator {
      * Uses a sliding window approach for O(N) efficiency.
      * Formula: SMA = (Sum of values in window) / Period
      */
-    private void computeSMA(Ticker ticker, CandleMetricType metric, WindowPeriod maPeriod, List<Candle> allSeries) {
+    private void computeSMA(Ticker ticker, CandleBarMetricType metric, WindowPeriod maPeriod, List<CandleBar> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
@@ -212,7 +212,7 @@ public class IndicatorCalculator {
 
             BigDecimal sma = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(i), metric, SMA, period, sma);
-            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getCandleDate(), sma);
+            log.debug("{} {} {} SMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getCandleBarDate(), sma);
 
             // Slide window: subtract the oldest value (which will be out of window in next step)
             sum = sum.subtract(metric.extract(allSeries.get(i - period + 1)), DB_MATH_CONTEXT);
@@ -227,7 +227,7 @@ public class IndicatorCalculator {
      * where α = 2 / (Period + 1)
      * Initial Seed: The first EMA value is typically the SMA of the first 'Period' days.
      */
-    private void computeEMA(Ticker ticker, CandleMetricType metric, WindowPeriod maPeriod, List<Candle> allSeries) {
+    private void computeEMA(Ticker ticker, CandleBarMetricType metric, WindowPeriod maPeriod, List<CandleBar> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
@@ -256,7 +256,7 @@ public class IndicatorCalculator {
             }
             ema = sum.divide(valueOf(period), DB_MATH_CONTEXT);
             persist(allSeries.get(period - 1), metric, EMA, period, ema);
-            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(period - 1).getCandleDate(), ema);
+            log.debug("{} {} {} Seed EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(period - 1).getCandleBarDate(), ema);
             startIndex = period;
         }
 
@@ -271,38 +271,38 @@ public class IndicatorCalculator {
                     .add(ema, DB_MATH_CONTEXT);
 
             persist(allSeries.get(i), metric, EMA, period, ema);
-            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getCandleDate(), ema);
+            log.debug("{} {} {} EMA: {}", ticker.getTickerSymbol(), metric.code(), allSeries.get(i).getCandleBarDate(), ema);
             count++;
         }
         log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
     }
 
-    private int findIndexForDate(List<Candle> allSeries, LocalDate date) {
+    private int findIndexForDate(List<CandleBar> allSeries, LocalDate date) {
         for (int i = 0; i < allSeries.size(); i++) {
-            if (allSeries.get(i).getCandleDate().isEqual(date)) {
+            if (allSeries.get(i).getCandleBarDate().isEqual(date)) {
                 return i;
             }
         }
         return -1;
     }
 
-    private void persist(Candle marketData, CandleMetricType metric, TransformationType maType, int period, BigDecimal value) {
+    private void persist(CandleBar candleBar, CandleBarMetricType metric, TransformationType maType, int period, BigDecimal value) {
         // We use findBy... to ensure idempotency and avoid duplicates if the computation is re-run for same dates
-        Indicator marketState = indicatorRepository.findByTickerAndIndicatorDateAndMetricAndMaTypeAndPeriod(
-                        marketData.getTicker(),
-                        marketData.getCandleDate(),
+        Indicator indicator = indicatorRepository.findByTickerAndIndicatorDateAndMetricAndMaTypeAndPeriod(
+                        candleBar.getTicker(),
+                        candleBar.getCandleBarDate(),
                         metric.code(),
                         maType.code(),
                         period)
                 .orElseGet(Indicator::new);
 
-        marketState.setTicker(marketData.getTicker());
-        marketState.setIndicatorDate(marketData.getCandleDate());
-        marketState.setMetric(metric.code());
-        marketState.setMaType(maType.code());
-        marketState.setPeriod(period);
-        marketState.setValue(value);
+        indicator.setTicker(candleBar.getTicker());
+        indicator.setIndicatorDate(candleBar.getCandleBarDate());
+        indicator.setMetric(metric.code());
+        indicator.setMaType(maType.code());
+        indicator.setPeriod(period);
+        indicator.setValue(value);
 
-        indicatorRepository.save(marketState);
+        indicatorRepository.save(indicator);
     }
 }

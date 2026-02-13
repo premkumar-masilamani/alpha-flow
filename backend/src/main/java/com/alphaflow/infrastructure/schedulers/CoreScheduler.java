@@ -3,10 +3,10 @@ package com.alphaflow.infrastructure.schedulers;
 import com.alphaflow.backtest.engine.CandlestickBacktester;
 import com.alphaflow.backtest.engine.RenkoBacktester;
 import com.alphaflow.backtest.services.PerformanceScorer;
-import com.alphaflow.engine.calculation.CandleCalculator;
+import com.alphaflow.engine.calculation.CandleBarCalculator;
 import com.alphaflow.engine.calculation.IndicatorCalculator;
 import com.alphaflow.engine.calculation.IndicatorDerivativeCalculator;
-import com.alphaflow.engine.calculation.RenkoCalculator;
+import com.alphaflow.engine.calculation.RenkoBrickCalculator;
 import com.alphaflow.engine.downloaders.BinanceDownloader;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import org.slf4j.Logger;
@@ -28,10 +28,10 @@ public class CoreScheduler {
 
     private final BinanceDownloader binanceDownloader;
     private final YahooFinanceDownloader yahooFinanceDownloader;
-    private final CandleCalculator candleCalculator;
+    private final CandleBarCalculator candleBarCalculator;
     private final IndicatorCalculator indicatorCalculator;
     private final IndicatorDerivativeCalculator indicatorDerivativeCalculator;
-    private final RenkoCalculator renkoCalculator;
+    private final RenkoBrickCalculator renkoBrickCalculator;
     private final CandlestickBacktester candlestickBacktester;
     private final RenkoBacktester renkoBacktester;
     private final PerformanceScorer performanceScorer;
@@ -39,20 +39,20 @@ public class CoreScheduler {
     public CoreScheduler(
             BinanceDownloader binanceDownloader,
             YahooFinanceDownloader yahooFinanceDownloader,
-            CandleCalculator candleCalculator,
+            CandleBarCalculator candleBarCalculator,
             IndicatorCalculator indicatorCalculator,
             IndicatorDerivativeCalculator indicatorDerivativeCalculator,
-            RenkoCalculator renkoCalculator,
+            RenkoBrickCalculator renkoBrickCalculator,
             CandlestickBacktester candlestickBacktester,
             RenkoBacktester renkoBacktester,
             PerformanceScorer performanceScorer
     ) {
         this.binanceDownloader = binanceDownloader;
         this.yahooFinanceDownloader = yahooFinanceDownloader;
-        this.candleCalculator = candleCalculator;
+        this.candleBarCalculator = candleBarCalculator;
         this.indicatorCalculator = indicatorCalculator;
         this.indicatorDerivativeCalculator = indicatorDerivativeCalculator;
-        this.renkoCalculator = renkoCalculator;
+        this.renkoBrickCalculator = renkoBrickCalculator;
         this.candlestickBacktester = candlestickBacktester;
         this.renkoBacktester = renkoBacktester;
         this.performanceScorer = performanceScorer;
@@ -85,7 +85,7 @@ public class CoreScheduler {
             yahooFinanceDownloader.download();
 
             log.info("Step 2/7: Computing candle metrics...");
-            candleCalculator.calculate();
+            candleBarCalculator.calculate();
 
             log.info("Step 3/7: Computing indicators...");
             indicatorCalculator.calculate();
@@ -94,7 +94,7 @@ public class CoreScheduler {
             indicatorDerivativeCalculator.calculate();
 
             log.info("Step 5/7: Computing Renko bricks...");
-            renkoCalculator.calculate();
+            renkoBrickCalculator.calculate();
 
             log.info("Step 6/7: Running Candlestick backtests...");
             candlestickBacktester.compute();

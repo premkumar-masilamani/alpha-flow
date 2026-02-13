@@ -7,19 +7,19 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "renko")
+@Table(name = "renko_bricks")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @ToString(exclude = "ticker")
-public class Renko {
+public class RenkoBrick {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long renkoId;
+    private Long renkoBrickId;
 
-    private LocalDate renkoDate;
+    private LocalDate renkoBrickDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id")

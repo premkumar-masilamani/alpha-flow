@@ -7,8 +7,8 @@ import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.engine.metrics.OHLCVMetrics;
 import com.alphaflow.engine.metrics.OrderFlowMetrics;
 import com.alphaflow.engine.repositories.DataFileRepository;
-import com.alphaflow.infrastructure.entities.Candle;
-import com.alphaflow.infrastructure.repositories.CandleRepository;
+import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -27,31 +27,31 @@ import static com.alphaflow.infrastructure.constants.AppConstants.*;
 import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
-public class CandleCalculator {
+public class CandleBarCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(CandleCalculator.class);
+    private static final Logger log = LoggerFactory.getLogger(CandleBarCalculator.class);
 
     private final BinanceConfig binanceConfig;
     private final DataFileRepository dataFileRepository;
-    private final CandleRepository candleRepository;
+    private final CandleBarRepository candleBarRepository;
 
-    public CandleCalculator(
+    public CandleBarCalculator(
             BinanceConfig binanceConfig,
             DataFileRepository dataFileRepository,
-            CandleRepository candleRepository
+            CandleBarRepository candleBarRepository
     ) {
         this.binanceConfig = binanceConfig;
         this.dataFileRepository = dataFileRepository;
-        this.candleRepository = candleRepository;
+        this.candleBarRepository = candleBarRepository;
     }
 
     /**
-     * Entry point for computing candle data.
+     * Entry point for computing candle bar data.
      * Iterates through all unprocessed files in the database, extracts tick data from ZIP archives,
      * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
      */
     public void calculate() {
-        log.info("Starting Candle Computation");
+        log.info("Starting CandleBar Bar Computation");
 
         int totalProcessed = 0;
         while (true) {
@@ -72,7 +72,7 @@ public class CandleCalculator {
             totalProcessed += page.getNumberOfElements();
         }
 
-        log.info("Completed Candle Computation. Total files processed: {}", totalProcessed);
+        log.info("Completed CandleBar Bar Computation. Total files processed: {}", totalProcessed);
     }
 
     /**
@@ -80,7 +80,7 @@ public class CandleCalculator {
      * 1. Locates the ZIP file on disk.
      * 2. Extracts the CSV content.
      * 3. Computes metrics.
-     * 4. Merges with existing candle data if applicable (to handle multiple files for the same date/ticker).
+     * 4. Merges with existing candle bar data if applicable (to handle multiple files for the same date/ticker).
      * 5. Updates the file status to processed.
      *
      * @param file The file record from the database.
@@ -114,18 +114,18 @@ public class CandleCalculator {
                 Table tickTable = getFileAsTable(inputStream);
 
                 log.trace("Computing metrics for {}", baseFileName);
-                Candle computedData = computeMetrics(file, tickTable);
+                CandleBar computedData = computeMetrics(file, tickTable);
 
-                // If we already have candle data for this ticker/date, merge it.
-                Candle mergedData = candleRepository.findByTickerAndCandleDate(file.getTicker(), file.getDataFileDate())
+                // If we already have candle bar data for this ticker/date, merge it.
+                CandleBar mergedData = candleBarRepository.findByTickerAndCandleBarDate(file.getTicker(), file.getDataFileDate())
                         .map(existingData -> {
-                            log.debug("Existing candle data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
+                            log.debug("Existing candle bar data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
                             return existingData.merge(computedData);
                         })
                         .orElse(computedData);
 
-                log.debug("Saving candle data: {}", mergedData);
-                candleRepository.save(mergedData);
+                log.debug("Saving candle bar data: {}", mergedData);
+                candleBarRepository.save(mergedData);
 
                 // Mark the file as processed to avoid re-computation
                 file.setIsProcessed(true);
@@ -147,15 +147,15 @@ public class CandleCalculator {
                 );
     }
 
-    private Candle computeMetrics(DataFile file, Table table) {
+    private CandleBar computeMetrics(DataFile file, Table table) {
 
         OHLCVMetrics ohlcvMetrics = MetricsCalculator.ohlcv(table);
         OrderFlowMetrics orderFlowMetrics = MetricsCalculator.orderFlow(table);
         CapitalProfileMetrics capitalProfileMetrics = MetricsCalculator.capitalProfile(table, ohlcvMetrics);
 
-        return Candle.builder()
+        return CandleBar.builder()
                 .ticker(file.getTicker())
-                .candleDate(file.getDataFileDate())
+                .candleBarDate(file.getDataFileDate())
                 .priceOpen(ohlcvMetrics.open())
                 .priceHigh(ohlcvMetrics.high())
                 .priceLow(ohlcvMetrics.low())

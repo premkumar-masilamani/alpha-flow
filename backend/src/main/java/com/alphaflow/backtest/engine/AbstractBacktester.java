@@ -10,11 +10,11 @@ import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.StrategyContext;
-import com.alphaflow.infrastructure.entities.Candle;
+import com.alphaflow.infrastructure.entities.CandleBar;
 import com.alphaflow.infrastructure.entities.Indicator;
-import com.alphaflow.infrastructure.entities.Renko;
+import com.alphaflow.infrastructure.entities.RenkoBrick;
 import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.repositories.CandleRepository;
+import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -38,7 +38,7 @@ public abstract class AbstractBacktester {
     protected static final double YEAR_IN_DAYS = 365.25;
     private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
     protected final TickerRepository tickerRepository;
-    protected final CandleRepository candleRepository;
+    protected final CandleBarRepository candleBarRepository;
     protected final IndicatorRepository indicatorRepository;
     protected final BacktestEquitiesRepository backtestEquitiesRepository;
     protected final BacktestSignalsRepository backtestSignalsRepository;
@@ -50,7 +50,7 @@ public abstract class AbstractBacktester {
 
     protected AbstractBacktester(
             TickerRepository tickerRepository,
-            CandleRepository candleRepository,
+            CandleBarRepository candleBarRepository,
             IndicatorRepository indicatorRepository,
             BacktestEquitiesRepository backtestEquitiesRepository,
             BacktestSignalsRepository backtestSignalsRepository,
@@ -61,7 +61,7 @@ public abstract class AbstractBacktester {
             TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
-        this.candleRepository = candleRepository;
+        this.candleBarRepository = candleBarRepository;
         this.indicatorRepository = indicatorRepository;
         this.backtestEquitiesRepository = backtestEquitiesRepository;
         this.backtestSignalsRepository = backtestSignalsRepository;
@@ -80,7 +80,7 @@ public abstract class AbstractBacktester {
         };
     }
 
-    protected List<Renko> buildRenkoBricks(Ticker ticker, List<Candle> allData, int index, Strategy strategy) {
+    protected List<RenkoBrick> buildRenkoBricks(Ticker ticker, List<CandleBar> allData, int index, Strategy strategy) {
         // Only the RenkoBacktester will implement the logic
         return null;
     }
@@ -88,8 +88,8 @@ public abstract class AbstractBacktester {
     public void compute() {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Starting backtests for ticker: {}", ticker.getTickerSymbol());
-            List<Candle> marketData = candleRepository.findByTickerOrderByCandleDateAsc(ticker);
-            if (marketData.isEmpty()) {
+            List<CandleBar> candleBar = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
+            if (candleBar.isEmpty()) {
                 log.warn("No market data found for ticker: {}", ticker.getTickerSymbol());
                 return;
             }
@@ -98,7 +98,7 @@ public abstract class AbstractBacktester {
 
             for (Strategy strategy : strategies) {
                 log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
-                BacktestRunResult runResult = runBacktest(ticker, strategy, marketData, indicators);
+                BacktestRunResult runResult = runBacktest(ticker, strategy, candleBar, indicators);
                 transactionTemplate.execute(status -> {
                     backtestEquitiesRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
                     backtestSignalsRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
@@ -133,7 +133,7 @@ public abstract class AbstractBacktester {
     private BacktestRunResult runBacktest(
             Ticker ticker,
             Strategy strategy,
-            List<Candle> marketData,
+            List<CandleBar> candleBar,
             Map<LocalDate, Map<String, BigDecimal>> indicatorMap
     ) {
 
@@ -151,10 +151,10 @@ public abstract class AbstractBacktester {
 
         Map<String, Object> strategyState = new HashMap<>();
 
-        for (int i = 0; i < marketData.size(); i++) {
+        for (int i = 0; i < candleBar.size(); i++) {
 
-            Candle data = marketData.get(i);
-            LocalDate currentDate = data.getCandleDate();
+            CandleBar data = candleBar.get(i);
+            LocalDate currentDate = data.getCandleBarDate();
             BigDecimal priceOpen = data.getPriceOpen();
             BigDecimal priceClose = data.getPriceClose();
 
@@ -242,15 +242,15 @@ public abstract class AbstractBacktester {
                     data,
                     indicatorMap.getOrDefault(currentDate, Collections.emptyMap()),
                     currentPosition,
-                    buildRenkoBricks(ticker, marketData, i, strategy), // used only for renko based strategies
+                    buildRenkoBricks(ticker, candleBar, i, strategy), // used only for renko based strategies
                     strategyState // Placeholder to extra data
             );
             TradeAction nextAction = strategy.generateSignal(context);
 
             // Fetch the next trading date from list
             LocalDate executeDate = null;
-            if (marketData.size() > i + 1) {
-                executeDate = marketData.get(i + 1).getCandleDate();
+            if (candleBar.size() > i + 1) {
+                executeDate = candleBar.get(i + 1).getCandleBarDate();
             }
 
             signals.add(BacktestSignals.builder()
@@ -267,8 +267,8 @@ public abstract class AbstractBacktester {
 
         // Force close final open trade
         if (activeTrade != null) {
-            Candle lastBar = marketData.getLast();
-            closeActiveTrade(activeTrade, lastBar.getCandleDate(), lastBar.getPriceClose(), trades);
+            CandleBar lastBar = candleBar.getLast();
+            closeActiveTrade(activeTrade, lastBar.getCandleBarDate(), lastBar.getPriceClose(), trades);
         }
 
         BacktestResult result = buildResult(ticker, strategy, equities, trades);

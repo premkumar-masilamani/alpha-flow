@@ -7,12 +7,12 @@ import com.alphaflow.backtest.strategies.renko.RenkoPPStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
-import com.alphaflow.infrastructure.entities.Candle;
-import com.alphaflow.infrastructure.entities.Renko;
+import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.RenkoBrick;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
-import com.alphaflow.infrastructure.repositories.CandleRepository;
+import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -30,7 +30,7 @@ public class RenkoBacktester extends AbstractBacktester {
 
     public RenkoBacktester(
             TickerRepository tickerRepository,
-            CandleRepository candleRepository,
+            CandleBarRepository candleBarRepository,
             IndicatorRepository indicatorRepository,
             BacktestEquitiesRepository backtestEquitiesRepository,
             BacktestSignalsRepository backtestSignalsRepository,
@@ -41,7 +41,7 @@ public class RenkoBacktester extends AbstractBacktester {
     ) {
         super(
                 tickerRepository,
-                candleRepository,
+                candleBarRepository,
                 indicatorRepository,
                 backtestEquitiesRepository,
                 backtestSignalsRepository,
@@ -59,7 +59,7 @@ public class RenkoBacktester extends AbstractBacktester {
                 .filter(s -> s.getStrategyType().startsWith("RENKO"))
                 .toList();
 
-        log.info("Loaded {} Renko strategies from database", entities.size());
+        log.info("Loaded {} RenkoBrick strategies from database", entities.size());
 
         return entities.stream()
                 .map(this::instantiateStrategy)
@@ -71,12 +71,12 @@ public class RenkoBacktester extends AbstractBacktester {
             case "RENKO_TSM" -> new RenkoTSMStrategy(entity);
             case "RENKO_PP" -> new RenkoPPStrategy(entity);
             case "RENKO_TSM_V2" -> new RenkoTSMV2Strategy(entity);
-            default -> throw new IllegalArgumentException("Unknown Renko strategy type: " + entity.getStrategyType());
+            default -> throw new IllegalArgumentException("Unknown RenkoBrick strategy type: " + entity.getStrategyType());
         };
     }
 
     @Override
-    protected List<Renko> buildRenkoBricks(Ticker ticker, List<Candle> allData, int index, Strategy strategy) {
+    protected List<RenkoBrick> buildRenkoBricks(Ticker ticker, List<CandleBar> allData, int index, Strategy strategy) {
         RenkoPriceSource priceSource = null;
         // Strategies can have different price sources for their renko bricks
         if (strategy instanceof RenkoStrategy renkoStrategy) {

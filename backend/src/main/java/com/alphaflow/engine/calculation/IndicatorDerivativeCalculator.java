@@ -1,6 +1,6 @@
 package com.alphaflow.engine.calculation;
 
-import com.alphaflow.engine.enums.CandleMetricType;
+import com.alphaflow.engine.enums.CandleBarMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.entities.Indicator;
@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.alphaflow.engine.enums.CandleMetricType.TOTAL_CAPITAL;
+import static com.alphaflow.engine.enums.CandleBarMetricType.TOTAL_CAPITAL;
 import static com.alphaflow.engine.enums.TransformationType.EMA;
 import static com.alphaflow.engine.enums.WindowPeriod.TEN_DAYS;
 import static com.alphaflow.engine.enums.WindowPeriod.TWENTY_DAYS;
@@ -46,13 +46,13 @@ public class IndicatorDerivativeCalculator {
         log.info("Starting Capital Momentum Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
-            if (!CandleMetricType.CAPITAL_MOMENTUM.isEligibleFor(ticker.getSource())) {
+            if (!CandleBarMetricType.CAPITAL_MOMENTUM.isEligibleFor(ticker.getSource())) {
                 return;
             }
             log.info("Calculating Capital Momentum for {}", ticker.getTickerSymbol());
 
             Optional<Indicator> latestCapitalMomentum = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
-                    ticker, CandleMetricType.CAPITAL_MOMENTUM.code(), TransformationType.CAP_MOM.code(), WindowPeriod.ZERO_DAYS.days()
+                    ticker, CandleBarMetricType.CAPITAL_MOMENTUM.code(), TransformationType.CAP_MOM.code(), WindowPeriod.ZERO_DAYS.days()
             );
 
             Optional<Indicator> latestTotalCapitalEma10 = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
@@ -93,7 +93,7 @@ public class IndicatorDerivativeCalculator {
                     toSave.add(Indicator.builder()
                             .ticker(ticker)
                             .indicatorDate(ema10.getIndicatorDate())
-                            .metric(CandleMetricType.CAPITAL_MOMENTUM.code())
+                            .metric(CandleBarMetricType.CAPITAL_MOMENTUM.code())
                             .maType(TransformationType.CAP_MOM.code())
                             .period(WindowPeriod.ZERO_DAYS.days())
                             .value(momentum)

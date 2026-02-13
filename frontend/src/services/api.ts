@@ -6,10 +6,9 @@ export interface Ticker {
     id: number;
     symbol: string;
     name: string;
-    type: 'CRYPTO' | 'STOCKS' | 'COMMODITY';
 }
 
-export interface Candle {
+export interface CandleBar {
     date: string;
     open: number;
     high: number;
@@ -40,7 +39,7 @@ export interface RenkoData {
     brick_size: number;
 }
 
-export interface BacktestSignalss {
+export interface BacktestSignals {
     strategy: string;
     date: string;
     action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT';
@@ -52,18 +51,18 @@ export const getTickers = async (): Promise<Ticker[]> => {
 };
 
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
-const candleCache: { [symbol: string]: { data: Candle[]; timestamp: number } } = {};
+const candleBarCache: { [symbol: string]: { data: CandleBar[]; timestamp: number } } = {};
 const renkoCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
-const signalsCache: { [symbol: string]: { data: Record<string, BacktestSignalss[]>; timestamp: number } } = {};
+const signalsCache: { [symbol: string]: { data: BacktestSignals[]; timestamp: number } } = {};
 
-export const getCandles = async (symbol: string): Promise<Candle[]> => {
+export const getCandleBars = async (symbol: string): Promise<CandleBar[]> => {
     const now = Date.now();
-    if (candleCache[symbol] && (now - candleCache[symbol].timestamp < CACHE_DURATION)) {
-        return candleCache[symbol].data;
+    if (candleBarCache[symbol] && (now - candleBarCache[symbol].timestamp < CACHE_DURATION)) {
+        return candleBarCache[symbol].data;
     }
 
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/candles`);
-    candleCache[symbol] = {data: response.data, timestamp: now};
+    candleBarCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };
 
@@ -78,7 +77,7 @@ export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
     return response.data;
 };
 
-export const getBacktestSignals = async (symbol: string): Promise<Record<string, BacktestSignalss[]>> => {
+export const getBacktestSignals = async (symbol: string): Promise<BacktestSignals[]> => {
     const now = Date.now();
     if (signalsCache[symbol] && (now - signalsCache[symbol].timestamp < CACHE_DURATION)) {
         return signalsCache[symbol].data;

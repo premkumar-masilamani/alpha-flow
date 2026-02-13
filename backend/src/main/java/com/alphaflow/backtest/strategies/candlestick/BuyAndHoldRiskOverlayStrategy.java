@@ -46,19 +46,19 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        BigDecimal priceClose = context.marketData().getPriceClose();
+        BigDecimal priceClose = context.candleBar().getPriceClose();
         BigDecimal filterValue = context.indicators().get(filterIndicatorKey);
 
         if (context.currentPosition() == PositionType.NONE) {
             // Enter LONG on first bar (filterValue is null) OR when price moves back above filter
             if (filterValue == null || priceClose.compareTo(filterValue) > 0) {
-                log.debug("Strategy {} generating ENTER_LONG signal at {} price {} filter {}", getName(), context.marketData().getCandleDate(), priceClose, filterValue);
+                log.debug("Strategy {} generating ENTER_LONG signal at {} price {} filter {}", getName(), context.candleBar().getCandleBarDate(), priceClose, filterValue);
                 return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG);
             }
         } else if (context.currentPosition() == PositionType.LONG) {
             // Exit to CASH if price falls below filter
             if (filterValue != null && priceClose.compareTo(filterValue) < 0) {
-                log.debug("Strategy {} generating EXIT signal at {} price {} filter {}", getName(), context.marketData().getCandleDate(), priceClose, filterValue);
+                log.debug("Strategy {} generating EXIT signal at {} price {} filter {}", getName(), context.candleBar().getCandleBarDate(), priceClose, filterValue);
                 return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
             }
         }

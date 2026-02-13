@@ -2,11 +2,11 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.RenkoBrickDTO;
 import com.alphaflow.api.dtos.RenkoResponseDTO;
-import com.alphaflow.api.mappers.RenkoMapper;
-import com.alphaflow.infrastructure.entities.Renko;
+import com.alphaflow.api.mappers.RenkoBrickMapper;
+import com.alphaflow.infrastructure.entities.RenkoBrick;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.exceptions.ResourceNotFoundException;
-import com.alphaflow.infrastructure.repositories.RenkoRepository;
+import com.alphaflow.infrastructure.repositories.RenkoBrickRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,36 +22,36 @@ import static java.math.BigDecimal.valueOf;
 
 @Service
 @Transactional(readOnly = true)
-public class RenkoService {
+public class RenkoBrickService {
 
-    private static final Logger log = LoggerFactory.getLogger(RenkoService.class);
+    private static final Logger log = LoggerFactory.getLogger(RenkoBrickService.class);
 
-    private final RenkoRepository renkoRepository;
+    private final RenkoBrickRepository renkoBrickRepository;
     private final TickerRepository tickerRepository;
 
-    public RenkoService(RenkoRepository renkoRepository, TickerRepository tickerRepository) {
-        this.renkoRepository = renkoRepository;
+    public RenkoBrickService(RenkoBrickRepository renkoBrickRepository, TickerRepository tickerRepository) {
+        this.renkoBrickRepository = renkoBrickRepository;
         this.tickerRepository = tickerRepository;
     }
 
-    public RenkoResponseDTO getRenko(String symbol) {
-        log.debug("Fetching renko data for symbol: {}", symbol);
+    public RenkoResponseDTO getRenkoBricks(String symbol) {
+        log.debug("Fetching renko bricks for symbol: {}", symbol);
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> {
                     log.warn("Ticker not found for symbol: {}", symbol);
                     return new ResourceNotFoundException("Ticker not found: " + symbol);
                 });
 
-        List<Renko> renkoBricks = renkoRepository.findByTickerOrderByRenkoDateAsc(ticker);
+        List<RenkoBrick> renkoBricks = renkoBrickRepository.findByTickerOrderByRenkoBrickDateAsc(ticker);
         return calculatePricesAndCreateResponse(renkoBricks);
     }
 
-    private RenkoResponseDTO calculatePricesAndCreateResponse(List<Renko> renkoBricks) {
+    private RenkoResponseDTO calculatePricesAndCreateResponse(List<RenkoBrick> renkoBricks) {
         if (renkoBricks.isEmpty()) {
             return RenkoResponseDTO.builder().build();
         }
 
-        Renko currentTrendBrick = getCurrentTrendBrick(renkoBricks);
+        RenkoBrick currentTrendBrick = getCurrentTrendBrick(renkoBricks);
 
         int currentBrickZone = getZoneFromTrend(currentTrendBrick.getTrend());
         BigDecimal brickSize = currentTrendBrick.getBrickHigh().subtract(currentTrendBrick.getBrickLow());
@@ -69,7 +69,7 @@ public class RenkoService {
         }
 
         List<RenkoBrickDTO> brickDTOs = renkoBricks.stream()
-                .map(RenkoMapper::toDTO)
+                .map(RenkoBrickMapper::toDTO)
                 .toList();
 
         return RenkoResponseDTO.builder()
@@ -79,13 +79,13 @@ public class RenkoService {
                 .brickSize(brickSize).build();
     }
 
-    private Renko getCurrentTrendBrick(List<Renko> renkoBricks) {
+    private RenkoBrick getCurrentTrendBrick(List<RenkoBrick> renkoBricks) {
 
-        Renko latestBrick = renkoBricks.getLast();
+        RenkoBrick latestBrick = renkoBricks.getLast();
         String latestDirection = latestBrick.getDirection();
         String oppositeDirection = latestDirection.equals(RENKO_BRICK_DIRECTION_UP) ? RENKO_BRICK_DIRECTION_DOWN : RENKO_BRICK_DIRECTION_UP;
 
-        Renko latestOppositeBrick = null;
+        RenkoBrick latestOppositeBrick = null;
         for (int i = renkoBricks.size() - 1; i >= 0; i--) {
             if (renkoBricks.get(i).getDirection().equals(oppositeDirection)) {
                 latestOppositeBrick = renkoBricks.get(i);
@@ -93,7 +93,7 @@ public class RenkoService {
             }
         }
 
-        Renko currentTrendBrick;
+        RenkoBrick currentTrendBrick;
         if (latestOppositeBrick == null) {
             currentTrendBrick = latestBrick;
         } else {

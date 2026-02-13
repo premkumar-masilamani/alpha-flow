@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {type BacktestSignals, getBacktestSignals, getCandles, getRenkoData, getTickers, type Candle, type RenkoData, type Ticker} from './services/api';
+import {type BacktestSignals, getBacktestSignals, getCandleBars, getRenkoData, getTickers, type CandleBar, type RenkoData, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
@@ -11,10 +11,10 @@ const TABS = ['Candlestick', 'Renko'];
 function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-    const [candles, setCandles] = useState<Candle[]>([]);
+    const [candleBars, setCandleBars] = useState<CandleBar[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [signals, setSignals] = useState<Record<string, BacktestSignals[]>>({});
-    const [selectedStrategy, setSelectedStrategy] = useState<string>('');
+    const [signals, setSignals] = useState<BacktestSignals[]>([]);
+    const [selectedStrategy, setSelectedStrategy] = useState<string>('All');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
 
@@ -24,8 +24,7 @@ function App() {
                 const data = await getTickers();
                 setTickers(data);
                 if (data.length > 0) {
-                    const btcUsd = data.find(t => t.symbol === 'BTC-USD');
-                    setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
+                    setSelectedTicker(data[0].symbol);
                 }
             } catch (error) {
                 console.error('Failed to fetch tickers:', error);
@@ -40,21 +39,20 @@ function App() {
                 setLoading(true);
                 try {
                     const [mData, rData, sData] = await Promise.all([
-                        getCandles(selectedTicker),
+                        getCandleBars(selectedTicker),
                         getRenkoData(selectedTicker),
                         getBacktestSignals(selectedTicker)
                     ]);
-                    setCandles(mData);
+                    setCandleBars(mData);
                     setRenkoData(rData);
                     setSignals(sData);
-                    const strategyNames = Object.keys(sData);
-                    setSelectedStrategy(strategyNames.length > 0 ? strategyNames[0] : '');
+                    setSelectedStrategy('All');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
-                    setCandles([]);
+                    setCandleBars([]);
                     setRenkoData(null);
-                    setSignals({});
-                    setSelectedStrategy('');
+                    setSignals([]);
+                    setSelectedStrategy('All');
                 } finally {
                     setLoading(false);
                 }
@@ -72,10 +70,9 @@ function App() {
             );
         }
 
-        const hasCandles = candles.length > 0;
+        const hasCandleBars = candleBars.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = Object.keys(signals);
-        const currentSignals = signals[selectedStrategy] || [];
+        const strategies = ['All', ...new Set(signals.map(s => s.strategy))];
 
         return (
             <>
@@ -124,7 +121,7 @@ function App() {
                         hasRenkoData ? (
                             <RenkoChart
                                 data={renkoData!}
-                                signals={currentSignals}
+                                signals={signals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
@@ -133,10 +130,10 @@ function App() {
                             </div>
                         )
                     ) : activeTab === 'Candlestick' ? (
-                        hasCandles ? (
+                        hasCandleBars ? (
                             <Chart
-                                data={candles}
-                                signals={currentSignals}
+                                data={candleBars}
+                                signals={signals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (

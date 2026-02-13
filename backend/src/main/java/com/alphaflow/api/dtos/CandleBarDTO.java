@@ -7,8 +7,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Builder
-public record CandleDTO(
-        @JsonProperty("date") LocalDate candleDate,
+public record CandleBarDTO(
+        @JsonProperty("date") LocalDate candleBarDate,
         @JsonProperty("open") BigDecimal priceOpen,
         @JsonProperty("high") BigDecimal priceHigh,
         @JsonProperty("low") BigDecimal priceLow,
