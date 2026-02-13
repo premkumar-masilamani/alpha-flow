@@ -1,11 +1,11 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries} from 'lightweight-charts';
-import type {BacktestSignals, RenkoData} from '../services/api';
+import type {BacktestSignal, RenkoData} from '../services/api';
 
 interface RenkoChartProps {
     data: RenkoData;
-    signals: BacktestSignals[];
+    signals: BacktestSignal[];
     selectedStrategy: string;
 }
 
@@ -127,11 +127,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
         }));
 
         // Plot signal markers
-        const filteredSignals = selectedStrategy === 'All'
-            ? signals
-            : signals.filter(s => s.strategy === selectedStrategy);
-
-        const signalMarkers: any[] = filteredSignals.flatMap(s => {
+        const signalMarkers: any[] = signals.flatMap(s => {
             // Find the index of the last brick on this date
             let brickIndex = -1;
             for (let j = data.bricks.length - 1; j >= 0; j--) {

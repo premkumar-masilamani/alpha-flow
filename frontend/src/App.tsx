@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {type BacktestSignals, getBacktestSignals, getCandleBars, getRenkoData, getTickers, type CandleBar, type RenkoData, type Ticker} from './services/api';
+import {type BacktestSignal, getBacktestSignals, getCandleBars, getRenkoData, getTickers, type CandleBar, type RenkoData, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
@@ -13,8 +13,8 @@ function App() {
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [candleBars, setCandleBars] = useState<CandleBar[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [signals, setSignals] = useState<BacktestSignals[]>([]);
-    const [selectedStrategy, setSelectedStrategy] = useState<string>('All');
+    const [signals, setSignals] = useState<Record<string, BacktestSignal[]>>({});
+    const [selectedStrategy, setSelectedStrategy] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
 
@@ -24,7 +24,8 @@ function App() {
                 const data = await getTickers();
                 setTickers(data);
                 if (data.length > 0) {
-                    setSelectedTicker(data[0].symbol);
+                    const btcUsd = data.find(t => t.symbol === 'BTC-USD');
+                    setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
                 }
             } catch (error) {
                 console.error('Failed to fetch tickers:', error);
@@ -46,13 +47,14 @@ function App() {
                     setCandleBars(mData);
                     setRenkoData(rData);
                     setSignals(sData);
-                    setSelectedStrategy('All');
+                    const strategyNames = Object.keys(sData);
+                    setSelectedStrategy(strategyNames.length > 0 ? strategyNames[0] : '');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
                     setCandleBars([]);
                     setRenkoData(null);
-                    setSignals([]);
-                    setSelectedStrategy('All');
+                    setSignals({});
+                    setSelectedStrategy('');
                 } finally {
                     setLoading(false);
                 }
@@ -72,7 +74,8 @@ function App() {
 
         const hasCandleBars = candleBars.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = ['All', ...new Set(signals.map(s => s.strategy))];
+        const strategies = Object.keys(signals);
+        const currentSignals = signals[selectedStrategy] || [];
 
         return (
             <>
@@ -121,7 +124,7 @@ function App() {
                         hasRenkoData ? (
                             <RenkoChart
                                 data={renkoData!}
-                                signals={signals}
+                                signals={currentSignals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
@@ -133,7 +136,7 @@ function App() {
                         hasCandleBars ? (
                             <Chart
                                 data={candleBars}
-                                signals={signals}
+                                signals={currentSignals}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 @Transactional(readOnly = true)
@@ -25,7 +26,7 @@ public class BacktestService {
         this.tickerRepository = tickerRepository;
     }
 
-    public List<BacktestSignalsDTO> getSignalsByTicker(String symbol) {
+    public Map<String, List<BacktestSignalsDTO>> getSignalsByTicker(String symbol) {
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
@@ -33,7 +34,7 @@ public class BacktestService {
 
         return backtestSignalsRepository.findByTickerAndActionIn(ticker, relevantActions).stream()
                 .map(this::mapToSignalDTO)
-                .collect(Collectors.toList());
+                .collect(Collectors.groupingBy(BacktestSignalsDTO::strategyName));
     }
 
     private BacktestSignalsDTO mapToSignalDTO(BacktestSignal signal) {

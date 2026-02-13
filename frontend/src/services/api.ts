@@ -6,6 +6,7 @@ export interface Ticker {
     id: number;
     symbol: string;
     name: string;
+    type: 'CRYPTO' | 'STOCKS' | 'COMMODITY';
 }
 
 export interface CandleBar {
@@ -39,8 +40,7 @@ export interface RenkoData {
     brick_size: number;
 }
 
-export interface BacktestSignals {
-    strategy: string;
+export interface BacktestSignal {
     date: string;
     action: 'ENTER_LONG' | 'ENTER_SHORT' | 'EXIT';
 }
@@ -53,7 +53,7 @@ export const getTickers = async (): Promise<Ticker[]> => {
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 const candleBarCache: { [symbol: string]: { data: CandleBar[]; timestamp: number } } = {};
 const renkoCache: { [symbol: string]: { data: RenkoData; timestamp: number } } = {};
-const signalsCache: { [symbol: string]: { data: BacktestSignals[]; timestamp: number } } = {};
+const signalsCache: { [symbol: string]: { data: Record<string, BacktestSignal[]>; timestamp: number } } = {};
 
 export const getCandleBars = async (symbol: string): Promise<CandleBar[]> => {
     const now = Date.now();
@@ -61,7 +61,7 @@ export const getCandleBars = async (symbol: string): Promise<CandleBar[]> => {
         return candleBarCache[symbol].data;
     }
 
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/candles`);
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
     candleBarCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };
@@ -77,7 +77,7 @@ export const getRenkoData = async (symbol: string): Promise<RenkoData> => {
     return response.data;
 };
 
-export const getBacktestSignals = async (symbol: string): Promise<BacktestSignals[]> => {
+export const getBacktestSignals = async (symbol: string): Promise<Record<string, BacktestSignal[]>> => {
     const now = Date.now();
     if (signalsCache[symbol] && (now - signalsCache[symbol].timestamp < CACHE_DURATION)) {
         return signalsCache[symbol].data;

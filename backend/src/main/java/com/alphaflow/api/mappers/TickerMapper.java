@@ -8,6 +8,8 @@ public class TickerMapper {
         return TickerDTO.builder()
                 .tickerId(tickerEntity.getTickerId())
                 .tickerSymbol(tickerEntity.getTickerSymbol())
-                .tickerName(tickerEntity.getTickerName()).build();
+                .tickerName(tickerEntity.getTickerName())
+                .tickerType(tickerEntity.getTickerType())
+                .build();
     }
 }

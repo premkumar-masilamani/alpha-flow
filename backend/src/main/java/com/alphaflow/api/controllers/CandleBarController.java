@@ -23,7 +23,7 @@ public class CandleBarController {
         this.candleBarService = candleBarService;
     }
 
-    @GetMapping("/tickers/{symbol}/candles")
+    @GetMapping("/tickers/{symbol}/data")
     public List<CandleBarDTO> getCandleBarsForTicker(@PathVariable String symbol) {
         log.info("Request to get candle bars for ticker: {}", symbol);
         return candleBarService.getCandleBarsByTickerName(symbol);
