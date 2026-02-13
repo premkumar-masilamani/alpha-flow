@@ -11,7 +11,7 @@ import com.alphaflow.engine.enums.CandleBarMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.constants.AppConstants;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,9 +82,9 @@ public class RenkoTSMStrategy implements RenkoStrategy {
             return entity.getName();
         }
         if (isDefault()) {
-            return "RenkoBrick TSM";
+            return "RenkoData TSM";
         }
-        return String.format("RenkoBrick TSM %s %s %d %s", priceSource, maType, maPeriod.days(), momentumMetric);
+        return String.format("RenkoData TSM %s %s %d %s", priceSource, maType, maPeriod.days(), momentumMetric);
     }
 
     @Override
@@ -119,7 +119,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     @Override
     public TradeAction generateSignal(StrategyContext context) {
 
-        List<RenkoBrick> renkoBricks = context.renkoBricks();
+        List<RenkoData> renkoBricks = context.renkoBricks();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> strategyState = context.state();
@@ -127,7 +127,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         if (renkoBricks == null || renkoBricks.isEmpty())
             return new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
 
-        RenkoBrick lastBrick = renkoBricks.getLast();
+        RenkoData lastBrick = renkoBricks.getLast();
 
         BigDecimal maValue = indicators.get(maIndicatorKey);
         BigDecimal currentMomentum = indicators.get(momentumIndicatorKey);

@@ -1,6 +1,6 @@
 package com.alphaflow.backtest.entities;
 
-import com.alphaflow.backtest.enums.PositionType;
+import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.infrastructure.entities.Ticker;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -8,35 +8,39 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "backtest_equities")
+@Table(name = "backtest_signals")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestEquities {
+public class BacktestSignal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestEquitiesId;
+    @Column(name = "backtest_signal_id")
+    private Long backtestSignalId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id")
+    @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id")
     private BacktestStrategy strategy;
 
-    private LocalDate equityDate;
+    @Column(name = "signal_date", nullable = false)
+    private LocalDate signalDate;
 
-    private BigDecimal equity;
+    @Column(name = "execute_date")
+    private LocalDate executeDate;
 
     @Enumerated(EnumType.STRING)
-    private PositionType position;
+    @Column(name = "action", nullable = false, length = 50)
+    private TradeSignal action;
 
-    private BigDecimal priceClose;
+    @Column(name = "signal_data", columnDefinition = "TEXT")
+    private String signalData;
 }

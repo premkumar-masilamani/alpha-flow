@@ -1,13 +1,13 @@
 package com.alphaflow.engine.calculation;
 
 import com.alphaflow.engine.configs.BinanceConfig;
-import com.alphaflow.engine.entities.DataFile;
+import com.alphaflow.engine.entities.TickDataFile;
 import com.alphaflow.engine.metrics.CapitalProfileMetrics;
 import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.engine.metrics.OHLCVMetrics;
 import com.alphaflow.engine.metrics.OrderFlowMetrics;
 import com.alphaflow.engine.repositories.DataFileRepository;
-import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,12 +51,12 @@ public class CandleBarCalculator {
      * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
      */
     public void calculate() {
-        log.info("Starting CandleBar Bar Computation");
+        log.info("Starting CandleData Bar Computation");
 
         int totalProcessed = 0;
         while (true) {
             // Fetch a page of unprocessed files to avoid loading too many records into memory
-            Page<DataFile> page = dataFileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
+            Page<TickDataFile> page = dataFileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
 
             if (page.isEmpty()) {
                 break;
@@ -72,7 +72,7 @@ public class CandleBarCalculator {
             totalProcessed += page.getNumberOfElements();
         }
 
-        log.info("Completed CandleBar Bar Computation. Total files processed: {}", totalProcessed);
+        log.info("Completed CandleData Bar Computation. Total files processed: {}", totalProcessed);
     }
 
     /**
@@ -85,7 +85,7 @@ public class CandleBarCalculator {
      *
      * @param file The file record from the database.
      */
-    public void processTickDataFile(DataFile file) {
+    public void processTickDataFile(TickDataFile file) {
         final String tickerSymbol = file.getTicker().getTickerSymbol();
         final String dateStr = getBinanceDateString(file.getDataFileDate());
         final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
@@ -114,10 +114,10 @@ public class CandleBarCalculator {
                 Table tickTable = getFileAsTable(inputStream);
 
                 log.trace("Computing metrics for {}", baseFileName);
-                CandleBar computedData = computeMetrics(file, tickTable);
+                CandleData computedData = computeMetrics(file, tickTable);
 
                 // If we already have candle bar data for this ticker/date, merge it.
-                CandleBar mergedData = candleBarRepository.findByTickerAndCandleBarDate(file.getTicker(), file.getDataFileDate())
+                CandleData mergedData = candleBarRepository.findByTickerAndCandleBarDate(file.getTicker(), file.getDataFileDate())
                         .map(existingData -> {
                             log.debug("Existing candle bar data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
                             return existingData.merge(computedData);
@@ -147,13 +147,13 @@ public class CandleBarCalculator {
                 );
     }
 
-    private CandleBar computeMetrics(DataFile file, Table table) {
+    private CandleData computeMetrics(TickDataFile file, Table table) {
 
         OHLCVMetrics ohlcvMetrics = MetricsCalculator.ohlcv(table);
         OrderFlowMetrics orderFlowMetrics = MetricsCalculator.orderFlow(table);
         CapitalProfileMetrics capitalProfileMetrics = MetricsCalculator.capitalProfile(table, ohlcvMetrics);
 
-        return CandleBar.builder()
+        return CandleData.builder()
                 .ticker(file.getTicker())
                 .candleBarDate(file.getDataFileDate())
                 .priceOpen(ohlcvMetrics.open())

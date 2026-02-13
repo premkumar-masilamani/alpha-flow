@@ -17,6 +17,7 @@ public class BacktestIndicator {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "backtest_indicator_id")
     private Long backtestIndicatorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -24,15 +25,15 @@ public class BacktestIndicator {
     private BacktestStrategy backtestStrategy;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "indicator_role", nullable = false, length = 100)
     private IndicatorRole indicatorRole;
 
-    @Column(nullable = false)
+    @Column(name = "metric", nullable = false, length = 100)
     private String metric;
 
-    @Column(nullable = false)
+    @Column(name = "transformation", nullable = false, length = 20)
     private String transformation;
 
-    @Column(nullable = false)
+    @Column(name = "period", nullable = false)
     private Integer period;
 }

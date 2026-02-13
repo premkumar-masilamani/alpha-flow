@@ -1,18 +1,18 @@
 package com.alphaflow.backtest.engine;
 
-import com.alphaflow.backtest.entities.BacktestEquities;
+import com.alphaflow.backtest.entities.BacktestEquity;
 import com.alphaflow.backtest.entities.BacktestResult;
-import com.alphaflow.backtest.entities.BacktestSignals;
-import com.alphaflow.backtest.entities.BacktestTrades;
+import com.alphaflow.backtest.entities.BacktestSignal;
+import com.alphaflow.backtest.entities.BacktestTrade;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.Strategy;
 import com.alphaflow.backtest.strategies.StrategyContext;
-import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.Indicator;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
@@ -80,7 +80,7 @@ public abstract class AbstractBacktester {
         };
     }
 
-    protected List<RenkoBrick> buildRenkoBricks(Ticker ticker, List<CandleBar> allData, int index, Strategy strategy) {
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
         // Only the RenkoBacktester will implement the logic
         return null;
     }
@@ -88,7 +88,7 @@ public abstract class AbstractBacktester {
     public void compute() {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Starting backtests for ticker: {}", ticker.getTickerSymbol());
-            List<CandleBar> candleBar = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
+            List<CandleData> candleBar = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
             if (candleBar.isEmpty()) {
                 log.warn("No market data found for ticker: {}", ticker.getTickerSymbol());
                 return;
@@ -133,7 +133,7 @@ public abstract class AbstractBacktester {
     private BacktestRunResult runBacktest(
             Ticker ticker,
             Strategy strategy,
-            List<CandleBar> candleBar,
+            List<CandleData> candleBar,
             Map<LocalDate, Map<String, BigDecimal>> indicatorMap
     ) {
 
@@ -143,17 +143,17 @@ public abstract class AbstractBacktester {
         PositionType currentPosition = PositionType.NONE;
 
         TradeAction pendingAction = new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
-        BacktestTrades activeTrade = null;
+        BacktestTrade activeTrade = null;
 
-        List<BacktestEquities> equities = new ArrayList<>();
-        List<BacktestSignals> signals = new ArrayList<>();
-        List<BacktestTrades> trades = new ArrayList<>();
+        List<BacktestEquity> equities = new ArrayList<>();
+        List<BacktestSignal> signals = new ArrayList<>();
+        List<BacktestTrade> trades = new ArrayList<>();
 
         Map<String, Object> strategyState = new HashMap<>();
 
         for (int i = 0; i < candleBar.size(); i++) {
 
-            CandleBar data = candleBar.get(i);
+            CandleData data = candleBar.get(i);
             LocalDate currentDate = data.getCandleBarDate();
             BigDecimal priceOpen = data.getPriceOpen();
             BigDecimal priceClose = data.getPriceClose();
@@ -176,7 +176,7 @@ public abstract class AbstractBacktester {
                         cash = BigDecimal.ZERO;
                         currentPosition = LONG;
 
-                        activeTrade = BacktestTrades.builder()
+                        activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategy(strategy.getEntity())
                                 .side(LONG)
@@ -198,7 +198,7 @@ public abstract class AbstractBacktester {
                         cash = equityAtOpen;
                         currentPosition = SHORT;
 
-                        activeTrade = BacktestTrades.builder()
+                        activeTrade = BacktestTrade.builder()
                                 .ticker(ticker)
                                 .strategy(strategy.getEntity())
                                 .side(SHORT)
@@ -228,7 +228,7 @@ public abstract class AbstractBacktester {
 
             // ───── Equity at priceClose ─────
             BigDecimal equityAtClose = calculateEquity(currentPosition, cash, shares, priceOpen, entryPrice);
-            equities.add(BacktestEquities.builder()
+            equities.add(BacktestEquity.builder()
                     .ticker(ticker)
                     .strategy(strategy.getEntity())
                     .equityDate(currentDate)
@@ -253,7 +253,7 @@ public abstract class AbstractBacktester {
                 executeDate = candleBar.get(i + 1).getCandleBarDate();
             }
 
-            signals.add(BacktestSignals.builder()
+            signals.add(BacktestSignal.builder()
                     .ticker(ticker)
                     .strategy(strategy.getEntity())
                     .signalDate(currentDate)
@@ -267,7 +267,7 @@ public abstract class AbstractBacktester {
 
         // Force close final open trade
         if (activeTrade != null) {
-            CandleBar lastBar = candleBar.getLast();
+            CandleData lastBar = candleBar.getLast();
             closeActiveTrade(activeTrade, lastBar.getCandleBarDate(), lastBar.getPriceClose(), trades);
         }
 
@@ -277,10 +277,10 @@ public abstract class AbstractBacktester {
     }
 
     private void closeActiveTrade(
-            BacktestTrades activeTrade,
+            BacktestTrade activeTrade,
             LocalDate currentDate,
             BigDecimal priceOpen,
-            List<BacktestTrades> trades
+            List<BacktestTrade> trades
     ) {
         BigDecimal priceDiff = switch (activeTrade.getSide()) {
             case LONG -> priceOpen.subtract(activeTrade.getEntryPrice());
@@ -304,13 +304,13 @@ public abstract class AbstractBacktester {
     private BacktestResult buildResult(
             Ticker ticker,
             Strategy strategy,
-            List<BacktestEquities> equities,
-            List<BacktestTrades> trades
+            List<BacktestEquity> equities,
+            List<BacktestTrade> trades
     ) {
         if (equities.isEmpty()) return null;
 
-        BacktestEquities first = equities.getFirst();
-        BacktestEquities last = equities.getLast();
+        BacktestEquity first = equities.getFirst();
+        BacktestEquity last = equities.getLast();
 
         long days = ChronoUnit.DAYS.between(first.getEquityDate(), last.getEquityDate());
         if (days <= 0) return null;
@@ -333,10 +333,10 @@ public abstract class AbstractBacktester {
 
         // Win Rate Calculation
         int totalTrades = trades.size();
-        List<BacktestTrades> winningTradesList = trades.stream()
+        List<BacktestTrade> winningTradesList = trades.stream()
                 .filter(trade -> trade.getPnl() != null && trade.getPnl().compareTo(BigDecimal.ZERO) > 0)
                 .toList();
-        List<BacktestTrades> losingTradesList = trades.stream()
+        List<BacktestTrade> losingTradesList = trades.stream()
                 .filter(trade -> trade.getPnl() != null && trade.getPnl().compareTo(BigDecimal.ZERO) < 0)
                 .toList();
 
@@ -353,22 +353,22 @@ public abstract class AbstractBacktester {
 
             avgWin = winningTradesList.isEmpty() ? BigDecimal.ZERO :
                     winningTradesList.stream()
-                            .map(BacktestTrades::getPnlPct)
+                            .map(BacktestTrade::getPnlPct)
                             .reduce(BigDecimal.ZERO, BigDecimal::add)
                             .divide(BigDecimal.valueOf(winningTradesList.size()), DB_MATH_CONTEXT);
 
             avgLoss = losingTradesList.isEmpty() ? BigDecimal.ZERO :
                     losingTradesList.stream()
-                            .map(BacktestTrades::getPnlPct)
+                            .map(BacktestTrade::getPnlPct)
                             .reduce(BigDecimal.ZERO, BigDecimal::add)
                             .divide(BigDecimal.valueOf(losingTradesList.size()), DB_MATH_CONTEXT);
 
             BigDecimal grossProfit = winningTradesList.stream()
-                    .map(BacktestTrades::getPnl)
+                    .map(BacktestTrade::getPnl)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
             BigDecimal grossLoss = losingTradesList.stream()
-                    .map(BacktestTrades::getPnl)
+                    .map(BacktestTrade::getPnl)
                     .reduce(BigDecimal.ZERO, BigDecimal::add).abs();
 
             if (grossLoss.compareTo(BigDecimal.ZERO) > 0) {
@@ -403,11 +403,11 @@ public abstract class AbstractBacktester {
                 .build();
     }
 
-    private BigDecimal calculateMaxDrawdown(List<BacktestEquities> equities) {
+    private BigDecimal calculateMaxDrawdown(List<BacktestEquity> equities) {
         if (equities.isEmpty()) return BigDecimal.ZERO;
         BigDecimal maxDrawdown = BigDecimal.ZERO;
         BigDecimal peak = equities.getFirst().getEquity();
-        for (BacktestEquities equity : equities) {
+        for (BacktestEquity equity : equities) {
             if (equity.getEquity().compareTo(peak) > 0) {
                 peak = equity.getEquity();
             }
@@ -419,7 +419,7 @@ public abstract class AbstractBacktester {
         return maxDrawdown;
     }
 
-    private BigDecimal calculateSharpeRatio(List<BacktestEquities> equities) {
+    private BigDecimal calculateSharpeRatio(List<BacktestEquity> equities) {
         if (equities.size() < 2) return BigDecimal.ZERO;
         List<Double> returns = new ArrayList<>();
         for (int i = 1; i < equities.size(); i++) {
@@ -439,9 +439,9 @@ public abstract class AbstractBacktester {
     }
 
     protected record BacktestRunResult(
-            List<BacktestEquities> backtestEquities,
-            List<BacktestSignals> backtestSignals,
-            List<BacktestTrades> backtestTrades,
+            List<BacktestEquity> backtestEquities,
+            List<BacktestSignal> backtestSignals,
+            List<BacktestTrade> backtestTrades,
             BacktestResult backtestResult
     ) {
     }

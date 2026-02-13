@@ -1,7 +1,7 @@
 package com.alphaflow.engine.calculation;
 
-import com.alphaflow.infrastructure.entities.CandleBar;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.CandleData;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
 import com.alphaflow.infrastructure.repositories.CandleBarRepository;
 import com.alphaflow.infrastructure.repositories.RenkoBrickRepository;
@@ -39,14 +39,14 @@ public class RenkoBrickCalculator {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Computing Renko bricks for {}", ticker.getTickerSymbol());
 
-            List<CandleBar> allSeries = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
+            List<CandleData> allSeries = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
 
             if (allSeries.isEmpty()) {
                 log.error("No candle bars found for {}", ticker.getTickerSymbol());
                 return;
             }
 
-            List<RenkoBrick> renkoBricks = RenkoBricksGenerator.generateRenkoBricks(ticker, allSeries);
+            List<RenkoData> renkoBricks = RenkoBricksGenerator.generateRenkoBricks(ticker, allSeries);
             if (!renkoBricks.isEmpty()) {
                 renkoBrickRepository.deleteByTicker(ticker);
                 renkoBrickRepository.flush();

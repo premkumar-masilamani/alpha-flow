@@ -1,6 +1,6 @@
 package com.alphaflow.engine.enums;
 
-import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.enums.DataSource;
 
 import java.math.BigDecimal;
@@ -19,7 +19,7 @@ public enum CandleBarMetricType {
 
     VWAP(
             "VWAP",
-            CandleBar::getVwap,
+            CandleData::getVwap,
             new MetricTransformSpec(
                     EnumSet.of(EMA, SMA),
                     EnumSet.of(THREE_DAYS,
@@ -46,7 +46,7 @@ public enum CandleBarMetricType {
 
     CAPITAL_POC(
             "C_POC",
-            CandleBar::getCapitalPOC,
+            CandleData::getCapitalPOC,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
                     EnumSet.of(FIVE_DAYS,
@@ -64,7 +64,7 @@ public enum CandleBarMetricType {
 
     TOTAL_CAPITAL(
             "T_CAP",
-            CandleBar::getTotalCapital,
+            CandleData::getTotalCapital,
             new MetricTransformSpec(
                     EnumSet.of(EMA),
                     EnumSet.of(TEN_DAYS,
@@ -92,7 +92,7 @@ public enum CandleBarMetricType {
 
     OBV(
             "OBV",
-            CandleBar::getVolume,
+            CandleData::getVolume,
             new MetricTransformSpec(
                     EnumSet.of(TransformationType.OBV),
                     EnumSet.of(ZERO_DAYS)
@@ -110,7 +110,7 @@ public enum CandleBarMetricType {
 
     PRICE_CLOSE(
             "P_CLOSE",
-            CandleBar::getPriceClose,
+            CandleData::getPriceClose,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
                     EnumSet.of(THREE_DAYS,
@@ -165,12 +165,12 @@ public enum CandleBarMetricType {
     );
 
     private final String code;
-    private final Function<CandleBar, BigDecimal> extractor;
+    private final Function<CandleData, BigDecimal> extractor;
     private final List<MetricTransformSpec> transformSpecs;
 
     CandleBarMetricType(
             String code,
-            Function<CandleBar, BigDecimal> extractor,
+            Function<CandleData, BigDecimal> extractor,
             MetricTransformSpec... transformSpecs
     ) {
         this.code = code;
@@ -178,7 +178,7 @@ public enum CandleBarMetricType {
         this.transformSpecs = Arrays.asList(transformSpecs);
     }
 
-    public BigDecimal extract(CandleBar candle) {
+    public BigDecimal extract(CandleData candle) {
         return extractor.apply(candle);
     }
 

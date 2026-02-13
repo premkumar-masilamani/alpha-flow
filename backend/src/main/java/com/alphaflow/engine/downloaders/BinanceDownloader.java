@@ -1,7 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.engine.configs.BinanceConfig;
-import com.alphaflow.engine.entities.DataFile;
+import com.alphaflow.engine.entities.TickDataFile;
 import com.alphaflow.engine.repositories.DataFileRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
@@ -121,7 +121,7 @@ public class BinanceDownloader {
 
     private void saveFileRecord(Ticker ticker, LocalDate dataFileDate, String dataFileUrl) {
         try {
-            dataFileRepository.save(DataFile.builder()
+            dataFileRepository.save(TickDataFile.builder()
                     .ticker(ticker)
                     .dataFileDate(dataFileDate)
                     .dataFileUrl(dataFileUrl)

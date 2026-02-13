@@ -1,6 +1,6 @@
 package com.alphaflow.infrastructure.repositories;
 
-import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,20 +11,20 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CandleBarRepository extends JpaRepository<CandleBar, Long> {
+public interface CandleBarRepository extends JpaRepository<CandleData, Long> {
 
     @Query("""
-                SELECT md FROM CandleBar md
+                SELECT md FROM CandleData md
                 JOIN FETCH md.ticker tk
                 WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
                 ORDER BY md.candleBarDate ASC
             """)
-    List<CandleBar> findAllByTickerNameWithTicker(String tickerName);
+    List<CandleData> findAllByTickerNameWithTicker(String tickerName);
 
-    Optional<CandleBar> findByTickerAndCandleBarDate(Ticker ticker, LocalDate candleBarDate);
+    Optional<CandleData> findByTickerAndCandleBarDate(Ticker ticker, LocalDate candleBarDate);
 
-    List<CandleBar> findByTickerOrderByCandleBarDateAsc(Ticker ticker);
+    List<CandleData> findByTickerOrderByCandleBarDateAsc(Ticker ticker);
 
-    Optional<CandleBar> findTopByTickerOrderByCandleBarDateDesc(Ticker ticker);
+    Optional<CandleData> findTopByTickerOrderByCandleBarDateDesc(Ticker ticker);
 
 }

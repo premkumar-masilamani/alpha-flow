@@ -7,7 +7,7 @@ import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
     @Override
     public String getName() {
-        return entity != null ? entity.getName() : "RenkoBrick PP";
+        return entity != null ? entity.getName() : "RenkoData PP";
     }
 
     @Override
@@ -68,7 +68,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        List<RenkoBrick> renkoBricks = context.renkoBricks();
+        List<RenkoData> renkoBricks = context.renkoBricks();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> state = context.state();
@@ -77,7 +77,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
-        RenkoBrick currentBrick = renkoBricks.getLast();
+        RenkoData currentBrick = renkoBricks.getLast();
         int trend = currentBrick.getTrend();
         int zone = currentBrick.getZone();
         String direction = currentBrick.getDirection();
@@ -165,7 +165,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 int firstGreenIdx = renkoBricks.size() - trend;
                 int lastRedIdx = firstGreenIdx - 1;
                 if (lastRedIdx >= 0) {
-                    RenkoBrick lastRedBrick = renkoBricks.get(lastRedIdx);
+                    RenkoData lastRedBrick = renkoBricks.get(lastRedIdx);
                     brickCriteria = lastRedBrick.getDirection().equals(RENKO_BRICK_DIRECTION_DOWN) && lastRedBrick.getTrend() >= 3;
                 } else {
                     brickCriteria = false;
@@ -201,7 +201,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                 int firstRedIdx = renkoBricks.size() - trend;
                 int lastGreenIdx = firstRedIdx - 1;
                 if (lastGreenIdx >= 0) {
-                    RenkoBrick lastGreenBrick = renkoBricks.get(lastGreenIdx);
+                    RenkoData lastGreenBrick = renkoBricks.get(lastGreenIdx);
                     brickCriteria = lastGreenBrick.getDirection().equals(RENKO_BRICK_DIRECTION_UP) && lastGreenBrick.getTrend() >= 3;
                 } else {
                     brickCriteria = false;

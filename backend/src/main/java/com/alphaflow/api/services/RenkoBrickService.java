@@ -3,7 +3,7 @@ package com.alphaflow.api.services;
 import com.alphaflow.api.dtos.RenkoBrickDTO;
 import com.alphaflow.api.dtos.RenkoResponseDTO;
 import com.alphaflow.api.mappers.RenkoBrickMapper;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.exceptions.ResourceNotFoundException;
 import com.alphaflow.infrastructure.repositories.RenkoBrickRepository;
@@ -42,16 +42,16 @@ public class RenkoBrickService {
                     return new ResourceNotFoundException("Ticker not found: " + symbol);
                 });
 
-        List<RenkoBrick> renkoBricks = renkoBrickRepository.findByTickerOrderByRenkoBrickDateAsc(ticker);
+        List<RenkoData> renkoBricks = renkoBrickRepository.findByTickerOrderByRenkoBrickDateAsc(ticker);
         return calculatePricesAndCreateResponse(renkoBricks);
     }
 
-    private RenkoResponseDTO calculatePricesAndCreateResponse(List<RenkoBrick> renkoBricks) {
+    private RenkoResponseDTO calculatePricesAndCreateResponse(List<RenkoData> renkoBricks) {
         if (renkoBricks.isEmpty()) {
             return RenkoResponseDTO.builder().build();
         }
 
-        RenkoBrick currentTrendBrick = getCurrentTrendBrick(renkoBricks);
+        RenkoData currentTrendBrick = getCurrentTrendBrick(renkoBricks);
 
         int currentBrickZone = getZoneFromTrend(currentTrendBrick.getTrend());
         BigDecimal brickSize = currentTrendBrick.getBrickHigh().subtract(currentTrendBrick.getBrickLow());
@@ -79,13 +79,13 @@ public class RenkoBrickService {
                 .brickSize(brickSize).build();
     }
 
-    private RenkoBrick getCurrentTrendBrick(List<RenkoBrick> renkoBricks) {
+    private RenkoData getCurrentTrendBrick(List<RenkoData> renkoBricks) {
 
-        RenkoBrick latestBrick = renkoBricks.getLast();
+        RenkoData latestBrick = renkoBricks.getLast();
         String latestDirection = latestBrick.getDirection();
         String oppositeDirection = latestDirection.equals(RENKO_BRICK_DIRECTION_UP) ? RENKO_BRICK_DIRECTION_DOWN : RENKO_BRICK_DIRECTION_UP;
 
-        RenkoBrick latestOppositeBrick = null;
+        RenkoData latestOppositeBrick = null;
         for (int i = renkoBricks.size() - 1; i >= 0; i--) {
             if (renkoBricks.get(i).getDirection().equals(oppositeDirection)) {
                 latestOppositeBrick = renkoBricks.get(i);
@@ -93,7 +93,7 @@ public class RenkoBrickService {
             }
         }
 
-        RenkoBrick currentTrendBrick;
+        RenkoData currentTrendBrick;
         if (latestOppositeBrick == null) {
             currentTrendBrick = latestBrick;
         } else {

@@ -1,7 +1,7 @@
 package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.BacktestSignalsDTO;
-import com.alphaflow.backtest.entities.BacktestSignals;
+import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.repositories.BacktestSignalsRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
@@ -36,7 +36,7 @@ public class BacktestService {
                 .collect(Collectors.toList());
     }
 
-    private BacktestSignalsDTO mapToSignalDTO(BacktestSignals signal) {
+    private BacktestSignalsDTO mapToSignalDTO(BacktestSignal signal) {
         return BacktestSignalsDTO.builder()
                 .strategyName(signal.getStrategy().getName())
                 .signalDate(signal.getSignalDate())

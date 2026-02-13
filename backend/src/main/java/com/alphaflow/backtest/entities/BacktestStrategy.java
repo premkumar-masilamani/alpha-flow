@@ -17,14 +17,16 @@ public class BacktestStrategy {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "backtest_strategy_id")
     private Long backtestStrategyId;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "name", unique = true, nullable = false, length = 255)
     private String name;
 
-    @Column(nullable = false)
+    @Column(name = "strategy_type", nullable = false, length = 100)
     private String strategyType;
 
+    @Column(name = "price_source", length = 50)
     private String priceSource;
 
     @OneToMany(mappedBy = "backtestStrategy", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)

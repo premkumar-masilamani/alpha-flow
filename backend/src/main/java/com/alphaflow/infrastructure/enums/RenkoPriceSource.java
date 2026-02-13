@@ -1,6 +1,6 @@
 package com.alphaflow.infrastructure.enums;
 
-import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.CandleData;
 import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
@@ -16,7 +16,7 @@ public enum RenkoPriceSource {
         return code;
     }
 
-    public BigDecimal getPrice(CandleBar candleBar) {
+    public BigDecimal getPrice(CandleData candleBar) {
         return switch (this) {
             case PRICE_CLOSE -> candleBar.getPriceClose();
             case VWAP -> candleBar.getVwap();

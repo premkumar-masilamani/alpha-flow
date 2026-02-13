@@ -1,10 +1,10 @@
 package com.alphaflow.api.mappers;
 
 import com.alphaflow.api.dtos.RenkoBrickDTO;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 
 public class RenkoBrickMapper {
-    public static RenkoBrickDTO toDTO(RenkoBrick renkoEntity) {
+    public static RenkoBrickDTO toDTO(RenkoData renkoEntity) {
         return RenkoBrickDTO.builder()
                 .date(renkoEntity.getRenkoBrickDate())
                 .low(renkoEntity.getBrickLow())

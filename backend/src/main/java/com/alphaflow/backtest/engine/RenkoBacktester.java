@@ -7,8 +7,8 @@ import com.alphaflow.backtest.strategies.renko.RenkoPPStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
-import com.alphaflow.infrastructure.entities.CandleBar;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.CandleData;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
@@ -59,7 +59,7 @@ public class RenkoBacktester extends AbstractBacktester {
                 .filter(s -> s.getStrategyType().startsWith("RENKO"))
                 .toList();
 
-        log.info("Loaded {} RenkoBrick strategies from database", entities.size());
+        log.info("Loaded {} RenkoData strategies from database", entities.size());
 
         return entities.stream()
                 .map(this::instantiateStrategy)
@@ -71,12 +71,12 @@ public class RenkoBacktester extends AbstractBacktester {
             case "RENKO_TSM" -> new RenkoTSMStrategy(entity);
             case "RENKO_PP" -> new RenkoPPStrategy(entity);
             case "RENKO_TSM_V2" -> new RenkoTSMV2Strategy(entity);
-            default -> throw new IllegalArgumentException("Unknown RenkoBrick strategy type: " + entity.getStrategyType());
+            default -> throw new IllegalArgumentException("Unknown RenkoData strategy type: " + entity.getStrategyType());
         };
     }
 
     @Override
-    protected List<RenkoBrick> buildRenkoBricks(Ticker ticker, List<CandleBar> allData, int index, Strategy strategy) {
+    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
         RenkoPriceSource priceSource = null;
         // Strategies can have different price sources for their renko bricks
         if (strategy instanceof RenkoStrategy renkoStrategy) {

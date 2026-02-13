@@ -8,7 +8,7 @@ import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
 import com.alphaflow.infrastructure.constants.AppConstants;
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +49,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     @Override
     public String getName() {
-        return entity != null ? entity.getName() : "RenkoBrick TSM V2";
+        return entity != null ? entity.getName() : "RenkoData TSM V2";
     }
 
     @Override
@@ -64,7 +64,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        List<RenkoBrick> renkoBricks = context.renkoBricks();
+        List<RenkoData> renkoBricks = context.renkoBricks();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> state = context.state();
@@ -106,7 +106,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
         // Rule 3: 3-Brick Confirmation
         int size = renkoBricks.size();
-        List<RenkoBrick> last3Bricks = renkoBricks.subList(size - 3, size);
+        List<RenkoData> last3Bricks = renkoBricks.subList(size - 3, size);
         boolean last3Up = last3Bricks.stream().allMatch(b -> AppConstants.RENKO_BRICK_DIRECTION_UP.equals(b.getDirection()));
         boolean last3Down = last3Bricks.stream().allMatch(b -> AppConstants.RENKO_BRICK_DIRECTION_DOWN.equals(b.getDirection()));
 

@@ -1,7 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.engine.configs.YahooFinanceConfig;
-import com.alphaflow.infrastructure.entities.CandleBar;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
 import com.alphaflow.infrastructure.repositories.CandleBarRepository;
@@ -82,7 +82,7 @@ public class YahooFinanceDownloader {
                 .replace("{end}", String.valueOf(endTs));
 
         try {
-            List<CandleBar> candleBarList = fetchAndParseJson(url, ticker);
+            List<CandleData> candleBarList = fetchAndParseJson(url, ticker);
             if (!candleBarList.isEmpty()) {
                 candleBarRepository.saveAll(candleBarList);
                 log.info("Successfully synced {} rows for {}", candleBarList.size(), ticker.getTickerSymbol());
@@ -92,7 +92,7 @@ public class YahooFinanceDownloader {
         }
     }
 
-    private List<CandleBar> fetchAndParseJson(String url, Ticker ticker) throws IOException {
+    private List<CandleData> fetchAndParseJson(String url, Ticker ticker) throws IOException {
         URLConnection connection = URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
@@ -119,7 +119,7 @@ public class YahooFinanceDownloader {
             JsonNode closes = indicators.path("close");
             JsonNode volumes = indicators.path("volume");
 
-            List<CandleBar> list = new ArrayList<>();
+            List<CandleData> list = new ArrayList<>();
             for (int i = 0; i < timestamps.size(); i++) {
                 if (opens.get(i).isNull() || highs.get(i).isNull() || lows.get(i).isNull() || closes.get(i).isNull()) {
                     continue;
@@ -134,7 +134,7 @@ public class YahooFinanceDownloader {
                 BigDecimal close = closes.get(i).decimalValue();
                 BigDecimal volume = volumes.get(i).decimalValue();
 
-                list.add(CandleBar.builder()
+                list.add(CandleData.builder()
                         .ticker(ticker)
                         .candleBarDate(date)
                         .priceOpen(open)

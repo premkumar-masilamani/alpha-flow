@@ -1,6 +1,6 @@
 package com.alphaflow.infrastructure.repositories;
 
-import com.alphaflow.infrastructure.entities.RenkoBrick;
+import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Repository
-public interface RenkoBrickRepository extends JpaRepository<RenkoBrick, Long> {
+public interface RenkoBrickRepository extends JpaRepository<RenkoData, Long> {
 
-    List<RenkoBrick> findByTickerOrderByRenkoBrickDateAsc(Ticker ticker);
+    List<RenkoData> findByTickerOrderByRenkoBrickDateAsc(Ticker ticker);
 
     @Modifying
     @Transactional
