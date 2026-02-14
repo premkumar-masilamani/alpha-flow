@@ -1,7 +1,7 @@
 package com.alphaflow.backtest.strategies.candlestick;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
-import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.entities.BacktestIndicator;
 import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
@@ -27,7 +27,7 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
 
     public BuyAndHoldRiskOverlayStrategy(BacktestStrategy entity) {
         this.entity = entity;
-        for (BacktestStrategyIndicator i : entity.getIndicators()) {
+        for (BacktestIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.FILTER) {
                 this.filterIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
             }
@@ -46,19 +46,19 @@ public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        BigDecimal priceClose = context.marketData().getPriceClose();
+        BigDecimal priceClose = context.candleData().getPriceClose();
         BigDecimal filterValue = context.indicators().get(filterIndicatorKey);
 
         if (context.currentPosition() == PositionType.NONE) {
             // Enter LONG on first bar (filterValue is null) OR when price moves back above filter
             if (filterValue == null || priceClose.compareTo(filterValue) > 0) {
-                log.debug("Strategy {} generating ENTER_LONG signal at {} price {} filter {}", getName(), context.marketData().getMarketDataDate(), priceClose, filterValue);
+                log.debug("Strategy {} generating ENTER_LONG signal at {} price {} filter {}", getName(), context.candleData().getCandleDataDate(), priceClose, filterValue);
                 return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG);
             }
         } else if (context.currentPosition() == PositionType.LONG) {
             // Exit to CASH if price falls below filter
             if (filterValue != null && priceClose.compareTo(filterValue) < 0) {
-                log.debug("Strategy {} generating EXIT signal at {} price {} filter {}", getName(), context.marketData().getMarketDataDate(), priceClose, filterValue);
+                log.debug("Strategy {} generating EXIT signal at {} price {} filter {}", getName(), context.candleData().getCandleDataDate(), priceClose, filterValue);
                 return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
             }
         }

@@ -8,31 +8,32 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "backtest_strategy_indicators")
+@Table(name = "backtest_indicators")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class BacktestStrategyIndicator {
+public class BacktestIndicator {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long backtestStrategyIndicatorId;
+    @Column(name = "backtest_indicator_id")
+    private Long backtestIndicatorId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "backtest_strategy_id", nullable = false)
     private BacktestStrategy backtestStrategy;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "indicator_role", nullable = false, length = 100)
     private IndicatorRole indicatorRole;
 
-    @Column(nullable = false)
+    @Column(name = "metric", nullable = false, length = 100)
     private String metric;
 
-    @Column(nullable = false)
+    @Column(name = "transformation", nullable = false, length = 20)
     private String transformation;
 
-    @Column(nullable = false)
+    @Column(name = "period", nullable = false)
     private Integer period;
 }

@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.RenkoResponseDTO;
+import com.alphaflow.api.dtos.RenkoDataResponseDTO;
 import com.alphaflow.api.services.RenkoDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +22,7 @@ public class RenkoDataController {
     }
 
     @GetMapping("/tickers/{symbol}/renko")
-    public RenkoResponseDTO getRenkoDataForTicker(@PathVariable String symbol) {
+    public RenkoDataResponseDTO getRenkoDataForTicker(@PathVariable String symbol) {
         log.info("Request to get renko data for ticker: {}", symbol);
         return renkoDataService.getRenkoData(symbol);
     }

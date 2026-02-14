@@ -1,6 +1,6 @@
 package com.alphaflow.engine.enums;
 
-import com.alphaflow.infrastructure.entities.MarketData;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.enums.DataSource;
 
 import java.math.BigDecimal;
@@ -15,11 +15,11 @@ import static com.alphaflow.engine.enums.TransformationType.SMA;
 import static com.alphaflow.engine.enums.WindowPeriod.*;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
-public enum MarketDataMetricType {
+public enum CandleDataMetricType {
 
     VWAP(
             "VWAP",
-            MarketData::getVwap,
+            CandleData::getVwap,
             new MetricTransformSpec(
                     EnumSet.of(EMA, SMA),
                     EnumSet.of(THREE_DAYS,
@@ -46,7 +46,7 @@ public enum MarketDataMetricType {
 
     CAPITAL_POC(
             "C_POC",
-            MarketData::getCapitalPOC,
+            CandleData::getCapitalPOC,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
                     EnumSet.of(FIVE_DAYS,
@@ -64,7 +64,7 @@ public enum MarketDataMetricType {
 
     TOTAL_CAPITAL(
             "T_CAP",
-            MarketData::getTotalCapital,
+            CandleData::getTotalCapital,
             new MetricTransformSpec(
                     EnumSet.of(EMA),
                     EnumSet.of(TEN_DAYS,
@@ -92,7 +92,7 @@ public enum MarketDataMetricType {
 
     OBV(
             "OBV",
-            MarketData::getVolume,
+            CandleData::getVolume,
             new MetricTransformSpec(
                     EnumSet.of(TransformationType.OBV),
                     EnumSet.of(ZERO_DAYS)
@@ -110,7 +110,7 @@ public enum MarketDataMetricType {
 
     PRICE_CLOSE(
             "P_CLOSE",
-            MarketData::getPriceClose,
+            CandleData::getPriceClose,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
                     EnumSet.of(THREE_DAYS,
@@ -165,12 +165,12 @@ public enum MarketDataMetricType {
     );
 
     private final String code;
-    private final Function<MarketData, BigDecimal> extractor;
+    private final Function<CandleData, BigDecimal> extractor;
     private final List<MetricTransformSpec> transformSpecs;
 
-    MarketDataMetricType(
+    CandleDataMetricType(
             String code,
-            Function<MarketData, BigDecimal> extractor,
+            Function<CandleData, BigDecimal> extractor,
             MetricTransformSpec... transformSpecs
     ) {
         this.code = code;
@@ -178,8 +178,8 @@ public enum MarketDataMetricType {
         this.transformSpecs = Arrays.asList(transformSpecs);
     }
 
-    public BigDecimal extract(MarketData marketData) {
-        return extractor.apply(marketData);
+    public BigDecimal extract(CandleData candle) {
+        return extractor.apply(candle);
     }
 
     public String code() {

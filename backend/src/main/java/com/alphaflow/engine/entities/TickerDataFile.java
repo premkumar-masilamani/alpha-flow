@@ -10,24 +10,29 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "files")
+@Table(name = "tick_data_files")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class File {
+public class TickerDataFile {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long fileId;
+    @Column(name = "tick_data_file_id")
+    private Long dataFileId;
 
-    private LocalDate fileDate;
+    @Column(name = "file_date", nullable = false)
+    private LocalDate dataFileDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ticker_id")
+    @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
 
-    private String fileUrl;
+    @Column(name = "file_url", nullable = false)
+    private String dataFileUrl;
 
+    @Column(name = "is_processed", nullable = false)
+    @Builder.Default
     private Boolean isProcessed = false;
 }

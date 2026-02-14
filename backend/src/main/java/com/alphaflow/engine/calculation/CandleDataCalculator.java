@@ -1,14 +1,14 @@
 package com.alphaflow.engine.calculation;
 
 import com.alphaflow.engine.configs.BinanceConfig;
-import com.alphaflow.engine.entities.File;
+import com.alphaflow.engine.entities.TickerDataFile;
 import com.alphaflow.engine.metrics.CapitalProfileMetrics;
 import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.engine.metrics.OHLCVMetrics;
 import com.alphaflow.engine.metrics.OrderFlowMetrics;
-import com.alphaflow.engine.repositories.FileRepository;
-import com.alphaflow.infrastructure.entities.MarketData;
-import com.alphaflow.infrastructure.repositories.MarketDataRepository;
+import com.alphaflow.engine.repositories.TickerDataFileRepository;
+import com.alphaflow.infrastructure.entities.CandleData;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -27,36 +27,36 @@ import static com.alphaflow.infrastructure.constants.AppConstants.*;
 import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
-public class MarketDataCalculator {
+public class CandleDataCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(MarketDataCalculator.class);
+    private static final Logger log = LoggerFactory.getLogger(CandleDataCalculator.class);
 
     private final BinanceConfig binanceConfig;
-    private final FileRepository fileRepository;
-    private final MarketDataRepository marketDataRepository;
+    private final TickerDataFileRepository tickerDataFileRepository;
+    private final CandleDataRepository candleDataRepository;
 
-    public MarketDataCalculator(
+    public CandleDataCalculator(
             BinanceConfig binanceConfig,
-            FileRepository fileRepository,
-            MarketDataRepository marketDataRepository
+            TickerDataFileRepository tickerDataFileRepository,
+            CandleDataRepository candleDataRepository
     ) {
         this.binanceConfig = binanceConfig;
-        this.fileRepository = fileRepository;
-        this.marketDataRepository = marketDataRepository;
+        this.tickerDataFileRepository = tickerDataFileRepository;
+        this.candleDataRepository = candleDataRepository;
     }
 
     /**
-     * Entry point for computing market data.
+     * Entry point for computing candle data.
      * Iterates through all unprocessed files in the database, extracts tick data from ZIP archives,
      * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
      */
     public void calculate() {
-        log.info("Starting Market Data Computation");
+        log.info("Starting CandleData Bar Computation");
 
         int totalProcessed = 0;
         while (true) {
             // Fetch a page of unprocessed files to avoid loading too many records into memory
-            Page<File> page = fileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
+            Page<TickerDataFile> page = tickerDataFileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
 
             if (page.isEmpty()) {
                 break;
@@ -72,7 +72,7 @@ public class MarketDataCalculator {
             totalProcessed += page.getNumberOfElements();
         }
 
-        log.info("Completed Market Data Computation. Total files processed: {}", totalProcessed);
+        log.info("Completed CandleData Bar Computation. Total files processed: {}", totalProcessed);
     }
 
     /**
@@ -80,14 +80,14 @@ public class MarketDataCalculator {
      * 1. Locates the ZIP file on disk.
      * 2. Extracts the CSV content.
      * 3. Computes metrics.
-     * 4. Merges with existing market data if applicable (to handle multiple files for the same date/ticker).
+     * 4. Merges with existing candle data if applicable (to handle multiple files for the same date/ticker).
      * 5. Updates the file status to processed.
      *
      * @param file The file record from the database.
      */
-    public void processTickDataFile(File file) {
+    public void processTickDataFile(TickerDataFile file) {
         final String tickerSymbol = file.getTicker().getTickerSymbol();
-        final String dateStr = getBinanceDateString(file.getFileDate());
+        final String dateStr = getBinanceDateString(file.getDataFileDate());
         final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
         final Path filePath = Paths.get(binanceConfig.getDownloadDir(), tickerSymbol, baseFileName);
 
@@ -114,22 +114,22 @@ public class MarketDataCalculator {
                 Table tickTable = getFileAsTable(inputStream);
 
                 log.trace("Computing metrics for {}", baseFileName);
-                MarketData computedData = computeMetrics(file, tickTable);
+                CandleData computedData = computeMetrics(file, tickTable);
 
-                // If we already have market data for this ticker/date, merge it.
-                MarketData mergedData = marketDataRepository.findByTickerAndMarketDataDate(file.getTicker(), file.getFileDate())
+                // If we already have candle data for this ticker/date, merge it.
+                CandleData mergedData = candleDataRepository.findByTickerAndCandleDataDate(file.getTicker(), file.getDataFileDate())
                         .map(existingData -> {
-                            log.debug("Existing market data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
+                            log.debug("Existing candle data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
                             return existingData.merge(computedData);
                         })
                         .orElse(computedData);
 
-                log.debug("Saving market data: {}", mergedData);
-                marketDataRepository.save(mergedData);
+                log.debug("Saving candle data: {}", mergedData);
+                candleDataRepository.save(mergedData);
 
                 // Mark the file as processed to avoid re-computation
                 file.setIsProcessed(true);
-                fileRepository.save(file);
+                tickerDataFileRepository.save(file);
 
                 log.info("Successfully processed and saved data for {} on {}", tickerSymbol, dateStr);
             }
@@ -147,15 +147,15 @@ public class MarketDataCalculator {
                 );
     }
 
-    private MarketData computeMetrics(File file, Table table) {
+    private CandleData computeMetrics(TickerDataFile file, Table table) {
 
         OHLCVMetrics ohlcvMetrics = MetricsCalculator.ohlcv(table);
         OrderFlowMetrics orderFlowMetrics = MetricsCalculator.orderFlow(table);
         CapitalProfileMetrics capitalProfileMetrics = MetricsCalculator.capitalProfile(table, ohlcvMetrics);
 
-        return MarketData.builder()
+        return CandleData.builder()
                 .ticker(file.getTicker())
-                .marketDataDate(file.getFileDate())
+                .candleDataDate(file.getDataFileDate())
                 .priceOpen(ohlcvMetrics.open())
                 .priceHigh(ohlcvMetrics.high())
                 .priceLow(ohlcvMetrics.low())

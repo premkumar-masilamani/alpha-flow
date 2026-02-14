@@ -1,7 +1,7 @@
 package com.alphaflow.backtest.strategies.renko;
 
 import com.alphaflow.backtest.entities.BacktestStrategy;
-import com.alphaflow.backtest.entities.BacktestStrategyIndicator;
+import com.alphaflow.backtest.entities.BacktestIndicator;
 import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
@@ -37,7 +37,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     public RenkoTSMV2Strategy(BacktestStrategy entity) {
         this.entity = entity;
-        for (BacktestStrategyIndicator i : entity.getIndicators()) {
+        for (BacktestIndicator i : entity.getIndicators()) {
             if (i.getIndicatorRole() == IndicatorRole.FILTER) {
                 this.filterIndicatorKey = i.getMetric() + "_" + i.getTransformation() + "_" + i.getPeriod();
             } else if (i.getIndicatorRole() == IndicatorRole.MOMENTUM) {
@@ -49,7 +49,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     @Override
     public String getName() {
-        return entity != null ? entity.getName() : "Renko TSM V2";
+        return entity != null ? entity.getName() : "RenkoData TSM V2";
     }
 
     @Override
@@ -64,16 +64,16 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        List<RenkoData> renkoBricks = context.renkoBricks();
+        List<RenkoData> renkoData = context.renkoData();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> state = context.state();
 
-        if (renkoBricks == null || renkoBricks.size() < 3) {
+        if (renkoData == null || renkoData.size() < 3) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
-        BigDecimal priceClose = context.marketData() != null ? context.marketData().getPriceClose() : null;
+        BigDecimal priceClose = context.candleData() != null ? context.candleData().getPriceClose() : null;
         BigDecimal filterValue = indicators.get(filterIndicatorKey);
         BigDecimal currentObv = indicators.get(momentumIndicatorKey);
 
@@ -105,8 +105,8 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         boolean obvBearish = obvMomentum.compareTo(OBV_THRESHOLD.negate()) < 0;
 
         // Rule 3: 3-Brick Confirmation
-        int size = renkoBricks.size();
-        List<RenkoData> last3Bricks = renkoBricks.subList(size - 3, size);
+        int size = renkoData.size();
+        List<RenkoData> last3Bricks = renkoData.subList(size - 3, size);
         boolean last3Up = last3Bricks.stream().allMatch(b -> AppConstants.RENKO_BRICK_DIRECTION_UP.equals(b.getDirection()));
         boolean last3Down = last3Bricks.stream().allMatch(b -> AppConstants.RENKO_BRICK_DIRECTION_DOWN.equals(b.getDirection()));
 
@@ -116,17 +116,17 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         signalData.put("OBV", scale2(currentObv));
         signalData.put("prevOBV", scale2(prevObv));
         signalData.put("obvMomentum", scale2(obvMomentum));
-        signalData.put("direction", renkoBricks.getLast().getDirection());
+        signalData.put("direction", renkoData.getLast().getDirection());
         signalData.put("regime", regime);
 
         // Entry Logic
         if (bullishRegime && last3Up && obvBullish && currentPosition != PositionType.LONG) {
-            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.marketData().getMarketDataDate());
+            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.candleData().getCandleDataDate());
             return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 
         if (bearishRegime && last3Down && obvBearish && currentPosition != PositionType.SHORT) {
-            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.marketData().getMarketDataDate());
+            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.candleData().getCandleDataDate());
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 

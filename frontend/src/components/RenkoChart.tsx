@@ -5,11 +5,11 @@ import type {BacktestSignal, RenkoData} from '../services/api';
 
 interface RenkoChartProps {
     data: RenkoData;
-    signals: BacktestSignal[];
+    signal: BacktestSignal[];
     selectedStrategy: string;
 }
 
-const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}) => {
+const RenkoChart: React.FC<RenkoChartProps> = ({data, signal, selectedStrategy}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -127,7 +127,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
         }));
 
         // Plot signal markers
-        const signalMarkers: any[] = signals.flatMap(s => {
+        const signalMarkers: any[] = signal.flatMap(s => {
             // Find the index of the last brick on this date
             let brickIndex = -1;
             for (let j = data.bricks.length - 1; j >= 0; j--) {
@@ -202,7 +202,7 @@ const RenkoChart: React.FC<RenkoChartProps> = ({data, signals, selectedStrategy}
             from: startIndex as unknown as Time,
             to: (data.bricks.length - 1) as unknown as Time,
         });
-    }, [data, signals, selectedStrategy]);
+    }, [data, signal, selectedStrategy]);
 
     return (
         <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>

@@ -7,13 +7,13 @@ import com.alphaflow.backtest.strategies.renko.RenkoPPStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMStrategy;
 import com.alphaflow.backtest.strategies.renko.RenkoTSMV2Strategy;
-import com.alphaflow.infrastructure.entities.MarketData;
+import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
-import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
-import com.alphaflow.infrastructure.repositories.MarketDataRepository;
-import com.alphaflow.infrastructure.repositories.MarketStateRepository;
+import com.alphaflow.infrastructure.generators.RenkoDataGenerator;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
+import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +30,8 @@ public class RenkoBacktester extends AbstractBacktester {
 
     public RenkoBacktester(
             TickerRepository tickerRepository,
-            MarketDataRepository marketDataRepository,
-            MarketStateRepository marketStateRepository,
+            CandleDataRepository candleDataRepository,
+            IndicatorRepository indicatorRepository,
             BacktestEquityRepository backtestEquityRepository,
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
@@ -41,8 +41,8 @@ public class RenkoBacktester extends AbstractBacktester {
     ) {
         super(
                 tickerRepository,
-                marketDataRepository,
-                marketStateRepository,
+                candleDataRepository,
+                indicatorRepository,
                 backtestEquityRepository,
                 backtestSignalRepository,
                 backtestTradeRepository,
@@ -59,7 +59,7 @@ public class RenkoBacktester extends AbstractBacktester {
                 .filter(s -> s.getStrategyType().startsWith("RENKO"))
                 .toList();
 
-        log.info("Loaded {} Renko strategies from database", entities.size());
+        log.info("Loaded {} RenkoData strategies from database", entities.size());
 
         return entities.stream()
                 .map(this::instantiateStrategy)
@@ -71,14 +71,14 @@ public class RenkoBacktester extends AbstractBacktester {
             case "RENKO_TSM" -> new RenkoTSMStrategy(entity);
             case "RENKO_PP" -> new RenkoPPStrategy(entity);
             case "RENKO_TSM_V2" -> new RenkoTSMV2Strategy(entity);
-            default -> throw new IllegalArgumentException("Unknown Renko strategy type: " + entity.getStrategyType());
+            default -> throw new IllegalArgumentException("Unknown RenkoData strategy type: " + entity.getStrategyType());
         };
     }
 
     @Override
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<MarketData> allData, int index, Strategy strategy) {
+    protected List<RenkoData> buildRenkoData(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
         RenkoPriceSource priceSource = null;
-        // Strategies can have different price sources for their renko bricks
+        // Strategies can have different price sources for their renko data
         if (strategy instanceof RenkoStrategy renkoStrategy) {
             priceSource = renkoStrategy.getPriceSource();
         }
@@ -86,6 +86,6 @@ public class RenkoBacktester extends AbstractBacktester {
             throw new IllegalStateException("RenkoPriceSource is not defined for strategy: " + strategy.getClass().getSimpleName());
         }
 
-        return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
+        return RenkoDataGenerator.generateRenkoData(ticker, allData.subList(0, index + 1), priceSource);
     }
 }

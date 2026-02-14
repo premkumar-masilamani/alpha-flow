@@ -5,8 +5,8 @@ import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldRiskOverlayStrategy;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldStrategy;
 import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
-import com.alphaflow.infrastructure.repositories.MarketDataRepository;
-import com.alphaflow.infrastructure.repositories.MarketStateRepository;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
+import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +23,8 @@ public class CandlestickBacktester extends AbstractBacktester {
 
     public CandlestickBacktester(
             TickerRepository tickerRepository,
-            MarketDataRepository marketDataRepository,
-            MarketStateRepository marketStateRepository,
+            CandleDataRepository candleDataRepository,
+            IndicatorRepository indicatorRepository,
             BacktestEquityRepository backtestEquityRepository,
             BacktestSignalRepository backtestSignalRepository,
             BacktestTradeRepository backtestTradeRepository,
@@ -34,8 +34,8 @@ public class CandlestickBacktester extends AbstractBacktester {
     ) {
         super(
                 tickerRepository,
-                marketDataRepository,
-                marketStateRepository,
+                candleDataRepository,
+                indicatorRepository,
                 backtestEquityRepository,
                 backtestSignalRepository,
                 backtestTradeRepository,

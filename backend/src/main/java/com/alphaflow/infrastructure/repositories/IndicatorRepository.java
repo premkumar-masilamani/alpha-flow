@@ -1,6 +1,6 @@
 package com.alphaflow.infrastructure.repositories;
 
-import com.alphaflow.infrastructure.entities.MarketState;
+import com.alphaflow.infrastructure.entities.Indicator;
 import com.alphaflow.infrastructure.entities.Ticker;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -8,24 +8,24 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
-public interface MarketStateRepository extends JpaRepository<MarketState, Long> {
+public interface IndicatorRepository extends JpaRepository<Indicator, Long> {
 
-    Optional<MarketState> findTopByTickerAndMetricAndMaTypeAndPeriodOrderByMarketStateDateDesc(
+    Optional<Indicator> findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
             Ticker ticker,
             String metric,
             String maType,
             int period
     );
 
-    Optional<MarketState> findByTickerAndMarketStateDateAndMetricAndMaTypeAndPeriod(
+    Optional<Indicator> findByTickerAndIndicatorDateAndMetricAndMaTypeAndPeriod(
             Ticker ticker,
-            LocalDate marketStateDate,
+            LocalDate indicatorDate,
             String metric,
             String maType,
             int period
     );
 
-    List<MarketState> findByTickerAndMetricAndMaTypeAndPeriodAndMarketStateDateGreaterThanEqualOrderByMarketStateDateAsc(
+    List<Indicator> findByTickerAndMetricAndMaTypeAndPeriodAndIndicatorDateGreaterThanEqualOrderByIndicatorDateAsc(
             Ticker ticker,
             String metric,
             String maType,
@@ -33,5 +33,5 @@ public interface MarketStateRepository extends JpaRepository<MarketState, Long> 
             LocalDate startDate
     );
 
-    List<MarketState> findByTickerOrderByMarketStateDateAsc(Ticker ticker);
+    List<Indicator> findByTickerOrderByIndicatorDateAsc(Ticker ticker);
 }

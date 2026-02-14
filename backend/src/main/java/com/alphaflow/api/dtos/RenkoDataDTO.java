@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Builder
-public record RenkoBrickDTO(
+public record RenkoDataDTO(
         @JsonProperty("date") LocalDate date,
         @JsonProperty("low") BigDecimal low,
         @JsonProperty("high") BigDecimal high,

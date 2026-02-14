@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -24,7 +25,7 @@ public class BacktestController {
     }
 
     @GetMapping("/tickers/{symbol}/signals")
-    public java.util.Map<String, List<BacktestSignalDTO>> getSignalsForTicker(@PathVariable String symbol) {
+    public Map<String, List<BacktestSignalDTO>> getSignalsForTicker(@PathVariable String symbol) {
         log.info("Request to get backtest signals for ticker: {}", symbol);
         return backtestService.getSignalsByTicker(symbol);
     }
