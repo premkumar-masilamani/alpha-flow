@@ -14,7 +14,7 @@ import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.Indicator;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.repositories.CandleBarRepository;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -38,11 +38,11 @@ public abstract class AbstractBacktester {
     protected static final double YEAR_IN_DAYS = 365.25;
     private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
     protected final TickerRepository tickerRepository;
-    protected final CandleBarRepository candleBarRepository;
+    protected final CandleDataRepository candleDataRepository;
     protected final IndicatorRepository indicatorRepository;
-    protected final BacktestEquitiesRepository backtestEquitiesRepository;
-    protected final BacktestSignalsRepository backtestSignalsRepository;
-    protected final BacktestTradesRepository backtestTradesRepository;
+    protected final BacktestEquityRepository backtestEquityRepository;
+    protected final BacktestSignalRepository backtestSignalRepository;
+    protected final BacktestTradeRepository backtestTradeRepository;
     protected final BacktestResultRepository backtestResultRepository;
     protected final BacktestStrategyRepository backtestStrategyRepository;
     protected final TransactionTemplate transactionTemplate;
@@ -50,22 +50,22 @@ public abstract class AbstractBacktester {
 
     protected AbstractBacktester(
             TickerRepository tickerRepository,
-            CandleBarRepository candleBarRepository,
+            CandleDataRepository candleDataRepository,
             IndicatorRepository indicatorRepository,
-            BacktestEquitiesRepository backtestEquitiesRepository,
-            BacktestSignalsRepository backtestSignalsRepository,
-            BacktestTradesRepository backtestTradesRepository,
+            BacktestEquityRepository backtestEquityRepository,
+            BacktestSignalRepository backtestSignalRepository,
+            BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             BacktestStrategyRepository backtestStrategyRepository,
             List<? extends Strategy> strategies,
             TransactionTemplate transactionTemplate
     ) {
         this.tickerRepository = tickerRepository;
-        this.candleBarRepository = candleBarRepository;
+        this.candleDataRepository = candleDataRepository;
         this.indicatorRepository = indicatorRepository;
-        this.backtestEquitiesRepository = backtestEquitiesRepository;
-        this.backtestSignalsRepository = backtestSignalsRepository;
-        this.backtestTradesRepository = backtestTradesRepository;
+        this.backtestEquityRepository = backtestEquityRepository;
+        this.backtestSignalRepository = backtestSignalRepository;
+        this.backtestTradeRepository = backtestTradeRepository;
         this.backtestResultRepository = backtestResultRepository;
         this.backtestStrategyRepository = backtestStrategyRepository;
         this.strategies = strategies;
@@ -80,7 +80,11 @@ public abstract class AbstractBacktester {
         };
     }
 
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
+    private static boolean isInvalidEntryPrice(BigDecimal price) {
+        return price == null || price.compareTo(BigDecimal.ZERO) <= 0;
+    }
+
+    protected List<RenkoData> buildRenkoData(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
         // Only the RenkoBacktester will implement the logic
         return null;
     }
@@ -88,8 +92,8 @@ public abstract class AbstractBacktester {
     public void compute() {
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
             log.info("Starting backtests for ticker: {}", ticker.getTickerSymbol());
-            List<CandleData> candleBar = candleBarRepository.findByTickerOrderByCandleBarDateAsc(ticker);
-            if (candleBar.isEmpty()) {
+            List<CandleData> candleData = candleDataRepository.findByTickerOrderByCandleDataDateAsc(ticker);
+            if (candleData.isEmpty()) {
                 log.warn("No market data found for ticker: {}", ticker.getTickerSymbol());
                 return;
             }
@@ -98,16 +102,16 @@ public abstract class AbstractBacktester {
 
             for (Strategy strategy : strategies) {
                 log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
-                BacktestRunResult runResult = runBacktest(ticker, strategy, candleBar, indicators);
+                BacktestRunResult runResult = runBacktest(ticker, strategy, candleData, indicators);
                 transactionTemplate.execute(status -> {
-                    backtestEquitiesRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                    backtestSignalsRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                    backtestTradesRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                    backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
                     backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
 
-                    backtestEquitiesRepository.saveAll(runResult.backtestEquities());
-                    backtestSignalsRepository.saveAll(runResult.backtestSignals());
-                    backtestTradesRepository.saveAll(runResult.backtestTrades());
+                    backtestEquityRepository.saveAll(runResult.backtestEquity());
+                    backtestSignalRepository.saveAll(runResult.backtestSignal());
+                    backtestTradeRepository.saveAll(runResult.backtestTrades());
                     backtestResultRepository.save(runResult.backtestResult());
                     return status;
                 });
@@ -133,7 +137,7 @@ public abstract class AbstractBacktester {
     private BacktestRunResult runBacktest(
             Ticker ticker,
             Strategy strategy,
-            List<CandleData> candleBar,
+            List<CandleData> candleData,
             Map<LocalDate, Map<String, BigDecimal>> indicatorMap
     ) {
 
@@ -151,10 +155,10 @@ public abstract class AbstractBacktester {
 
         Map<String, Object> strategyState = new HashMap<>();
 
-        for (int i = 0; i < candleBar.size(); i++) {
+        for (int i = 0; i < candleData.size(); i++) {
 
-            CandleData data = candleBar.get(i);
-            LocalDate currentDate = data.getCandleBarDate();
+            CandleData data = candleData.get(i);
+            LocalDate currentDate = data.getCandleDataDate();
             BigDecimal priceOpen = data.getPriceOpen();
             BigDecimal priceClose = data.getPriceClose();
 
@@ -168,6 +172,11 @@ public abstract class AbstractBacktester {
 
                     case ENTER_LONG -> {
                         log.debug("Executing ENTER_LONG for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
+                        // TODO: Verify this logic
+                        if (isInvalidEntryPrice(priceOpen)) {
+                            log.warn("Skipping ENTER_LONG execution for {} on {} due invalid entry price: {}", strategy.getName(), currentDate, priceOpen);
+                            break;
+                        }
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                         }
@@ -189,6 +198,10 @@ public abstract class AbstractBacktester {
 
                     case ENTER_SHORT -> {
                         log.debug("Executing ENTER_SHORT for {} at {} price {}", strategy.getName(), currentDate, priceOpen);
+                        if (isInvalidEntryPrice(priceOpen)) {
+                            log.warn("Skipping ENTER_SHORT execution for {} on {} due invalid entry price: {}", strategy.getName(), currentDate, priceOpen);
+                            break;
+                        }
                         if (activeTrade != null) {
                             closeActiveTrade(activeTrade, currentDate, priceOpen, trades);
                         }
@@ -242,15 +255,15 @@ public abstract class AbstractBacktester {
                     data,
                     indicatorMap.getOrDefault(currentDate, Collections.emptyMap()),
                     currentPosition,
-                    buildRenkoBricks(ticker, candleBar, i, strategy), // used only for renko based strategies
+                    buildRenkoData(ticker, candleData, i, strategy), // used only for renko based strategies
                     strategyState // Placeholder to extra data
             );
             TradeAction nextAction = strategy.generateSignal(context);
 
             // Fetch the next trading date from list
             LocalDate executeDate = null;
-            if (candleBar.size() > i + 1) {
-                executeDate = candleBar.get(i + 1).getCandleBarDate();
+            if (candleData.size() > i + 1) {
+                executeDate = candleData.get(i + 1).getCandleDataDate();
             }
 
             signals.add(BacktestSignal.builder()
@@ -267,8 +280,8 @@ public abstract class AbstractBacktester {
 
         // Force close final open trade
         if (activeTrade != null) {
-            CandleData lastBar = candleBar.getLast();
-            closeActiveTrade(activeTrade, lastBar.getCandleBarDate(), lastBar.getPriceClose(), trades);
+            CandleData lastBar = candleData.getLast();
+            closeActiveTrade(activeTrade, lastBar.getCandleDataDate(), lastBar.getPriceClose(), trades);
         }
 
         BacktestResult result = buildResult(ticker, strategy, equities, trades);
@@ -290,7 +303,13 @@ public abstract class AbstractBacktester {
         BigDecimal pnl = activeTrade.getQuantity().multiply(priceDiff);
 
         BigDecimal entryValue = activeTrade.getQuantity().multiply(activeTrade.getEntryPrice());
-        BigDecimal pnlPct = pnl.divide(entryValue, DB_MATH_CONTEXT).multiply(HUNDRED);
+        // TODO: Review this logic
+        BigDecimal pnlPct = BigDecimal.ZERO;
+        if (entryValue.compareTo(BigDecimal.ZERO) != 0) {
+            pnlPct = pnl.divide(entryValue, DB_MATH_CONTEXT).multiply(HUNDRED);
+        } else {
+            log.warn("Skipping pnlPct calculation for trade on {} due zero entry value. entryPrice={}, quantity={}", currentDate, activeTrade.getEntryPrice(), activeTrade.getQuantity());
+        }
 
         activeTrade.setExitDate(currentDate);
         activeTrade.setExitPrice(priceOpen);
@@ -439,8 +458,8 @@ public abstract class AbstractBacktester {
     }
 
     protected record BacktestRunResult(
-            List<BacktestEquity> backtestEquities,
-            List<BacktestSignal> backtestSignals,
+            List<BacktestEquity> backtestEquity,
+            List<BacktestSignal> backtestSignal,
             List<BacktestTrade> backtestTrades,
             BacktestResult backtestResult
     ) {

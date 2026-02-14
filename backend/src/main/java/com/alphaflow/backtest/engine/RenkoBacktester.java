@@ -11,8 +11,8 @@ import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.RenkoData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.RenkoPriceSource;
-import com.alphaflow.infrastructure.generators.RenkoBricksGenerator;
-import com.alphaflow.infrastructure.repositories.CandleBarRepository;
+import com.alphaflow.infrastructure.generators.RenkoDataGenerator;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -30,22 +30,22 @@ public class RenkoBacktester extends AbstractBacktester {
 
     public RenkoBacktester(
             TickerRepository tickerRepository,
-            CandleBarRepository candleBarRepository,
+            CandleDataRepository candleDataRepository,
             IndicatorRepository indicatorRepository,
-            BacktestEquitiesRepository backtestEquitiesRepository,
-            BacktestSignalsRepository backtestSignalsRepository,
-            BacktestTradesRepository backtestTradesRepository,
+            BacktestEquityRepository backtestEquityRepository,
+            BacktestSignalRepository backtestSignalRepository,
+            BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             BacktestStrategyRepository backtestStrategyRepository,
             TransactionTemplate transactionTemplate
     ) {
         super(
                 tickerRepository,
-                candleBarRepository,
+                candleDataRepository,
                 indicatorRepository,
-                backtestEquitiesRepository,
-                backtestSignalsRepository,
-                backtestTradesRepository,
+                backtestEquityRepository,
+                backtestSignalRepository,
+                backtestTradeRepository,
                 backtestResultRepository,
                 backtestStrategyRepository,
                 new ArrayList<>(),
@@ -76,9 +76,9 @@ public class RenkoBacktester extends AbstractBacktester {
     }
 
     @Override
-    protected List<RenkoData> buildRenkoBricks(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
+    protected List<RenkoData> buildRenkoData(Ticker ticker, List<CandleData> allData, int index, Strategy strategy) {
         RenkoPriceSource priceSource = null;
-        // Strategies can have different price sources for their renko bricks
+        // Strategies can have different price sources for their renko data
         if (strategy instanceof RenkoStrategy renkoStrategy) {
             priceSource = renkoStrategy.getPriceSource();
         }
@@ -86,6 +86,6 @@ public class RenkoBacktester extends AbstractBacktester {
             throw new IllegalStateException("RenkoPriceSource is not defined for strategy: " + strategy.getClass().getSimpleName());
         }
 
-        return RenkoBricksGenerator.generateRenkoBricks(ticker, allData.subList(0, index + 1), priceSource);
+        return RenkoDataGenerator.generateRenkoData(ticker, allData.subList(0, index + 1), priceSource);
     }
 }

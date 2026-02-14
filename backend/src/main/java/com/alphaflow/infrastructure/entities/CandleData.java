@@ -18,10 +18,10 @@ public class CandleData {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "candle_data_id")
-    private Long candleBarId;
+    private Long candleDataId;
 
     @Column(name = "candle_date", nullable = false)
-    private LocalDate candleBarDate;
+    private LocalDate candleDataDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id", nullable = false)

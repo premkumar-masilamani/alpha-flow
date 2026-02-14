@@ -15,7 +15,7 @@ import static com.alphaflow.engine.enums.TransformationType.SMA;
 import static com.alphaflow.engine.enums.WindowPeriod.*;
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
-public enum CandleBarMetricType {
+public enum CandleDataMetricType {
 
     VWAP(
             "VWAP",
@@ -168,7 +168,7 @@ public enum CandleBarMetricType {
     private final Function<CandleData, BigDecimal> extractor;
     private final List<MetricTransformSpec> transformSpecs;
 
-    CandleBarMetricType(
+    CandleDataMetricType(
             String code,
             Function<CandleData, BigDecimal> extractor,
             MetricTransformSpec... transformSpecs

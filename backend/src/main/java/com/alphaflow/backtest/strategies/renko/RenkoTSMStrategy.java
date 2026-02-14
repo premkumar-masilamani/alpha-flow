@@ -7,7 +7,7 @@ import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
 import com.alphaflow.backtest.enums.TradeSignal;
 import com.alphaflow.backtest.strategies.StrategyContext;
-import com.alphaflow.engine.enums.CandleBarMetricType;
+import com.alphaflow.engine.enums.CandleDataMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
 import com.alphaflow.infrastructure.constants.AppConstants;
@@ -31,7 +31,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     private final RenkoPriceSource priceSource;
     private final TransformationType maType;
     private final WindowPeriod maPeriod;
-    private final CandleBarMetricType momentumMetric;
+    private final CandleDataMetricType momentumMetric;
 
     private final String maIndicatorKey;
     private final String momentumIndicatorKey;
@@ -40,7 +40,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
     private BacktestStrategy entity;
 
     public RenkoTSMStrategy() {
-        this(RenkoPriceSource.PRICE_CLOSE, TransformationType.SMA, WindowPeriod.TEN_DAYS, CandleBarMetricType.OBV);
+        this(RenkoPriceSource.PRICE_CLOSE, TransformationType.SMA, WindowPeriod.TEN_DAYS, CandleDataMetricType.OBV);
     }
 
     public RenkoTSMStrategy(BacktestStrategy entity) {
@@ -58,14 +58,14 @@ public class RenkoTSMStrategy implements RenkoStrategy {
                 .filter(i -> IndicatorRole.MOMENTUM == i.getIndicatorRole())
                 .findFirst()
                 .orElseThrow();
-        this.momentumMetric = CandleBarMetricType.valueOf(momentumIndicator.getMetric());
+        this.momentumMetric = CandleDataMetricType.valueOf(momentumIndicator.getMetric());
 
         this.maIndicatorKey = priceSource.code() + "_" + maType.code() + "_" + maPeriod.days();
         this.momentumIndicatorKey = momentumMetric.code() + "_" + momentumMetric.code() + "_0";
         this.momentumIndicatorPrevKey = "PREV_" + this.momentumIndicatorKey;
     }
 
-    public RenkoTSMStrategy(RenkoPriceSource priceSource, TransformationType maType, WindowPeriod maPeriod, CandleBarMetricType momentumMetric) {
+    public RenkoTSMStrategy(RenkoPriceSource priceSource, TransformationType maType, WindowPeriod maPeriod, CandleDataMetricType momentumMetric) {
         this.priceSource = priceSource;
         this.maType = maType;
         this.maPeriod = maPeriod;
@@ -96,7 +96,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         return priceSource == RenkoPriceSource.PRICE_CLOSE &&
                 maType == TransformationType.SMA &&
                 maPeriod == WindowPeriod.TEN_DAYS &&
-                momentumMetric == CandleBarMetricType.OBV;
+                momentumMetric == CandleDataMetricType.OBV;
     }
 
     @Override
@@ -104,30 +104,18 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         return priceSource;
     }
 
-    public TransformationType getMaType() {
-        return maType;
-    }
-
-    public WindowPeriod getMaPeriod() {
-        return maPeriod;
-    }
-
-    public CandleBarMetricType getMomentumMetric() {
-        return momentumMetric;
-    }
-
     @Override
     public TradeAction generateSignal(StrategyContext context) {
 
-        List<RenkoData> renkoBricks = context.renkoBricks();
+        List<RenkoData> renkoData = context.renkoData();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> strategyState = context.state();
 
-        if (renkoBricks == null || renkoBricks.isEmpty())
+        if (renkoData == null || renkoData.isEmpty())
             return new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
 
-        RenkoData lastBrick = renkoBricks.getLast();
+        RenkoData lastBrick = renkoData.getLast();
 
         BigDecimal maValue = indicators.get(maIndicatorKey);
         BigDecimal currentMomentum = indicators.get(momentumIndicatorKey);
@@ -156,12 +144,12 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         signalData.put("direction", lastBrick.getDirection());
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.LONG) && shortEntry) {
-            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), lastBrick.getRenkoBrickDate());
+            log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), lastBrick.getRenkoDataDate());
             return new TradeAction(TradeSignal.ENTER_SHORT, PositionType.SHORT, signalData);
         }
 
         if ((currentPosition == PositionType.NONE || currentPosition == PositionType.SHORT) && longEntry) {
-            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), lastBrick.getRenkoBrickDate());
+            log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), lastBrick.getRenkoDataDate());
             return new TradeAction(TradeSignal.ENTER_LONG, PositionType.LONG, signalData);
         }
 

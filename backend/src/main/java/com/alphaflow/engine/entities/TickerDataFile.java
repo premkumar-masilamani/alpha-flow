@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TickDataFile {
+public class TickerDataFile {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,7 +29,7 @@ public class TickDataFile {
     @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
 
-    @Column(name = "file_url", nullable = false, length = 255)
+    @Column(name = "file_url", nullable = false)
     private String dataFileUrl;
 
     @Column(name = "is_processed", nullable = false)

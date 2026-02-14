@@ -11,20 +11,20 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface CandleBarRepository extends JpaRepository<CandleData, Long> {
+public interface CandleDataRepository extends JpaRepository<CandleData, Long> {
 
     @Query("""
                 SELECT md FROM CandleData md
                 JOIN FETCH md.ticker tk
                 WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
-                ORDER BY md.candleBarDate ASC
+                ORDER BY md.candleDataDate ASC
             """)
     List<CandleData> findAllByTickerNameWithTicker(String tickerName);
 
-    Optional<CandleData> findByTickerAndCandleBarDate(Ticker ticker, LocalDate candleBarDate);
+    Optional<CandleData> findByTickerAndCandleDataDate(Ticker ticker, LocalDate candleDataDate);
 
-    List<CandleData> findByTickerOrderByCandleBarDateAsc(Ticker ticker);
+    List<CandleData> findByTickerOrderByCandleDataDateAsc(Ticker ticker);
 
-    Optional<CandleData> findTopByTickerOrderByCandleBarDateDesc(Ticker ticker);
+    Optional<CandleData> findTopByTickerOrderByCandleDataDateDesc(Ticker ticker);
 
 }

@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {type BacktestSignal, getBacktestSignals, getCandleBars, getRenkoData, getTickers, type CandleBar, type RenkoData, type Ticker} from './services/api';
+import {type BacktestSignal, getBacktestSignal, getCandleData, getRenkoData, getTickers, type CandleData, type RenkoData, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
@@ -11,9 +11,9 @@ const TABS = ['Candlestick', 'Renko'];
 function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-    const [candleBars, setCandleBars] = useState<CandleBar[]>([]);
+    const [candleData, setCandleData] = useState<CandleData[]>([]);
     const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
-    const [signals, setSignals] = useState<Record<string, BacktestSignal[]>>({});
+    const [signal, setSignal] = useState<Record<string, BacktestSignal[]>>({});
     const [selectedStrategy, setSelectedStrategy] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('Candlestick');
@@ -40,20 +40,20 @@ function App() {
                 setLoading(true);
                 try {
                     const [mData, rData, sData] = await Promise.all([
-                        getCandleBars(selectedTicker),
+                        getCandleData(selectedTicker),
                         getRenkoData(selectedTicker),
-                        getBacktestSignals(selectedTicker)
+                        getBacktestSignal(selectedTicker)
                     ]);
-                    setCandleBars(mData);
+                    setCandleData(mData);
                     setRenkoData(rData);
-                    setSignals(sData);
+                    setSignal(sData);
                     const strategyNames = Object.keys(sData);
                     setSelectedStrategy(strategyNames.length > 0 ? strategyNames[0] : '');
                 } catch (error) {
                     console.error('Failed to fetch data:', error);
-                    setCandleBars([]);
+                    setCandleData([]);
                     setRenkoData(null);
-                    setSignals({});
+                    setSignal({});
                     setSelectedStrategy('');
                 } finally {
                     setLoading(false);
@@ -72,10 +72,10 @@ function App() {
             );
         }
 
-        const hasCandleBars = candleBars.length > 0;
+        const hasCandleData = candleData.length > 0;
         const hasRenkoData = renkoData && renkoData.bricks.length > 0;
-        const strategies = Object.keys(signals);
-        const currentSignals = signals[selectedStrategy] || [];
+        const strategies = Object.keys(signal);
+        const currentSignal = signal[selectedStrategy] || [];
 
         return (
             <>
@@ -124,7 +124,7 @@ function App() {
                         hasRenkoData ? (
                             <RenkoChart
                                 data={renkoData!}
-                                signals={currentSignals}
+                                signal={currentSignal}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (
@@ -133,10 +133,10 @@ function App() {
                             </div>
                         )
                     ) : activeTab === 'Candlestick' ? (
-                        hasCandleBars ? (
+                        hasCandleData ? (
                             <Chart
-                                data={candleBars}
-                                signals={currentSignals}
+                                data={candleData}
+                                signal={currentSignal}
                                 selectedStrategy={selectedStrategy}
                             />
                         ) : (

@@ -1,8 +1,8 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.engine.configs.BinanceConfig;
-import com.alphaflow.engine.entities.TickDataFile;
-import com.alphaflow.engine.repositories.DataFileRepository;
+import com.alphaflow.engine.entities.TickerDataFile;
+import com.alphaflow.engine.repositories.TickerDataFileRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
@@ -31,12 +31,12 @@ public class BinanceDownloader {
 
     private final BinanceConfig binanceConfig;
     private final TickerRepository tickerRepository;
-    private final DataFileRepository dataFileRepository;
+    private final TickerDataFileRepository tickerDataFileRepository;
 
-    public BinanceDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, DataFileRepository dataFileRepository) {
+    public BinanceDownloader(BinanceConfig binanceConfig, TickerRepository tickerRepository, TickerDataFileRepository tickerDataFileRepository) {
         this.binanceConfig = binanceConfig;
         this.tickerRepository = tickerRepository;
-        this.dataFileRepository = dataFileRepository;
+        this.tickerDataFileRepository = tickerDataFileRepository;
     }
 
     /**
@@ -64,7 +64,7 @@ public class BinanceDownloader {
      */
     private void downloadTickDataForTicker(Ticker ticker) {
         // Determine the start date: either the day after the last downloaded file, or the ticker's initial date.
-        LocalDate startDate = dataFileRepository.findTopByTickerOrderByDataFileDateDesc(ticker)
+        LocalDate startDate = tickerDataFileRepository.findTopByTickerOrderByDataFileDateDesc(ticker)
                 .map(file -> file.getDataFileDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
@@ -121,7 +121,7 @@ public class BinanceDownloader {
 
     private void saveFileRecord(Ticker ticker, LocalDate dataFileDate, String dataFileUrl) {
         try {
-            dataFileRepository.save(TickDataFile.builder()
+            tickerDataFileRepository.save(TickerDataFile.builder()
                     .ticker(ticker)
                     .dataFileDate(dataFileDate)
                     .dataFileUrl(dataFileUrl)

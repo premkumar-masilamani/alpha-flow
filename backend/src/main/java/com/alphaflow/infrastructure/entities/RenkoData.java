@@ -18,10 +18,10 @@ public class RenkoData {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "renko_data_id")
-    private Long renkoBrickId;
+    private Long renkoDataId;
 
     @Column(name = "renko_date", nullable = false)
-    private LocalDate renkoBrickDate;
+    private LocalDate renkoDataDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id", nullable = false)
@@ -33,7 +33,7 @@ public class RenkoData {
     @Column(name = "brick_high", nullable = false, precision = 38, scale = 2)
     private BigDecimal brickHigh;
 
-    @Column(name = "direction", nullable = false, length = 255)
+    @Column(name = "direction", nullable = false)
     private String direction;
 
     @Column(name = "trend", nullable = false)

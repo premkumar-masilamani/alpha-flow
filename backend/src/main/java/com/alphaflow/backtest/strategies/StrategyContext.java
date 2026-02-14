@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Map;
 
 public record StrategyContext(
-        CandleData candleBar,
+        CandleData candleData,
         Map<String, BigDecimal> indicators,
         PositionType currentPosition,
-        List<RenkoData> renkoBricks,
+        List<RenkoData> renkoData,
         Map<String, Object> state
 ) {
 }

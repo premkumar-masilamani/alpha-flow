@@ -4,7 +4,7 @@ import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.enums.DataSource;
-import com.alphaflow.infrastructure.repositories.CandleBarRepository;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,18 +31,18 @@ public class YahooFinanceDownloader {
 
     private final YahooFinanceConfig yahooFinanceConfig;
     private final TickerRepository tickerRepository;
-    private final CandleBarRepository candleBarRepository;
+    private final CandleDataRepository candleDataRepository;
     private final ObjectMapper objectMapper;
 
     public YahooFinanceDownloader(
             YahooFinanceConfig yahooFinanceConfig,
             TickerRepository tickerRepository,
-            CandleBarRepository candleBarRepository,
+            CandleDataRepository candleDataRepository,
             ObjectMapper objectMapper
     ) {
         this.yahooFinanceConfig = yahooFinanceConfig;
         this.tickerRepository = tickerRepository;
-        this.candleBarRepository = candleBarRepository;
+        this.candleDataRepository = candleDataRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -58,8 +58,8 @@ public class YahooFinanceDownloader {
     }
 
     private void downloadDataForTicker(Ticker ticker) {
-        LocalDate startDate = candleBarRepository.findTopByTickerOrderByCandleBarDateDesc(ticker)
-                .map(md -> md.getCandleBarDate().plusDays(1))
+        LocalDate startDate = candleDataRepository.findTopByTickerOrderByCandleDataDateDesc(ticker)
+                .map(md -> md.getCandleDataDate().plusDays(1))
                 .orElse(ticker.getTickerDate());
 
         long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
@@ -82,10 +82,10 @@ public class YahooFinanceDownloader {
                 .replace("{end}", String.valueOf(endTs));
 
         try {
-            List<CandleData> candleBarList = fetchAndParseJson(url, ticker);
-            if (!candleBarList.isEmpty()) {
-                candleBarRepository.saveAll(candleBarList);
-                log.info("Successfully synced {} rows for {}", candleBarList.size(), ticker.getTickerSymbol());
+            List<CandleData> candleDataList = fetchAndParseJson(url, ticker);
+            if (!candleDataList.isEmpty()) {
+                candleDataRepository.saveAll(candleDataList);
+                log.info("Successfully synced {} rows for {}", candleDataList.size(), ticker.getTickerSymbol());
             }
         } catch (Exception e) {
             log.error("Failed to download Yahoo Finance data for {}: {}", ticker.getTickerSymbol(), e.getMessage());
@@ -136,7 +136,7 @@ public class YahooFinanceDownloader {
 
                 list.add(CandleData.builder()
                         .ticker(ticker)
-                        .candleBarDate(date)
+                        .candleDataDate(date)
                         .priceOpen(open)
                         .priceHigh(high)
                         .priceLow(low)

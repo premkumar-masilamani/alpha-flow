@@ -7,7 +7,7 @@ import lombok.Builder;
 import java.time.LocalDate;
 
 @Builder
-public record BacktestSignalsDTO(
+public record BacktestSignalDTO(
         @JsonProperty("strategy") String strategyName,
         @JsonProperty("date") LocalDate signalDate,
         @JsonProperty("action") TradeSignal action

@@ -5,7 +5,7 @@ import com.alphaflow.backtest.repositories.*;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldRiskOverlayStrategy;
 import com.alphaflow.backtest.strategies.candlestick.BuyAndHoldStrategy;
 import com.alphaflow.backtest.strategies.candlestick.CandlestickStrategy;
-import com.alphaflow.infrastructure.repositories.CandleBarRepository;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -23,22 +23,22 @@ public class CandlestickBacktester extends AbstractBacktester {
 
     public CandlestickBacktester(
             TickerRepository tickerRepository,
-            CandleBarRepository candleBarRepository,
+            CandleDataRepository candleDataRepository,
             IndicatorRepository indicatorRepository,
-            BacktestEquitiesRepository backtestEquitiesRepository,
-            BacktestSignalsRepository backtestSignalsRepository,
-            BacktestTradesRepository backtestTradesRepository,
+            BacktestEquityRepository backtestEquityRepository,
+            BacktestSignalRepository backtestSignalRepository,
+            BacktestTradeRepository backtestTradeRepository,
             BacktestResultRepository backtestResultRepository,
             BacktestStrategyRepository backtestStrategyRepository,
             TransactionTemplate transactionTemplate
     ) {
         super(
                 tickerRepository,
-                candleBarRepository,
+                candleDataRepository,
                 indicatorRepository,
-                backtestEquitiesRepository,
-                backtestSignalsRepository,
-                backtestTradesRepository,
+                backtestEquityRepository,
+                backtestSignalRepository,
+                backtestTradeRepository,
                 backtestResultRepository,
                 backtestStrategyRepository,
                 new ArrayList<>(),

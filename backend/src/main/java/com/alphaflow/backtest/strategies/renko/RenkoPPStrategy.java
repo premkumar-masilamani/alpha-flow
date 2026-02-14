@@ -68,20 +68,20 @@ public class RenkoPPStrategy implements RenkoStrategy {
 
     @Override
     public TradeAction generateSignal(StrategyContext context) {
-        List<RenkoData> renkoBricks = context.renkoBricks();
+        List<RenkoData> renkoData = context.renkoData();
         Map<String, BigDecimal> indicators = context.indicators();
         PositionType currentPosition = context.currentPosition();
         Map<String, Object> state = context.state();
 
-        if (renkoBricks == null || renkoBricks.isEmpty() || context.candleBar() == null) {
+        if (renkoData == null || renkoData.isEmpty() || context.candleData() == null) {
             return new TradeAction(TradeSignal.HOLD, currentPosition);
         }
 
-        RenkoData currentBrick = renkoBricks.getLast();
+        RenkoData currentBrick = renkoData.getLast();
         int trend = currentBrick.getTrend();
         int zone = currentBrick.getZone();
         String direction = currentBrick.getDirection();
-        BigDecimal priceClose = context.candleBar().getPriceClose();
+        BigDecimal priceClose = context.candleData().getPriceClose();
 
         // GMMA EMAs
         BigDecimal ema3 = indicators.get(getGmmaKey(3));
@@ -125,11 +125,11 @@ public class RenkoPPStrategy implements RenkoStrategy {
         if (currentPosition == PositionType.LONG) {
             int slIndex = (zone == 0) ? 1 : (trend - zone - 1);
             if (slIndex >= 1 && slIndex <= trend) {
-                int listIdx = renkoBricks.size() - (trend - slIndex + 1);
+                int listIdx = renkoData.size() - (trend - slIndex + 1);
                 if (listIdx >= 0) {
-                    BigDecimal slPrice = renkoBricks.get(listIdx).getBrickLow();
+                    BigDecimal slPrice = renkoData.get(listIdx).getBrickLow();
                     if (priceClose.compareTo(slPrice) < 0) {
-                        log.debug("Strategy {} triggering LONG SL EXIT at {} price {} SL {}", getName(), context.candleBar().getCandleBarDate(), priceClose, slPrice);
+                        log.debug("Strategy {} triggering LONG SL EXIT at {} price {} SL {}", getName(), context.candleData().getCandleDataDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -137,11 +137,11 @@ public class RenkoPPStrategy implements RenkoStrategy {
         } else if (currentPosition == PositionType.SHORT) {
             int slIndex = (zone == 0) ? 1 : (trend - zone - 1);
             if (slIndex >= 1 && slIndex <= trend) {
-                int listIdx = renkoBricks.size() - (trend - slIndex + 1);
+                int listIdx = renkoData.size() - (trend - slIndex + 1);
                 if (listIdx >= 0) {
-                    BigDecimal slPrice = renkoBricks.get(listIdx).getBrickHigh();
+                    BigDecimal slPrice = renkoData.get(listIdx).getBrickHigh();
                     if (priceClose.compareTo(slPrice) > 0) {
-                        log.debug("Strategy {} triggering SHORT SL EXIT at {} price {} SL {}", getName(), context.candleBar().getCandleBarDate(), priceClose, slPrice);
+                        log.debug("Strategy {} triggering SHORT SL EXIT at {} price {} SL {}", getName(), context.candleData().getCandleDataDate(), priceClose, slPrice);
                         return new TradeAction(TradeSignal.EXIT, PositionType.NONE);
                     }
                 }
@@ -162,10 +162,10 @@ public class RenkoPPStrategy implements RenkoStrategy {
             boolean brickCriteria = (trend >= 4 && trend <= 9); // Zone 1
             if (brickCriteria) {
                 // Minimum 3 Red Bricks before the 1st Green Brick
-                int firstGreenIdx = renkoBricks.size() - trend;
+                int firstGreenIdx = renkoData.size() - trend;
                 int lastRedIdx = firstGreenIdx - 1;
                 if (lastRedIdx >= 0) {
-                    RenkoData lastRedBrick = renkoBricks.get(lastRedIdx);
+                    RenkoData lastRedBrick = renkoData.get(lastRedIdx);
                     brickCriteria = lastRedBrick.getDirection().equals(RENKO_BRICK_DIRECTION_DOWN) && lastRedBrick.getTrend() >= 3;
                 } else {
                     brickCriteria = false;
@@ -183,7 +183,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                     longSpreadLong.compareTo(prevLongSpreadLong) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.LONG) {
-                log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.candleBar().getCandleBarDate());
+                log.debug("Strategy {} generating ENTER_LONG signal at {}", getName(), context.candleData().getCandleDataDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadLong);
@@ -198,10 +198,10 @@ public class RenkoPPStrategy implements RenkoStrategy {
             boolean brickCriteria = (trend >= 4 && trend <= 9); // Zone 1
             if (brickCriteria) {
                 // Minimum 3 Green Bricks before the 1st Red Brick
-                int firstRedIdx = renkoBricks.size() - trend;
+                int firstRedIdx = renkoData.size() - trend;
                 int lastGreenIdx = firstRedIdx - 1;
                 if (lastGreenIdx >= 0) {
-                    RenkoData lastGreenBrick = renkoBricks.get(lastGreenIdx);
+                    RenkoData lastGreenBrick = renkoData.get(lastGreenIdx);
                     brickCriteria = lastGreenBrick.getDirection().equals(RENKO_BRICK_DIRECTION_UP) && lastGreenBrick.getTrend() >= 3;
                 } else {
                     brickCriteria = false;
@@ -219,7 +219,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
                     longSpreadShort.compareTo(prevLongSpreadShort) > 0;
 
             if (brickCriteria && gmmaOrder && gmmaExpansion && currentPosition != PositionType.SHORT) {
-                log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.candleBar().getCandleBarDate());
+                log.debug("Strategy {} generating ENTER_SHORT signal at {}", getName(), context.candleData().getCandleDataDate());
                 signalData.put("trend", trend);
                 signalData.put("zone", zone);
                 signalData.put("shortSpread", shortSpreadShort);

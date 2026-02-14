@@ -1,9 +1,9 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.BacktestSignalsDTO;
+import com.alphaflow.api.dtos.BacktestSignalDTO;
 import com.alphaflow.backtest.entities.BacktestSignal;
 import com.alphaflow.backtest.enums.TradeSignal;
-import com.alphaflow.backtest.repositories.BacktestSignalsRepository;
+import com.alphaflow.backtest.repositories.BacktestSignalRepository;
 import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.exceptions.ResourceNotFoundException;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
@@ -18,27 +18,27 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class BacktestService {
 
-    private final BacktestSignalsRepository backtestSignalsRepository;
+    private final BacktestSignalRepository backtestSignalRepository;
     private final TickerRepository tickerRepository;
 
-    public BacktestService(BacktestSignalsRepository backtestSignalsRepository, TickerRepository tickerRepository) {
-        this.backtestSignalsRepository = backtestSignalsRepository;
+    public BacktestService(BacktestSignalRepository backtestSignalRepository, TickerRepository tickerRepository) {
+        this.backtestSignalRepository = backtestSignalRepository;
         this.tickerRepository = tickerRepository;
     }
 
-    public Map<String, List<BacktestSignalsDTO>> getSignalsByTicker(String symbol) {
+    public Map<String, List<BacktestSignalDTO>> getSignalsByTicker(String symbol) {
         Ticker ticker = tickerRepository.findByTickerSymbol(symbol)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
         List<TradeSignal> relevantActions = List.of(TradeSignal.ENTER_LONG, TradeSignal.ENTER_SHORT, TradeSignal.EXIT);
 
-        return backtestSignalsRepository.findByTickerAndActionIn(ticker, relevantActions).stream()
+        return backtestSignalRepository.findByTickerAndActionIn(ticker, relevantActions).stream()
                 .map(this::mapToSignalDTO)
-                .collect(Collectors.groupingBy(BacktestSignalsDTO::strategyName));
+                .collect(Collectors.groupingBy(BacktestSignalDTO::strategyName));
     }
 
-    private BacktestSignalsDTO mapToSignalDTO(BacktestSignal signal) {
-        return BacktestSignalsDTO.builder()
+    private BacktestSignalDTO mapToSignalDTO(BacktestSignal signal) {
+        return BacktestSignalDTO.builder()
                 .strategyName(signal.getStrategy().getName())
                 .signalDate(signal.getSignalDate())
                 .action(signal.getAction())

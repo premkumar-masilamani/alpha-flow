@@ -16,10 +16,10 @@ public enum RenkoPriceSource {
         return code;
     }
 
-    public BigDecimal getPrice(CandleData candleBar) {
+    public BigDecimal getPrice(CandleData candleData) {
         return switch (this) {
-            case PRICE_CLOSE -> candleBar.getPriceClose();
-            case VWAP -> candleBar.getVwap();
+            case PRICE_CLOSE -> candleData.getPriceClose();
+            case VWAP -> candleData.getVwap();
         };
     }
 }

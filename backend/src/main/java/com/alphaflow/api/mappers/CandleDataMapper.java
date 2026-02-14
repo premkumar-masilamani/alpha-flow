@@ -1,12 +1,12 @@
 package com.alphaflow.api.mappers;
 
-import com.alphaflow.api.dtos.CandleBarDTO;
+import com.alphaflow.api.dtos.CandleDataDTO;
 import com.alphaflow.infrastructure.entities.CandleData;
 
-public class CandleBarMapper {
-    public static CandleBarDTO toDTO(CandleData candleEntity) {
-        return CandleBarDTO.builder()
-                .candleBarDate(candleEntity.getCandleBarDate())
+public class CandleDataMapper {
+    public static CandleDataDTO toDTO(CandleData candleEntity) {
+        return CandleDataDTO.builder()
+                .candleDataDate(candleEntity.getCandleDataDate())
                 .priceOpen(candleEntity.getPriceOpen())
                 .priceHigh(candleEntity.getPriceHigh())
                 .priceLow(candleEntity.getPriceLow())

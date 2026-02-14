@@ -1,15 +1,15 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, ISeriesApi, Time,} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, HistogramSeries,} from 'lightweight-charts';
-import type {BacktestSignal, CandleBar} from '../services/api';
+import type {BacktestSignal, CandleData} from '../services/api';
 
 interface ChartProps {
-    data: CandleBar[];
-    signals: BacktestSignal[];
+    data: CandleData[];
+    signal: BacktestSignal[];
     selectedStrategy: string;
 }
 
-const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
+const Chart: React.FC<ChartProps> = ({data, signal, selectedStrategy}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -109,7 +109,7 @@ const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
         volumeSeriesRef.current.setData(formattedVolumeData);
 
         // Plot signal markers
-        const signalMarkers = signals.map(s => ({
+        const signalMarkers = signal.map(s => ({
             time: s.date as Time,
             position: s.action === 'ENTER_LONG' ? 'belowBar' : (s.action === 'ENTER_SHORT' ? 'aboveBar' : 'belowBar') as any,
             color: s.action === 'ENTER_LONG' ? '#22c55e' : (s.action === 'ENTER_SHORT' ? '#ef4444' : '#3b82f6'),
@@ -137,7 +137,7 @@ const Chart: React.FC<ChartProps> = ({data, signals, selectedStrategy}) => {
             from: sixMonthsAgoStr as Time,
             to: lastDate as Time,
         });
-    }, [data, signals, selectedStrategy]);
+    }, [data, signal, selectedStrategy]);
 
     return <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>;
 };

@@ -1,14 +1,14 @@
 package com.alphaflow.engine.calculation;
 
 import com.alphaflow.engine.configs.BinanceConfig;
-import com.alphaflow.engine.entities.TickDataFile;
+import com.alphaflow.engine.entities.TickerDataFile;
 import com.alphaflow.engine.metrics.CapitalProfileMetrics;
 import com.alphaflow.engine.metrics.MetricsCalculator;
 import com.alphaflow.engine.metrics.OHLCVMetrics;
 import com.alphaflow.engine.metrics.OrderFlowMetrics;
-import com.alphaflow.engine.repositories.DataFileRepository;
+import com.alphaflow.engine.repositories.TickerDataFileRepository;
 import com.alphaflow.infrastructure.entities.CandleData;
-import com.alphaflow.infrastructure.repositories.CandleBarRepository;
+import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -27,26 +27,26 @@ import static com.alphaflow.infrastructure.constants.AppConstants.*;
 import static tech.tablesaw.io.csv.CsvReadOptions.builder;
 
 @Service
-public class CandleBarCalculator {
+public class CandleDataCalculator {
 
-    private static final Logger log = LoggerFactory.getLogger(CandleBarCalculator.class);
+    private static final Logger log = LoggerFactory.getLogger(CandleDataCalculator.class);
 
     private final BinanceConfig binanceConfig;
-    private final DataFileRepository dataFileRepository;
-    private final CandleBarRepository candleBarRepository;
+    private final TickerDataFileRepository tickerDataFileRepository;
+    private final CandleDataRepository candleDataRepository;
 
-    public CandleBarCalculator(
+    public CandleDataCalculator(
             BinanceConfig binanceConfig,
-            DataFileRepository dataFileRepository,
-            CandleBarRepository candleBarRepository
+            TickerDataFileRepository tickerDataFileRepository,
+            CandleDataRepository candleDataRepository
     ) {
         this.binanceConfig = binanceConfig;
-        this.dataFileRepository = dataFileRepository;
-        this.candleBarRepository = candleBarRepository;
+        this.tickerDataFileRepository = tickerDataFileRepository;
+        this.candleDataRepository = candleDataRepository;
     }
 
     /**
-     * Entry point for computing candle bar data.
+     * Entry point for computing candle data.
      * Iterates through all unprocessed files in the database, extracts tick data from ZIP archives,
      * computes OHLCV, Order Flow, and Volume Profile metrics, and persists the results.
      */
@@ -56,7 +56,7 @@ public class CandleBarCalculator {
         int totalProcessed = 0;
         while (true) {
             // Fetch a page of unprocessed files to avoid loading too many records into memory
-            Page<TickDataFile> page = dataFileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
+            Page<TickerDataFile> page = tickerDataFileRepository.findByIsProcessedFalse(PageRequest.of(0, DB_QUERY_PAGE_SIZE));
 
             if (page.isEmpty()) {
                 break;
@@ -80,12 +80,12 @@ public class CandleBarCalculator {
      * 1. Locates the ZIP file on disk.
      * 2. Extracts the CSV content.
      * 3. Computes metrics.
-     * 4. Merges with existing candle bar data if applicable (to handle multiple files for the same date/ticker).
+     * 4. Merges with existing candle data if applicable (to handle multiple files for the same date/ticker).
      * 5. Updates the file status to processed.
      *
      * @param file The file record from the database.
      */
-    public void processTickDataFile(TickDataFile file) {
+    public void processTickDataFile(TickerDataFile file) {
         final String tickerSymbol = file.getTicker().getTickerSymbol();
         final String dateStr = getBinanceDateString(file.getDataFileDate());
         final String baseFileName = getBinanceZipFileName(tickerSymbol, dateStr);
@@ -116,20 +116,20 @@ public class CandleBarCalculator {
                 log.trace("Computing metrics for {}", baseFileName);
                 CandleData computedData = computeMetrics(file, tickTable);
 
-                // If we already have candle bar data for this ticker/date, merge it.
-                CandleData mergedData = candleBarRepository.findByTickerAndCandleBarDate(file.getTicker(), file.getDataFileDate())
+                // If we already have candle data for this ticker/date, merge it.
+                CandleData mergedData = candleDataRepository.findByTickerAndCandleDataDate(file.getTicker(), file.getDataFileDate())
                         .map(existingData -> {
-                            log.debug("Existing candle bar data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
+                            log.debug("Existing candle data found for {} on {}. Merging metrics.", tickerSymbol, dateStr);
                             return existingData.merge(computedData);
                         })
                         .orElse(computedData);
 
-                log.debug("Saving candle bar data: {}", mergedData);
-                candleBarRepository.save(mergedData);
+                log.debug("Saving candle data: {}", mergedData);
+                candleDataRepository.save(mergedData);
 
                 // Mark the file as processed to avoid re-computation
                 file.setIsProcessed(true);
-                dataFileRepository.save(file);
+                tickerDataFileRepository.save(file);
 
                 log.info("Successfully processed and saved data for {} on {}", tickerSymbol, dateStr);
             }
@@ -147,7 +147,7 @@ public class CandleBarCalculator {
                 );
     }
 
-    private CandleData computeMetrics(TickDataFile file, Table table) {
+    private CandleData computeMetrics(TickerDataFile file, Table table) {
 
         OHLCVMetrics ohlcvMetrics = MetricsCalculator.ohlcv(table);
         OrderFlowMetrics orderFlowMetrics = MetricsCalculator.orderFlow(table);
@@ -155,7 +155,7 @@ public class CandleBarCalculator {
 
         return CandleData.builder()
                 .ticker(file.getTicker())
-                .candleBarDate(file.getDataFileDate())
+                .candleDataDate(file.getDataFileDate())
                 .priceOpen(ohlcvMetrics.open())
                 .priceHigh(ohlcvMetrics.high())
                 .priceLow(ohlcvMetrics.low())

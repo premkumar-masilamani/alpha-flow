@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Repository
-public interface RenkoBrickRepository extends JpaRepository<RenkoData, Long> {
+public interface RenkoDataRepository extends JpaRepository<RenkoData, Long> {
 
-    List<RenkoData> findByTickerOrderByRenkoBrickDateAsc(Ticker ticker);
+    List<RenkoData> findByTickerOrderByRenkoDataDateAsc(Ticker ticker);
 
     @Modifying
     @Transactional
