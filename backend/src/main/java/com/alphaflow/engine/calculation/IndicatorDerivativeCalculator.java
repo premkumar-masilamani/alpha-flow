@@ -46,7 +46,8 @@ public class IndicatorDerivativeCalculator {
         log.info("Starting Capital Momentum Computation");
 
         tickerRepository.findByIsActiveTrue().forEach(ticker -> {
-            if (!CandleDataMetricType.CAPITAL_MOMENTUM.isEligibleFor(ticker.getSource())) {
+            if (!CandleDataMetricType.CAPITAL_MOMENTUM.isEligibleFor(ticker.getSource()) ||
+                    CandleDataMetricType.CAPITAL_MOMENTUM.transformSpecs().isEmpty()) {
                 return;
             }
             log.info("Calculating Capital Momentum for {}", ticker.getTickerSymbol());
@@ -90,14 +91,23 @@ public class IndicatorDerivativeCalculator {
                 Indicator ema20 = totalCapitalEma20Map.get(ema10.getIndicatorDate());
                 if (ema20 != null) {
                     BigDecimal momentum = ema10.getValue().subtract(ema20.getValue(), DB_MATH_CONTEXT);
-                    toSave.add(Indicator.builder()
-                            .ticker(ticker)
-                            .indicatorDate(ema10.getIndicatorDate())
-                            .metric(CandleDataMetricType.CAPITAL_MOMENTUM.code())
-                            .maType(TransformationType.CAP_MOM.code())
-                            .period(WindowPeriod.ZERO_DAYS.days())
-                            .value(momentum)
-                            .build());
+
+                    Indicator indicator = indicatorRepository.findByTickerAndIndicatorDateAndMetricAndMaTypeAndPeriod(
+                                    ticker,
+                                    ema10.getIndicatorDate(),
+                                    CandleDataMetricType.CAPITAL_MOMENTUM.code(),
+                                    TransformationType.CAP_MOM.code(),
+                                    WindowPeriod.ZERO_DAYS.days())
+                            .orElseGet(Indicator::new);
+
+                    indicator.setTicker(ticker);
+                    indicator.setIndicatorDate(ema10.getIndicatorDate());
+                    indicator.setMetric(CandleDataMetricType.CAPITAL_MOMENTUM.code());
+                    indicator.setMaType(TransformationType.CAP_MOM.code());
+                    indicator.setPeriod(WindowPeriod.ZERO_DAYS.days());
+                    indicator.setValue(momentum);
+
+                    toSave.add(indicator);
                 }
             }
             if (!toSave.isEmpty()) {
