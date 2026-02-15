@@ -19,75 +19,32 @@ public enum CandleDataMetricType {
 
     VWAP(
             "VWAP",
-            CandleData::getVwap,
-            new MetricTransformSpec(
-                    EnumSet.of(EMA, SMA),
-                    EnumSet.of(THREE_DAYS,
-                            FOUR_DAYS,
-                            FIVE_DAYS,
-                            SIX_DAYS,
-                            SEVEN_DAYS,
-                            EIGHT_DAYS,
-                            NINE_DAYS,
-                            TEN_DAYS,
-                            ELEVEN_DAYS,
-                            TWELVE_DAYS,
-                            THIRTEEN_DAYS,
-                            FOURTEEN_DAYS,
-                            FIFTEEN_DAYS,
-                            SIXTEEN_DAYS,
-                            SEVENTEEN_DAYS,
-                            EIGHTEEN_DAYS,
-                            NINETEEN_DAYS,
-                            TWENTY_DAYS,
-                            TWENTY_ONE_DAYS)
-            )
+            CandleData::getVwap
     ),
 
     CAPITAL_POC(
             "C_POC",
-            CandleData::getCapitalPOC,
-            new MetricTransformSpec(
-                    EnumSet.of(SMA),
-                    EnumSet.of(FIVE_DAYS,
-                            TEN_DAYS)
-            )
+            CandleData::getCapitalPOC
     ),
 
     CAPITAL_VALUE_RANGE("C_VR",
-            md -> md.getCapitalVAH().subtract(md.getCapitalVAL()),
-            new MetricTransformSpec(
-                    EnumSet.of(SMA),
-                    EnumSet.of(FIVE_DAYS)
-            )),
+            md -> md.getCapitalVAH().subtract(md.getCapitalVAL())
+    ),
 
 
     TOTAL_CAPITAL(
             "T_CAP",
-            CandleData::getTotalCapital,
-            new MetricTransformSpec(
-                    EnumSet.of(EMA),
-                    EnumSet.of(TEN_DAYS,
-                            TWENTY_DAYS)
-            )
+            CandleData::getTotalCapital
     ),
 
     CAPITAL_MOMENTUM(
             "CAP_MOM",
-            null,
-            new MetricTransformSpec(
-                    EnumSet.of(TransformationType.CAP_MOM),
-                    EnumSet.of(ZERO_DAYS)
-            )
+            null
     ),
 
     BUYER_CAPITAL_RATIO(
             "B_CAP_RATIO",
-            md -> md.getBuyerCapital().divide(md.getTotalCapital(), DB_MATH_CONTEXT),
-            new MetricTransformSpec(
-                    EnumSet.of(SMA),
-                    EnumSet.of(FIVE_DAYS)
-            )
+            md -> md.getBuyerCapital().divide(md.getTotalCapital(), DB_MATH_CONTEXT)
     ),
 
     OBV(
@@ -101,11 +58,7 @@ public enum CandleDataMetricType {
 
     CCF(
             "CCF",
-            md -> md.getBuyerCapital().multiply(BigDecimal.valueOf(2)).subtract(md.getTotalCapital(), DB_MATH_CONTEXT),
-            new MetricTransformSpec(
-                    EnumSet.of(TransformationType.CCF),
-                    EnumSet.of(ZERO_DAYS)
-            )
+            md -> md.getBuyerCapital().multiply(BigDecimal.valueOf(2)).subtract(md.getTotalCapital(), DB_MATH_CONTEXT)
     ),
 
     PRICE_CLOSE(
@@ -113,48 +66,17 @@ public enum CandleDataMetricType {
             CandleData::getPriceClose,
             new MetricTransformSpec(
                     EnumSet.of(SMA),
-                    EnumSet.of(THREE_DAYS,
-                            FOUR_DAYS,
-                            FIVE_DAYS,
-                            SIX_DAYS,
-                            SEVEN_DAYS,
-                            EIGHT_DAYS,
-                            NINE_DAYS,
-                            TEN_DAYS,
-                            ELEVEN_DAYS,
-                            TWELVE_DAYS,
-                            THIRTEEN_DAYS,
-                            FOURTEEN_DAYS,
-                            FIFTEEN_DAYS,
-                            SIXTEEN_DAYS,
-                            SEVENTEEN_DAYS,
-                            EIGHTEEN_DAYS,
-                            NINETEEN_DAYS,
-                            TWENTY_DAYS,
-                            TWENTY_ONE_DAYS,
+                    EnumSet.of(TEN_DAYS,
                             TWO_HUNDRED_DAYS)
             ),
             new MetricTransformSpec(
                     EnumSet.of(EMA),
                     EnumSet.of(THREE_DAYS,
-                            FOUR_DAYS,
                             FIVE_DAYS,
-                            SIX_DAYS,
-                            SEVEN_DAYS,
                             EIGHT_DAYS,
-                            NINE_DAYS,
                             TEN_DAYS,
-                            ELEVEN_DAYS,
                             TWELVE_DAYS,
-                            THIRTEEN_DAYS,
-                            FOURTEEN_DAYS,
                             FIFTEEN_DAYS,
-                            SIXTEEN_DAYS,
-                            SEVENTEEN_DAYS,
-                            EIGHTEEN_DAYS,
-                            NINETEEN_DAYS,
-                            TWENTY_DAYS,
-                            TWENTY_ONE_DAYS,
                             THIRTY_DAYS,
                             THIRTY_FIVE_DAYS,
                             FORTY_DAYS,

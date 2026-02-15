@@ -58,19 +58,19 @@ public class IndicatorCalculator {
             }
 
             for (CandleDataMetricType metric : CandleDataMetricType.values()) {
-                if (!metric.isEligibleFor(ticker.getSource())) {
+                if (!metric.isEligibleFor(ticker.getSource()) || metric.transformSpecs().isEmpty()) {
                     continue;
                 }
 
                 // Base indicators (no transformations)
                 if (metric == CandleDataMetricType.OBV) {
                     computeOBV(ticker, metric, allSeries);
-                    continue; // VERY IMPORTANT
+                    continue;
                 }
 
                 if (metric == CandleDataMetricType.CCF) {
                     computeCCF(ticker, metric, allSeries);
-                    continue; // VERY IMPORTANT
+                    continue;
                 }
 
                 // Transformations (SMA / EMA only)
