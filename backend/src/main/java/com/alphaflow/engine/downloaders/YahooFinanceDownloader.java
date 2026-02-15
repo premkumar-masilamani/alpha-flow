@@ -52,7 +52,20 @@ public class YahooFinanceDownloader {
         var activeTickers = tickerRepository.findByIsActiveTrueAndSource(DataSource.YAHOO_FINANCE);
         log.info("Found {} active Yahoo Finance tickers to sync.", activeTickers.size());
 
-        activeTickers.forEach(this::downloadDataForTicker);
+        for (int i = 0; i < activeTickers.size(); i++) {
+            Ticker ticker = activeTickers.get(i);
+            downloadDataForTicker(ticker);
+
+            if (i < activeTickers.size() - 1 && yahooFinanceConfig.getDelayMs() > 0) {
+                try {
+                    Thread.sleep(yahooFinanceConfig.getDelayMs());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Download process interrupted during delay.");
+                    break;
+                }
+            }
+        }
 
         log.info("All Yahoo Finance downloads completed!");
     }
