@@ -1,7 +1,6 @@
 package com.alphaflow.engine.enums;
 
 import com.alphaflow.infrastructure.entities.CandleData;
-import com.alphaflow.infrastructure.enums.DataSource;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -13,39 +12,8 @@ import java.util.function.Function;
 import static com.alphaflow.engine.enums.TransformationType.EMA;
 import static com.alphaflow.engine.enums.TransformationType.SMA;
 import static com.alphaflow.engine.enums.WindowPeriod.*;
-import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
 public enum CandleDataMetricType {
-
-    VWAP(
-            "VWAP",
-            CandleData::getVwap
-    ),
-
-    CAPITAL_POC(
-            "C_POC",
-            CandleData::getCapitalPOC
-    ),
-
-    CAPITAL_VALUE_RANGE("C_VR",
-            md -> md.getCapitalVAH().subtract(md.getCapitalVAL())
-    ),
-
-
-    TOTAL_CAPITAL(
-            "T_CAP",
-            CandleData::getTotalCapital
-    ),
-
-    CAPITAL_MOMENTUM(
-            "CAP_MOM",
-            null
-    ),
-
-    BUYER_CAPITAL_RATIO(
-            "B_CAP_RATIO",
-            md -> md.getBuyerCapital().divide(md.getTotalCapital(), DB_MATH_CONTEXT)
-    ),
 
     OBV(
             "OBV",
@@ -54,11 +22,6 @@ public enum CandleDataMetricType {
                     EnumSet.of(TransformationType.OBV),
                     EnumSet.of(ZERO_DAYS)
             )
-    ),
-
-    CCF(
-            "CCF",
-            md -> md.getBuyerCapital().multiply(BigDecimal.valueOf(2)).subtract(md.getTotalCapital(), DB_MATH_CONTEXT)
     ),
 
     PRICE_CLOSE(
@@ -110,16 +73,6 @@ public enum CandleDataMetricType {
 
     public List<MetricTransformSpec> transformSpecs() {
         return transformSpecs;
-    }
-
-    public boolean isEligibleFor(DataSource source) {
-        if (source == DataSource.YAHOO_FINANCE) {
-            return switch (this) {
-                case VWAP, CAPITAL_POC, CAPITAL_VALUE_RANGE, TOTAL_CAPITAL, BUYER_CAPITAL_RATIO, CCF, CAPITAL_MOMENTUM -> false;
-                default -> true;
-            };
-        }
-        return true;
     }
 
     public record MetricTransformSpec(

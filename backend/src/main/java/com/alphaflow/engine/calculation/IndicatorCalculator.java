@@ -58,18 +58,13 @@ public class IndicatorCalculator {
             }
 
             for (CandleDataMetricType metric : CandleDataMetricType.values()) {
-                if (!metric.isEligibleFor(ticker.getSource()) || metric.transformSpecs().isEmpty()) {
+                if (metric.transformSpecs().isEmpty()) {
                     continue;
                 }
 
                 // Base indicators (no transformations)
                 if (metric == CandleDataMetricType.OBV) {
                     computeOBV(ticker, metric, allSeries);
-                    continue;
-                }
-
-                if (metric == CandleDataMetricType.CCF) {
-                    computeCCF(ticker, metric, allSeries);
                     continue;
                 }
 
@@ -133,42 +128,6 @@ public class IndicatorCalculator {
             persist(currentData, metric, OBV, ZERO_DAYS.days(), onBalanceVolume);
         }
         log.info("Computed OBV for {}", ticker.getTickerSymbol());
-    }
-
-    private void computeCCF(Ticker ticker, CandleDataMetricType metric, List<CandleData> allSeries) {
-        if (allSeries.isEmpty()) {
-            return;
-        }
-
-        Optional<Indicator> latestIndicator = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
-                ticker, metric.code(), CCF.code(), ZERO_DAYS.days()
-        );
-
-        BigDecimal cumulativeCapitalFlow;
-        int startIndex;
-
-        if (latestIndicator.isPresent()) {
-            Indicator lastCCF = latestIndicator.get();
-            cumulativeCapitalFlow = lastCCF.getValue();
-            startIndex = findIndexForDate(allSeries, lastCCF.getIndicatorDate()) + 1;
-            if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                log.debug("CCF is up to date for {}", ticker.getTickerSymbol());
-                return;
-            }
-        } else {
-            // First day's CCF starts from zero and adds its daily signed capital
-            cumulativeCapitalFlow = BigDecimal.ZERO;
-            startIndex = 0;
-        }
-
-        for (int i = startIndex; i < allSeries.size(); i++) {
-            CandleData currentData = allSeries.get(i);
-            BigDecimal dailySignedCapital = metric.extract(currentData);
-            cumulativeCapitalFlow = cumulativeCapitalFlow.add(dailySignedCapital, DB_MATH_CONTEXT);
-
-            persist(currentData, metric, CCF, ZERO_DAYS.days(), cumulativeCapitalFlow);
-        }
-        log.info("Computed CCF for {}", ticker.getTickerSymbol());
     }
 
     /**
