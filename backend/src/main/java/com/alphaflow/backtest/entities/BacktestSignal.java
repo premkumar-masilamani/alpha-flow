@@ -43,4 +43,7 @@ public class BacktestSignal {
 
     @Column(name = "signal_data", columnDefinition = "TEXT")
     private String signalData;
+
+    @Column(name = "strategy_state", columnDefinition = "TEXT")
+    private String strategyState;
 }

@@ -17,6 +17,8 @@ import com.alphaflow.infrastructure.entities.Ticker;
 import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -37,6 +39,7 @@ public abstract class AbstractBacktester {
     protected static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     protected static final double YEAR_IN_DAYS = 365.25;
     private static final Logger log = LoggerFactory.getLogger(AbstractBacktester.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     protected final TickerRepository tickerRepository;
     protected final CandleDataRepository candleDataRepository;
     protected final IndicatorRepository indicatorRepository;
@@ -102,22 +105,56 @@ public abstract class AbstractBacktester {
 
             for (Strategy strategy : strategies) {
                 log.debug("Running backtest for ticker: {}, strategy: {}", ticker.getTickerSymbol(), strategy.getName());
-                BacktestRunResult runResult = runBacktest(ticker, strategy, candleData, indicators);
-                transactionTemplate.execute(status -> {
-                    backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                    backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                    backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                    backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
 
-                    backtestEquityRepository.saveAll(runResult.backtestEquity());
-                    backtestSignalRepository.saveAll(runResult.backtestSignal());
-                    backtestTradeRepository.saveAll(runResult.backtestTrades());
-                    backtestResultRepository.save(runResult.backtestResult());
-                    return status;
-                });
+                Optional<BacktestSignal> lastSignalOpt = backtestSignalRepository.findTopByTickerAndStrategyOrderBySignalDateDesc(ticker, strategy.getEntity());
+
+                if (lastSignalOpt.isPresent()) {
+                    LocalDate lastSignalDate = lastSignalOpt.get().getSignalDate();
+                    if (lastSignalDate.equals(candleData.getLast().getCandleDataDate())) {
+                        log.debug("Backtest for {} / {} is already up to date.", ticker.getTickerSymbol(), strategy.getName());
+                        continue;
+                    }
+
+                    BacktestRunResult runResult = runBacktest(ticker, strategy, candleData, indicators, lastSignalOpt.get());
+                    transactionTemplate.execute(status -> {
+                        if (runResult.lastTradeToUnclose() != null) {
+                            backtestTradeRepository.delete(runResult.lastTradeToUnclose());
+                        }
+                        backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+
+                        backtestEquityRepository.saveAll(runResult.backtestEquity());
+                        backtestSignalRepository.saveAll(runResult.backtestSignal());
+                        backtestTradeRepository.saveAll(runResult.backtestTrades());
+                        backtestResultRepository.save(runResult.backtestResult());
+                        return status;
+                    });
+                } else {
+                    BacktestRunResult runResult = runBacktest(ticker, strategy, candleData, indicators, null);
+                    transactionTemplate.execute(status -> {
+                        backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                        backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                        backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+                        backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
+
+                        backtestEquityRepository.saveAll(runResult.backtestEquity());
+                        backtestSignalRepository.saveAll(runResult.backtestSignal());
+                        backtestTradeRepository.saveAll(runResult.backtestTrades());
+                        backtestResultRepository.save(runResult.backtestResult());
+                        return status;
+                    });
+                }
             }
             log.info("Completed all backtests for ticker: {}", ticker.getTickerSymbol());
         });
+    }
+
+    private String serializeState(Map<String, Object> state) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(state);
+        } catch (Exception e) {
+            log.error("Failed to serialize strategy state", e);
+            return null;
+        }
     }
 
     //TODO: Flatten the structure as candles in the future
@@ -138,7 +175,8 @@ public abstract class AbstractBacktester {
             Ticker ticker,
             Strategy strategy,
             List<CandleData> candleData,
-            Map<LocalDate, Map<String, BigDecimal>> indicatorMap
+            Map<LocalDate, Map<String, BigDecimal>> indicatorMap,
+            BacktestSignal lastSignal
     ) {
 
         BigDecimal cash = INITIAL_EQUITY;
@@ -148,14 +186,78 @@ public abstract class AbstractBacktester {
 
         TradeAction pendingAction = new TradeAction(TradeSignal.NO_SIGNAL, PositionType.NONE);
         BacktestTrade activeTrade = null;
+        Map<String, Object> strategyState = new HashMap<>();
+
+        int startIndex = 0;
+        BacktestTrade lastTradeToUnclose = null;
+
+        List<BacktestEquity> historicalEquities = new ArrayList<>();
+        List<BacktestTrade> historicalTrades = new ArrayList<>();
+
+        if (lastSignal != null) {
+            LocalDate lastDate = lastSignal.getSignalDate();
+            for (int i = 0; i < candleData.size(); i++) {
+                if (candleData.get(i).getCandleDataDate().equals(lastDate)) {
+                    startIndex = i + 1;
+                    break;
+                }
+            }
+
+            BacktestEquity lastEquity = backtestEquityRepository.findTopByTickerAndStrategyOrderByEquityDateDesc(ticker, strategy.getEntity())
+                    .orElseThrow(() -> new IllegalStateException("Last signal exists but last equity not found"));
+
+            final PositionType pos = lastEquity.getPosition();
+            currentPosition = pos;
+            if (currentPosition != PositionType.NONE) {
+                BacktestTrade lastTrade = backtestTradeRepository.findTopByTickerAndStrategyOrderByEntryDateDesc(ticker, strategy.getEntity())
+                        .orElseThrow(() -> new IllegalStateException("Position is " + pos + " but no trade found"));
+
+                shares = lastTrade.getQuantity();
+                entryPrice = lastTrade.getEntryPrice();
+                if (currentPosition == PositionType.LONG) {
+                    cash = BigDecimal.ZERO;
+                } else {
+                    cash = lastTrade.getQuantity().multiply(lastTrade.getEntryPrice());
+                }
+
+                lastTradeToUnclose = lastTrade;
+                activeTrade = BacktestTrade.builder()
+                        .ticker(lastTrade.getTicker())
+                        .strategy(lastTrade.getStrategy())
+                        .side(lastTrade.getSide())
+                        .entryDate(lastTrade.getEntryDate())
+                        .entryPrice(lastTrade.getEntryPrice())
+                        .quantity(lastTrade.getQuantity())
+                        .holdingBars(lastTrade.getHoldingBars())
+                        .build();
+            } else {
+                cash = lastEquity.getEquity();
+                shares = BigDecimal.ZERO;
+            }
+
+            pendingAction = new TradeAction(lastSignal.getAction(), currentPosition);
+
+            if (lastSignal.getStrategyState() != null) {
+                try {
+                    strategyState = OBJECT_MAPPER.readValue(lastSignal.getStrategyState(), new TypeReference<Map<String, Object>>() {
+                    });
+                } catch (Exception e) {
+                    log.error("Failed to deserialize strategy state for {} / {}", ticker.getTickerSymbol(), strategy.getName(), e);
+                }
+            }
+
+            historicalEquities = backtestEquityRepository.findByTickerAndStrategyOrderByEquityDateAsc(ticker, strategy.getEntity());
+            historicalTrades = backtestTradeRepository.findByTickerAndStrategyOrderByEntryDateAsc(ticker, strategy.getEntity());
+            if (lastTradeToUnclose != null && !historicalTrades.isEmpty()) {
+                historicalTrades.removeLast();
+            }
+        }
 
         List<BacktestEquity> equities = new ArrayList<>();
         List<BacktestSignal> signals = new ArrayList<>();
         List<BacktestTrade> trades = new ArrayList<>();
 
-        Map<String, Object> strategyState = new HashMap<>();
-
-        for (int i = 0; i < candleData.size(); i++) {
+        for (int i = startIndex; i < candleData.size(); i++) {
 
             CandleData data = candleData.get(i);
             LocalDate currentDate = data.getCandleDataDate();
@@ -273,6 +375,7 @@ public abstract class AbstractBacktester {
                     .executeDate(executeDate)
                     .action(nextAction.tradeSignal())
                     .signalData(nextAction.signalData().toString())
+                    .strategyState(serializeState(strategyState))
                     .build());
 
             pendingAction = nextAction;
@@ -284,9 +387,15 @@ public abstract class AbstractBacktester {
             closeActiveTrade(activeTrade, lastBar.getCandleDataDate(), lastBar.getPriceClose(), trades);
         }
 
-        BacktestResult result = buildResult(ticker, strategy, equities, trades);
+        List<BacktestEquity> allEquitiesForMetrics = new ArrayList<>(historicalEquities);
+        allEquitiesForMetrics.addAll(equities);
 
-        return new BacktestRunResult(equities, signals, trades, result);
+        List<BacktestTrade> allTradesForMetrics = new ArrayList<>(historicalTrades);
+        allTradesForMetrics.addAll(trades);
+
+        BacktestResult result = buildResult(ticker, strategy, allEquitiesForMetrics, allTradesForMetrics);
+
+        return new BacktestRunResult(equities, signals, trades, result, lastTradeToUnclose);
     }
 
     private void closeActiveTrade(
@@ -461,7 +570,8 @@ public abstract class AbstractBacktester {
             List<BacktestEquity> backtestEquity,
             List<BacktestSignal> backtestSignal,
             List<BacktestTrade> backtestTrades,
-            BacktestResult backtestResult
+            BacktestResult backtestResult,
+            BacktestTrade lastTradeToUnclose
     ) {
     }
 }
