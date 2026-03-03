@@ -9,6 +9,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "renko_data")
 @Data
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

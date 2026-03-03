@@ -9,6 +9,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "indicators")
 @Data
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -27,10 +28,10 @@ public class Indicator {
     @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
 
-    @Column(name = "metric", nullable = false, length = 255)
+    @Column(name = "metric", nullable = false)
     private String metric;
 
-    @Column(name = "ma_type", nullable = false, length = 255)
+    @Column(name = "ma_type", nullable = false)
     private String maType;
 
     @Column(name = "period", nullable = false)

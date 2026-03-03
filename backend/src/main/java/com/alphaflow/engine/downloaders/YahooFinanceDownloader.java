@@ -3,7 +3,6 @@ package com.alphaflow.engine.downloaders;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.infrastructure.entities.CandleData;
 import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.enums.DataSource;
 import com.alphaflow.infrastructure.repositories.CandleDataRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,7 +48,7 @@ public class YahooFinanceDownloader {
     public void download() {
         log.info("Starting Yahoo Finance data download process...");
 
-        var activeTickers = tickerRepository.findByIsActiveTrueAndSource(DataSource.YAHOO_FINANCE);
+        var activeTickers = tickerRepository.findByIsActiveTrue();
         log.info("Found {} active Yahoo Finance tickers to sync.", activeTickers.size());
 
         for (int i = 0; i < activeTickers.size(); i++) {

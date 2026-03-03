@@ -9,6 +9,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "candle_data")
 @Data
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -59,20 +60,5 @@ public class CandleData {
 
     @Column(name = "total_capital", precision = 38, scale = 2)
     private BigDecimal totalCapital;
-
-    public CandleData merge(CandleData other) {
-        this.priceOpen = other.priceOpen;
-        this.priceHigh = other.priceHigh;
-        this.priceLow = other.priceLow;
-        this.priceClose = other.priceClose;
-        this.volume = other.volume;
-        this.vwap = other.vwap;
-        this.capitalPOC = other.capitalPOC;
-        this.capitalVAH = other.capitalVAH;
-        this.capitalVAL = other.capitalVAL;
-        this.buyerCapital = other.buyerCapital;
-        this.totalCapital = other.totalCapital;
-        return this;
-    }
 
 }

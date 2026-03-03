@@ -1,17 +1,14 @@
 package com.alphaflow.infrastructure.entities;
 
-import com.alphaflow.infrastructure.enums.DataSource;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "tickers")
 @Data
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -25,16 +22,11 @@ public class Ticker {
     @Column(name = "ticker_date", nullable = false)
     private LocalDate tickerDate;
 
-    @Column(name = "ticker_symbol", nullable = false, unique = true, length = 255)
+    @Column(name = "ticker_symbol", nullable = false, unique = true)
     private String tickerSymbol;
 
-    @Column(name = "ticker_name", nullable = false, length = 255)
+    @Column(name = "ticker_name", nullable = false)
     private String tickerName;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "source", nullable = false, length = 50)
-    @Builder.Default
-    private DataSource source = DataSource.BINANCE;
 
     @Column(name = "ticker_type", length = 50)
     private String tickerType;
