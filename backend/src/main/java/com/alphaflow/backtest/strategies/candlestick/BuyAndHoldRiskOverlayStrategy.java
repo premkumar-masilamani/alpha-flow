@@ -1,7 +1,7 @@
 package com.alphaflow.backtest.strategies.candlestick;
 
-import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.entities.BacktestIndicator;
+import com.alphaflow.backtest.entities.BacktestStrategy;
 import com.alphaflow.backtest.enums.IndicatorRole;
 import com.alphaflow.backtest.enums.PositionType;
 import com.alphaflow.backtest.enums.TradeAction;
