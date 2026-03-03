@@ -53,20 +53,12 @@ public class RenkoDataService {
 
         RenkoData currentTrendBrick = getCurrentTrendBrick(renkoData);
 
-        int currentBrickZone = getZoneFromTrend(currentTrendBrick.getTrend());
         BigDecimal brickSize = currentTrendBrick.getBrickHigh().subtract(currentTrendBrick.getBrickLow());
 
-        BigDecimal currentPrice;
-        BigDecimal stopLossPrice;
-        BigDecimal stopLossDistance = brickSize.multiply(valueOf(currentBrickZone + 2), DB_MATH_CONTEXT);
-
-        if (currentTrendBrick.getDirection().equals(RENKO_BRICK_DIRECTION_UP)) {
-            currentPrice = currentTrendBrick.getBrickHigh();
-            stopLossPrice = currentPrice.subtract(stopLossDistance, DB_MATH_CONTEXT);
-        } else {
-            currentPrice = currentTrendBrick.getBrickLow();
-            stopLossPrice = currentPrice.add(stopLossDistance, DB_MATH_CONTEXT);
-        }
+        boolean isUp = currentTrendBrick.getDirection().equals(RENKO_BRICK_DIRECTION_UP);
+        BigDecimal currentPrice = isUp ? currentTrendBrick.getBrickHigh() : currentTrendBrick.getBrickLow();
+        BigDecimal stopLossDistance = brickSize.multiply(valueOf(getZoneFromTrend(currentTrendBrick.getTrend()) + 2), DB_MATH_CONTEXT);
+        BigDecimal stopLossPrice = isUp ? currentPrice.subtract(stopLossDistance) : currentPrice.add(stopLossDistance);
 
         List<RenkoDataDTO> brickDTOs = renkoData.stream()
                 .map(RenkoDataMapper::toDTO)

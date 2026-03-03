@@ -8,14 +8,12 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RenkoDataRepository extends JpaRepository<RenkoData, Long> {
 
     List<RenkoData> findByTickerOrderByRenkoDataDateAsc(Ticker ticker);
-
-    @Modifying
-    @Transactional
-    void deleteByTicker(Ticker ticker);
+    Optional<RenkoData> findTopByTickerOrderByRenkoDataDateDesc(Ticker ticker);
 
 }

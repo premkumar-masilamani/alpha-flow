@@ -21,7 +21,6 @@ import java.util.Map;
 import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_DOWN;
 import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_UP;
 
-@Component
 public class RenkoPPStrategy implements RenkoStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoPPStrategy.class);

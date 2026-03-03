@@ -68,9 +68,11 @@ public class YahooFinanceDownloader {
     }
 
     private boolean pauseBetweenDownloads(long delayMs) {
-        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(delayMs));
-        if (Thread.currentThread().isInterrupted()) {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException e) {
             log.warn("Download process interrupted during delay.");
+            Thread.currentThread().interrupt();
             return false;
         }
         return true;

@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
-@Component
 public class BuyAndHoldRiskOverlayStrategy implements CandlestickStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(BuyAndHoldRiskOverlayStrategy.class);

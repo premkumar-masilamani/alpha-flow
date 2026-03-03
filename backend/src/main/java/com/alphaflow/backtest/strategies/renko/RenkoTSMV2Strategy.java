@@ -22,7 +22,6 @@ import java.util.Map;
 
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
 
-@Component
 public class RenkoTSMV2Strategy implements RenkoStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(RenkoTSMV2Strategy.class);

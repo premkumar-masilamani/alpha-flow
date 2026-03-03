@@ -45,44 +45,49 @@ public class IndicatorCalculator {
     public void calculate() {
         log.info("Starting Indicator Computation");
 
-        tickerRepository.findByIsActiveTrue().forEach(ticker -> {
-            log.info("Computing Indicators for {}", ticker.getTickerSymbol());
-
-            // 1. Fetch all available candle data for the ticker, sorted by date
-            // We fetch everything once to avoid N+1 query problems and redundant DB round-trips
-            List<CandleData> allSeries = candleDataRepository.findByTickerOrderByCandleDataDateAsc(ticker);
-
-            if (allSeries.isEmpty()) {
-                log.warn("No candles found for {}", ticker.getTickerSymbol());
-                return;
-            }
-
-            for (CandleDataMetricType metric : CandleDataMetricType.values()) {
-                if (metric.transformSpecs().isEmpty()) {
-                    continue;
-                }
-
-                // Base indicators (no transformations)
-                if (metric == CandleDataMetricType.OBV) {
-                    computeOBV(ticker, metric, allSeries);
-                    continue;
-                }
-
-                // Transformations (SMA / EMA only)
-                for (var spec : metric.transformSpecs()) {
-                    for (TransformationType transformation : spec.transformations()) {
-                        for (WindowPeriod period : spec.periods()) {
-                            switch (transformation) {
-                                case SMA -> computeSMA(ticker, metric, period, allSeries);
-                                case EMA -> computeEMA(ticker, metric, period, allSeries);
-                            }
-                        }
-                    }
-                }
-            }
-        });
+        tickerRepository.findByIsActiveTrue().forEach(this::calculateForTicker);
 
         log.info("Completed Indicator Computation");
+    }
+
+    private void calculateForTicker(Ticker ticker) {
+        log.info("Computing Indicators for {}", ticker.getTickerSymbol());
+
+        List<CandleData> allSeries = candleDataRepository.findByTickerOrderByCandleDataDateAsc(ticker);
+        if (allSeries.isEmpty()) {
+            log.warn("No candles found for {}", ticker.getTickerSymbol());
+            return;
+        }
+
+        for (CandleDataMetricType metric : CandleDataMetricType.values()) {
+            calculateMetric(ticker, metric, allSeries);
+        }
+    }
+
+    private void calculateMetric(Ticker ticker, CandleDataMetricType metric, List<CandleData> allSeries) {
+        if (metric.transformSpecs().isEmpty()) {
+            return;
+        }
+
+        if (metric == CandleDataMetricType.OBV) {
+            computeOBV(ticker, metric, allSeries);
+            return;
+        }
+
+        for (var spec : metric.transformSpecs()) {
+            for (TransformationType transformation : spec.transformations()) {
+                for (WindowPeriod period : spec.periods()) {
+                    computeTransformation(ticker, metric, transformation, period, allSeries);
+                }
+            }
+        }
+    }
+
+    private void computeTransformation(Ticker ticker, CandleDataMetricType metric, TransformationType transformation, WindowPeriod period, List<CandleData> allSeries) {
+        switch (transformation) {
+            case SMA -> computeSMA(ticker, metric, period, allSeries);
+            case EMA -> computeEMA(ticker, metric, period, allSeries);
+        }
     }
 
     private void computeOBV(Ticker ticker, CandleDataMetricType metric, List<CandleData> allSeries) {
@@ -140,21 +145,9 @@ public class IndicatorCalculator {
         if (allSeries.size() < period) return;
 
         // Find the latest SMA already in the database to resume computation
-        Optional<Indicator> latestSma = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
-                ticker, metric.code(), SMA.code(), period
-        );
-
-        int startIndex;
-        if (latestSma.isPresent()) {
-            LocalDate lastDate = latestSma.get().getIndicatorDate();
-            startIndex = findIndexForDate(allSeries, lastDate) + 1;
-            // If up to date, skip
-            if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                return;
-            }
-        } else {
-            // First ever computation starts at the first possible date where a full window exists
-            startIndex = period - 1;
+        int startIndex = getStartIndex(ticker, allSeries, metric, SMA, period);
+        if (startIndex < 0 || startIndex >= allSeries.size()) {
+            return;
         }
 
         // Initialize sliding window sum
@@ -191,22 +184,20 @@ public class IndicatorCalculator {
         if (allSeries.size() < period) return;
 
         // Find the latest EMA already in the database to resume computation
+        int startIndex = getStartIndex(ticker, allSeries, metric, EMA, period);
+        if (startIndex < 0 || startIndex >= allSeries.size()) {
+            return;
+        }
+
+        BigDecimal ema;
+        BigDecimal alpha = valueOf(2).divide(valueOf(period + 1), DB_MATH_CONTEXT);
+
         Optional<Indicator> latestEma = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
                 ticker, metric.code(), EMA.code(), period
         );
 
-        BigDecimal ema;
-        int startIndex;
-        BigDecimal alpha = valueOf(2).divide(valueOf(period + 1), DB_MATH_CONTEXT);
-
-        if (latestEma.isPresent()) {
+        if (latestEma.isPresent() && findIndexForDate(allSeries, latestEma.get().getIndicatorDate()) + 1 == startIndex) {
             ema = latestEma.get().getValue();
-            LocalDate lastDate = latestEma.get().getIndicatorDate();
-            startIndex = findIndexForDate(allSeries, lastDate) + 1;
-            // If up to date, skip
-            if (startIndex <= 0 || startIndex >= allSeries.size()) {
-                return;
-            }
         } else {
             // Seed EMA with SMA of the first 'period' elements
             BigDecimal sum = BigDecimal.ZERO;
@@ -236,10 +227,34 @@ public class IndicatorCalculator {
         log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
     }
 
+    private int getStartIndex(Ticker ticker, List<CandleData> allSeries, CandleDataMetricType metric, TransformationType maType, int period) {
+        Optional<Indicator> latestIndicator = indicatorRepository.findTopByTickerAndMetricAndMaTypeAndPeriodOrderByIndicatorDateDesc(
+                ticker, metric.code(), maType.code(), period
+        );
+
+        if (latestIndicator.isPresent()) {
+            LocalDate lastDate = latestIndicator.get().getIndicatorDate();
+            return findIndexForDate(allSeries, lastDate) + 1;
+        } else {
+            return period - 1;
+        }
+    }
+
     private int findIndexForDate(List<CandleData> allSeries, LocalDate date) {
-        for (int i = 0; i < allSeries.size(); i++) {
-            if (allSeries.get(i).getCandleDataDate().isEqual(date)) {
-                return i;
+        int low = 0;
+        int high = allSeries.size() - 1;
+
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            LocalDate midDate = allSeries.get(mid).getCandleDataDate();
+            int cmp = midDate.compareTo(date);
+
+            if (cmp < 0) {
+                low = mid + 1;
+            } else if (cmp > 0) {
+                high = mid - 1;
+            } else {
+                return mid;
             }
         }
         return -1;
