@@ -11,8 +11,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "backtest_trades")
 @Data
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

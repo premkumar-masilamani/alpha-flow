@@ -3,7 +3,7 @@ import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
 import RenkoChart from './components/RenkoChart';
-import {type BacktestSignal, type CandleData, getBacktestSignal, getCandleData, getRenkoData, getTickers, type RenkoData, type Ticker} from './services/api';
+import {type BacktestSignal, type CandleData, getBacktestSignal, getCandleData, getRenkoData, getTickers, type RenkoDataResponse, type Ticker} from './services/api';
 import {Filter, Loader2} from 'lucide-react';
 
 const TABS = ['Candlestick', 'Renko'];
@@ -12,7 +12,7 @@ function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [candleData, setCandleData] = useState<CandleData[]>([]);
-    const [renkoData, setRenkoData] = useState<RenkoData | null>(null);
+    const [renkoData, setRenkoData] = useState<RenkoDataResponse | null>(null);
     const [signal, setSignal] = useState<Record<string, BacktestSignal[]>>({});
     const [selectedStrategy, setSelectedStrategy] = useState<string>('');
     const [loading, setLoading] = useState(false);

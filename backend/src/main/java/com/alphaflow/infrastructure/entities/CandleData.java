@@ -9,7 +9,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "candle_data")
 @Data
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

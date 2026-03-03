@@ -1,10 +1,10 @@
 import React, {useEffect, useRef} from 'react';
 import type {IChartApi, IPriceLine, ISeriesApi, SeriesMarker, Time} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineSeries} from 'lightweight-charts';
-import type {BacktestSignal, RenkoData} from '../services/api';
+import type {BacktestSignal, RenkoDataResponse} from '../services/api';
 
 interface RenkoChartProps {
-    data: RenkoData;
+    data: RenkoDataResponse;
     signal: BacktestSignal[];
     selectedStrategy: string;
 }

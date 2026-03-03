@@ -11,8 +11,6 @@ import java.util.Optional;
 
 @Repository
 public interface BacktestEquityRepository extends JpaRepository<BacktestEquity, Long> {
-    void deleteByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
-
     Optional<BacktestEquity> findTopByTickerAndStrategyOrderByEquityDateDesc(Ticker ticker, BacktestStrategy strategy);
 
     List<BacktestEquity> findByTickerAndStrategyOrderByEquityDateAsc(Ticker ticker, BacktestStrategy strategy);

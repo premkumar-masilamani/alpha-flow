@@ -117,11 +117,6 @@ public abstract class AbstractBacktester {
 
                     BacktestRunResult runResult = runBacktest(ticker, strategy, candleData, indicators, lastSignalOpt.get());
                     transactionTemplate.execute(status -> {
-                        if (runResult.lastTradeToUnclose() != null) {
-                            backtestTradeRepository.delete(runResult.lastTradeToUnclose());
-                        }
-                        backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-
                         backtestEquityRepository.saveAll(runResult.backtestEquity());
                         backtestSignalRepository.saveAll(runResult.backtestSignal());
                         backtestTradeRepository.saveAll(runResult.backtestTrades());
@@ -131,11 +126,6 @@ public abstract class AbstractBacktester {
                 } else {
                     BacktestRunResult runResult = runBacktest(ticker, strategy, candleData, indicators, null);
                     transactionTemplate.execute(status -> {
-                        backtestEquityRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                        backtestSignalRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                        backtestTradeRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-                        backtestResultRepository.deleteByTickerAndStrategy(ticker, strategy.getEntity());
-
                         backtestEquityRepository.saveAll(runResult.backtestEquity());
                         backtestSignalRepository.saveAll(runResult.backtestSignal());
                         backtestTradeRepository.saveAll(runResult.backtestTrades());
@@ -189,7 +179,6 @@ public abstract class AbstractBacktester {
         Map<String, Object> strategyState = new HashMap<>();
 
         int startIndex = 0;
-        BacktestTrade lastTradeToUnclose = null;
 
         List<BacktestEquity> historicalEquities = new ArrayList<>();
         List<BacktestTrade> historicalTrades = new ArrayList<>();
@@ -209,27 +198,16 @@ public abstract class AbstractBacktester {
             final PositionType pos = lastEquity.getPosition();
             currentPosition = pos;
             if (currentPosition != PositionType.NONE) {
-                BacktestTrade lastTrade = backtestTradeRepository.findTopByTickerAndStrategyOrderByEntryDateDesc(ticker, strategy.getEntity())
+                activeTrade = backtestTradeRepository.findTopByTickerAndStrategyOrderByEntryDateDesc(ticker, strategy.getEntity())
                         .orElseThrow(() -> new IllegalStateException("Position is " + pos + " but no trade found"));
 
-                shares = lastTrade.getQuantity();
-                entryPrice = lastTrade.getEntryPrice();
+                shares = activeTrade.getQuantity();
+                entryPrice = activeTrade.getEntryPrice();
                 if (currentPosition == PositionType.LONG) {
                     cash = BigDecimal.ZERO;
                 } else {
-                    cash = lastTrade.getQuantity().multiply(lastTrade.getEntryPrice());
+                    cash = activeTrade.getQuantity().multiply(activeTrade.getEntryPrice());
                 }
-
-                lastTradeToUnclose = lastTrade;
-                activeTrade = BacktestTrade.builder()
-                        .ticker(lastTrade.getTicker())
-                        .strategy(lastTrade.getStrategy())
-                        .side(lastTrade.getSide())
-                        .entryDate(lastTrade.getEntryDate())
-                        .entryPrice(lastTrade.getEntryPrice())
-                        .quantity(lastTrade.getQuantity())
-                        .holdingBars(lastTrade.getHoldingBars())
-                        .build();
             } else {
                 cash = lastEquity.getEquity();
                 shares = BigDecimal.ZERO;
@@ -248,7 +226,7 @@ public abstract class AbstractBacktester {
 
             historicalEquities = backtestEquityRepository.findByTickerAndStrategyOrderByEquityDateAsc(ticker, strategy.getEntity());
             historicalTrades = backtestTradeRepository.findByTickerAndStrategyOrderByEntryDateAsc(ticker, strategy.getEntity());
-            if (lastTradeToUnclose != null && !historicalTrades.isEmpty()) {
+            if (activeTrade != null && !historicalTrades.isEmpty()) {
                 historicalTrades.removeLast();
             }
         }
@@ -395,8 +373,9 @@ public abstract class AbstractBacktester {
 
         BacktestResult result = buildResult(ticker, strategy, allEquitiesForMetrics, allTradesForMetrics);
 
-        return new BacktestRunResult(equities, signals, trades, result, lastTradeToUnclose);
+        return new BacktestRunResult(equities, signals, trades, result);
     }
+
 
     private void closeActiveTrade(
             BacktestTrade activeTrade,
@@ -510,25 +489,49 @@ public abstract class AbstractBacktester {
             expectancy = winRateDecimal.multiply(avgWin).add(lossRateDecimal.multiply(avgLoss));
         }
 
-        return BacktestResult.builder()
-                .ticker(ticker)
-                .strategy(strategy.getEntity())
-                .initialEquity(INITIAL_EQUITY)
-                .finalEquity(last.getEquity())
-                .startDate(first.getEquityDate())
-                .endDate(last.getEquityDate())
-                .years(BigDecimal.valueOf(Double.isNaN(years) || Double.isInfinite(years) ? 0.0 : years))
-                .cagr(BigDecimal.valueOf(Double.isNaN(cagr) || Double.isInfinite(cagr) ? 0.0 : cagr))
-                .winRate(winRate)
-                .totalReturnPct(totalReturnPct)
-                .maxDrawdownPct(calculateMaxDrawdown(equities))
-                .sharpeRatio(calculateSharpeRatio(equities))
-                .totalTrades(totalTrades)
-                .avgWin(avgWin)
-                .avgLoss(avgLoss)
-                .profitFactor(profitFactor)
-                .expectancy(expectancy)
-                .build();
+        final BigDecimal finalWinRate = winRate;
+        final BigDecimal finalAvgWin = avgWin;
+        final BigDecimal finalAvgLoss = avgLoss;
+        final BigDecimal finalProfitFactor = profitFactor;
+        final BigDecimal finalExpectancy = expectancy;
+        return backtestResultRepository.findByTickerAndStrategy(ticker, strategy.getEntity())
+                .map(result -> {
+                    result.setInitialEquity(INITIAL_EQUITY);
+                    result.setFinalEquity(last.getEquity());
+                    result.setStartDate(first.getEquityDate());
+                    result.setEndDate(last.getEquityDate());
+                    result.setYears(BigDecimal.valueOf(Double.isNaN(years) || Double.isInfinite(years) ? 0.0 : years));
+                    result.setCagr(BigDecimal.valueOf(Double.isNaN(cagr) || Double.isInfinite(cagr) ? 0.0 : cagr));
+                    result.setWinRate(finalWinRate);
+                    result.setTotalReturnPct(totalReturnPct);
+                    result.setMaxDrawdownPct(calculateMaxDrawdown(equities));
+                    result.setSharpeRatio(calculateSharpeRatio(equities));
+                    result.setTotalTrades(totalTrades);
+                    result.setAvgWin(finalAvgWin);
+                    result.setAvgLoss(finalAvgLoss);
+                    result.setProfitFactor(finalProfitFactor);
+                    result.setExpectancy(finalExpectancy);
+                    return result;
+                })
+                .orElse(BacktestResult.builder()
+                        .ticker(ticker)
+                        .strategy(strategy.getEntity())
+                        .initialEquity(INITIAL_EQUITY)
+                        .finalEquity(last.getEquity())
+                        .startDate(first.getEquityDate())
+                        .endDate(last.getEquityDate())
+                        .years(BigDecimal.valueOf(Double.isNaN(years) || Double.isInfinite(years) ? 0.0 : years))
+                        .cagr(BigDecimal.valueOf(Double.isNaN(cagr) || Double.isInfinite(cagr) ? 0.0 : cagr))
+                        .winRate(finalWinRate)
+                        .totalReturnPct(totalReturnPct)
+                        .maxDrawdownPct(calculateMaxDrawdown(equities))
+                        .sharpeRatio(calculateSharpeRatio(equities))
+                        .totalTrades(totalTrades)
+                        .avgWin(finalAvgWin)
+                        .avgLoss(finalAvgLoss)
+                        .profitFactor(finalProfitFactor)
+                        .expectancy(finalExpectancy)
+                        .build());
     }
 
     private BigDecimal calculateMaxDrawdown(List<BacktestEquity> equities) {
@@ -570,8 +573,7 @@ public abstract class AbstractBacktester {
             List<BacktestEquity> backtestEquity,
             List<BacktestSignal> backtestSignal,
             List<BacktestTrade> backtestTrades,
-            BacktestResult backtestResult,
-            BacktestTrade lastTradeToUnclose
+            BacktestResult backtestResult
     ) {
     }
 }

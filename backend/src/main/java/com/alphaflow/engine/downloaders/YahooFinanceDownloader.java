@@ -22,6 +22,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 @Service
 public class YahooFinanceDownloader {
@@ -56,17 +58,22 @@ public class YahooFinanceDownloader {
             downloadDataForTicker(ticker);
 
             if (i < activeTickers.size() - 1 && yahooFinanceConfig.getDelayMs() > 0) {
-                try {
-                    Thread.sleep(yahooFinanceConfig.getDelayMs());
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("Download process interrupted during delay.");
+                if (!pauseBetweenDownloads(yahooFinanceConfig.getDelayMs())) {
                     break;
                 }
             }
         }
 
         log.info("All Yahoo Finance downloads completed!");
+    }
+
+    private boolean pauseBetweenDownloads(long delayMs) {
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(delayMs));
+        if (Thread.currentThread().isInterrupted()) {
+            log.warn("Download process interrupted during delay.");
+            return false;
+        }
+        return true;
     }
 
     private void downloadDataForTicker(Ticker ticker) {

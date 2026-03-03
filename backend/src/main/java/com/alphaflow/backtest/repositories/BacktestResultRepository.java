@@ -8,9 +8,10 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
 @Repository
 public interface BacktestResultRepository extends JpaRepository<BacktestResult, Long> {
-    void deleteByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
+    Optional<BacktestResult> findByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
 
     @Modifying
     @Query(value = """

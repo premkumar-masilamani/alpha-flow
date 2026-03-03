@@ -12,8 +12,6 @@ import java.util.Optional;
 
 @Repository
 public interface BacktestSignalRepository extends JpaRepository<BacktestSignal, Long> {
-    void deleteByTickerAndStrategy(Ticker ticker, BacktestStrategy strategy);
-
     List<BacktestSignal> findByTickerAndActionIn(Ticker ticker, List<TradeSignal> actions);
 
     Optional<BacktestSignal> findTopByTickerAndStrategyOrderBySignalDateDesc(Ticker ticker, BacktestStrategy strategy);
