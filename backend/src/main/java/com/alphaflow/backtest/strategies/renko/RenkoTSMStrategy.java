@@ -18,10 +18,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.alphaflow.infrastructure.utils.NumberUtils.convertToBigDecimal;
+import static com.alphaflow.infrastructure.utils.NumberUtils.scale2;
 
 @Component
 public class RenkoTSMStrategy implements RenkoStrategy {
@@ -119,7 +121,7 @@ public class RenkoTSMStrategy implements RenkoStrategy {
 
         BigDecimal maValue = indicators.get(maIndicatorKey);
         BigDecimal currentMomentum = indicators.get(momentumIndicatorKey);
-        BigDecimal previousMomentum = (BigDecimal) strategyState.getOrDefault(momentumIndicatorPrevKey, currentMomentum);
+        BigDecimal previousMomentum = convertToBigDecimal(strategyState.getOrDefault(momentumIndicatorPrevKey, currentMomentum));
         strategyState.put(momentumIndicatorPrevKey, currentMomentum);
 
         if (maValue == null || currentMomentum == null) {
@@ -154,10 +156,6 @@ public class RenkoTSMStrategy implements RenkoStrategy {
         }
 
         return new TradeAction(TradeSignal.HOLD, currentPosition, signalData);
-    }
-
-    private BigDecimal scale2(BigDecimal value) {
-        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 
 }

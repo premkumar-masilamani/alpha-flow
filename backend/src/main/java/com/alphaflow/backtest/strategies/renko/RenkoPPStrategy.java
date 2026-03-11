@@ -20,6 +20,7 @@ import java.util.Map;
 
 import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_DOWN;
 import static com.alphaflow.infrastructure.constants.AppConstants.RENKO_BRICK_DIRECTION_UP;
+import static com.alphaflow.infrastructure.utils.NumberUtils.convertToBigDecimal;
 
 @Component
 public class RenkoPPStrategy implements RenkoStrategy {
@@ -31,7 +32,7 @@ public class RenkoPPStrategy implements RenkoStrategy {
     private static final String PREV_SHORT_SPREAD_SHORT = "PREV_SHORT_SPREAD_SHORT";
     private static final String PREV_LONG_SPREAD_SHORT = "PREV_LONG_SPREAD_SHORT";
 
-    private Map<Integer, String> gmmaKeys = new HashMap<>();
+    private final Map<Integer, String> gmmaKeys = new HashMap<>();
 
     private BacktestStrategy entity;
 
@@ -110,10 +111,10 @@ public class RenkoPPStrategy implements RenkoStrategy {
         BigDecimal longSpreadShort = ema60.subtract(ema30);
 
         // Previous Spreads from state
-        BigDecimal prevShortSpreadLong = (BigDecimal) state.get(PREV_SHORT_SPREAD_LONG);
-        BigDecimal prevLongSpreadLong = (BigDecimal) state.get(PREV_LONG_SPREAD_LONG);
-        BigDecimal prevShortSpreadShort = (BigDecimal) state.get(PREV_SHORT_SPREAD_SHORT);
-        BigDecimal prevLongSpreadShort = (BigDecimal) state.get(PREV_LONG_SPREAD_SHORT);
+        BigDecimal prevShortSpreadLong = convertToBigDecimal(state.get(PREV_SHORT_SPREAD_LONG));
+        BigDecimal prevLongSpreadLong = convertToBigDecimal(state.get(PREV_LONG_SPREAD_LONG));
+        BigDecimal prevShortSpreadShort = convertToBigDecimal(state.get(PREV_SHORT_SPREAD_SHORT));
+        BigDecimal prevLongSpreadShort = convertToBigDecimal(state.get(PREV_LONG_SPREAD_SHORT));
 
         // Update state for next call
         state.put(PREV_SHORT_SPREAD_LONG, shortSpreadLong);
