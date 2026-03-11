@@ -8,7 +8,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "tickers")
 @Data
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
