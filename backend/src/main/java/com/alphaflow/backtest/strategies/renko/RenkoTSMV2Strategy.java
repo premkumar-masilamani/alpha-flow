@@ -15,12 +15,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.alphaflow.infrastructure.constants.AppConstants.DB_MATH_CONTEXT;
+import static com.alphaflow.infrastructure.utils.NumberUtils.convertToBigDecimal;
+import static com.alphaflow.infrastructure.utils.NumberUtils.scale2;
 
 @Component
 public class RenkoTSMV2Strategy implements RenkoStrategy {
@@ -88,7 +89,7 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         String regime = bullishRegime ? "bullish" : (bearishRegime ? "bearish" : "neutral");
 
         // Rule 2: OBV Momentum Threshold
-        BigDecimal prevObv = (BigDecimal) state.get(prevMomentumIndicatorKey);
+        BigDecimal prevObv = convertToBigDecimal(state.get(prevMomentumIndicatorKey));
         state.put(prevMomentumIndicatorKey, currentObv);
 
         if (prevObv == null) {
@@ -131,9 +132,5 @@ public class RenkoTSMV2Strategy implements RenkoStrategy {
         }
 
         return new TradeAction(TradeSignal.HOLD, currentPosition, signalData);
-    }
-
-    private BigDecimal scale2(BigDecimal value) {
-        return value == null ? null : value.setScale(2, RoundingMode.HALF_UP);
     }
 }

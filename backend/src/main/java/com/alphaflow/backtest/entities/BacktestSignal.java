@@ -10,7 +10,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "backtest_signals")
 @Data
-@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
