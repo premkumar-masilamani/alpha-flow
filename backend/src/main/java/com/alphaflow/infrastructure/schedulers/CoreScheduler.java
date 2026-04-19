@@ -1,8 +1,5 @@
 package com.alphaflow.infrastructure.schedulers;
 
-import com.alphaflow.backtest.engine.CandlestickBacktester;
-import com.alphaflow.backtest.engine.RenkoBacktester;
-import com.alphaflow.backtest.services.PerformanceScorer;
 import com.alphaflow.engine.calculation.IndicatorCalculator;
 import com.alphaflow.engine.calculation.RenkoDataCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
@@ -26,24 +23,15 @@ public class CoreScheduler {
     private final YahooFinanceDownloader yahooFinanceDownloader;
     private final IndicatorCalculator indicatorCalculator;
     private final RenkoDataCalculator renkoDataCalculator;
-    private final CandlestickBacktester candlestickBacktester;
-    private final RenkoBacktester renkoBacktester;
-    private final PerformanceScorer performanceScorer;
 
     public CoreScheduler(
             YahooFinanceDownloader yahooFinanceDownloader,
             IndicatorCalculator indicatorCalculator,
-            RenkoDataCalculator renkoDataCalculator,
-            CandlestickBacktester candlestickBacktester,
-            RenkoBacktester renkoBacktester,
-            PerformanceScorer performanceScorer
+            RenkoDataCalculator renkoDataCalculator
     ) {
         this.yahooFinanceDownloader = yahooFinanceDownloader;
         this.indicatorCalculator = indicatorCalculator;
         this.renkoDataCalculator = renkoDataCalculator;
-        this.candlestickBacktester = candlestickBacktester;
-        this.renkoBacktester = renkoBacktester;
-        this.performanceScorer = performanceScorer;
     }
 
     /**
@@ -75,14 +63,14 @@ public class CoreScheduler {
             log.info("Step 3/6: Computing Renko data...");
             renkoDataCalculator.calculate();
 
-            log.info("Step 4/6: Running Candlestick backtests...");
-            candlestickBacktester.compute();
-
-            log.info("Step 5/6: Running Renko backtests...");
-            renkoBacktester.compute();
-
-            log.info("Step 6/6: Evaluating strategy performance...");
-            performanceScorer.score();
+//            log.info("Step 4/6: Running Candlestick backtests...");
+//            candlestickBacktester.compute();
+//
+//            log.info("Step 5/6: Running Renko backtests...");
+//            renkoBacktester.compute();
+//
+//            log.info("Step 6/6: Evaluating strategy performance...");
+//            performanceScorer.score();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {
