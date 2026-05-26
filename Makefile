@@ -2,7 +2,7 @@
 include .env
 export $(shell sed 's/=.*//' .env)
 
-.PHONY: run_database network database migrate_database import_seed_data connect_database run_backend run_frontend clean diagrams
+.PHONY: run_database network database migrate_database import_seed_data connect_database run_backend run_frontend run_all clean diagrams
 
 # Setup database locally
 run_database: network database migrate_database import_seed_data
@@ -114,3 +114,11 @@ diagrams:
 	for file in $(DIAGRAMS_DIR)/*.d2; do \
 		d2 --sketch "$$file" "$${file%.d2}.svg"; \
 	done
+
+# Run all services concurrently (database inside docker, backend & frontend on host)
+run_all: run_database
+	@echo "Starting backend and frontend concurrently..."
+	@trap 'kill 0' SIGINT; \
+	make run_backend & \
+	make run_frontend & \
+	wait

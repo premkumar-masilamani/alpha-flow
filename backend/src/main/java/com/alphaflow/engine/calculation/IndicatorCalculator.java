@@ -1,12 +1,12 @@
 package com.alphaflow.engine.calculation;
 
-import com.alphaflow.engine.enums.CandleDataMetricType;
+import com.alphaflow.engine.enums.DailyCandleDataMetricType;
 import com.alphaflow.engine.enums.TransformationType;
 import com.alphaflow.engine.enums.WindowPeriod;
-import com.alphaflow.infrastructure.entities.CandleData;
+import com.alphaflow.infrastructure.entities.DailyCandleData;
 import com.alphaflow.infrastructure.entities.Indicator;
 import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.repositories.CandleDataRepository;
+import com.alphaflow.infrastructure.repositories.DailyCandleDataRepository;
 import com.alphaflow.infrastructure.repositories.IndicatorRepository;
 import com.alphaflow.infrastructure.repositories.TickerRepository;
 import org.slf4j.Logger;
@@ -28,16 +28,16 @@ public class IndicatorCalculator {
 
     private static final Logger log = LoggerFactory.getLogger(IndicatorCalculator.class);
 
-    private final CandleDataRepository candleDataRepository;
+    private final DailyCandleDataRepository dailyCandleDataRepository;
     private final IndicatorRepository indicatorRepository;
     private final TickerRepository tickerRepository;
 
     public IndicatorCalculator(
-            CandleDataRepository candleDataRepository,
+            DailyCandleDataRepository dailyCandleDataRepository,
             IndicatorRepository indicatorRepository,
             TickerRepository tickerRepository
     ) {
-        this.candleDataRepository = candleDataRepository;
+        this.dailyCandleDataRepository = dailyCandleDataRepository;
         this.indicatorRepository = indicatorRepository;
         this.tickerRepository = tickerRepository;
     }
@@ -50,20 +50,20 @@ public class IndicatorCalculator {
 
             // 1. Fetch all available candle data for the ticker, sorted by date
             // We fetch everything once to avoid N+1 query problems and redundant DB round-trips
-            List<CandleData> allSeries = candleDataRepository.findByTickerOrderByCandleDataDateAsc(ticker);
+            List<DailyCandleData> allSeries = dailyCandleDataRepository.findByTickerOrderByCandleDataDateAsc(ticker);
 
             if (allSeries.isEmpty()) {
                 log.warn("No candles found for {}", ticker.getTickerSymbol());
                 return;
             }
 
-            for (CandleDataMetricType metric : CandleDataMetricType.values()) {
+            for (DailyCandleDataMetricType metric : DailyCandleDataMetricType.values()) {
                 if (metric.transformSpecs().isEmpty()) {
                     continue;
                 }
 
                 // Base indicators (no transformations)
-                if (metric == CandleDataMetricType.OBV) {
+                if (metric == DailyCandleDataMetricType.OBV) {
                     computeOBV(ticker, metric, allSeries);
                     continue;
                 }
@@ -85,7 +85,7 @@ public class IndicatorCalculator {
         log.info("Completed Indicator Computation");
     }
 
-    private void computeOBV(Ticker ticker, CandleDataMetricType metric, List<CandleData> allSeries) {
+    private void computeOBV(Ticker ticker, DailyCandleDataMetricType metric, List<DailyCandleData> allSeries) {
         if (allSeries.isEmpty()) {
             return;
         }
@@ -113,8 +113,8 @@ public class IndicatorCalculator {
         }
 
         for (int i = startIndex; i < allSeries.size(); i++) {
-            CandleData currentData = allSeries.get(i);
-            CandleData previousData = allSeries.get(i - 1);
+            DailyCandleData currentData = allSeries.get(i);
+            DailyCandleData previousData = allSeries.get(i - 1);
 
             int priceCompare = currentData.getPriceClose().compareTo(previousData.getPriceClose());
 
@@ -135,7 +135,7 @@ public class IndicatorCalculator {
      * Uses a sliding window approach for O(N) efficiency.
      * Formula: SMA = (Sum of values in window) / Period
      */
-    private void computeSMA(Ticker ticker, CandleDataMetricType metric, WindowPeriod maPeriod, List<CandleData> allSeries) {
+    private void computeSMA(Ticker ticker, DailyCandleDataMetricType metric, WindowPeriod maPeriod, List<DailyCandleData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
@@ -186,7 +186,7 @@ public class IndicatorCalculator {
      * where α = 2 / (Period + 1)
      * Initial Seed: The first EMA value is typically the SMA of the first 'Period' days.
      */
-    private void computeEMA(Ticker ticker, CandleDataMetricType metric, WindowPeriod maPeriod, List<CandleData> allSeries) {
+    private void computeEMA(Ticker ticker, DailyCandleDataMetricType metric, WindowPeriod maPeriod, List<DailyCandleData> allSeries) {
         int period = maPeriod.days();
         if (allSeries.size() < period) return;
 
@@ -236,7 +236,7 @@ public class IndicatorCalculator {
         log.info("Computed {} new EMA records for {} - {} ({} days)", count, ticker.getTickerSymbol(), metric.code(), period);
     }
 
-    private int findIndexForDate(List<CandleData> allSeries, LocalDate date) {
+    private int findIndexForDate(List<DailyCandleData> allSeries, LocalDate date) {
         for (int i = 0; i < allSeries.size(); i++) {
             if (allSeries.get(i).getCandleDataDate().isEqual(date)) {
                 return i;
@@ -245,7 +245,7 @@ public class IndicatorCalculator {
         return -1;
     }
 
-    private void persist(CandleData candleData, CandleDataMetricType metric, TransformationType maType, int period, BigDecimal value) {
+    private void persist(DailyCandleData candleData, DailyCandleDataMetricType metric, TransformationType maType, int period, BigDecimal value) {
         // We use findBy... to ensure idempotency and avoid duplicates if the computation is re-run for same dates
         Indicator indicator = indicatorRepository.findByTickerAndIndicatorDateAndMetricAndMaTypeAndPeriod(
                         candleData.getTicker(),
