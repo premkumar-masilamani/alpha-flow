@@ -9,20 +9,14 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({tickers, selectedTicker, onSelectTicker}) => {
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-        CRYPTO: true,
-        STOCKS: true,
-        COMMODITY: true
-    });
+    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
     const toggleCategory = (category: string) => {
         setExpandedCategories(prev => ({
             ...prev,
-            [category]: !prev[category]
+            [category]: prev[category] === false ? true : false
         }));
     };
-
-    const categories = ['CRYPTO', 'STOCKS', 'COMMODITY'] as const;
 
     const groupedTickers = tickers.reduce((acc, ticker) => {
         const type = ticker.type || 'CRYPTO';
@@ -31,17 +25,21 @@ const Sidebar: React.FC<SidebarProps> = ({tickers, selectedTicker, onSelectTicke
         return acc;
     }, {} as Record<string, Ticker[]>);
 
+    const categories = Object.keys(groupedTickers).sort((a, b) => {
+        if (a === 'CRYPTO') return -1;
+        if (b === 'CRYPTO') return 1;
+        return a.localeCompare(b);
+    });
+
     return (
-        <div className="w-64 bg-slate-800 text-slate-300 flex flex-col h-full border-r border-slate-700">
+        <div className="w-64 bg-slate-800 text-slate-300 flex flex-col h-full border-r border-slate-700 select-none">
             <div className="p-4 border-b border-slate-700">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">Tickers</h2>
             </div>
             <div className="flex-1 overflow-y-auto">
                 {categories.map((category) => {
                     const categoryTickers = groupedTickers[category] || [];
-                    if (categoryTickers.length === 0 && category !== 'CRYPTO') return null;
-
-                    const isExpanded = expandedCategories[category];
+                    const isExpanded = expandedCategories[category] !== false;
 
                     return (
                         <div key={category} className="border-b border-slate-700/50">

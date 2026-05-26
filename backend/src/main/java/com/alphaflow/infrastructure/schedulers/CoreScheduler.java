@@ -1,10 +1,7 @@
 package com.alphaflow.infrastructure.schedulers;
 
-import com.alphaflow.backtest.engine.CandlestickBacktester;
-import com.alphaflow.backtest.engine.RenkoBacktester;
-import com.alphaflow.backtest.services.PerformanceScorer;
+import com.alphaflow.api.services.WeeklyCandleService;
 import com.alphaflow.engine.calculation.IndicatorCalculator;
-import com.alphaflow.engine.calculation.RenkoDataCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,26 +21,17 @@ public class CoreScheduler {
     private static final Logger log = LoggerFactory.getLogger(CoreScheduler.class);
 
     private final YahooFinanceDownloader yahooFinanceDownloader;
+    private final WeeklyCandleService weeklyCandleService;
     private final IndicatorCalculator indicatorCalculator;
-    private final RenkoDataCalculator renkoDataCalculator;
-    private final CandlestickBacktester candlestickBacktester;
-    private final RenkoBacktester renkoBacktester;
-    private final PerformanceScorer performanceScorer;
 
     public CoreScheduler(
             YahooFinanceDownloader yahooFinanceDownloader,
-            IndicatorCalculator indicatorCalculator,
-            RenkoDataCalculator renkoDataCalculator,
-            CandlestickBacktester candlestickBacktester,
-            RenkoBacktester renkoBacktester,
-            PerformanceScorer performanceScorer
+            WeeklyCandleService weeklyCandleService,
+            IndicatorCalculator indicatorCalculator
     ) {
         this.yahooFinanceDownloader = yahooFinanceDownloader;
+        this.weeklyCandleService = weeklyCandleService;
         this.indicatorCalculator = indicatorCalculator;
-        this.renkoDataCalculator = renkoDataCalculator;
-        this.candlestickBacktester = candlestickBacktester;
-        this.renkoBacktester = renkoBacktester;
-        this.performanceScorer = performanceScorer;
     }
 
     /**
@@ -66,23 +54,14 @@ public class CoreScheduler {
 
     private void run() {
         try {
-            log.info("Step 1/6: Downloading Yahoo Finance daily data...");
+            log.info("Step 1/3: Downloading Yahoo Finance daily data...");
             yahooFinanceDownloader.download();
 
-            log.info("Step 2/6: Computing indicators...");
+            log.info("Step 2/3: Computing weekly candles...");
+            weeklyCandleService.computeWeeklyCandles();
+
+            log.info("Step 3/3: Computing indicators...");
             indicatorCalculator.calculate();
-
-            log.info("Step 3/6: Computing Renko data...");
-            renkoDataCalculator.calculate();
-
-            log.info("Step 4/6: Running Candlestick backtests...");
-            candlestickBacktester.compute();
-
-            log.info("Step 5/6: Running Renko backtests...");
-            renkoBacktester.compute();
-
-            log.info("Step 6/6: Evaluating strategy performance...");
-            performanceScorer.score();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {

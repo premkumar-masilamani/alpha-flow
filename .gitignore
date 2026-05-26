@@ -6,7 +6,9 @@
 .ropeproject/
 .zed/
 .idea/
+.vscode/
 .settings/
 .project
 .classpath
 .factorypath
+database.iml
