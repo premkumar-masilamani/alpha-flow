@@ -11,7 +11,8 @@
       "Bash(./backend/gradlew -p ./backend test)",
       "Bash(npm --prefix frontend run build)",
       "Bash(echo \"exit=$?\")",
-      "Bash(rm -f .bugs/BUG-0*.md; echo \"exit=$?\"; echo \"--- remaining in .bugs/ ---\"; ls -1A .bugs/)"
+      "Bash(rm -f .bugs/BUG-0*.md; echo \"exit=$?\"; echo \"--- remaining in .bugs/ ---\"; ls -1A .bugs/)",
+      "Bash(./backend/gradlew -p ./backend compileJava)"
     ]
   }
 }
