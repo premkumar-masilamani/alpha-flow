@@ -2,7 +2,19 @@ import {useEffect, useState} from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
-import {type DailyCandleData, getCandleData, getTickers, type Ticker} from './services/api';
+import IndicatorControls from './components/IndicatorControls';
+import {
+    type DailyCandleData,
+    getCandleData,
+    getIndicatorConfigs,
+    getIndicatorSeries,
+    getTickers,
+    type IndicatorConfig,
+    type IndicatorSeries,
+    indicatorKey,
+    type Ticker,
+    type Timeframe,
+} from './services/api';
 import {Loader2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown} from 'lucide-react';
 
 
@@ -19,9 +31,24 @@ function App() {
     const [dailyCandleData, setDailyCandleData] = useState<DailyCandleData[]>([]);
     const [loading, setLoading] = useState(false);
 
+    // Timeframe and Indicators
+    const [timeframe, setTimeframe] = useState<Timeframe>('DAILY');
+    const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>([]);
+    const [chartIndicators, setChartIndicators] = useState<IndicatorSeries[]>([]);
+    const [enabledIndicators, setEnabledIndicators] = useState<Set<string>>(new Set());
+    const [chartCandleData, setChartCandleData] = useState<DailyCandleData[]>([]);
+
     // Layout states
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'charts'>('overview');
+
+    const toggleIndicator = (key: string) => {
+        setEnabledIndicators((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key); else next.add(key);
+            return next;
+        });
+    };
 
     useEffect(() => {
         const fetchTickers = async () => {
@@ -38,6 +65,29 @@ function App() {
         };
         fetchTickers();
     }, []);
+
+    // Discover the configured indicators once
+    useEffect(() => {
+        getIndicatorConfigs()
+            .then(setIndicatorConfigs)
+            .catch((error) => console.error('Failed to fetch indicator configs:', error));
+    }, []);
+
+    // Set default enabled indicators when timeframe or configs load/change
+    useEffect(() => {
+        if (indicatorConfigs.length === 0) return;
+        if (timeframe === 'WEEKLY') {
+            const weeklyMacdConfig = indicatorConfigs.find(c => c.timeframe === 'WEEKLY' && c.type === 'MACD');
+            if (weeklyMacdConfig) {
+                setEnabledIndicators(new Set([indicatorKey(weeklyMacdConfig)]));
+            } else {
+                setEnabledIndicators(new Set());
+            }
+        } else {
+            const dailyEmaConfigs = indicatorConfigs.filter(c => c.timeframe === 'DAILY' && c.type === 'EMA');
+            setEnabledIndicators(new Set(dailyEmaConfigs.map(indicatorKey)));
+        }
+    }, [timeframe, indicatorConfigs]);
 
     // Fetch daily candle data when selectedTicker changes
     useEffect(() => {
@@ -57,6 +107,39 @@ function App() {
         };
         fetchDailyData();
     }, [selectedTicker]);
+
+    // Fetch chart candle data when selectedTicker or timeframe changes
+    useEffect(() => {
+        const fetchChartCandleData = async () => {
+            if (selectedTicker) {
+                setLoading(true);
+                try {
+                    const data = await getCandleData(selectedTicker, timeframe);
+                    setChartCandleData(data);
+                } catch (error) {
+                    console.error(`Failed to fetch ${timeframe} chart candle data:`, error);
+                    setChartCandleData([]);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+        fetchChartCandleData();
+    }, [selectedTicker, timeframe]);
+
+    // Fetch indicator series when the ticker or timeframe changes
+    useEffect(() => {
+        if (!selectedTicker) {
+            setChartIndicators([]);
+            return;
+        }
+        getIndicatorSeries(selectedTicker, timeframe)
+            .then(setChartIndicators)
+            .catch((error) => {
+                console.error(`Failed to fetch ${timeframe} indicators:`, error);
+                setChartIndicators([]);
+            });
+    }, [selectedTicker, timeframe]);
 
     const renderOverview = (sortedDataDesc: DailyCandleData[]) => {
         if (sortedDataDesc.length === 0) return null;
@@ -226,14 +309,48 @@ function App() {
                         </div>
                     )
                 ) : (
-                    <div className="flex-1 relative overflow-hidden p-4">
-                        {hasDailyData ? (
-                            <Chart data={dailyCandleData} />
-                        ) : (
-                            <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                                {loading ? 'Loading data...' : 'No data available for this ticker'}
+                    <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+                        {hasDailyData && (
+                            <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                                <IndicatorControls
+                                    configs={indicatorConfigs.filter((c) => c.timeframe === timeframe)}
+                                    enabled={enabledIndicators}
+                                    onToggle={toggleIndicator}
+                                />
+                                <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
+                                    <button
+                                        onClick={() => setTimeframe('DAILY')}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                            timeframe === 'DAILY' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        Daily
+                                    </button>
+                                    <button
+                                        onClick={() => setTimeframe('WEEKLY')}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                                            timeframe === 'WEEKLY' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        Weekly
+                                    </button>
+                                </div>
                             </div>
                         )}
+                        <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+                            {chartCandleData.length > 0 ? (
+                                <Chart
+                                    data={chartCandleData}
+                                    indicators={chartIndicators}
+                                    enabled={enabledIndicators}
+                                    configs={indicatorConfigs}
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                                    {loading ? 'Loading chart data...' : 'No data available for this ticker'}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </>

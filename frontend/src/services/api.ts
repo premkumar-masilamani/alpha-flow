@@ -28,25 +28,90 @@ const MAX_CACHE_ENTRIES = 50;
 // Map preserves insertion order, which we use as a simple LRU to bound memory growth.
 const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: number }>();
 
-export const getCandleData = async (symbol: string): Promise<DailyCandleData[]> => {
+export const getCandleData = async (symbol: string, timeframe: Timeframe = 'DAILY'): Promise<DailyCandleData[]> => {
     const now = Date.now();
-    const cached = candleDataCache.get(symbol);
+    const cacheKey = `${symbol}:${timeframe}`;
+    const cached = candleDataCache.get(cacheKey);
     if (cached && (now - cached.timestamp < CACHE_DURATION)) {
         // Mark as most-recently-used.
-        candleDataCache.delete(symbol);
-        candleDataCache.set(symbol, cached);
+        candleDataCache.delete(cacheKey);
+        candleDataCache.set(cacheKey, cached);
         return cached.data;
     }
 
     // Only cache on success; a failed request propagates without evicting/poisoning the cache.
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
-    candleDataCache.set(symbol, {data: response.data, timestamp: now});
+    const url = timeframe === 'WEEKLY'
+        ? `${API_BASE_URL}/tickers/${symbol}/weekly-data`
+        : `${API_BASE_URL}/tickers/${symbol}/data`;
+    const response = await axios.get(url);
+    candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
     // Evict the least-recently-used entries if we exceed the cap.
     while (candleDataCache.size > MAX_CACHE_ENTRIES) {
         const oldestKey = candleDataCache.keys().next().value;
         if (oldestKey === undefined) break;
         candleDataCache.delete(oldestKey);
+    }
+
+    return response.data;
+};
+
+export type Timeframe = 'DAILY' | 'WEEKLY';
+
+// One configured (indicator, source, params) combo from the discovery endpoint.
+export interface IndicatorConfig {
+    timeframe: Timeframe;
+    type: string;
+    source: string;
+    params: string;
+    label: string;
+    upperBound?: number;
+    lowerBound?: number;
+}
+
+// One bar's reading; `values` is keyed by output name (e.g. MACD -> macd/signal/histogram).
+export interface IndicatorPoint {
+    date: string;
+    values: Record<string, number>;
+}
+
+export interface IndicatorSeries {
+    type: string;
+    source: string;
+    params: string;
+    label: string;
+    points: IndicatorPoint[];
+}
+
+// Stable key identifying a combo across the config and series endpoints.
+export const indicatorKey = (i: {type: string; source: string; params: string}): string =>
+    `${i.type}|${i.source}|${i.params}`;
+
+export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
+    const response = await axios.get(`${API_BASE_URL}/indicators`);
+    return response.data;
+};
+
+// Cache indicator series per symbol+timeframe, mirroring the candle cache (backend re-syncs hourly).
+const indicatorCache = new Map<string, {data: IndicatorSeries[]; timestamp: number}>();
+
+export const getIndicatorSeries = async (symbol: string, timeframe: Timeframe): Promise<IndicatorSeries[]> => {
+    const now = Date.now();
+    const cacheKey = `${symbol}:${timeframe}`;
+    const cached = indicatorCache.get(cacheKey);
+    if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+        indicatorCache.delete(cacheKey);
+        indicatorCache.set(cacheKey, cached);
+        return cached.data;
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/indicators`, {params: {timeframe}});
+    indicatorCache.set(cacheKey, {data: response.data, timestamp: now});
+
+    while (indicatorCache.size > MAX_CACHE_ENTRIES) {
+        const oldestKey = indicatorCache.keys().next().value;
+        if (oldestKey === undefined) break;
+        indicatorCache.delete(oldestKey);
     }
 
     return response.data;

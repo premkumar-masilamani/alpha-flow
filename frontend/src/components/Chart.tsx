@@ -1,20 +1,93 @@
-import React, {useEffect, useRef} from 'react';
-import type {IChartApi, ISeriesApi, Time} from 'lightweight-charts';
-import {CandlestickSeries, ColorType, createChart, HistogramSeries} from 'lightweight-charts';
-import type {DailyCandleData} from '../services/api';
+import React, {useEffect, useRef, useState} from 'react';
+import type {ISeriesApi, Time} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
 
 interface ChartProps {
     data: DailyCandleData[];
+    indicators: IndicatorSeries[];
+    enabled: Set<string>;
+    configs: IndicatorConfig[];
 }
 
-const Chart: React.FC<ChartProps> = ({data}) => {
-    const chartContainerRef = useRef<HTMLDivElement>(null);
-    const chartRef = useRef<IChartApi | null>(null);
-    const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-    const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+interface LegendEntry {
+    label: string;
+    color: string;
+}
 
+// Deterministic palette; assigned in enabled-order so a given chart is stable across renders.
+const PALETTE = ['#f59e0b', '#06b6d4', '#a855f7', '#ec4899', '#84cc16', '#f43f5e', '#22d3ee', '#fb923c', '#eab308'];
+
+type Placement = 'priceOverlay' | 'volumeOverlay' | 'oscillator';
+
+const placementFor = (series: IndicatorSeries): Placement => {
+    if (series.type === 'RSI' || series.type === 'STOCHASTIC' || series.type === 'MACD') return 'oscillator';
+    if (series.type === 'SMA' && series.source === 'VOLUME') return 'volumeOverlay';
+    return 'priceOverlay'; // EMA, and SMA on a price field
+};
+
+// Which output names a series plots, and how each renders.
+const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; suffix: string}[] => {
+    switch (type) {
+        case 'STOCHASTIC':
+            return [{name: 'k', style: 'line', suffix: ' %K'}, {name: 'd', style: 'line', suffix: ' %D'}];
+        case 'MACD':
+            return [
+                {name: 'macd', style: 'line', suffix: ' MACD'},
+                {name: 'signal', style: 'line', suffix: ' Signal'},
+                {name: 'histogram', style: 'histogram', suffix: ' Hist'},
+            ];
+        default:
+            return [{name: 'value', style: 'line', suffix: ''}];
+    }
+};
+
+const lineData = (series: IndicatorSeries, output: string) =>
+    series.points
+        .filter((p) => p.values[output] !== undefined && p.values[output] !== null)
+        .map((p) => ({time: p.date as Time, value: Number(p.values[output])}))
+        .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+
+const formatLabel = (label: string): string =>
+    label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
+
+const getLatestValuesString = (series: IndicatorSeries): string => {
+    switch (series.type) {
+        case 'STOCHASTIC': {
+            const kPoints = lineData(series, 'k');
+            const dPoints = lineData(series, 'd');
+            const kVal = kPoints[kPoints.length - 1]?.value;
+            const dVal = dPoints[dPoints.length - 1]?.value;
+            return `K: ${kVal !== undefined ? kVal.toFixed(2) : 'N/A'}, D: ${dVal !== undefined ? dVal.toFixed(2) : 'N/A'}`;
+        }
+        case 'MACD': {
+            const macdPoints = lineData(series, 'macd');
+            const sigPoints = lineData(series, 'signal');
+            const histPoints = lineData(series, 'histogram');
+            const mVal = macdPoints[macdPoints.length - 1]?.value;
+            const sVal = sigPoints[sigPoints.length - 1]?.value;
+            const hVal = histPoints[histPoints.length - 1]?.value;
+            return `MACD: ${mVal !== undefined ? mVal.toFixed(2) : 'N/A'}, Signal: ${sVal !== undefined ? sVal.toFixed(2) : 'N/A'}, Hist: ${hVal !== undefined ? hVal.toFixed(2) : 'N/A'}`;
+        }
+        default: {
+            const valPoints = lineData(series, 'value');
+            const val = valPoints[valPoints.length - 1]?.value;
+            return val !== undefined ? val.toFixed(2) : 'N/A';
+        }
+    }
+};
+
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
+    const chartContainerRef = useRef<HTMLDivElement>(null);
+    const [legend, setLegend] = useState<LegendEntry[]>([]);
+
+    // Rebuild the chart whenever the data or the visible indicator set changes. Recreating (rather than
+    // diffing series) keeps pane management simple; the trade-off is that toggling resets the zoom.
     useEffect(() => {
-        if (!chartContainerRef.current) return;
+        if (!chartContainerRef.current || data.length === 0) {
+            setLegend([]);
+            return;
+        }
 
         const chart = createChart(chartContainerRef.current, {
             layout: {
@@ -27,36 +100,139 @@ const Chart: React.FC<ChartProps> = ({data}) => {
             },
             width: chartContainerRef.current.clientWidth,
             height: 600,
-            timeScale: {
-                borderColor: '#334155',
-                timeVisible: true,
-            }
+            timeScale: {borderColor: '#334155', timeVisible: true},
         });
 
-        chartRef.current = chart;
+        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
-        candlestickSeriesRef.current = chart.addSeries(CandlestickSeries, {
+        const candlestickSeries = chart.addSeries(CandlestickSeries, {
             upColor: '#22c55e',
             downColor: '#ef4444',
             borderVisible: false,
             wickUpColor: '#22c55e',
             wickDownColor: '#ef4444',
-        });
+        }, 0);
+        candlestickSeries.setData(sortedData.map((d) => ({
+            time: d.date as Time,
+            open: Number(d.open),
+            high: Number(d.high),
+            low: Number(d.low),
+            close: Number(d.close),
+        })));
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
             color: '#3b82f6',
-            priceFormat: {
-                type: 'volume',
-            },
+            priceFormat: {type: 'volume'},
             priceScaleId: '',
+        }, 0);
+        volumeSeries.priceScale().applyOptions({scaleMargins: {top: 0.8, bottom: 0}});
+        volumeSeries.setData(sortedData.map((d) => ({
+            time: d.date as Time,
+            value: Number(d.vol),
+            color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+        })));
+
+        const legendEntries: LegendEntry[] = [];
+        let colorIdx = 0;
+        const nextColor = () => PALETTE[colorIdx++ % PALETTE.length];
+        let nextPane = 1;
+
+        for (const series of indicators) {
+            if (!enabled.has(indicatorKey(series))) continue;
+            const placement = placementFor(series);
+            const paneIndex = placement === 'oscillator' ? nextPane++ : 0;
+
+            for (const output of outputsFor(series.type)) {
+                const points = lineData(series, output.name);
+                if (points.length === 0) continue;
+                const color = nextColor();
+                const formattedTitle = formatLabel(series.label) + output.suffix;
+
+                if (output.style === 'histogram') {
+                    const hist = chart.addSeries(HistogramSeries, {color, priceLineVisible: false}, paneIndex);
+                    hist.setData(points);
+                } else {
+                    const line: ISeriesApi<'Line'> = chart.addSeries(LineSeries, {
+                        color,
+                        lineWidth: 1,
+                        priceLineVisible: false,
+                        lastValueVisible: true,
+                        // Price-scale overlays share the candle scale; volume-overlays share the volume scale.
+                        ...(placement === 'volumeOverlay' ? {priceScaleId: ''} : {}),
+                    }, paneIndex);
+                    line.setData(points);
+
+                    // Add dynamic bounds lines from backend config for subpane oscillator series
+                    if (placement === 'oscillator') {
+                        const matchedConfig = configs.find(
+                            (c) => c.type === series.type && c.params === series.params
+                        );
+                        let upper = matchedConfig?.upperBound;
+                        let lower = matchedConfig?.lowerBound;
+
+                        // Fallback defaults
+                        if (upper === undefined || upper === null) {
+                            if (series.type === 'RSI') upper = 70;
+                            else if (series.type === 'STOCHASTIC') upper = 80;
+                        }
+                        if (lower === undefined || lower === null) {
+                            if (series.type === 'RSI') lower = 30;
+                            else if (series.type === 'STOCHASTIC') lower = 20;
+                        }
+
+                        if (upper !== undefined && upper !== null) {
+                            line.createPriceLine({
+                                price: Number(upper),
+                                color: '#94a3b8', // slate-400 (visible gray)
+                                lineWidth: 1,
+                                lineStyle: LineStyle.Dotted,
+                                axisLabelVisible: true,
+                                title: '',
+                            });
+                        }
+                        if (lower !== undefined && lower !== null) {
+                            line.createPriceLine({
+                                price: Number(lower),
+                                color: '#94a3b8', // slate-400 (visible gray)
+                                lineWidth: 1,
+                                lineStyle: LineStyle.Dotted,
+                                axisLabelVisible: true,
+                                title: '',
+                            });
+                        }
+                    }
+                }
+                
+                // Exclude oscillator subpane indicators from the main chart legend
+                if (placement !== 'oscillator') {
+                    const latestValue = points[points.length - 1]?.value;
+                    const displayLabel = latestValue !== undefined ? `${formattedTitle} - ${latestValue.toFixed(2)}` : formattedTitle;
+                    legendEntries.push({label: displayLabel, color});
+                }
+            }
+        }
+
+        // Give the price pane the most height; oscillator panes share the rest.
+        try {
+            const panes = chart.panes();
+            if (panes.length > 1) {
+                panes[0].setStretchFactor(3);
+                for (let i = 1; i < panes.length; i++) panes[i].setStretchFactor(1);
+            }
+        } catch {
+            // setStretchFactor unavailable — fall back to default pane sizing.
+        }
+
+        // Default view: latest six months.
+        const lastDate = sortedData[sortedData.length - 1].date;
+        const sixMonthsAgo = new Date(lastDate);
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+        chart.timeScale().setVisibleRange({
+            from: sixMonthsAgo.toISOString().split('T')[0] as Time,
+            to: lastDate as Time,
         });
-        volumeSeries.priceScale().applyOptions({
-            scaleMargins: {
-                top: 0.8,
-                bottom: 0,
-            },
-        });
-        volumeSeriesRef.current = volumeSeries;
+
+        setLegend(legendEntries);
 
         const handleResize = () => {
             if (chartContainerRef.current) {
@@ -69,56 +245,43 @@ const Chart: React.FC<ChartProps> = ({data}) => {
             window.removeEventListener('resize', handleResize);
             chart.remove();
         };
-    }, []);
+    }, [data, indicators, enabled, configs]);
 
-    useEffect(() => {
-        if (!chartRef.current || !candlestickSeriesRef.current || !volumeSeriesRef.current || data.length === 0) return;
+    const oscillatorIndicators = indicators.filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator');
 
-        // Financial data usually comes sorted, but we ensure it for chart stability
-        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
+    return (
+        <div className="relative">
+            {legend.length > 0 && (
+                <div className="absolute top-2 left-2 z-10 flex flex-col gap-0.5 bg-slate-900/70 rounded px-2 py-1 backdrop-blur pointer-events-none">
+                    {legend.map((e) => (
+                        <span key={e.label} className="flex items-center gap-1.5 text-[10px] font-medium text-slate-300">
+                            <span className="inline-block w-2.5 h-0.5 rounded" style={{backgroundColor: e.color}}/>
+                            {e.label}
+                        </span>
+                    ))}
+                </div>
+            )}
 
-        const formattedCandlestickData = [];
-        const formattedVolumeData = [];
+            {/* Subpane Overlay Headers */}
+            {oscillatorIndicators.map((series, idx) => {
+                const N = oscillatorIndicators.length;
+                const top = 600 * (3 + idx) / (3 + N);
+                const valuesStr = getLatestValuesString(series);
+                return (
+                    <div 
+                        key={indicatorKey(series)}
+                        className="absolute left-2 z-10 bg-slate-900/75 border border-slate-800 rounded px-2 py-0.5 backdrop-blur text-[10px] font-bold text-slate-300 pointer-events-none select-none"
+                        style={{ top: `${top + 4}px` }}
+                    >
+                        <span className="text-slate-400 mr-1">{formatLabel(series.label)}:</span>
+                        <span className="font-mono text-white">{valuesStr}</span>
+                    </div>
+                );
+            })}
 
-        for (const d of sortedData) {
-            const open = Number(d.open);
-            const high = Number(d.high);
-            const low = Number(d.low);
-            const close = Number(d.close);
-            const vol = Number(d.vol);
-
-            formattedCandlestickData.push({
-                time: d.date as Time,
-                open,
-                high,
-                low,
-                close,
-            });
-
-            formattedVolumeData.push({
-                time: d.date as Time,
-                value: vol,
-                color: close >= open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
-            });
-        }
-
-        candlestickSeriesRef.current.setData(formattedCandlestickData);
-        volumeSeriesRef.current.setData(formattedVolumeData);
-
-        // Set initial display to latest six months
-        const lastDate = sortedData[sortedData.length - 1].date;
-        const lastDateObj = new Date(lastDate);
-        const sixMonthsAgo = new Date(lastDateObj);
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const sixMonthsAgoStr = sixMonthsAgo.toISOString().split('T')[0];
-
-        chartRef.current.timeScale().setVisibleRange({
-            from: sixMonthsAgoStr as Time,
-            to: lastDate as Time,
-        });
-    }, [data]);
-
-    return <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>;
+            <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>
+        </div>
+    );
 };
 
 export default Chart;

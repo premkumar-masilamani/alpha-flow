@@ -12,7 +12,9 @@
       "Bash(npm --prefix frontend run build)",
       "Bash(echo \"exit=$?\")",
       "Bash(rm -f .bugs/BUG-0*.md; echo \"exit=$?\"; echo \"--- remaining in .bugs/ ---\"; ls -1A .bugs/)",
-      "Bash(./backend/gradlew -p ./backend compileJava)"
+      "Bash(./backend/gradlew -p ./backend compileJava)",
+      "WebSearch",
+      "Bash(./backend/gradlew -p ./backend test --tests \"com.alphaflow.engine.calculators.indicators.IndicatorEngineTest\")"
     ]
   }
 }
