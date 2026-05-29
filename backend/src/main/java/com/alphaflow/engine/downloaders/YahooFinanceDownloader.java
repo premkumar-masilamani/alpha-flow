@@ -1,10 +1,10 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.engine.configs.YahooFinanceConfig;
-import com.alphaflow.infrastructure.entities.DailyCandleData;
-import com.alphaflow.infrastructure.entities.Ticker;
-import com.alphaflow.infrastructure.repositories.DailyCandleDataRepository;
-import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -20,11 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,18 +31,18 @@ public class YahooFinanceDownloader {
 
     private final YahooFinanceConfig yahooFinanceConfig;
     private final TickerRepository tickerRepository;
-    private final DailyCandleDataRepository dailyCandleDataRepository;
+    private final DailyPriceRepository dailyPriceRepository;
     private final ObjectMapper objectMapper;
 
     public YahooFinanceDownloader(
             YahooFinanceConfig yahooFinanceConfig,
             TickerRepository tickerRepository,
-            DailyCandleDataRepository dailyCandleDataRepository,
+            DailyPriceRepository dailyPriceRepository,
             ObjectMapper objectMapper
     ) {
         this.yahooFinanceConfig = yahooFinanceConfig;
         this.tickerRepository = tickerRepository;
-        this.dailyCandleDataRepository = dailyCandleDataRepository;
+        this.dailyPriceRepository = dailyPriceRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -57,12 +53,12 @@ public class YahooFinanceDownloader {
         log.info("Found {} Yahoo Finance tickers to sync.", tickers.size());
 
         ZoneId utcZone = ZoneId.of("UTC");
-        Map<Long, LocalDate> latestSavedDatesByTickerId = dailyCandleDataRepository.findLatestCandleDatesForAllTickers(
+        Map<Long, LocalDate> latestSavedDatesByTickerId = dailyPriceRepository.findLatestPriceDatesForAllTickers(
                         DEFAULT_LATEST_CANDLE_DATE
                 ).stream()
                 .collect(Collectors.toMap(
-                        DailyCandleDataRepository.TickerLatestCandleDateView::getTickerId,
-                        DailyCandleDataRepository.TickerLatestCandleDateView::getLatestCandleDate,
+                        DailyPriceRepository.TickerLatestPriceDateView::getTickerId,
+                        DailyPriceRepository.TickerLatestPriceDateView::getLatestPriceDate,
                         (left, right) -> left
                 ));
 
@@ -70,9 +66,9 @@ public class YahooFinanceDownloader {
             Ticker ticker = tickers.get(i);
             downloadDataForTicker(ticker, latestSavedDatesByTickerId.get(ticker.getTickerId()), utcZone);
 
-            if (i < tickers.size() - 1 && yahooFinanceConfig.getDelayMs() > 0) {
+            if (i < tickers.size() - 1 && yahooFinanceConfig.getDelayMilliseconds() > 0) {
                 try {
-                    Thread.sleep(yahooFinanceConfig.getDelayMs());
+                    Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     log.warn("Download process interrupted during delay.");
@@ -87,7 +83,7 @@ public class YahooFinanceDownloader {
     private void downloadDataForTicker(Ticker ticker, LocalDate latestSavedDate, ZoneId utcZone) {
         LocalDate startDate = latestSavedDate != null
                 ? latestSavedDate.plusDays(1)
-                : ticker.getTickerDate();
+                : DEFAULT_LATEST_CANDLE_DATE;
 
         long startTs = startDate.atStartOfDay(utcZone).toEpochSecond();
         long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
@@ -106,20 +102,20 @@ public class YahooFinanceDownloader {
                 .replace("{end}", String.valueOf(endTs));
 
         try {
-            List<DailyCandleData> candleDataList = fetchAndParseJson(url, ticker);
+            List<DailyPrice> candleDataList = fetchAndParseJson(url, ticker);
             if (!candleDataList.isEmpty()) {
                 LocalDate checkStartDate = latestSavedDate != null
                         ? latestSavedDate.minusDays(7)
-                        : ticker.getTickerDate();
-                List<LocalDate> existingDates = dailyCandleDataRepository.findDatesByTickerAndDateGreaterThanEqual(ticker, checkStartDate);
+                        : DEFAULT_LATEST_CANDLE_DATE;
+                List<LocalDate> existingDates = dailyPriceRepository.findDatesByTickerAndDateGreaterThanEqual(ticker, checkStartDate);
                 Set<LocalDate> existingDatesSet = new HashSet<>(existingDates);
 
-                List<DailyCandleData> newCandleData = candleDataList.stream()
-                        .filter(c -> !existingDatesSet.contains(c.getCandleDataDate()))
+                List<DailyPrice> newCandleData = candleDataList.stream()
+                        .filter(c -> !existingDatesSet.contains(c.getPriceDate()))
                         .collect(Collectors.toList());
 
                 if (!newCandleData.isEmpty()) {
-                    dailyCandleDataRepository.saveAll(newCandleData);
+                    dailyPriceRepository.saveAll(newCandleData);
                     log.info("Successfully synced {} rows for {}", newCandleData.size(), ticker.getTickerSymbol());
                 } else {
                     log.info("No new data points to save for ticker {} (all downloaded points already exist).", ticker.getTickerSymbol());
@@ -130,7 +126,7 @@ public class YahooFinanceDownloader {
         }
     }
 
-    private List<DailyCandleData> fetchAndParseJson(String url, Ticker ticker) throws IOException {
+    private List<DailyPrice> fetchAndParseJson(String url, Ticker ticker) throws IOException {
         URLConnection connection = URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
@@ -157,7 +153,7 @@ public class YahooFinanceDownloader {
             JsonNode closes = indicators.path("close");
             JsonNode volumes = indicators.path("volume");
 
-            List<DailyCandleData> list = new ArrayList<>();
+            List<DailyPrice> list = new ArrayList<>();
             for (int i = 0; i < timestamps.size(); i++) {
                 if (opens.get(i).isNull() || highs.get(i).isNull() || lows.get(i).isNull() || closes.get(i).isNull()) {
                     continue;
@@ -170,11 +166,11 @@ public class YahooFinanceDownloader {
                 BigDecimal high = highs.get(i).decimalValue();
                 BigDecimal low = lows.get(i).decimalValue();
                 BigDecimal close = closes.get(i).decimalValue();
-                BigDecimal volume = volumes.get(i).decimalValue();
+                long volume = volumes.get(i).asLong();
 
-                list.add(DailyCandleData.builder()
+                list.add(DailyPrice.builder()
                         .ticker(ticker)
-                        .candleDataDate(date)
+                        .priceDate(date)
                         .priceOpen(open)
                         .priceHigh(high)
                         .priceLow(low)

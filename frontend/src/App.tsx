@@ -11,13 +11,11 @@ function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
     const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
     const [dailyCandleData, setDailyCandleData] = useState<DailyCandleData[]>([]);
-    const [weeklyCandleData, setWeeklyCandleData] = useState<DailyCandleData[]>([]);
     const [loading, setLoading] = useState(false);
-    
+
     // Layout states
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'charts'>('overview');
-    const [chartTimeframe, setChartTimeframe] = useState<'daily' | 'weekly'>('daily');
 
     useEffect(() => {
         const fetchTickers = async () => {
@@ -41,7 +39,7 @@ function App() {
             if (selectedTicker) {
                 setLoading(true);
                 try {
-                    const data = await getCandleData(selectedTicker, 'daily');
+                    const data = await getCandleData(selectedTicker);
                     setDailyCandleData(data);
                 } catch (error) {
                     console.error('Failed to fetch daily data:', error);
@@ -54,30 +52,11 @@ function App() {
         fetchDailyData();
     }, [selectedTicker]);
 
-    // Fetch weekly candle data when selectedTicker or chartTimeframe is weekly and activeTab is charts
-    useEffect(() => {
-        const fetchWeeklyData = async () => {
-            if (selectedTicker && activeTab === 'charts' && chartTimeframe === 'weekly') {
-                setLoading(true);
-                try {
-                    const data = await getCandleData(selectedTicker, 'weekly');
-                    setWeeklyCandleData(data);
-                } catch (error) {
-                    console.error('Failed to fetch weekly data:', error);
-                    setWeeklyCandleData([]);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-        fetchWeeklyData();
-    }, [selectedTicker, activeTab, chartTimeframe]);
-
     const renderOverview = (sortedDataDesc: DailyCandleData[]) => {
         if (sortedDataDesc.length === 0) return null;
 
         const latest = sortedDataDesc[0];
-        
+
         const priceChange = latest.close - latest.open;
         const priceChangePct = (priceChange / latest.open) * 100;
         const range = latest.high - latest.low;
@@ -181,7 +160,6 @@ function App() {
         }
 
         const hasDailyData = dailyCandleData.length > 0;
-        const hasWeeklyData = weeklyCandleData.length > 0;
         const sortedDailyDesc = [...dailyCandleData].sort((a, b) => b.date.localeCompare(a.date));
 
         return (
@@ -206,27 +184,6 @@ function App() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {/* Timeframe Selector (Only in Technical Chart Tab) */}
-                        {activeTab === 'charts' && (
-                            <div className="flex items-center gap-2">
-                                <div className="relative">
-                                    <select
-                                        value={chartTimeframe}
-                                        onChange={(e) => setChartTimeframe(e.target.value as 'daily' | 'weekly')}
-                                        className="bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold rounded-lg px-3 py-2 pr-8 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none cursor-pointer"
-                                    >
-                                        <option value="daily">Daily View</option>
-                                        <option value="weekly">Weekly View</option>
-                                    </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-slate-500">
-                                        <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                                            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {/* Tab Navigation */}
                         <div className="flex bg-slate-900 border border-slate-800 p-0.5 rounded-lg">
                             <button
@@ -264,22 +221,12 @@ function App() {
                     )
                 ) : (
                     <div className="flex-1 relative overflow-hidden p-4">
-                        {chartTimeframe === 'weekly' ? (
-                            hasWeeklyData ? (
-                                <Chart data={weeklyCandleData} />
-                            ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                                    {loading ? 'Loading weekly data...' : 'No weekly data available for this ticker'}
-                                </div>
-                            )
+                        {hasDailyData ? (
+                            <Chart data={dailyCandleData} />
                         ) : (
-                            hasDailyData ? (
-                                <Chart data={dailyCandleData} />
-                            ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                                    {loading ? 'Loading daily data...' : 'No daily data available for this ticker'}
-                                </div>
-                            )
+                            <div className="absolute inset-0 flex items-center justify-center text-slate-500">
+                                {loading ? 'Loading data...' : 'No data available for this ticker'}
+                            </div>
                         )}
                     </div>
                 )}

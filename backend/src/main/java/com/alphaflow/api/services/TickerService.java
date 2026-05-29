@@ -2,8 +2,8 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.TickerDTO;
 import com.alphaflow.api.mappers.TickerMapper;
-import com.alphaflow.infrastructure.exceptions.ResourceNotFoundException;
-import com.alphaflow.infrastructure.repositories.TickerRepository;
+import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
