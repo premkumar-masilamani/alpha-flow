@@ -8,11 +8,13 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "daily_prices")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @ToString(exclude = "ticker")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class DailyPrice {
 
     @Id
@@ -20,9 +22,11 @@ public class DailyPrice {
     @Column(name = "daily_price_id")
     private Long dailyPriceId;
 
+    @EqualsAndHashCode.Include
     @Column(name = "price_date", nullable = false)
     private LocalDate priceDate;
 
+    @EqualsAndHashCode.Include
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "ticker_id", nullable = false)
     private Ticker ticker;
