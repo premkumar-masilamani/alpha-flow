@@ -6,7 +6,6 @@ export interface Ticker {
     id: number;
     symbol: string;
     name: string;
-    type: 'CRYPTO' | 'US-EQUITY' | 'IN-EQUITY' | 'COMMODITY';
 }
 
 export interface DailyCandleData {
@@ -26,16 +25,13 @@ export const getTickers = async (): Promise<Ticker[]> => {
 const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
 const candleDataCache: { [key: string]: { data: DailyCandleData[]; timestamp: number } } = {};
 
-export const getCandleData = async (symbol: string, timeframe: 'daily' | 'weekly' = 'daily'): Promise<DailyCandleData[]> => {
+export const getCandleData = async (symbol: string): Promise<DailyCandleData[]> => {
     const now = Date.now();
-    const cacheKey = `${symbol}_${timeframe}`;
-    if (candleDataCache[cacheKey] && (now - candleDataCache[cacheKey].timestamp < CACHE_DURATION)) {
-        return candleDataCache[cacheKey].data;
+    if (candleDataCache[symbol] && (now - candleDataCache[symbol].timestamp < CACHE_DURATION)) {
+        return candleDataCache[symbol].data;
     }
 
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`, {
-        params: { timeframe }
-    });
-    candleDataCache[cacheKey] = {data: response.data, timestamp: now};
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/data`);
+    candleDataCache[symbol] = {data: response.data, timestamp: now};
     return response.data;
 };

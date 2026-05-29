@@ -11,6 +11,6 @@ public class YahooFinanceConfig {
 
     private String downloadUrl;
 
-    private long delayMs;
+    private long delayMilliseconds;
 
 }

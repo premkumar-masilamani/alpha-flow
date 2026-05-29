@@ -1,0 +1,36 @@
+package com.alphaflow.api.services;
+
+import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.mappers.OhlcvMapper;
+import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Comparator;
+import java.util.List;
+
+@Service
+@Transactional(readOnly = true)
+public class DailyPriceService {
+
+    private static final Logger log = LoggerFactory.getLogger(DailyPriceService.class);
+
+    private final DailyPriceRepository dailyPriceRepository;
+
+    public DailyPriceService(DailyPriceRepository dailyPriceRepository) {
+        this.dailyPriceRepository = dailyPriceRepository;
+    }
+
+    public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName) {
+        log.debug("Fetching daily candle data for ticker: {}", tickerName);
+        return dailyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(0, 180))
+                .stream()
+                .sorted(Comparator.comparing(DailyPrice::getPriceDate))
+                .map(OhlcvMapper::toDTO)
+                .toList();
+    }
+}
