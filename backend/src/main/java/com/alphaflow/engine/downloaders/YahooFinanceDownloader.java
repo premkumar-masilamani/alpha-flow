@@ -16,6 +16,8 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLConnection;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -49,8 +51,8 @@ public class YahooFinanceDownloader {
     public void download() {
         log.info("Starting Yahoo Finance data download process...");
 
-        var tickers = tickerRepository.findAll();
-        log.info("Found {} Yahoo Finance tickers to sync.", tickers.size());
+        var tickers = tickerRepository.findByIsActiveTrue();
+        log.info("Found {} active Yahoo Finance tickers to sync.", tickers.size());
 
         ZoneId utcZone = ZoneId.of("UTC");
         Map<Long, LocalDate> latestSavedDatesByTickerId = dailyPriceRepository.findLatestPriceDatesForAllTickers(
@@ -96,8 +98,9 @@ public class YahooFinanceDownloader {
         log.info("Syncing Yahoo Finance data for {} from {} (timestamp: {}) to start of today (timestamp: {})",
                 ticker.getTickerSymbol(), startDate, startTs, endTs);
 
+        String encodedSymbol = URLEncoder.encode(ticker.getTickerSymbol(), StandardCharsets.UTF_8);
         String url = yahooFinanceConfig.getDownloadUrl()
-                .replace("{symbol}", ticker.getTickerSymbol())
+                .replace("{symbol}", encodedSymbol)
                 .replace("{start}", String.valueOf(startTs))
                 .replace("{end}", String.valueOf(endTs));
 
@@ -122,7 +125,7 @@ public class YahooFinanceDownloader {
                 }
             }
         } catch (Exception e) {
-            log.error("Failed to download Yahoo Finance data for {}: {}", ticker.getTickerSymbol(), e.getMessage());
+            log.error("Failed to download Yahoo Finance data for {}", ticker.getTickerSymbol(), e);
         }
     }
 
@@ -153,9 +156,20 @@ public class YahooFinanceDownloader {
             JsonNode closes = indicators.path("close");
             JsonNode volumes = indicators.path("volume");
 
+            if (!opens.isArray() || !highs.isArray() || !lows.isArray() || !closes.isArray() || !volumes.isArray()) {
+                log.warn("Ticker {}: Yahoo response is missing one or more OHLCV arrays; skipping.", ticker.getTickerSymbol());
+                return List.of();
+            }
+
+            // Bound the loop by the shortest array so a truncated/uneven payload cannot cause an index-out-of-range / NPE.
+            int count = Math.min(timestamps.size(),
+                    Math.min(Math.min(opens.size(), highs.size()), Math.min(lows.size(), Math.min(closes.size(), volumes.size()))));
+
             List<DailyPrice> list = new ArrayList<>();
-            for (int i = 0; i < timestamps.size(); i++) {
-                if (opens.get(i).isNull() || highs.get(i).isNull() || lows.get(i).isNull() || closes.get(i).isNull()) {
+            for (int i = 0; i < count; i++) {
+                // Skip any row with a null/missing OHLCV component rather than coercing it to a misleading value.
+                if (opens.get(i).isNull() || highs.get(i).isNull() || lows.get(i).isNull()
+                        || closes.get(i).isNull() || volumes.get(i).isNull()) {
                     continue;
                 }
 

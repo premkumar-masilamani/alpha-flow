@@ -6,8 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * CoreScheduler for periodic data updates.
@@ -21,6 +24,9 @@ public class CoreScheduler {
 
     private final YahooFinanceDownloader yahooFinanceDownloader;
     private final WeeklyPriceCalculator weeklyPriceCalculator;
+
+    // Guards against overlapping pipeline runs (e.g. startup run still in progress when the hourly cron fires).
+    private final AtomicBoolean running = new AtomicBoolean(false);
 
     public CoreScheduler(
             YahooFinanceDownloader yahooFinanceDownloader,
@@ -40,8 +46,10 @@ public class CoreScheduler {
     }
 
     /**
-     * Runs the data update pipeline immediately upon application startup.
+     * Runs the data update pipeline asynchronously upon application startup,
+     * so it does not block the application's main thread.
      */
+    @Async
     @EventListener(ApplicationReadyEvent.class)
     public void runOnStartup() {
         log.info("Starting initial data update cycle upon startup...");
@@ -49,6 +57,10 @@ public class CoreScheduler {
     }
 
     private void run() {
+        if (!running.compareAndSet(false, true)) {
+            log.warn("Data update cycle skipped: a previous run is still in progress.");
+            return;
+        }
         try {
             log.info("Step 1/2: Downloading Yahoo Finance daily data...");
             yahooFinanceDownloader.download();
@@ -59,6 +71,8 @@ public class CoreScheduler {
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {
             log.error("Error occurred during scheduled data update cycle", e);
+        } finally {
+            running.set(false);
         }
     }
 }

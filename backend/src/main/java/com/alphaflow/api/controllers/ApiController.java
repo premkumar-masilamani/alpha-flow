@@ -42,13 +42,13 @@ public class ApiController implements ErrorController {
         HttpStatus httpStatus = valueOf(ofNullable(status)
                 .orElse(INTERNAL_SERVER_ERROR.value()));
 
-        String message = ofNullable(exception).map(Throwable::getMessage)
-                .orElse(httpStatus.getReasonPhrase());
-
+        // Do not leak internal exception details to clients; return the generic status reason only.
+        // Full detail is captured in the server-side log above.
         return Map.of(
                 "status", httpStatus.value(),
                 "error", httpStatus.getReasonPhrase(),
-                "message", message, "path", path,
+                "message", httpStatus.getReasonPhrase(),
+                "path", path != null ? path : "",
                 "timestamp", Instant.now().toString()
         );
     }

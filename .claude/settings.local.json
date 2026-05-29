@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(java -version)",
+      "Bash(docker --version)",
+      "Bash(lsof -nP -iTCP:8080 -sTCP:LISTEN)",
+      "Bash(lsof -nP -iTCP:5173 -sTCP:LISTEN)",
+      "Bash(lsof -nP -iTCP:5432 -sTCP:LISTEN)",
+      "Bash(./backend/gradlew -p ./backend compileJava -q)",
+      "Bash(rm /Users/premkumar/Code/alpha-flow/.bugs/BUG-001-actuator-fully-exposed.md && echo \"deleted\")",
+      "Bash(./backend/gradlew -p ./backend test)",
+      "Bash(npm --prefix frontend run build)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(rm -f .bugs/BUG-0*.md; echo \"exit=$?\"; echo \"--- remaining in .bugs/ ---\"; ls -1A .bugs/)"
+    ]
+  }
+}

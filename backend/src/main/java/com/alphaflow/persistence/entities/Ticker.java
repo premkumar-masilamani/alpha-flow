@@ -1,14 +1,14 @@
 package com.alphaflow.persistence.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "tickers")
-@Data
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -19,6 +19,7 @@ public class Ticker {
     @Column(name = "ticker_id")
     private Long tickerId;
 
+    @EqualsAndHashCode.Include
     @Column(name = "ticker_symbol", nullable = false, unique = true)
     private String tickerSymbol;
 

@@ -6,6 +6,12 @@ import {type DailyCandleData, getCandleData, getTickers, type Ticker} from './se
 import {Loader2, ChevronLeft, ChevronRight, TrendingUp, TrendingDown} from 'lucide-react';
 
 
+// Percentage change relative to a base price. Returns 0 when the base is zero or
+// non-finite, so the UI never renders NaN/Infinity for malformed or zero-open data.
+const pctChange = (change: number, base: number): number => {
+    if (!base || !Number.isFinite(base)) return 0;
+    return (change / base) * 100;
+};
 
 function App() {
     const [tickers, setTickers] = useState<Ticker[]>([]);
@@ -58,7 +64,7 @@ function App() {
         const latest = sortedDataDesc[0];
 
         const priceChange = latest.close - latest.open;
-        const priceChangePct = (priceChange / latest.open) * 100;
+        const priceChangePct = pctChange(priceChange, latest.open);
         const range = latest.high - latest.low;
 
         return (
@@ -127,7 +133,7 @@ function App() {
                             <tbody>
                                 {sortedDataDesc.slice(0, 15).map((row) => {
                                     const change = row.close - row.open;
-                                    const pct = (change / row.open) * 100;
+                                    const pct = pctChange(change, row.open);
                                     return (
                                         <tr key={row.date} className="border-b border-slate-800/50 hover:bg-slate-900/30 transition-colors">
                                             <td className="p-3.5 font-medium text-slate-300">{row.date}</td>
