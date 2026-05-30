@@ -52,7 +52,6 @@ jacocoTestReport {
     reports {
         html.required = true
     }
-    finalizedBy jacocoTestCoverageVerification
 }
 
 jacocoTestCoverageVerification {

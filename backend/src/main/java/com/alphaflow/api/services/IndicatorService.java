@@ -69,32 +69,33 @@ public class IndicatorService {
         return configs;
     }
 
-    /**
-     * All configured indicators for a ticker on a timeframe, over the configured window.
-     */
     public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe) {
-        log.debug("Fetching {} indicators for ticker: {}", timeframe, symbol);
+        return getIndicatorSeries(symbol, timeframe, 0, null);
+    }
+
+    public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe, int page, Integer size) {
+        log.debug("Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
         if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
             log.warn("Ticker not found for symbol: {}", symbol);
             throw new ResourceNotFoundException("Ticker not found: " + symbol);
         }
 
-        int window = apiProperties.windowFor(timeframe);
-        List<LocalDate> recentDates = recentPriceDates(symbol, timeframe, window);
-        if (recentDates.isEmpty()) {
+        int actualSize = size != null ? size : apiProperties.windowFor(timeframe);
+        PageRequest pageRequest = PageRequest.of(page, actualSize);
+        List<LocalDate> pageDates = timeframe == Timeframe.WEEKLY
+                ? weeklyPriceRepository.findRecentPriceDates(symbol, pageRequest)
+                : dailyPriceRepository.findRecentPriceDates(symbol, pageRequest);
+
+        if (pageDates.isEmpty()) {
             return List.of();
         }
-        // recentDates is newest-first; its last element is the oldest bar within the window.
-        LocalDate windowStart = recentDates.getLast();
 
-        List<IndicatorValue> rows = indicatorValueRepository.findSeries(symbol, timeframe, windowStart);
+        // pageDates is ordered DESC, so the last element is the oldest and the first element is the newest
+        LocalDate start = pageDates.getLast();
+        LocalDate end = pageDates.getFirst();
+
+        List<IndicatorValue> rows = indicatorValueRepository.findSeriesBetween(symbol, timeframe, start, end);
         return IndicatorMapper.toSeries(rows);
     }
 
-    private List<LocalDate> recentPriceDates(String symbol, Timeframe timeframe, int window) {
-        PageRequest page = PageRequest.of(0, window);
-        return timeframe == Timeframe.WEEKLY
-                ? weeklyPriceRepository.findRecentPriceDates(symbol, page)
-                : dailyPriceRepository.findRecentPriceDates(symbol, page);
-    }
 }

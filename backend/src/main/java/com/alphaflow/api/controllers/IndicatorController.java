@@ -44,8 +44,10 @@ public class IndicatorController {
      */
     @GetMapping("/tickers/{symbol}/indicators")
     public List<IndicatorSeriesDTO> getIndicatorSeries(@PathVariable String symbol,
-                                                       @RequestParam String timeframe) {
-        log.info("Request to get {} indicators for ticker: {}", timeframe, symbol);
-        return indicatorService.getIndicatorSeries(symbol, parseTimeframe(timeframe));
+                                                       @RequestParam String timeframe,
+                                                       @RequestParam(defaultValue = "0") int page,
+                                                       @RequestParam(required = false) Integer size) {
+        log.info("Request to get {} indicators for ticker: {}, page: {}, size: {}", timeframe, symbol, page, size);
+        return indicatorService.getIndicatorSeries(symbol, parseTimeframe(timeframe), page, size);
     }
 }

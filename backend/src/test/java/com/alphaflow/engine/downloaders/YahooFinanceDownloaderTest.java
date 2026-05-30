@@ -471,5 +471,62 @@ class YahooFinanceDownloaderTest {
         String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [{\"open\": [150.0], \"high\": [150.0], \"low\": [150.0], \"close\": [150.0], \"volume\": \"not-an-array\"}]}}]}}";
         runDownloaderWithJson(json);
     }
+
+    @Test
+    void testDownloadOpenNotArray() throws java.io.IOException {
+        String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [{\"open\": \"not-an-array\", \"high\": [150.0], \"low\": [150.0], \"close\": [150.0], \"volume\": [1000]}]}}]}}";
+        runDownloaderWithJson(json);
+    }
+
+    @Test
+    void testDownloadMissingIndicatorsNode() throws java.io.IOException {
+        String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000]}]}}";
+        runDownloaderWithJson(json);
+    }
+
+    @Test
+    void testDownloadHighNullRow() throws java.io.IOException {
+        String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [{\"open\": [150.0], \"high\": [null], \"low\": [150.0], \"close\": [150.0], \"volume\": [1000]}]}}]}}";
+        runDownloaderWithJson(json);
+    }
+
+    @Test
+    void testDownloadLowNullRow() throws java.io.IOException {
+        String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [{\"open\": [150.0], \"high\": [150.0], \"low\": [null], \"close\": [150.0], \"volume\": [1000]}]}}]}}";
+        runDownloaderWithJson(json);
+    }
+
+    @Test
+    void testDownloadCloseNullRow() throws java.io.IOException {
+        String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [{\"open\": [150.0], \"high\": [150.0], \"low\": [150.0], \"close\": [null], \"volume\": [1000]}]}}]}}";
+        runDownloaderWithJson(json);
+    }
+
+    @Test
+    void testDownloadVolumeNullRow() throws java.io.IOException {
+        String json = "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [{\"open\": [150.0], \"high\": [150.0], \"low\": [150.0], \"close\": [150.0], \"volume\": [null]}]}}]}}";
+        runDownloaderWithJson(json);
+    }
+
+    @Test
+    void testDownloadNoActiveTickers() {
+        YahooFinanceConfig config = new YahooFinanceConfig();
+        TickerRepository tickerRepo = mock(TickerRepository.class);
+        DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+        ObjectMapper mapper = new ObjectMapper();
+
+        when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of());
+
+        YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+        downloader.download();
+
+        verify(dailyRepo, never()).saveAll(any());
+    }
+
+    @Test
+    void testDownloadResultMissing() throws java.io.IOException {
+        String json = "{\"chart\": {}}";
+        runDownloaderWithJson(json);
+    }
 }
 

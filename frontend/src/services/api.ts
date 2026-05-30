@@ -28,9 +28,14 @@ const MAX_CACHE_ENTRIES = 50;
 // Map preserves insertion order, which we use as a simple LRU to bound memory growth.
 const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: number }>();
 
-export const getCandleData = async (symbol: string, timeframe: Timeframe = 'DAILY'): Promise<DailyCandleData[]> => {
+export const getCandleData = async (
+    symbol: string,
+    timeframe: Timeframe = 'DAILY',
+    page: number = 0,
+    size?: number
+): Promise<DailyCandleData[]> => {
     const now = Date.now();
-    const cacheKey = `${symbol}:${timeframe}`;
+    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = candleDataCache.get(cacheKey);
     if (cached && (now - cached.timestamp < CACHE_DURATION)) {
         // Mark as most-recently-used.
@@ -43,7 +48,7 @@ export const getCandleData = async (symbol: string, timeframe: Timeframe = 'DAIL
     const url = timeframe === 'WEEKLY'
         ? `${API_BASE_URL}/tickers/${symbol}/weekly-data`
         : `${API_BASE_URL}/tickers/${symbol}/data`;
-    const response = await axios.get(url);
+    const response = await axios.get(url, { params: { page, size } });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
     // Evict the least-recently-used entries if we exceed the cap.
@@ -95,9 +100,14 @@ export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
 // Cache indicator series per symbol+timeframe, mirroring the candle cache (backend re-syncs hourly).
 const indicatorCache = new Map<string, {data: IndicatorSeries[]; timestamp: number}>();
 
-export const getIndicatorSeries = async (symbol: string, timeframe: Timeframe): Promise<IndicatorSeries[]> => {
+export const getIndicatorSeries = async (
+    symbol: string,
+    timeframe: Timeframe,
+    page: number = 0,
+    size?: number
+): Promise<IndicatorSeries[]> => {
     const now = Date.now();
-    const cacheKey = `${symbol}:${timeframe}`;
+    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = indicatorCache.get(cacheKey);
     if (cached && (now - cached.timestamp < CACHE_DURATION)) {
         indicatorCache.delete(cacheKey);
@@ -105,7 +115,9 @@ export const getIndicatorSeries = async (symbol: string, timeframe: Timeframe): 
         return cached.data;
     }
 
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/indicators`, {params: {timeframe}});
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/indicators`, {
+        params: { timeframe, page, size }
+    });
     indicatorCache.set(cacheKey, {data: response.data, timestamp: now});
 
     while (indicatorCache.size > MAX_CACHE_ENTRIES) {

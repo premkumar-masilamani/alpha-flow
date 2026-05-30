@@ -55,4 +55,15 @@ public interface IndicatorValueRepository extends JpaRepository<IndicatorValue, 
             ORDER BY iv.priceDate ASC
             """)
     List<IndicatorValue> findSeries(String symbol, Timeframe timeframe, LocalDate from);
+
+    @Query("""
+            SELECT iv FROM IndicatorValue iv
+            JOIN iv.ticker tk
+            WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
+              AND iv.timeframe = :timeframe
+              AND iv.priceDate >= :from
+              AND iv.priceDate <= :to
+            ORDER BY iv.priceDate ASC
+            """)
+    List<IndicatorValue> findSeriesBetween(String symbol, Timeframe timeframe, LocalDate from, LocalDate to);
 }

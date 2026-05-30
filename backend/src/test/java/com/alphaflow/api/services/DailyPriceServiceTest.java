@@ -70,4 +70,31 @@ class DailyPriceServiceTest {
         DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
         assertThrows(ResourceNotFoundException.class, () -> service.getDailyPriceByTickerName("INVALID"));
     }
+
+    @Test
+    void testGetDailyPriceByTickerNameWithCustomPageAndSizeSuccess() {
+        DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+        TickerRepository tickerRepo = mock(TickerRepository.class);
+        ApiProperties apiProperties = mock(ApiProperties.class);
+
+        when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
+
+        DailyPrice dp = DailyPrice.builder()
+                .priceDate(LocalDate.of(2026, 5, 29))
+                .priceOpen(new BigDecimal("100.0000"))
+                .priceHigh(new BigDecimal("105.0000"))
+                .priceLow(new BigDecimal("99.0000"))
+                .priceClose(new BigDecimal("102.0000"))
+                .volume(1000L)
+                .build();
+
+        when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10)))
+                .thenReturn(List.of(dp));
+
+        DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+        List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL", 1, 10);
+
+        assertEquals(1, result.size());
+        assertEquals(LocalDate.of(2026, 5, 29), result.get(0).priceDate());
+    }
 }

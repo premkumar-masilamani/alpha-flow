@@ -152,7 +152,8 @@ public class YahooFinanceDownloader {
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
         connection.setRequestProperty("Accept", "application/json");
 
-        try (InputStream in = connection.getInputStream()) {
+        InputStream in = connection.getInputStream();
+        try {
             JsonNode root = objectMapper.readTree(in);
             JsonNode result = root.path("chart").path("result").get(0);
             if (result == null || result.isNull()) {
@@ -208,6 +209,8 @@ public class YahooFinanceDownloader {
                         .build());
             }
             return list;
+        } finally {
+            in.close();
         }
     }
 }

@@ -34,15 +34,15 @@ class IndicatorControllerTest {
         IndicatorService service = mock(IndicatorService.class);
         IndicatorSeriesDTO seriesDto = new IndicatorSeriesDTO(
                 "EMA", "CLOSE", "period=14", "EMA (14)", List.of());
-        when(service.getIndicatorSeries("AAPL", Timeframe.DAILY)).thenReturn(List.of(seriesDto));
+        when(service.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, null)).thenReturn(List.of(seriesDto));
 
         IndicatorController controller = new IndicatorController(service);
-        List<IndicatorSeriesDTO> res = controller.getIndicatorSeries("AAPL", "DAILY");
+        List<IndicatorSeriesDTO> res = controller.getIndicatorSeries("AAPL", "DAILY", 0, null);
 
         assertEquals(1, res.size());
         assertEquals("EMA", res.get(0).type());
 
-        List<IndicatorSeriesDTO> resLowercase = controller.getIndicatorSeries("AAPL", "  daily ");
+        List<IndicatorSeriesDTO> resLowercase = controller.getIndicatorSeries("AAPL", "  daily ", 0, null);
         assertEquals(1, resLowercase.size());
     }
 
@@ -51,8 +51,8 @@ class IndicatorControllerTest {
         IndicatorService service = mock(IndicatorService.class);
         IndicatorController controller = new IndicatorController(service);
 
-        assertThrows(IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", "HOURLY"));
-        assertThrows(IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", null));
-        assertThrows(IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", "   "));
+        assertThrows(IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", "HOURLY", 0, null));
+        assertThrows(IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", null, 0, null));
+        assertThrows(IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", "   ", 0, null));
     }
 }

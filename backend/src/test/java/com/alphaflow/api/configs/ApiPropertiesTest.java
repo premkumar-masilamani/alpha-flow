@@ -20,12 +20,10 @@ class ApiPropertiesTest {
     @Test
     void testConfiguredWindow() {
         ApiProperties props = new ApiProperties();
-        Map<Timeframe, Integer> customWindow = new EnumMap<>(Timeframe.class);
-        customWindow.put(Timeframe.DAILY, 100);
-        props.setWindow(customWindow);
+        props.setWindow(100);
 
         assertEquals(100, props.windowFor(Timeframe.DAILY));
-        assertEquals(180, props.windowFor(Timeframe.WEEKLY));
-        assertEquals(customWindow, props.getWindow());
+        assertEquals(100, props.windowFor(Timeframe.WEEKLY));
+        assertEquals(100, props.getWindow());
     }
 }

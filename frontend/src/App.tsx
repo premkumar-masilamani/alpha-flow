@@ -37,6 +37,9 @@ function App() {
     const [chartIndicators, setChartIndicators] = useState<IndicatorSeries[]>([]);
     const [enabledIndicators, setEnabledIndicators] = useState<Set<string>>(new Set());
     const [chartCandleData, setChartCandleData] = useState<DailyCandleData[]>([]);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingOlder, setLoadingOlder] = useState(false);
 
     // Layout states
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -113,8 +116,11 @@ function App() {
         const fetchChartCandleData = async () => {
             if (selectedTicker) {
                 setLoading(true);
+                setPage(0);
+                setHasMore(true);
+                setLoadingOlder(false);
                 try {
-                    const data = await getCandleData(selectedTicker, timeframe);
+                    const data = await getCandleData(selectedTicker, timeframe, 0);
                     setChartCandleData(data);
                 } catch (error) {
                     console.error(`Failed to fetch ${timeframe} chart candle data:`, error);
@@ -133,13 +139,56 @@ function App() {
             setChartIndicators([]);
             return;
         }
-        getIndicatorSeries(selectedTicker, timeframe)
+        getIndicatorSeries(selectedTicker, timeframe, 0)
             .then(setChartIndicators)
             .catch((error) => {
                 console.error(`Failed to fetch ${timeframe} indicators:`, error);
                 setChartIndicators([]);
             });
     }, [selectedTicker, timeframe]);
+
+    const handleLoadOlderData = async () => {
+        if (loadingOlder || !hasMore || !selectedTicker) return;
+        setLoadingOlder(true);
+        const nextPage = page + 1;
+        try {
+            const nextCandles = await getCandleData(selectedTicker, timeframe, nextPage);
+            if (nextCandles.length === 0) {
+                setHasMore(false);
+                setLoadingOlder(false);
+                return;
+            }
+
+            const nextIndicators = await getIndicatorSeries(selectedTicker, timeframe, nextPage);
+
+            setChartCandleData((prev) => {
+                const merged = [...nextCandles, ...prev];
+                const unique = Array.from(new Map(merged.map((item) => [item.date, item])).values());
+                return unique.sort((a, b) => a.date.localeCompare(b.date));
+            });
+
+            setChartIndicators((prev) => {
+                return prev.map((oldSeries) => {
+                    const newSeries = nextIndicators.find(
+                        (ns) => ns.type === oldSeries.type && ns.source === oldSeries.source && ns.params === oldSeries.params
+                    );
+                    if (!newSeries) return oldSeries;
+                    const mergedPoints = [...newSeries.points, ...oldSeries.points];
+                    const uniquePoints = Array.from(new Map(mergedPoints.map((p) => [p.date, p])).values());
+                    return {
+                        ...oldSeries,
+                        points: uniquePoints.sort((a, b) => a.date.localeCompare(b.date)),
+                    };
+                });
+            });
+
+            setPage(nextPage);
+        } catch (error) {
+            console.error('Failed to fetch older data:', error);
+        } finally {
+            setLoadingOlder(false);
+        }
+    };
 
     const renderOverview = (sortedDataDesc: DailyCandleData[]) => {
         if (sortedDataDesc.length === 0) return null;
@@ -344,6 +393,8 @@ function App() {
                                     indicators={chartIndicators}
                                     enabled={enabledIndicators}
                                     configs={indicatorConfigs}
+                                    symbol={selectedTicker}
+                                    onLoadOlderData={handleLoadOlderData}
                                 />
                             ) : (
                                 <div className="absolute inset-0 flex items-center justify-center text-slate-500">
