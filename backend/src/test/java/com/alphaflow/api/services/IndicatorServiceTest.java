@@ -22,15 +22,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class IndicatorServiceTest {
 
@@ -44,6 +39,25 @@ class IndicatorServiceTest {
     private WeeklyPriceRepository weeklyPriceRepository;
     private IndicatorValueRepository indicatorValueRepository;
     private IndicatorService service;
+
+    private static IndicatorDefinition def(IndicatorType type, PriceSource source, Map<String, Integer> params) {
+        IndicatorDefinition d = new IndicatorDefinition();
+        d.setType(type);
+        d.setSource(source);
+        d.setParams(params);
+        return d;
+    }
+
+    private static IndicatorValue value(IndicatorType type, String params, String output, LocalDate date, String value) {
+        return IndicatorValue.builder()
+                .indicatorType(type)
+                .source(PriceSource.CLOSE)
+                .params(params)
+                .outputName(output)
+                .priceDate(date)
+                .value(new BigDecimal(value))
+                .build();
+    }
 
     @BeforeEach
     void setUp() {
@@ -111,6 +125,8 @@ class IndicatorServiceTest {
         verify(indicatorValueRepository, never()).findSeries(any(), any(), any());
     }
 
+    // ---- helpers --------------------------------------------------------
+
     @Test
     void seriesReturnsEmptyWhenNoPriceHistory() {
         when(tickerRepository.existsByTickerSymbolIgnoreCase("TEST")).thenReturn(true);
@@ -120,24 +136,14 @@ class IndicatorServiceTest {
         verify(indicatorValueRepository, never()).findSeries(any(), any(), any());
     }
 
-    // ---- helpers --------------------------------------------------------
+    @Test
+    void seriesSupportsWeeklyTimeframe() {
+        when(tickerRepository.existsByTickerSymbolIgnoreCase("TEST")).thenReturn(true);
+        when(weeklyPriceRepository.findRecentPriceDates(eq("TEST"), any())).thenReturn(List.of(D1));
+        when(indicatorValueRepository.findSeries(eq("TEST"), eq(Timeframe.WEEKLY), eq(D1))).thenReturn(List.of());
 
-    private static IndicatorDefinition def(IndicatorType type, PriceSource source, Map<String, Integer> params) {
-        IndicatorDefinition d = new IndicatorDefinition();
-        d.setType(type);
-        d.setSource(source);
-        d.setParams(params);
-        return d;
-    }
-
-    private static IndicatorValue value(IndicatorType type, String params, String output, LocalDate date, String value) {
-        return IndicatorValue.builder()
-                .indicatorType(type)
-                .source(PriceSource.CLOSE)
-                .params(params)
-                .outputName(output)
-                .priceDate(date)
-                .value(new BigDecimal(value))
-                .build();
+        List<IndicatorSeriesDTO> result = service.getIndicatorSeries("TEST", Timeframe.WEEKLY);
+        assertTrue(result.isEmpty());
+        verify(weeklyPriceRepository).findRecentPriceDates(eq("TEST"), any());
     }
 }

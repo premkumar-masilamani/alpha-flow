@@ -5,11 +5,7 @@ import com.alphaflow.persistence.enums.PriceSource;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 /**
  * Exponential moving average over a configurable source field, with standard SMA seeding.

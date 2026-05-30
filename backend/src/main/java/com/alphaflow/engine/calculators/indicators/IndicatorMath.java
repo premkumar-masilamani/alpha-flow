@@ -15,10 +15,14 @@ import java.util.List;
  */
 public final class IndicatorMath {
 
-    /** Precision for internal/running values (EMA state, Wilder averages, intermediate smoothing). */
+    /**
+     * Precision for internal/running values (EMA state, Wilder averages, intermediate smoothing).
+     */
     public static final int INTERNAL_SCALE = 12;
 
-    /** Precision for published plot values; matches {@code numeric(18,4)}. */
+    /**
+     * Precision for published plot values; matches {@code numeric(18,4)}.
+     */
     public static final int PUBLISHED_SCALE = 4;
 
     public static final RoundingMode ROUNDING = RoundingMode.HALF_UP;
@@ -28,22 +32,30 @@ public final class IndicatorMath {
     private IndicatorMath() {
     }
 
-    /** Rounds an internal value to {@link #INTERNAL_SCALE} to keep scale bounded and deterministic. */
+    /**
+     * Rounds an internal value to {@link #INTERNAL_SCALE} to keep scale bounded and deterministic.
+     */
     public static BigDecimal internal(BigDecimal value) {
         return value.setScale(INTERNAL_SCALE, ROUNDING);
     }
 
-    /** Rounds a value for publication to {@code indicator_values}. */
+    /**
+     * Rounds a value for publication to {@code indicator_values}.
+     */
     public static BigDecimal publish(BigDecimal value) {
         return value.setScale(PUBLISHED_SCALE, ROUNDING);
     }
 
-    /** Internal-scale division. */
+    /**
+     * Internal-scale division.
+     */
     public static BigDecimal divide(BigDecimal numerator, BigDecimal denominator) {
         return numerator.divide(denominator, INTERNAL_SCALE, ROUNDING);
     }
 
-    /** Simple average of {@code values} at internal scale. */
+    /**
+     * Simple average of {@code values} at internal scale.
+     */
     public static BigDecimal average(List<BigDecimal> values) {
         BigDecimal sum = BigDecimal.ZERO;
         for (BigDecimal v : values) {

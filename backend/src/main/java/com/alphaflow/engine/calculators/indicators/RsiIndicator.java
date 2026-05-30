@@ -23,6 +23,21 @@ import java.util.Map;
 @Component
 public class RsiIndicator implements Indicator {
 
+    private static BigDecimal wilder(BigDecimal avgPrev, BigDecimal current, BigDecimal period) {
+        BigDecimal smoothed = avgPrev.multiply(period.subtract(BigDecimal.ONE)).add(current);
+        return IndicatorMath.divide(smoothed, period);
+    }
+
+    private static BigDecimal rsi(BigDecimal avgGain, BigDecimal avgLoss) {
+        if (avgLoss.signum() == 0) {
+            return IndicatorMath.publish(IndicatorMath.HUNDRED);
+        }
+        BigDecimal rs = IndicatorMath.divide(avgGain, avgLoss);
+        BigDecimal rsi = IndicatorMath.HUNDRED.subtract(
+                IndicatorMath.divide(IndicatorMath.HUNDRED, BigDecimal.ONE.add(rs)));
+        return IndicatorMath.publish(rsi);
+    }
+
     @Override
     public IndicatorType type() {
         return IndicatorType.RSI;
@@ -81,20 +96,5 @@ public class RsiIndicator implements Indicator {
             newState = StateCodec.encode(state);
         }
         return new IndicatorResult(values, newState);
-    }
-
-    private static BigDecimal wilder(BigDecimal avgPrev, BigDecimal current, BigDecimal period) {
-        BigDecimal smoothed = avgPrev.multiply(period.subtract(BigDecimal.ONE)).add(current);
-        return IndicatorMath.divide(smoothed, period);
-    }
-
-    private static BigDecimal rsi(BigDecimal avgGain, BigDecimal avgLoss) {
-        if (avgLoss.signum() == 0) {
-            return IndicatorMath.publish(IndicatorMath.HUNDRED);
-        }
-        BigDecimal rs = IndicatorMath.divide(avgGain, avgLoss);
-        BigDecimal rsi = IndicatorMath.HUNDRED.subtract(
-                IndicatorMath.divide(IndicatorMath.HUNDRED, BigDecimal.ONE.add(rs)));
-        return IndicatorMath.publish(rsi);
     }
 }

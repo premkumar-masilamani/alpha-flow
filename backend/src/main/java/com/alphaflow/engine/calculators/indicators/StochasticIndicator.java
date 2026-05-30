@@ -24,6 +24,26 @@ import java.util.List;
 @Component
 public class StochasticIndicator implements Indicator {
 
+    private static BigDecimal max(Deque<BigDecimal> values) {
+        BigDecimal m = null;
+        for (BigDecimal v : values) {
+            if (m == null || v.compareTo(m) > 0) {
+                m = v;
+            }
+        }
+        return m;
+    }
+
+    private static BigDecimal min(Deque<BigDecimal> values) {
+        BigDecimal m = null;
+        for (BigDecimal v : values) {
+            if (m == null || v.compareTo(m) < 0) {
+                m = v;
+            }
+        }
+        return m;
+    }
+
     @Override
     public IndicatorType type() {
         return IndicatorType.STOCHASTIC;
@@ -63,7 +83,7 @@ public class StochasticIndicator implements Indicator {
             BigDecimal rawK = range.signum() == 0
                     ? BigDecimal.ZERO
                     : IndicatorMath.internal(
-                            IndicatorMath.divide(bar.close().subtract(lowestLow), range).multiply(IndicatorMath.HUNDRED));
+                    IndicatorMath.divide(bar.close().subtract(lowestLow), range).multiply(IndicatorMath.HUNDRED));
 
             rawKWindow.addLast(rawK);
             if (rawKWindow.size() > kSmooth) {
@@ -86,25 +106,5 @@ public class StochasticIndicator implements Indicator {
             }
         }
         return new IndicatorResult(values, null);
-    }
-
-    private static BigDecimal max(Deque<BigDecimal> values) {
-        BigDecimal m = null;
-        for (BigDecimal v : values) {
-            if (m == null || v.compareTo(m) > 0) {
-                m = v;
-            }
-        }
-        return m;
-    }
-
-    private static BigDecimal min(Deque<BigDecimal> values) {
-        BigDecimal m = null;
-        for (BigDecimal v : values) {
-            if (m == null || v.compareTo(m) < 0) {
-                m = v;
-            }
-        }
-        return m;
     }
 }

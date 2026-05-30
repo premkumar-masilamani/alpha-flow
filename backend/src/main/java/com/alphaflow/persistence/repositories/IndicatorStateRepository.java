@@ -14,6 +14,8 @@ import java.util.List;
 @Repository
 public interface IndicatorStateRepository extends JpaRepository<IndicatorState, Long> {
 
-    /** All checkpoints for a ticker on a timeframe (loaded once per processing run). */
+    /**
+     * All checkpoints for a ticker on a timeframe (loaded once per processing run).
+     */
     List<IndicatorState> findByTickerAndTimeframe(Ticker ticker, Timeframe timeframe);
 }

@@ -24,7 +24,9 @@ import java.util.List;
  */
 public interface Indicator {
 
-    /** The indicator family this bean implements; used as the registry key. */
+    /**
+     * The indicator family this bean implements; used as the registry key.
+     */
     IndicatorType type();
 
     /**
@@ -40,10 +42,10 @@ public interface Indicator {
     }
 
     /**
-     * @param bars          chronologically ascending bars to compute over
+     * @param bars           chronologically ascending bars to compute over
      * @param priorStateJson persisted running state (see class doc), or {@code null} on backfill
-     * @param params        parsed indicator parameters (periods)
-     * @param source        which bar field single-series indicators read; ignored by multi-field ones
+     * @param params         parsed indicator parameters (periods)
+     * @param source         which bar field single-series indicators read; ignored by multi-field ones
      */
     IndicatorResult compute(List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source);
 }

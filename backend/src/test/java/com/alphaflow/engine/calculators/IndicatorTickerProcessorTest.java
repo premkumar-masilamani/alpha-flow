@@ -193,6 +193,172 @@ class IndicatorTickerProcessorTest {
         org.junit.jupiter.api.Assertions.assertFalse(emaCheckpointed);
     }
 
+    @Test
+    void processTimeframeWithEmptyBarsReturnsEarly() {
+        // Empty daily price bars should cause early return
+        when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+        processor.processTicker(ticker);
+        verify(valueRepo, never()).deleteCombo(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void processTickerWithOneBarReturnsEarlyBeforeCheckpoint() {
+        // n = 1 bar: can process values but cannot checkpoint (requires n >= 2)
+        when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyBars().subList(0, 1));
+        when(stateRepo.findByTickerAndTimeframe(ticker, Timeframe.DAILY)).thenReturn(List.of());
+
+        processor.processTicker(ticker);
+
+        // verify states saving is skipped
+        boolean stateSaved = capturedStates().stream().anyMatch(s -> s.getIndicatorType() == IndicatorType.EMA);
+        assertFalse(stateSaved);
+    }
+
+    @Test
+    void checkpointIsAtLastBarDoesNotResume() {
+        // Prior checkpoint exists at the last bar (index N-1), so idx < n-1 is false.
+        // Falls back to backfill/recompute or does not resume.
+        IndicatorState priorEma = IndicatorState.builder()
+                .ticker(ticker).timeframe(Timeframe.DAILY).indicatorType(IndicatorType.EMA)
+                .source(PriceSource.CLOSE).params("period=3")
+                .lastPriceDate(date(N - 1)).internals("{\"ema\":\"10.0\"}")
+                .build();
+
+        IndicatorProperties properties = new IndicatorProperties();
+        properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
+        processor = new IndicatorTickerProcessor(
+                new IndicatorRegistry(List.of(new EmaIndicator(), new SmaIndicator(), new RsiIndicator(),
+                        new MacdIndicator(), new StochasticIndicator())),
+                properties, dailyRepo, weeklyRepo, valueRepo, stateRepo);
+
+        when(stateRepo.findByTickerAndTimeframe(ticker, Timeframe.DAILY)).thenReturn(List.of(priorEma));
+
+        processor.processTicker(ticker);
+
+        // verify it deletes starting from the first bar (not resuming)
+        verify(valueRepo).deleteCombo(ticker, Timeframe.DAILY, IndicatorType.EMA, PriceSource.CLOSE, "period=3", EPOCH);
+    }
+
+    @Test
+    void recursiveIndicatorWithNullInternalsDoesNotResume() {
+        // Prior state exists but internals is null for recursive (EMA) indicator
+        IndicatorState priorEma = IndicatorState.builder()
+                .ticker(ticker).timeframe(Timeframe.DAILY).indicatorType(IndicatorType.EMA)
+                .source(PriceSource.CLOSE).params("period=3")
+                .lastPriceDate(date(N - 2)).internals(null)
+                .build();
+
+        IndicatorProperties properties = new IndicatorProperties();
+        properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
+        processor = new IndicatorTickerProcessor(
+                new IndicatorRegistry(List.of(new EmaIndicator(), new SmaIndicator(), new RsiIndicator(),
+                        new MacdIndicator(), new StochasticIndicator())),
+                properties, dailyRepo, weeklyRepo, valueRepo, stateRepo);
+
+        when(stateRepo.findByTickerAndTimeframe(ticker, Timeframe.DAILY)).thenReturn(List.of(priorEma));
+
+        processor.processTicker(ticker);
+
+        // Should NOT resume, so rewriteFrom should be the first bar's date (EPOCH)
+        verify(valueRepo).deleteCombo(ticker, Timeframe.DAILY, IndicatorType.EMA, PriceSource.CLOSE, "period=3", EPOCH);
+    }
+
+    @Test
+    void windowedIndicatorResumesCorrectly() {
+        // Prior state exists for SMA (windowed indicator) as of N-2
+        IndicatorState priorSma = IndicatorState.builder()
+                .ticker(ticker).timeframe(Timeframe.DAILY).indicatorType(IndicatorType.SMA)
+                .source(PriceSource.VOLUME).params("period=2")
+                .lastPriceDate(date(N - 2)).internals(null)
+                .build();
+
+        IndicatorProperties properties = new IndicatorProperties();
+        properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(smaVolumeDef())));
+        processor = new IndicatorTickerProcessor(
+                new IndicatorRegistry(List.of(new EmaIndicator(), new SmaIndicator(), new RsiIndicator(),
+                        new MacdIndicator(), new StochasticIndicator())),
+                properties, dailyRepo, weeklyRepo, valueRepo, stateRepo);
+
+        when(stateRepo.findByTickerAndTimeframe(ticker, Timeframe.DAILY)).thenReturn(List.of(priorSma));
+
+        processor.processTicker(ticker);
+
+        // Should resume! So rewriteFrom should be the last bar's date (date(N-1))
+        verify(valueRepo).deleteCombo(ticker, Timeframe.DAILY, IndicatorType.SMA, PriceSource.VOLUME, "period=2", date(N - 1));
+
+        // Let's verify that the values captured are indeed only for N-1
+        List<IndicatorValue> written = capturedValues(IndicatorType.SMA);
+        assertEquals(1, written.size());
+        assertEquals(date(N - 1), written.getFirst().getPriceDate());
+    }
+
+    @Test
+    void weeklyTimeframeProcessing() {
+        // Mock weekly prices returning a non-empty list to cover mapping
+        com.alphaflow.persistence.entities.WeeklyPrice w1 = com.alphaflow.persistence.entities.WeeklyPrice.builder()
+                .ticker(ticker)
+                .priceDate(date(0))
+                .priceOpen(BigDecimal.TEN)
+                .priceHigh(BigDecimal.TEN)
+                .priceLow(BigDecimal.TEN)
+                .priceClose(BigDecimal.TEN)
+                .volume(100L)
+                .build();
+        com.alphaflow.persistence.entities.WeeklyPrice w2 = com.alphaflow.persistence.entities.WeeklyPrice.builder()
+                .ticker(ticker)
+                .priceDate(date(1))
+                .priceOpen(BigDecimal.TEN)
+                .priceHigh(BigDecimal.TEN)
+                .priceLow(BigDecimal.TEN)
+                .priceClose(BigDecimal.TEN)
+                .volume(100L)
+                .build();
+        when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(w1, w2));
+
+        // Use weekly configuration
+        IndicatorDefinition weeklyDef = new IndicatorDefinition();
+        weeklyDef.setType(IndicatorType.EMA);
+        weeklyDef.setSource(PriceSource.CLOSE);
+        weeklyDef.setParams(Map.of("period", 2));
+
+        IndicatorProperties properties = new IndicatorProperties();
+        properties.setTimeframes(Map.of(Timeframe.WEEKLY, List.of(weeklyDef)));
+        processor = new IndicatorTickerProcessor(
+                new IndicatorRegistry(List.of(new EmaIndicator(), new SmaIndicator(), new RsiIndicator(),
+                        new MacdIndicator(), new StochasticIndicator())),
+                properties, dailyRepo, weeklyRepo, valueRepo, stateRepo);
+
+        processor.processTicker(ticker);
+
+        // verify that delete/save was called for weekly timeframe
+        verify(valueRepo).deleteCombo(ticker, Timeframe.WEEKLY, IndicatorType.EMA, PriceSource.CLOSE, "period=2", date(0));
+    }
+
+    @Test
+    void checkpointDateMissingDoesNotResume() {
+        // Prior state exists but its lastPriceDate is NOT present in indexByDate
+        IndicatorState priorEma = IndicatorState.builder()
+                .ticker(ticker).timeframe(Timeframe.DAILY).indicatorType(IndicatorType.EMA)
+                .source(PriceSource.CLOSE).params("period=3")
+                .lastPriceDate(LocalDate.of(2000, 1, 1)) // Date that doesn't exist in our daily price bars
+                .internals("{\"ema\":\"10.0\"}")
+                .build();
+
+        IndicatorProperties properties = new IndicatorProperties();
+        properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
+        processor = new IndicatorTickerProcessor(
+                new IndicatorRegistry(List.of(new EmaIndicator(), new SmaIndicator(), new RsiIndicator(),
+                        new MacdIndicator(), new StochasticIndicator())),
+                properties, dailyRepo, weeklyRepo, valueRepo, stateRepo);
+
+        when(stateRepo.findByTickerAndTimeframe(ticker, Timeframe.DAILY)).thenReturn(List.of(priorEma));
+
+        processor.processTicker(ticker);
+
+        // Should NOT resume, so rewriteFrom should be the first bar's date (EPOCH)
+        verify(valueRepo).deleteCombo(ticker, Timeframe.DAILY, IndicatorType.EMA, PriceSource.CLOSE, "period=3", EPOCH);
+    }
+
     @SuppressWarnings("unchecked")
     private List<IndicatorValue> capturedValues(IndicatorType type) {
         ArgumentCaptor<List<IndicatorValue>> captor = ArgumentCaptor.forClass(List.class);

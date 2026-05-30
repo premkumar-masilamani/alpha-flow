@@ -21,9 +21,8 @@ final class EmaAccumulator {
 
     private final int period;
     private final BigDecimal multiplier;
-
-    private BigDecimal ema;                       // null until seeded
     private final List<BigDecimal> seedWindow = new ArrayList<>();
+    private BigDecimal ema;                       // null until seeded
 
     private EmaAccumulator(int period, BigDecimal ema) {
         if (period < 1) {
@@ -34,12 +33,16 @@ final class EmaAccumulator {
         this.ema = ema;
     }
 
-    /** A fresh accumulator that self-seeds from the first {@code period} values it sees. */
+    /**
+     * A fresh accumulator that self-seeds from the first {@code period} values it sees.
+     */
     static EmaAccumulator fresh(int period) {
         return new EmaAccumulator(period, null);
     }
 
-    /** An accumulator resumed from a persisted EMA value (already past the seeding phase). */
+    /**
+     * An accumulator resumed from a persisted EMA value (already past the seeding phase).
+     */
     static EmaAccumulator seeded(int period, BigDecimal ema) {
         return new EmaAccumulator(period, IndicatorMath.internal(ema));
     }
@@ -48,7 +51,9 @@ final class EmaAccumulator {
         return ema != null;
     }
 
-    /** The current EMA value, or {@code null} if still seeding. */
+    /**
+     * The current EMA value, or {@code null} if still seeding.
+     */
     BigDecimal current() {
         return ema;
     }

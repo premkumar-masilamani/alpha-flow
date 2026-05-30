@@ -20,26 +20,20 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyTickerProcessorTest {
 
     // 2024-01-01 is a Monday.
     private static final LocalDate MONDAY = LocalDate.of(2024, 1, 1);
-
+    private final Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("TST").tickerName("Test").build();
     @Mock
     private DailyPriceRepository dailyPriceRepository;
-
     @Mock
     private WeeklyPriceRepository weeklyPriceRepository;
-
     @InjectMocks
     private WeeklyTickerProcessor processor;
-
-    private final Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("TST").tickerName("Test").build();
 
     private DailyPrice daily(LocalDate date, String open, String high, String low, String close, long vol) {
         return DailyPrice.builder()
@@ -57,7 +51,7 @@ class WeeklyTickerProcessorTest {
     void rollsDailyPricesIntoWeeklyOhlcv_whenNoExistingWeekly() {
         List<DailyPrice> dailies = List.of(
                 daily(MONDAY, "10", "12", "9", "11", 100),
-                daily(MONDAY.plusDays(1), "11", "15", "10", "14", 200),
+                daily(MONDAY.plusDays(1), "11", "15", "8", "14", 200),
                 daily(MONDAY.plusDays(2), "14", "16", "13", "12", 150)
         );
 
@@ -81,7 +75,7 @@ class WeeklyTickerProcessorTest {
         assertThat(wp.getPriceOpen()).isEqualByComparingTo("10");  // first day's open
         assertThat(wp.getPriceClose()).isEqualByComparingTo("12"); // last day's close
         assertThat(wp.getPriceHigh()).isEqualByComparingTo("16");  // max high
-        assertThat(wp.getPriceLow()).isEqualByComparingTo("9");    // min low
+        assertThat(wp.getPriceLow()).isEqualByComparingTo("8");    // min low
         assertThat(wp.getVolume()).isEqualTo(450L);                // summed volume
     }
 

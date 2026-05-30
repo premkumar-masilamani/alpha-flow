@@ -1,10 +1,6 @@
 package com.alphaflow.engine.calculators;
 
-import com.alphaflow.engine.calculators.indicators.Indicator;
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-import com.alphaflow.engine.calculators.indicators.IndicatorRegistry;
-import com.alphaflow.engine.calculators.indicators.PlotPoint;
-import com.alphaflow.engine.calculators.indicators.PriceBar;
+import com.alphaflow.engine.calculators.indicators.*;
 import com.alphaflow.engine.configs.IndicatorProperties;
 import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorState;
@@ -78,6 +74,10 @@ public class IndicatorTickerProcessor {
         this.weeklyPriceRepository = weeklyPriceRepository;
         this.indicatorValueRepository = indicatorValueRepository;
         this.indicatorStateRepository = indicatorStateRepository;
+    }
+
+    private static String comboKey(IndicatorType type, PriceSource source, String params) {
+        return type + "|" + source + "|" + params;
     }
 
     @Transactional
@@ -206,10 +206,6 @@ public class IndicatorTickerProcessor {
         state.setInternals(checkpointInternals);
         IndicatorState saved = indicatorStateRepository.save(state);
         stateByCombo.put(comboKey(type, source, paramsCanonical), saved);
-    }
-
-    private static String comboKey(IndicatorType type, PriceSource source, String params) {
-        return type + "|" + source + "|" + params;
     }
 
     private List<PriceBar> loadDailyBars(Ticker ticker) {

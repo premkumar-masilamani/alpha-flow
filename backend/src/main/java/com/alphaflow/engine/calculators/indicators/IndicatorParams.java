@@ -20,12 +20,16 @@ public final class IndicatorParams {
         this.values = values;
     }
 
-    /** Builds from a map of name → period (key order is irrelevant; canonical form is sorted). */
+    /**
+     * Builds from a map of name → period (key order is irrelevant; canonical form is sorted).
+     */
     public static IndicatorParams of(Map<String, Integer> values) {
         return new IndicatorParams(new TreeMap<>(values));
     }
 
-    /** Parses a canonical string like {@code "fast=12,signal=9,slow=26"}. */
+    /**
+     * Parses a canonical string like {@code "fast=12,signal=9,slow=26"}.
+     */
     public static IndicatorParams parse(String canonical) {
         Map<String, Integer> parsed = new TreeMap<>();
         if (canonical != null && !canonical.isBlank()) {
@@ -40,7 +44,9 @@ public final class IndicatorParams {
         return new IndicatorParams(parsed);
     }
 
-    /** Required integer param; throws if absent. */
+    /**
+     * Required integer param; throws if absent.
+     */
     public int getInt(String name) {
         Integer v = values.get(name);
         if (v == null) {
@@ -49,12 +55,16 @@ public final class IndicatorParams {
         return v;
     }
 
-    /** Optional integer param with a fallback default. */
+    /**
+     * Optional integer param with a fallback default.
+     */
     public int getInt(String name, int defaultValue) {
         return values.getOrDefault(name, defaultValue);
     }
 
-    /** The stable canonical string used for storage and as part of the natural key. */
+    /**
+     * The stable canonical string used for storage and as part of the natural key.
+     */
     public String canonical() {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, Integer> e : values.entrySet()) {

@@ -2,7 +2,7 @@
 include .env
 export $(shell sed 's/=.*//' .env)
 
-.PHONY: run_database network database migrate_database import_seed_data connect_database run_backend run_frontend run_all clean diagrams
+.PHONY: run_database network database migrate_database import_seed_data connect_database run_backend run_frontend run_all clean diagrams test
 
 # Setup database locally
 run_database: network database migrate_database import_seed_data
@@ -122,3 +122,8 @@ run_all: run_database
 	make run_backend & \
 	make run_frontend & \
 	wait
+
+# Run all backend unit tests and generate JaCoCo code coverage report
+test:
+	@echo "Running backend unit tests and generating JaCoCo coverage report..."
+	./backend/gradlew -p ./backend clean test

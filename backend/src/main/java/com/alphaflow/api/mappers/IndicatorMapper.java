@@ -23,6 +23,10 @@ import java.util.Map;
  */
 public class IndicatorMapper {
 
+    private IndicatorMapper() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
     public static IndicatorConfigDTO toConfigDTO(Timeframe timeframe, IndicatorDefinition definition) {
         IndicatorParams params = IndicatorParams.of(definition.getParams());
         return IndicatorConfigDTO.builder()

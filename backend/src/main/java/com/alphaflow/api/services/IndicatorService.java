@@ -56,7 +56,9 @@ public class IndicatorService {
         this.indicatorValueRepository = indicatorValueRepository;
     }
 
-    /** The configured indicator matrix across all timeframes. */
+    /**
+     * The configured indicator matrix across all timeframes.
+     */
     public List<IndicatorConfigDTO> getConfiguredIndicators() {
         List<IndicatorConfigDTO> configs = new ArrayList<>();
         for (Timeframe timeframe : Timeframe.values()) {
@@ -67,7 +69,9 @@ public class IndicatorService {
         return configs;
     }
 
-    /** All configured indicators for a ticker on a timeframe, over the configured window. */
+    /**
+     * All configured indicators for a ticker on a timeframe, over the configured window.
+     */
     public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe) {
         log.debug("Fetching {} indicators for ticker: {}", timeframe, symbol);
         if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
