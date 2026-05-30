@@ -1,0 +1,30 @@
+{
+  "chart": {
+    "result": [
+      {
+        "timestamp": [
+          1780000000
+        ],
+        "indicators": {
+          "quote": [
+            {
+              "open": "not-an-array",
+              "high": [
+                150
+              ],
+              "low": [
+                150
+              ],
+              "close": [
+                150
+              ],
+              "volume": [
+                1000
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

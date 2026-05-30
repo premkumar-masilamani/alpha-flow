@@ -1,8 +1,10 @@
 package com.alphaflow.api.services;
 
+import com.alphaflow.api.configs.ApiProperties;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
@@ -23,10 +25,13 @@ public class DailyPriceService {
 
     private final DailyPriceRepository dailyPriceRepository;
     private final TickerRepository tickerRepository;
+    private final ApiProperties apiProperties;
 
-    public DailyPriceService(DailyPriceRepository dailyPriceRepository, TickerRepository tickerRepository) {
+    public DailyPriceService(DailyPriceRepository dailyPriceRepository, TickerRepository tickerRepository,
+                             ApiProperties apiProperties) {
         this.dailyPriceRepository = dailyPriceRepository;
         this.tickerRepository = tickerRepository;
+        this.apiProperties = apiProperties;
     }
 
     public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName) {
@@ -36,7 +41,7 @@ public class DailyPriceService {
             log.warn("Ticker not found for symbol: {}", tickerName);
             throw new ResourceNotFoundException("Ticker not found: " + tickerName);
         }
-        return dailyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(0, 180))
+        return dailyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(0, apiProperties.windowFor(Timeframe.DAILY)))
                 .stream()
                 .sorted(Comparator.comparing(DailyPrice::getPriceDate))
                 .map(OhlcvMapper::toDTO)

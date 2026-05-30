@@ -160,7 +160,7 @@ public class YahooFinanceDownloader {
             }
 
             JsonNode timestamps = result.path("timestamp");
-            JsonNode indicators = result.path("indicators").path("quote").get(0);
+            JsonNode indicators = result.path("indicators").path("quote").path(0);
             if (timestamps.isMissingNode() || indicators.isMissingNode()) {
                 return List.of();
             }

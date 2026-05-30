@@ -1,5 +1,6 @@
 package com.alphaflow.engine.schedulers;
 
+import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import org.slf4j.Logger;
@@ -24,16 +25,19 @@ public class CoreScheduler {
 
     private final YahooFinanceDownloader yahooFinanceDownloader;
     private final WeeklyPriceCalculator weeklyPriceCalculator;
+    private final IndicatorCalculator indicatorCalculator;
 
     // Guards against overlapping pipeline runs (e.g. startup run still in progress when the hourly cron fires).
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     public CoreScheduler(
             YahooFinanceDownloader yahooFinanceDownloader,
-            WeeklyPriceCalculator weeklyPriceCalculator
+            WeeklyPriceCalculator weeklyPriceCalculator,
+            IndicatorCalculator indicatorCalculator
     ) {
         this.yahooFinanceDownloader = yahooFinanceDownloader;
         this.weeklyPriceCalculator = weeklyPriceCalculator;
+        this.indicatorCalculator = indicatorCalculator;
     }
 
     /**
@@ -62,11 +66,14 @@ public class CoreScheduler {
             return;
         }
         try {
-            log.info("Step 1/2: Downloading Yahoo Finance daily data...");
+            log.info("Step 1/3: Downloading Yahoo Finance daily data...");
             yahooFinanceDownloader.download();
 
-            log.info("Step 2/2: Computing weekly candles...");
+            log.info("Step 2/3: Computing weekly candles...");
             weeklyPriceCalculator.computeWeeklyPrices();
+
+            log.info("Step 3/3: Computing indicators...");
+            indicatorCalculator.computeIndicators();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {

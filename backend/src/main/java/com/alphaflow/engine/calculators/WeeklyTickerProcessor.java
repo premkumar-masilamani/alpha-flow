@@ -91,8 +91,16 @@ public class WeeklyTickerProcessor {
 
             BigDecimal open = firstDay.getPriceOpen();
             BigDecimal close = lastDay.getPriceClose();
-            BigDecimal high = weeklyPrices.stream().map(DailyPrice::getPriceHigh).max(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
-            BigDecimal low = weeklyPrices.stream().map(DailyPrice::getPriceLow).min(BigDecimal::compareTo).orElse(BigDecimal.ZERO);
+            BigDecimal high = firstDay.getPriceHigh();
+            BigDecimal low = firstDay.getPriceLow();
+            for (DailyPrice dp : weeklyPrices) {
+                if (dp.getPriceHigh().compareTo(high) > 0) {
+                    high = dp.getPriceHigh();
+                }
+                if (dp.getPriceLow().compareTo(low) < 0) {
+                    low = dp.getPriceLow();
+                }
+            }
             long volume = weeklyPrices.stream().mapToLong(DailyPrice::getVolume).sum();
 
             // Look up existing weekly price record (from the pre-fetched map) to update or insert
@@ -111,9 +119,7 @@ public class WeeklyTickerProcessor {
             weeklyPricesToSave.add(weeklyPrice);
         }
 
-        if (!weeklyPricesToSave.isEmpty()) {
-            weeklyPriceRepository.saveAll(weeklyPricesToSave);
-            log.info("Ticker {}: Saved/updated {} weekly prices.", ticker.getTickerSymbol(), weeklyPricesToSave.size());
-        }
+        weeklyPriceRepository.saveAll(weeklyPricesToSave);
+        log.info("Ticker {}: Saved/updated {} weekly prices.", ticker.getTickerSymbol(), weeklyPricesToSave.size());
     }
 }

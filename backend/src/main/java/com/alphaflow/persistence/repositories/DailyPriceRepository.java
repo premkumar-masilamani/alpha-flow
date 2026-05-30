@@ -38,6 +38,15 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
     List<DailyPrice> findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(Ticker ticker, LocalDate startDate);
 
+    List<DailyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);
+
+    @Query("""
+                SELECT dp.priceDate FROM DailyPrice dp
+                WHERE LOWER(dp.ticker.tickerSymbol) = LOWER(:symbol)
+                ORDER BY dp.priceDate DESC
+            """)
+    List<LocalDate> findRecentPriceDates(String symbol, Pageable pageable);
+
     interface TickerLatestPriceDateView {
         Long getTickerId();
 
