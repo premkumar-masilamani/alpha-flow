@@ -498,10 +498,10 @@ function App() {
                 <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
                     <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
                         <h2 className="text-base font-bold text-white">
-                            Checklist Analysis Dashboard
+                            SMM Checklist
                         </h2>
                         <span className="text-xs text-slate-400">
-                            Automatic evaluation of daily and weekly indicator rules
+                            Automatic evaluation of daily and weekly indicators
                         </span>
                     </div>
 
@@ -709,6 +709,7 @@ function App() {
                                     enabled={enabledIndicators}
                                     configs={indicatorConfigs}
                                     symbol={selectedTicker}
+                                    timeframe={timeframe}
                                     onLoadOlderData={handleLoadOlderData}
                                 />
                             ) : (

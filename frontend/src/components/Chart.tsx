@@ -10,6 +10,7 @@ interface ChartProps {
     enabled: Set<string>;
     configs: IndicatorConfig[];
     symbol: string;
+    timeframe: string;
     onLoadOlderData: () => void;
 }
 
@@ -80,13 +81,14 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
     }
 };
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
     const visibleRangeRef = useRef<{ from: Time; to: Time } | null>(null);
     const prevSymbolRef = useRef<string>('');
+    const prevTimeframeRef = useRef<string>('');
 
     // Rebuild the chart whenever the data or the visible indicator set changes. Recreating (rather than
     // diffing series) keeps pane management simple; the trade-off is that toggling resets the zoom.
@@ -96,10 +98,11 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             return;
         }
 
-        // Reset visible range if symbol changed
-        if (prevSymbolRef.current !== symbol) {
+        // Reset visible range if symbol or timeframe changed
+        if (prevSymbolRef.current !== symbol || prevTimeframeRef.current !== timeframe) {
             visibleRangeRef.current = null;
             prevSymbolRef.current = symbol;
+            prevTimeframeRef.current = timeframe;
         }
 
         const width = chartContainerRef.current.clientWidth;
@@ -288,7 +291,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
