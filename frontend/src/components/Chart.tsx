@@ -240,17 +240,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             // setStretchFactor unavailable — fall back to default pane sizing.
         }
 
-        // Set visible range (either restore saved or set default 6 months)
+        // Set visible range (either restore saved or set default 180 bars)
         if (visibleRangeRef.current) {
             chart.timeScale().setVisibleRange(visibleRangeRef.current);
         } else {
-            // Default view: latest six months.
-            const lastDate = sortedData[sortedData.length - 1].date;
-            const sixMonthsAgo = new Date(lastDate);
-            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            // Default view: latest 180 bars
+            const lastBar = sortedData[sortedData.length - 1];
+            const firstBar = sortedData[Math.max(0, sortedData.length - 180)];
             chart.timeScale().setVisibleRange({
-                from: sixMonthsAgo.toISOString().split('T')[0] as Time,
-                to: lastDate as Time,
+                from: firstBar.date as Time,
+                to: lastBar.date as Time,
             });
         }
 
@@ -294,11 +293,10 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
-        const lastDate = sortedData[sortedData.length - 1].date;
-        const sixMonthsAgo = new Date(lastDate);
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const fromStr = sixMonthsAgo.toISOString().split('T')[0] as Time;
-        const toStr = lastDate as Time;
+        const lastBar = sortedData[sortedData.length - 1];
+        const firstBar = sortedData[Math.max(0, sortedData.length - 180)];
+        const fromStr = firstBar.date as Time;
+        const toStr = lastBar.date as Time;
 
         chartRef.current.timeScale().setVisibleRange({
             from: fromStr,
@@ -314,7 +312,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             <button
                 onClick={handleResetZoom}
                 className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded shadow-lg backdrop-blur text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-                title="Reset zoom to default (6 months)"
+                title="Reset zoom to default (180 bars)"
             >
                 <RefreshCw size={12} className="animate-hover" />
                 <span>Reset Zoom</span>

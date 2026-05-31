@@ -128,3 +128,25 @@ export const getIndicatorSeries = async (
 
     return response.data;
 };
+
+export interface AnalysisResponse {
+    symbol: string;
+    priceDate: string;
+    emaSignal: 'BUY' | 'SELL' | 'HOLD';
+    emaValue: string;
+    macdSignal: 'BUY' | 'SELL' | 'HOLD';
+    macdValue: string;
+    stochasticSignal: 'BUY' | 'SELL' | 'HOLD';
+    stochasticValue: string;
+    rsiSignal: 'BUY' | 'SELL' | 'HOLD';
+    rsiValue: string;
+    volumeSignal: 'BUY' | 'SELL' | 'HOLD';
+    volumeValue: string;
+    overallSignal: 'BUY' | 'SELL' | 'HOLD';
+}
+
+export const getTechnicalAnalysis = async (symbol: string): Promise<AnalysisResponse> => {
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/analysis`);
+    return response.data;
+};
+

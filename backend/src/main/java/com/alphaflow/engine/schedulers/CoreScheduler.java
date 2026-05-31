@@ -26,6 +26,7 @@ public class CoreScheduler {
     private final YahooFinanceDownloader yahooFinanceDownloader;
     private final WeeklyPriceCalculator weeklyPriceCalculator;
     private final IndicatorCalculator indicatorCalculator;
+    private final com.alphaflow.api.services.AnalysisService analysisService;
 
     // Guards against overlapping pipeline runs (e.g. startup run still in progress when the hourly cron fires).
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -33,11 +34,13 @@ public class CoreScheduler {
     public CoreScheduler(
             YahooFinanceDownloader yahooFinanceDownloader,
             WeeklyPriceCalculator weeklyPriceCalculator,
-            IndicatorCalculator indicatorCalculator
+            IndicatorCalculator indicatorCalculator,
+            com.alphaflow.api.services.AnalysisService analysisService
     ) {
         this.yahooFinanceDownloader = yahooFinanceDownloader;
         this.weeklyPriceCalculator = weeklyPriceCalculator;
         this.indicatorCalculator = indicatorCalculator;
+        this.analysisService = analysisService;
     }
 
     /**
@@ -66,14 +69,17 @@ public class CoreScheduler {
             return;
         }
         try {
-            log.info("Step 1/3: Downloading Yahoo Finance daily data...");
+            log.info("Step 1/4: Downloading Yahoo Finance daily data...");
             yahooFinanceDownloader.download();
 
-            log.info("Step 2/3: Computing weekly candles...");
+            log.info("Step 2/4: Computing weekly candles...");
             weeklyPriceCalculator.computeWeeklyPrices();
 
-            log.info("Step 3/3: Computing indicators...");
+            log.info("Step 3/4: Computing indicators...");
             indicatorCalculator.computeIndicators();
+
+            log.info("Step 4/4: Computing technical analysis signals...");
+            analysisService.computeAnalysis();
 
             log.info("Scheduled data update cycle completed successfully.");
         } catch (Exception e) {
