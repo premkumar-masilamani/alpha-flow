@@ -277,4 +277,32 @@ class AnalysisServiceTest {
         assertEquals("HOLD", response.macdSignal());
         assertEquals("MACD = Signal", response.macdValue());
     }
+
+    @Test
+    void testGetAnalysisHandlesConcurrentInsertRaceCondition() {
+        Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
+        when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
+
+        // First call returns empty, second call returns the concurrently saved result
+        when(analysisResultRepository.findByTicker(ticker))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(AnalysisResult.builder()
+                        .ticker(ticker)
+                        .overallSignal("BUY")
+                        .build()));
+
+        // Simulate database integrity error (unique key constraint violation) during computeAndPersist
+        when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Duplicate key violation"));
+
+        // Run
+        AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+
+        // Verify that it successfully recovered by fetching the concurrently saved row
+        assertNotNull(response);
+        assertEquals("BUY", response.overallSignal());
+
+        // Verify findByTicker was called twice
+        verify(analysisResultRepository, times(2)).findByTicker(ticker);
+    }
 }

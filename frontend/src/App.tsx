@@ -149,34 +149,52 @@ function App() {
 
     // Fetch daily candle data and technical analysis when selectedTicker changes
     useEffect(() => {
+        let active = true;
         const fetchData = async () => {
             if (selectedTicker) {
                 setLoading(true);
+                setAnalysisData(null);
+                setDailyCandleData([]);
+                
                 // Fetch daily candle data independently
                 try {
                     const candles = await getCandleData(selectedTicker);
-                    setDailyCandleData(candles);
+                    if (active) {
+                        setDailyCandleData(candles);
+                    }
                 } catch (error) {
                     console.error('Failed to fetch daily candles:', error);
-                    setDailyCandleData([]);
+                    if (active) {
+                        setDailyCandleData([]);
+                    }
                 }
                 
                 // Fetch technical analysis independently
                 try {
                     const analysis = await getTechnicalAnalysis(selectedTicker);
-                    setAnalysisData(analysis);
+                    if (active) {
+                        setAnalysisData(analysis);
+                    }
                 } catch (error) {
                     console.error('Failed to fetch technical analysis data:', error);
-                    setAnalysisData(null);
+                    if (active) {
+                        setAnalysisData(null);
+                    }
                 }
-                setLoading(false);
+                if (active) {
+                    setLoading(false);
+                }
             }
         };
         fetchData();
+        return () => {
+            active = false;
+        };
     }, [selectedTicker]);
 
     // Fetch chart candle data when selectedTicker or timeframe changes
     useEffect(() => {
+        let active = true;
         const fetchChartCandleData = async () => {
             if (selectedTicker) {
                 setLoading(true);
@@ -185,45 +203,75 @@ function App() {
                 setLoadingOlder(false);
                 try {
                     const data = await getCandleData(selectedTicker, timeframe, 0);
-                    setChartCandleData(data);
+                    if (active) {
+                        setChartCandleData(data);
+                    }
                 } catch (error) {
                     console.error(`Failed to fetch ${timeframe} chart candle data:`, error);
-                    setChartCandleData([]);
+                    if (active) {
+                        setChartCandleData([]);
+                    }
                 } finally {
-                    setLoading(false);
+                    if (active) {
+                        setLoading(false);
+                    }
                 }
             }
         };
         fetchChartCandleData();
+        return () => {
+            active = false;
+        };
     }, [selectedTicker, timeframe]);
 
     // Fetch indicator series when the ticker or timeframe changes
     useEffect(() => {
+        let active = true;
         if (!selectedTicker) {
             setChartIndicators([]);
             return;
         }
         getIndicatorSeries(selectedTicker, timeframe, 0)
-            .then(setChartIndicators)
+            .then((data) => {
+                if (active) {
+                    setChartIndicators(data);
+                }
+            })
             .catch((error) => {
                 console.error(`Failed to fetch ${timeframe} indicators:`, error);
-                setChartIndicators([]);
+                if (active) {
+                    setChartIndicators([]);
+                }
             });
+        return () => {
+            active = false;
+        };
     }, [selectedTicker, timeframe]);
 
     const handleLoadOlderData = async () => {
         if (loadingOlder || !hasMore || !selectedTicker) return;
         setLoadingOlder(true);
+        
+        const targetTicker = selectedTicker;
+        const targetTimeframe = timeframe;
         const nextPage = page + 1;
+        
         try {
-            const nextCandles = await getCandleData(selectedTicker, timeframe, nextPage);
+            const nextCandles = await getCandleData(targetTicker, targetTimeframe, nextPage);
+            if (selectedTicker !== targetTicker || timeframe !== targetTimeframe) {
+                return; // Discard stale request
+            }
+            
             if (nextCandles.length === 0) {
                 setHasMore(false);
                 setLoadingOlder(false);
                 return;
             }
 
-            const nextIndicators = await getIndicatorSeries(selectedTicker, timeframe, nextPage);
+            const nextIndicators = await getIndicatorSeries(targetTicker, targetTimeframe, nextPage);
+            if (selectedTicker !== targetTicker || timeframe !== targetTimeframe) {
+                return; // Discard stale request
+            }
 
             setChartCandleData((prev) => {
                 const merged = [...nextCandles, ...prev];
@@ -250,7 +298,9 @@ function App() {
         } catch (error) {
             console.error('Failed to fetch older data:', error);
         } finally {
-            setLoadingOlder(false);
+            if (selectedTicker === targetTicker && timeframe === targetTimeframe) {
+                setLoadingOlder(false);
+            }
         }
     };
 

@@ -82,7 +82,16 @@ public class AnalysisService {
 
         // Fallback: Compute on-the-fly and persist if not found
         log.info("No persisted analysis found for symbol: {}. Computing on-the-fly.", symbol);
-        AnalysisResult res = computeAndPersist(ticker);
+        AnalysisResult res;
+        try {
+            AnalysisService proxy = (self != null) ? self : this;
+            res = proxy.computeAndPersist(ticker);
+        } catch (Exception e) {
+            log.warn("Duplicate/race condition detected during computeAndPersist for ticker: {}. Re-fetching.", symbol, e);
+            // The row was likely created by a concurrent request/scheduler run. Re-fetch it.
+            res = analysisResultRepository.findByTicker(ticker)
+                    .orElseThrow(() -> new IllegalStateException("Failed to find or compute analysis for symbol: " + symbol, e));
+        }
         return toDTO(res);
     }
 
