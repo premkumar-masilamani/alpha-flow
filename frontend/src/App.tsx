@@ -1,4 +1,4 @@
-import {useEffect, useState, Fragment} from 'react';
+import {useEffect, useState, useRef, Fragment} from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Chart from './components/Chart';
@@ -99,6 +99,17 @@ function App() {
     // Layout states
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activeTab, setActiveTab] = useState<'overview' | 'charts'>('overview');
+
+    const selectedTickerRef = useRef(selectedTicker);
+    const timeframeRef = useRef(timeframe);
+
+    useEffect(() => {
+        selectedTickerRef.current = selectedTicker;
+    }, [selectedTicker]);
+
+    useEffect(() => {
+        timeframeRef.current = timeframe;
+    }, [timeframe]);
 
     const toggleIndicator = (key: string) => {
         setEnabledIndicators((prev) => {
@@ -258,7 +269,7 @@ function App() {
         
         try {
             const nextCandles = await getCandleData(targetTicker, targetTimeframe, nextPage);
-            if (selectedTicker !== targetTicker || timeframe !== targetTimeframe) {
+            if (selectedTickerRef.current !== targetTicker || timeframeRef.current !== targetTimeframe) {
                 return; // Discard stale request
             }
             
@@ -269,7 +280,7 @@ function App() {
             }
 
             const nextIndicators = await getIndicatorSeries(targetTicker, targetTimeframe, nextPage);
-            if (selectedTicker !== targetTicker || timeframe !== targetTimeframe) {
+            if (selectedTickerRef.current !== targetTicker || timeframeRef.current !== targetTimeframe) {
                 return; // Discard stale request
             }
 
@@ -298,7 +309,7 @@ function App() {
         } catch (error) {
             console.error('Failed to fetch older data:', error);
         } finally {
-            if (selectedTicker === targetTicker && timeframe === targetTimeframe) {
+            if (selectedTickerRef.current === targetTicker && timeframeRef.current === targetTimeframe) {
                 setLoadingOlder(false);
             }
         }

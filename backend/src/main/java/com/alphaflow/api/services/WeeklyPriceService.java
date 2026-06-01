@@ -43,7 +43,14 @@ public class WeeklyPriceService {
     }
 
     public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, Integer size) {
-        int actualSize = size != null ? size : apiProperties.windowFor(Timeframe.WEEKLY);
+        int window = apiProperties.windowFor(Timeframe.WEEKLY);
+        if (window <= 0) {
+            window = 180;
+        }
+        int actualSize = size != null ? Math.min(size, window * 5) : window;
+        if (actualSize < 1) {
+            actualSize = 1;
+        }
         log.debug("Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, actualSize);
         if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
             log.warn("Ticker not found for symbol: {}", tickerName);

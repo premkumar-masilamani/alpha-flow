@@ -277,7 +277,6 @@ class AnalysisServiceTest {
         assertEquals("HOLD", response.macdSignal());
         assertEquals("MACD = Signal", response.macdValue());
     }
-
     @Test
     void testGetAnalysisHandlesConcurrentInsertRaceCondition() {
         Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();

@@ -39,7 +39,14 @@ public class DailyPriceService {
     }
 
     public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, Integer size) {
-        int actualSize = size != null ? size : apiProperties.windowFor(Timeframe.DAILY);
+        int window = apiProperties.windowFor(Timeframe.DAILY);
+        if (window <= 0) {
+            window = 180;
+        }
+        int actualSize = size != null ? Math.min(size, window * 5) : window;
+        if (actualSize < 1) {
+            actualSize = 1;
+        }
         log.debug("Fetching daily candle data for ticker: {} (page={}, size={})", tickerName, page, actualSize);
         // Match the case-insensitive lookup used by findLatestByTickerName below.
         if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {

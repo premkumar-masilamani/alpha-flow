@@ -80,7 +80,14 @@ public class IndicatorService {
             throw new ResourceNotFoundException("Ticker not found: " + symbol);
         }
 
-        int actualSize = size != null ? size : apiProperties.windowFor(timeframe);
+        int window = apiProperties.windowFor(timeframe);
+        if (window <= 0) {
+            window = 180;
+        }
+        int actualSize = size != null ? Math.min(size, window * 5) : window;
+        if (actualSize < 1) {
+            actualSize = 1;
+        }
         PageRequest pageRequest = PageRequest.of(page, actualSize);
         List<LocalDate> pageDates = timeframe == Timeframe.WEEKLY
                 ? weeklyPriceRepository.findRecentPriceDates(symbol, pageRequest)
