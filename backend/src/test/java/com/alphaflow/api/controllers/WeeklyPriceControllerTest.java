@@ -25,10 +25,10 @@ class WeeklyPriceControllerTest {
                 new BigDecimal("102.00"),
                 1000L
         );
-        when(service.getWeeklyPriceByTickerName("AAPL")).thenReturn(List.of(dto));
+        when(service.getWeeklyPriceByTickerName("AAPL", 0, null)).thenReturn(List.of(dto));
 
         WeeklyPriceController controller = new WeeklyPriceController(service);
-        List<OhlcvDTO> res = controller.getWeeklyDataForTicker("AAPL");
+        List<OhlcvDTO> res = controller.getWeeklyDataForTicker("AAPL", 0, null);
 
         assertEquals(1, res.size());
         assertEquals(LocalDate.of(2026, 5, 29), res.get(0).priceDate());

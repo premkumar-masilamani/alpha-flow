@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * API read tunables. {@code window} caps how many of the most recent bars the OHLCV and indicator
  * endpoints return, per timeframe, so chart overlays line up with the candles they sit on. Bound
- * from {@code alphaflow.api.window.<timeframe>}; falls back to {@link #DEFAULT_WINDOW} when unset.
+ * from {@code alphaflow.api.window}; falls back to {@link #DEFAULT_WINDOW} when unset.
  */
 @Configuration
 @ConfigurationProperties(prefix = "alphaflow.api")
@@ -20,9 +20,9 @@ public class ApiProperties {
 
     private static final int DEFAULT_WINDOW = 180;
 
-    private Map<Timeframe, Integer> window = new EnumMap<>(Timeframe.class);
+    private int window = DEFAULT_WINDOW;
 
     public int windowFor(Timeframe timeframe) {
-        return window.getOrDefault(timeframe, DEFAULT_WINDOW);
+        return window;
     }
 }

@@ -2,12 +2,16 @@ import React, {useEffect, useRef, useState} from 'react';
 import type {ISeriesApi, Time} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
 import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
+import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
     data: DailyCandleData[];
     indicators: IndicatorSeries[];
     enabled: Set<string>;
     configs: IndicatorConfig[];
+    symbol: string;
+    timeframe: string;
+    onLoadOlderData: () => void;
 }
 
 interface LegendEntry {
@@ -77,9 +81,14 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
     }
 };
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
+    const [chartHeight, setChartHeight] = useState(600);
+    const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
+    const visibleRangeRef = useRef<{ from: Time; to: Time } | null>(null);
+    const prevSymbolRef = useRef<string>('');
+    const prevTimeframeRef = useRef<string>('');
 
     // Rebuild the chart whenever the data or the visible indicator set changes. Recreating (rather than
     // diffing series) keeps pane management simple; the trade-off is that toggling resets the zoom.
@@ -88,6 +97,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
             setLegend([]);
             return;
         }
+
+        // Reset visible range if symbol or timeframe changed
+        if (prevSymbolRef.current !== symbol || prevTimeframeRef.current !== timeframe) {
+            visibleRangeRef.current = null;
+            prevSymbolRef.current = symbol;
+            prevTimeframeRef.current = timeframe;
+        }
+
+        const width = chartContainerRef.current.clientWidth;
+        const height = chartContainerRef.current.clientHeight || 600;
 
         const chart = createChart(chartContainerRef.current, {
             layout: {
@@ -98,10 +117,11 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
                 vertLines: {color: '#1e293b'},
                 horzLines: {color: '#1e293b'},
             },
-            width: chartContainerRef.current.clientWidth,
-            height: 600,
+            width: width,
+            height: height,
             timeScale: {borderColor: '#334155', timeVisible: true},
         });
+        chartRef.current = chart;
 
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
@@ -223,34 +243,84 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
             // setStretchFactor unavailable — fall back to default pane sizing.
         }
 
-        // Default view: latest six months.
-        const lastDate = sortedData[sortedData.length - 1].date;
-        const sixMonthsAgo = new Date(lastDate);
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        chart.timeScale().setVisibleRange({
-            from: sixMonthsAgo.toISOString().split('T')[0] as Time,
-            to: lastDate as Time,
-        });
+        // Set visible range (either restore saved or set default 180 bars)
+        if (visibleRangeRef.current) {
+            chart.timeScale().setVisibleRange(visibleRangeRef.current);
+        } else {
+            // Default view: latest 180 bars
+            const lastBar = sortedData[sortedData.length - 1];
+            const firstBar = sortedData[Math.max(0, sortedData.length - 180)];
+            chart.timeScale().setVisibleRange({
+                from: firstBar.date as Time,
+                to: lastBar.date as Time,
+            });
+        }
 
         setLegend(legendEntries);
 
-        const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({width: chartContainerRef.current.clientWidth});
+        // ResizeObserver manages dynamic resizing for both width and height (e.g. sidebar toggle)
+        const resizeObserver = new ResizeObserver((entries) => {
+            if (!entries || entries.length === 0) return;
+            const {width: newWidth, height: newHeight} = entries[0].contentRect;
+            chart.applyOptions({ width: newWidth, height: newHeight });
+            setChartHeight(newHeight);
+        });
+
+        if (chartContainerRef.current) {
+            resizeObserver.observe(chartContainerRef.current);
+            setChartHeight(chartContainerRef.current.clientHeight || height);
+        }
+
+        // Subscribe to time scale visible range changes
+        chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
+            if (range) {
+                visibleRangeRef.current = range;
             }
-        };
-        window.addEventListener('resize', handleResize);
+        });
+
+        // Trigger load older data when scrolled left
+        chart.timeScale().subscribeVisibleLogicalRangeChange((logicalRange) => {
+            if (!logicalRange) return;
+            if (logicalRange.from <= 2) {
+                onLoadOlderData();
+            }
+        });
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
+            chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData]);
+
+    const handleResetZoom = () => {
+        if (!chartRef.current || data.length === 0) return;
+        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
+        const lastBar = sortedData[sortedData.length - 1];
+        const firstBar = sortedData[Math.max(0, sortedData.length - 180)];
+        const fromStr = firstBar.date as Time;
+        const toStr = lastBar.date as Time;
+
+        chartRef.current.timeScale().setVisibleRange({
+            from: fromStr,
+            to: toStr,
+        });
+        visibleRangeRef.current = { from: fromStr, to: toStr };
+    };
 
     const oscillatorIndicators = indicators.filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator');
 
     return (
-        <div className="relative">
+        <div className="relative w-full h-full min-h-0 flex-1 flex flex-col">
+            <button
+                onClick={handleResetZoom}
+                className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded shadow-lg backdrop-blur text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                title="Reset zoom to default (180 bars)"
+            >
+                <RefreshCw size={12} className="animate-hover" />
+                <span>Reset Zoom</span>
+            </button>
+
             {legend.length > 0 && (
                 <div className="absolute top-2 left-2 z-10 flex flex-col gap-0.5 bg-slate-900/70 rounded px-2 py-1 backdrop-blur pointer-events-none">
                     {legend.map((e) => (
@@ -265,7 +335,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
             {/* Subpane Overlay Headers */}
             {oscillatorIndicators.map((series, idx) => {
                 const N = oscillatorIndicators.length;
-                const top = 600 * (3 + idx) / (3 + N);
+                const top = chartHeight * (3 + idx) / (3 + N);
                 const valuesStr = getLatestValuesString(series);
                 return (
                     <div 
@@ -279,7 +349,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs}) => {
                 );
             })}
 
-            <div ref={chartContainerRef} style={{width: '100%', height: '600px', backgroundColor: '#020617'}}/>
+            <div ref={chartContainerRef} className="w-full h-full" style={{backgroundColor: '#020617'}}/>
         </div>
     );
 };

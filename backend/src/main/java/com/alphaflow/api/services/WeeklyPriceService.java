@@ -39,12 +39,17 @@ public class WeeklyPriceService {
     }
 
     public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName) {
-        log.debug("Fetching weekly candle data for ticker: {}", tickerName);
+        return getWeeklyPriceByTickerName(tickerName, 0, null);
+    }
+
+    public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, Integer size) {
+        int actualSize = size != null ? size : apiProperties.windowFor(Timeframe.WEEKLY);
+        log.debug("Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, actualSize);
         if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
             log.warn("Ticker not found for symbol: {}", tickerName);
             throw new ResourceNotFoundException("Ticker not found: " + tickerName);
         }
-        return weeklyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(0, apiProperties.windowFor(Timeframe.WEEKLY)))
+        return weeklyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(page, actualSize))
                 .stream()
                 .sorted(Comparator.comparing(WeeklyPrice::getPriceDate))
                 .map(OhlcvMapper::toDTO)

@@ -25,10 +25,10 @@ class DailyPriceControllerTest {
                 new BigDecimal("102.00"),
                 1000L
         );
-        when(service.getDailyPriceByTickerName("AAPL")).thenReturn(List.of(dto));
+        when(service.getDailyPriceByTickerName("AAPL", 0, null)).thenReturn(List.of(dto));
 
         DailyPriceController controller = new DailyPriceController(service);
-        List<OhlcvDTO> res = controller.getCandleDataForTicker("AAPL");
+        List<OhlcvDTO> res = controller.getCandleDataForTicker("AAPL", 0, null);
 
         assertEquals(1, res.size());
         assertEquals(LocalDate.of(2026, 5, 29), res.get(0).priceDate());

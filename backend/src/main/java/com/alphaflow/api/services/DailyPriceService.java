@@ -35,13 +35,18 @@ public class DailyPriceService {
     }
 
     public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName) {
-        log.debug("Fetching daily candle data for ticker: {}", tickerName);
+        return getDailyPriceByTickerName(tickerName, 0, null);
+    }
+
+    public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, Integer size) {
+        int actualSize = size != null ? size : apiProperties.windowFor(Timeframe.DAILY);
+        log.debug("Fetching daily candle data for ticker: {} (page={}, size={})", tickerName, page, actualSize);
         // Match the case-insensitive lookup used by findLatestByTickerName below.
         if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
             log.warn("Ticker not found for symbol: {}", tickerName);
             throw new ResourceNotFoundException("Ticker not found: " + tickerName);
         }
-        return dailyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(0, apiProperties.windowFor(Timeframe.DAILY)))
+        return dailyPriceRepository.findLatestByTickerName(tickerName, PageRequest.of(page, actualSize))
                 .stream()
                 .sorted(Comparator.comparing(DailyPrice::getPriceDate))
                 .map(OhlcvMapper::toDTO)

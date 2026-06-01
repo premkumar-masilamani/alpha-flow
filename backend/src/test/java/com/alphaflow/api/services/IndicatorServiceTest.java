@@ -16,6 +16,7 @@ import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -92,7 +93,7 @@ class IndicatorServiceTest {
     void seriesGroupsByComboAndDate() {
         when(tickerRepository.existsByTickerSymbolIgnoreCase("TEST")).thenReturn(true);
         when(dailyPriceRepository.findRecentPriceDates(eq("TEST"), any())).thenReturn(List.of(D3, D2, D1));
-        when(indicatorValueRepository.findSeries(eq("TEST"), eq(Timeframe.DAILY), eq(D1))).thenReturn(List.of(
+        when(indicatorValueRepository.findSeriesBetween(eq("TEST"), eq(Timeframe.DAILY), eq(D1), eq(D3))).thenReturn(List.of(
                 value(IndicatorType.EMA, "period=5", "value", D1, "10.0"),
                 value(IndicatorType.MACD, "fast=12,signal=9,slow=26", "macd", D1, "1.0"),
                 value(IndicatorType.MACD, "fast=12,signal=9,slow=26", "signal", D1, "0.5"),
@@ -122,7 +123,7 @@ class IndicatorServiceTest {
     void seriesThrowsWhenTickerMissing() {
         when(tickerRepository.existsByTickerSymbolIgnoreCase("NOPE")).thenReturn(false);
         assertThrows(ResourceNotFoundException.class, () -> service.getIndicatorSeries("NOPE", Timeframe.DAILY));
-        verify(indicatorValueRepository, never()).findSeries(any(), any(), any());
+        verify(indicatorValueRepository, never()).findSeriesBetween(any(), any(), any(), any());
     }
 
     // ---- helpers --------------------------------------------------------
@@ -133,17 +134,28 @@ class IndicatorServiceTest {
         when(dailyPriceRepository.findRecentPriceDates(eq("TEST"), any())).thenReturn(List.of());
 
         assertTrue(service.getIndicatorSeries("TEST", Timeframe.DAILY).isEmpty());
-        verify(indicatorValueRepository, never()).findSeries(any(), any(), any());
+        verify(indicatorValueRepository, never()).findSeriesBetween(any(), any(), any(), any());
     }
 
     @Test
     void seriesSupportsWeeklyTimeframe() {
         when(tickerRepository.existsByTickerSymbolIgnoreCase("TEST")).thenReturn(true);
         when(weeklyPriceRepository.findRecentPriceDates(eq("TEST"), any())).thenReturn(List.of(D1));
-        when(indicatorValueRepository.findSeries(eq("TEST"), eq(Timeframe.WEEKLY), eq(D1))).thenReturn(List.of());
+        when(indicatorValueRepository.findSeriesBetween(eq("TEST"), eq(Timeframe.WEEKLY), eq(D1), eq(D1))).thenReturn(List.of());
 
         List<IndicatorSeriesDTO> result = service.getIndicatorSeries("TEST", Timeframe.WEEKLY);
         assertTrue(result.isEmpty());
         verify(weeklyPriceRepository).findRecentPriceDates(eq("TEST"), any());
+    }
+
+    @Test
+    void seriesSupportsCustomPageAndSize() {
+        when(tickerRepository.existsByTickerSymbolIgnoreCase("TEST")).thenReturn(true);
+        when(dailyPriceRepository.findRecentPriceDates(eq("TEST"), eq(PageRequest.of(1, 10)))).thenReturn(List.of(D1));
+        when(indicatorValueRepository.findSeriesBetween(eq("TEST"), eq(Timeframe.DAILY), eq(D1), eq(D1))).thenReturn(List.of());
+
+        List<IndicatorSeriesDTO> result = service.getIndicatorSeries("TEST", Timeframe.DAILY, 1, 10);
+        assertTrue(result.isEmpty());
+        verify(dailyPriceRepository).findRecentPriceDates(eq("TEST"), eq(PageRequest.of(1, 10)));
     }
 }
