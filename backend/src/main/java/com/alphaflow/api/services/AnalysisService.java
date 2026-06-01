@@ -249,8 +249,10 @@ public class AnalysisService {
             return new CalculatedSignal("SELL", "Negative Crossover");
         } else if (k0.compareTo(d0) > 0) {
             return new CalculatedSignal("BUY", "K > D");
-        } else {
+        } else if (k0.compareTo(d0) < 0) {
             return new CalculatedSignal("SELL", "K < D");
+        } else {
+            return new CalculatedSignal("HOLD", "K = D");
         }
     }
 

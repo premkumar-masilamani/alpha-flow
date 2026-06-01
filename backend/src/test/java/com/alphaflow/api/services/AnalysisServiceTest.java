@@ -208,4 +208,39 @@ class AnalysisServiceTest {
         verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
         verify(analysisResultRepository).save(argThat(res -> "T2".equals(res.getTicker().getTickerSymbol())));
     }
+
+    @Test
+    void testEvaluateDailyStochasticFlatReturnsHold() {
+        Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
+        when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
+        when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
+
+        // Setup daily candles
+        List<OhlcvDTO> candles = List.of(
+                candle(YESTERDAY, 102, 106, 101, 105, 1200),
+                candle(TODAY, 105, 110, 104, 109, 1500)
+        );
+        when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50)).thenReturn(candles);
+
+        // Setup weekly indicators empty (defaults MACD to HOLD)
+        when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.WEEKLY, 0, 10)).thenReturn(List.of());
+
+        // Setup daily Stochastic where latest %K == %D (both 80)
+        List<IndicatorPointDTO> stochPoints = List.of(
+                point(YESTERDAY, Map.of("k", BigDecimal.valueOf(70), "d", BigDecimal.valueOf(75))),
+                point(TODAY, Map.of("k", BigDecimal.valueOf(80), "d", BigDecimal.valueOf(80)))
+        );
+        IndicatorSeriesDTO stochSeries = series("STOCHASTIC", "CLOSE", "k=14,kSmooth=3,dSmooth=3", stochPoints);
+
+        when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.DAILY, 0, 50)).thenReturn(List.of(stochSeries));
+        when(analysisResultRepository.save(any(AnalysisResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Run
+        AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+
+        // Verify stochastic signal is HOLD and value is "K = D"
+        assertNotNull(response);
+        assertEquals("HOLD", response.stochasticSignal());
+        assertEquals("K = D", response.stochasticValue());
+    }
 }
