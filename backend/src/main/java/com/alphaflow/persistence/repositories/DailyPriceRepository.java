@@ -36,6 +36,9 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
     @Query("SELECT dp.priceDate FROM DailyPrice dp WHERE dp.ticker = :ticker AND dp.priceDate >= :startDate")
     List<LocalDate> findDatesByTickerAndDateGreaterThanEqual(Ticker ticker, LocalDate startDate);
 
+    @Query("SELECT dp.priceDate FROM DailyPrice dp WHERE dp.ticker = :ticker AND dp.priceDate IN :dates")
+    List<LocalDate> findDatesByTickerAndPriceDateIn(Ticker ticker, List<LocalDate> dates);
+
     List<DailyPrice> findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(Ticker ticker, LocalDate startDate);
 
     List<DailyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);

@@ -59,6 +59,15 @@ public class StochasticIndicator implements Indicator {
         int k = params.getInt("k");
         int kSmooth = params.getInt("kSmooth");
         int dSmooth = params.getInt("dSmooth");
+        if (k < 1) {
+            throw new IllegalArgumentException("Stochastic k must be >= 1. Provided: " + k);
+        }
+        if (kSmooth < 1) {
+            throw new IllegalArgumentException("Stochastic kSmooth must be >= 1. Provided: " + kSmooth);
+        }
+        if (dSmooth < 1) {
+            throw new IllegalArgumentException("Stochastic dSmooth must be >= 1. Provided: " + dSmooth);
+        }
 
         Deque<BigDecimal> highs = new ArrayDeque<>(k);
         Deque<BigDecimal> lows = new ArrayDeque<>(k);

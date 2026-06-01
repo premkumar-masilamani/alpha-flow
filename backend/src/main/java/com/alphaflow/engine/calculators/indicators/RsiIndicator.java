@@ -46,6 +46,9 @@ public class RsiIndicator implements Indicator {
     @Override
     public IndicatorResult compute(List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
         int period = params.getInt("period");
+        if (period < 1) {
+            throw new IllegalArgumentException("RSI period must be >= 1. Provided: " + period);
+        }
         BigDecimal periodBd = BigDecimal.valueOf(period);
 
         Map<String, BigDecimal> prior = StateCodec.decode(priorStateJson);

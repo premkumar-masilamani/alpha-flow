@@ -34,6 +34,9 @@ public class SmaIndicator implements Indicator {
     @Override
     public IndicatorResult compute(List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
         int period = params.getInt("period");
+        if (period < 1) {
+            throw new IllegalArgumentException("SMA period must be >= 1. Provided: " + period);
+        }
         List<PlotPoint> values = new ArrayList<>();
         Deque<BigDecimal> window = new ArrayDeque<>(period);
         BigDecimal sum = BigDecimal.ZERO;

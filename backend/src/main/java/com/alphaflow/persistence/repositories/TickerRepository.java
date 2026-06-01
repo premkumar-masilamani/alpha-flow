@@ -18,4 +18,6 @@ public interface TickerRepository extends JpaRepository<Ticker, Long> {
 
     List<Ticker> findByIsActiveTrue();
 
+    List<Ticker> findByIsActiveTrue(org.springframework.data.domain.Pageable pageable);
+
 }

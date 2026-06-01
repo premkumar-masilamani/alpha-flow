@@ -122,10 +122,11 @@ public class YahooFinanceDownloader {
         try {
             List<DailyPrice> candleDataList = fetchAndParseJson(url, ticker);
             if (!candleDataList.isEmpty()) {
-                LocalDate checkStartDate = latestSavedDate != null
-                        ? latestSavedDate.minusDays(7)
-                        : DEFAULT_LATEST_CANDLE_DATE;
-                List<LocalDate> existingDates = dailyPriceRepository.findDatesByTickerAndDateGreaterThanEqual(ticker, checkStartDate);
+                List<LocalDate> datesToQuery = candleDataList.stream()
+                        .map(DailyPrice::getPriceDate)
+                        .distinct()
+                        .collect(Collectors.toList());
+                List<LocalDate> existingDates = dailyPriceRepository.findDatesByTickerAndPriceDateIn(ticker, datesToQuery);
                 Set<LocalDate> existingDatesSet = new HashSet<>(existingDates);
 
                 List<DailyPrice> newCandleData = candleDataList.stream()

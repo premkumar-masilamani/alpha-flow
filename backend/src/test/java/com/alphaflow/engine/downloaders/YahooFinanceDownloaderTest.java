@@ -76,7 +76,7 @@ class YahooFinanceDownloaderTest {
         when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
                 .thenReturn(List.of(view1, view2));
 
-        when(dailyRepo.findDatesByTickerAndDateGreaterThanEqual(any(), any()))
+        when(dailyRepo.findDatesByTickerAndPriceDateIn(any(), any()))
                 .thenReturn(List.of(LocalDate.of(2025, 8, 13))); // One of the downloaded dates already exists
 
         YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
@@ -304,7 +304,7 @@ class YahooFinanceDownloaderTest {
                 .thenReturn(List.of(view));
 
         // Mock that all dates in yahoo_response.json (which are 2026-05-28 and 2026-05-29) already exist
-        when(dailyRepo.findDatesByTickerAndDateGreaterThanEqual(any(), any()))
+        when(dailyRepo.findDatesByTickerAndPriceDateIn(any(), any()))
                 .thenReturn(List.of(LocalDate.of(2026, 5, 28), LocalDate.of(2026, 5, 29)));
 
         YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
