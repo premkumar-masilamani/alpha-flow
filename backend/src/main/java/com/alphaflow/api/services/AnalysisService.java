@@ -12,7 +12,10 @@ import com.alphaflow.persistence.repositories.AnalysisResultRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -23,8 +26,11 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-@Transactional
 public class AnalysisService {
+
+    @Autowired
+    @Lazy
+    private AnalysisService self;
 
     private static final Logger log = LoggerFactory.getLogger(AnalysisService.class);
 
@@ -52,9 +58,10 @@ public class AnalysisService {
                 .filter(Ticker::isActive)
                 .toList();
 
+        AnalysisService proxy = (self != null) ? self : this;
         for (Ticker ticker : activeTickers) {
             try {
-                computeAndPersist(ticker);
+                proxy.computeAndPersist(ticker);
             } catch (Exception e) {
                 log.error("Failed to compute technical analysis for ticker: {}", ticker.getTickerSymbol(), e);
             }
@@ -62,6 +69,7 @@ public class AnalysisService {
         log.info("Technical Analysis computation finished.");
     }
 
+    @Transactional
     public AnalysisResponseDTO getAnalysis(String symbol) {
         Ticker ticker = tickerRepository.findByTickerSymbolIgnoreCase(symbol)
                 .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
@@ -96,6 +104,7 @@ public class AnalysisService {
                 .build();
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AnalysisResult computeAndPersist(Ticker ticker) {
         String symbol = ticker.getTickerSymbol();
 

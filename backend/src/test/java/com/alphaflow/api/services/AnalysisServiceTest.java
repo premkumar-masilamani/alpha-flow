@@ -21,7 +21,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class AnalysisServiceTest {
@@ -181,5 +181,31 @@ class AnalysisServiceTest {
         assertEquals("BUY", response.emaSignal());
 
         verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
+    }
+
+    @Test
+    void testComputeAnalysisContinuesOnTickerFailure() {
+        Ticker ticker1 = Ticker.builder().tickerSymbol("T1").isActive(true).build();
+        Ticker ticker2 = Ticker.builder().tickerSymbol("T2").isActive(true).build();
+        when(tickerRepository.findAll()).thenReturn(List.of(ticker1, ticker2));
+
+        // Let T1 throw an exception during daily price fetch
+        when(dailyPriceService.getDailyPriceByTickerName("T1", 0, 50))
+                .thenThrow(new RuntimeException("Injected data fetch error"));
+
+        // Setup successful mocks for T2
+        List<OhlcvDTO> candles2 = List.of(candle(TODAY, 100, 105, 95, 100, 1000));
+        when(dailyPriceService.getDailyPriceByTickerName("T2", 0, 50)).thenReturn(candles2);
+        when(indicatorService.getIndicatorSeries("T2", Timeframe.WEEKLY, 0, 10)).thenReturn(List.of());
+        when(indicatorService.getIndicatorSeries("T2", Timeframe.DAILY, 0, 50)).thenReturn(List.of());
+        when(analysisResultRepository.findByTicker(ticker2)).thenReturn(Optional.empty());
+        when(analysisResultRepository.save(any(AnalysisResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Run
+        analysisService.computeAnalysis();
+
+        // Verify that only T2 was successfully saved
+        verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
+        verify(analysisResultRepository).save(argThat(res -> "T2".equals(res.getTicker().getTickerSymbol())));
     }
 }
