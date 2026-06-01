@@ -243,4 +243,38 @@ class AnalysisServiceTest {
         assertEquals("HOLD", response.stochasticSignal());
         assertEquals("K = D", response.stochasticValue());
     }
+
+    @Test
+    void testEvaluateWeeklyMacdFlatReturnsHold() {
+        Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
+        when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
+        when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
+
+        // Setup daily candles
+        List<OhlcvDTO> candles = List.of(
+                candle(YESTERDAY, 102, 106, 101, 105, 1200),
+                candle(TODAY, 105, 110, 104, 109, 1500)
+        );
+        when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50)).thenReturn(candles);
+
+        // Setup weekly MACD where latest macd == signal (both 1.5)
+        List<IndicatorPointDTO> macdPoints = List.of(
+                point(YESTERDAY, Map.of("macd", BigDecimal.valueOf(1.0), "signal", BigDecimal.valueOf(1.2))),
+                point(TODAY, Map.of("macd", BigDecimal.valueOf(1.5), "signal", BigDecimal.valueOf(1.5)))
+        );
+        IndicatorSeriesDTO macdSeries = series("MACD", "CLOSE", "fast=12,slow=26,signal=9", macdPoints);
+        when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.WEEKLY, 0, 10)).thenReturn(List.of(macdSeries));
+
+        // Setup empty daily indicators
+        when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.DAILY, 0, 50)).thenReturn(List.of());
+        when(analysisResultRepository.save(any(AnalysisResult.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Run
+        AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+
+        // Verify MACD signal is HOLD and value is "MACD = Signal"
+        assertNotNull(response);
+        assertEquals("HOLD", response.macdSignal());
+        assertEquals("MACD = Signal", response.macdValue());
+    }
 }

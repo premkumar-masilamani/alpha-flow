@@ -210,11 +210,13 @@ public class AnalysisService {
             BigDecimal hist1 = macd1.subtract(sig1);
             String value = hist0.compareTo(hist1) > 0 ? "Uptick" : "Flat after down (rare)";
             return new CalculatedSignal("BUY", value);
-        } else {
+        } else if (macd0.compareTo(sig0) < 0) {
             BigDecimal hist0 = macd0.subtract(sig0);
             BigDecimal hist1 = macd1.subtract(sig1);
             String value = hist0.compareTo(hist1) < 0 ? "Downtick" : "Flat after up (rare)";
             return new CalculatedSignal("SELL", value);
+        } else {
+            return new CalculatedSignal("HOLD", "MACD = Signal");
         }
     }
 
