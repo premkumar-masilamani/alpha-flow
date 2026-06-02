@@ -47,7 +47,7 @@ com.alphaflow
 │   ├── configs/           # @ConfigurationProperties (IndicatorProperties, YahooFinanceConfig)
 │   ├── downloaders/       # YahooFinanceDownloader
 │   ├── calculators/       # WeeklyPriceCalculator, IndicatorCalculator
-│   │   └── indicators/    # IndicatorEngine interface + implementations (SMA, EMA, RSI, MACD, Stochastic)
+│   │   └── indicators/    # Indicator interface + implementations (SMA, EMA, RSI, MACD, Stochastic)
 │   └── schedulers/        # CoreScheduler
 └── api/                   # REST API layer
     ├── configs/           # ApiProperties, CorsConfig
@@ -68,7 +68,7 @@ com.alphaflow
 - **File naming**: `NNN_descriptive_name.up.sql` / `NNN_descriptive_name.down.sql`. Strictly 1-indexed, zero-padded to 3 digits.
 - **Down scripts must be exact reversals**: Use `DROP TABLE IF EXISTS ... CASCADE` in reverse creation order. Use `ALTER TABLE ... DROP COLUMN IF EXISTS` for column removals.
 - **Idempotency**: Use `IF EXISTS` / `IF NOT EXISTS` guards wherever possible.
-- **Seed data**: Stored as a migration script (e.g., `002_seed_data.up.sql`), not as a separate SQL file.
+- **Seed data**: Stored in `database/data/seed_data.sql` and loaded automatically via `import_seed_data.sh`.
 
 ### Column Type Standards
 
@@ -79,7 +79,7 @@ com.alphaflow
 | Price / monetary | `NUMERIC(18, 4)` | Consistent across all tables (daily_prices, weekly_prices, indicator_values). |
 | Volume | `BIGINT` | Plain integer, not NUMERIC. |
 | Indicator outputs | `NUMERIC(18, 4)` | Same precision as prices. |
-| JSONB | `JSONB NOT NULL` | Only for internal/opaque state (e.g., `indicator_state.internals`). Never for published query data. |
+| JSONB | `JSONB` | Only for internal/opaque state (e.g., `indicator_state.internals`, which is nullable). Never for published query data. |
 | Strings | `VARCHAR(N)` | Always specify explicit length. |
 | Booleans | `BOOLEAN NOT NULL` | Include explicit `DEFAULT TRUE` or `DEFAULT FALSE`. |
 | Timestamps | `TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` | |
@@ -95,8 +95,8 @@ com.alphaflow
 ### Unique Constraints
 
 - **Price tables**: `UNIQUE (ticker_id, price_date)`.
-- **Indicator values**: `UNIQUE (ticker_id, timeframe, indicator_type, param_period, price_date, output_name)`.
-- **Indicator state**: `UNIQUE (ticker_id, timeframe, indicator_type, param_period)`.
+- **Indicator values**: `UNIQUE (ticker_id, timeframe, indicator_type, source, params, output_name, price_date)`.
+- **Indicator state**: `UNIQUE (ticker_id, timeframe, indicator_type, source, params)`.
 
 ---
 
@@ -130,37 +130,37 @@ Additional rules:
 
 ### Enums (`persistence/enums/`)
 
-- `IndicatorType`: `SMA`, `EMA`, `RSI`, `MACD`, `STOCHASTIC`. Stored as `VARCHAR(30)` in DB via `@Enumerated(EnumType.STRING)`.
-- `Timeframe`: `DAILY`, `WEEKLY`. Stored as `VARCHAR(10)`.
-- `PriceSource`: `YAHOO_FINANCE`. Stored as `VARCHAR(30)`.
+- `IndicatorType`: `SMA`, `EMA`, `RSI`, `MACD`, `STOCHASTIC`. Stored as `VARCHAR(32)` in DB via `@Enumerated(EnumType.STRING)`.
+- `Timeframe`: `DAILY`, `WEEKLY`. Stored as `VARCHAR(16)`.
+- `PriceSource`: `OPEN`, `HIGH`, `LOW`, `CLOSE`, `VOLUME`. Stored as `VARCHAR(16)`.
 
 ### Repository Classes (`persistence/repositories/`)
 
 - Extend `JpaRepository<Entity, Long>` and annotate with `@Repository`.
 - Return `Optional<Entity>` for single-result lookups.
-- For `indicator_values` queries, always include `timeframe`, `indicatorType`, and `paramPeriod` in filters.
+- For `indicator_values` queries, always include `timeframe`, `indicatorType`, `source`, and `params` in filters.
 - JPQL is preferred over native SQL. Native SQL is only needed for JSONB operations.
 
 ### Indicator Engine (`engine/calculators/indicators/`)
 
-- **`IndicatorEngine` interface**: All indicators implement `update(PriceBar)`, `saveState()`, and `restoreState(Map)`.
-- **`IndicatorRegistry`**: Factory that maps `IndicatorType` → concrete `IndicatorEngine` implementation.
-- **`PriceBar` record**: Lightweight `record(LocalDate date, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, long volume)` used as input to all indicators.
+- **`Indicator` interface**: All indicators implement `compute(List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source)`.
+- **`IndicatorRegistry`**: Factory that maps `IndicatorType` → concrete `Indicator` implementation.
+- **`PriceBar` record**: Lightweight `record(LocalDate date, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, BigDecimal volume)` used as input to all indicators.
 - **MathContext**: Indicator calculations use `new MathContext(18)` for `BigDecimal` arithmetic.
 - **Incremental computation**: `IndicatorState` stores serialized internal state (via JSONB `internals` column) so computation resumes from the last checkpoint.
-- **Multi-output indicators**: MACD produces `macd_line`, `signal_line`, `histogram` — each stored as a separate row in `indicator_values` via the `output_name` column.
+- **Multi-output indicators**: MACD produces `macd`, `signal`, `histogram` — each stored as a separate row in `indicator_values` via the `output_name` column.
 
 ### Indicator Configuration (`application.properties`)
 
-Indicators are configured externally via `@ConfigurationProperties(prefix = "indicator")`:
+Indicators are configured externally via `@ConfigurationProperties(prefix = "alphaflow.indicators")`:
 
 ```properties
-indicator.configs[0].type=SMA
-indicator.configs[0].timeframe=DAILY
-indicator.configs[0].periods=10,20,50,200
+alphaflow.indicators.timeframes.daily[0].type=EMA
+alphaflow.indicators.timeframes.daily[0].source=CLOSE
+alphaflow.indicators.timeframes.daily[0].params.period=5
 ```
 
-This drives the `IndicatorProperties.IndicatorConfig` record: `(IndicatorType type, Timeframe timeframe, List<Integer> periods)`.
+This drives the `IndicatorProperties.IndicatorDefinition` class.
 
 ### Scheduler (`engine/schedulers/`)
 
@@ -170,8 +170,8 @@ This drives the `IndicatorProperties.IndicatorConfig` record: `(IndicatorType ty
 ### Downloader (`engine/downloaders/`)
 
 - Uses Java `HttpClient` (no third-party HTTP libraries).
-- Rate-limited via `yahoo-finance.request-delay-ms` (default 1100ms between requests).
-- All config externalized to `application.properties` via `YahooFinanceConfig` (`@ConfigurationProperties`).
+- Rate-limited via `alphaflow.yahoo.delay-milliseconds` (default 1000ms between requests).
+- All config externalized to `application.properties` via `YahooFinanceConfig` (bound with prefix `alphaflow.yahoo`).
 - Timestamps from Yahoo Finance are converted to `LocalDate` using the ticker's timezone.
 
 ---
