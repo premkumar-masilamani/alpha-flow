@@ -4,13 +4,13 @@ Operational guidance for AI coding agents working on database schemas and seed d
 
 ## Common Tasks & Commands
 
-Database tasks are coordinated through scripts in `database/scripts/` or the root `Makefile`:
+Database tasks are coordinated through the module `Makefile` inside the `database/` directory (or from the project root):
 
 ```bash
-# Execute these from the project root directory
 make run_database       # Rebuild and start the Postgres container, running migrations and seed scripts
 make migrate_database   # Apply new migrations without rebuilding the container
 make connect_database   # Connect to psql shell on the active container
+make clean              # Teardown Postgres container, network, and data volumes
 ```
 
 ## Database Migration Conventions

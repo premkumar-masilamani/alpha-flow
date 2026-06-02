@@ -4,15 +4,14 @@ Operational guidance for AI coding agents working on the Spring Boot backend (`b
 
 ## Setup & Running Commands
 
-Run all commands from the `backend/` directory:
+Run all operations using the module `Makefile` inside the `backend/` directory:
 
 ```bash
-./gradlew bootRun           # Start the Spring Boot application (live reload continuous)
-./gradlew test              # Run all tests using JUnit 5
-./gradlew test --tests "com.alphaflow.api.services.TickerServiceTest" # Run a specific test class
-./gradlew compileJava       # Run compile-only checks
-./gradlew build -x test     # Build the project, skipping tests
-./gradlew clean             # Clean Gradle build outputs
+make dev             # Start the Spring Boot application (live reload continuous)
+make test            # Run all unit tests and generate JaCoCo coverage report
+make build           # Build the project, skipping tests
+make compile         # Run compilation/type-safety checks
+make clean           # Clean build outputs
 ```
 
 ## Backend Architecture
@@ -48,7 +47,7 @@ The backend is structured under the `com.alphaflow` package:
 - **Annotation Placement**: In Entity and DTO classes, place class-level Lombok and Spring annotations on separate lines.
 
 ### Compilation & Static Analysis
-- **Code Compilation**: Run `./gradlew compileJava` in the `backend/` directory to make sure there are no warnings or errors before committing.
+- **Code Compilation**: Run `make compile` in the `backend/` directory to make sure there are no warnings or errors before committing.
 - **Compiler Warnings**: Avoid compiler warnings. Add `@SuppressWarnings` sparingly and only with a comment explaining why.
 
 ### Testing & Code Coverage (JaCoCo)
@@ -63,6 +62,6 @@ The backend is structured under the `com.alphaflow` package:
 - **Strict Verification**: Code changes in service layers (`api/services/`), calculation engines (`engine/`), and controller endpoints (`api/controllers/`) MUST have complete unit tests.
 - Verify tests and coverage via:
   ```bash
-  ./gradlew clean test
+  make test
   ```
 

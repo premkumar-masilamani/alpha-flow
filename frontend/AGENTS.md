@@ -4,14 +4,17 @@ Operational guidance for AI coding agents working on the React/TypeScript fronte
 
 ## Setup & Running Commands
 
-Run all commands from the `frontend/` directory:
+Run all operations using the module `Makefile` inside the `frontend/` directory:
 
 ```bash
-npm install          # Install dependencies
-npm run dev          # Start the local Vite development server
-npm run build        # Build the production bundle (also compiles TypeScript)
-npm run lint         # Run ESLint validation
-npm run preview      # Locally preview the production build
+make install         # Install dependencies
+make dev             # Start the local Vite development server
+make build           # Create production build
+make preview         # Locally preview the production build
+make lint            # Run ESLint validation
+make audit           # Run npm security audit
+make check           # Run audit, lint, and build checks
+make clean           # Remove node_modules and dist
 ```
 
 ## Frontend Architecture
@@ -37,7 +40,7 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 ## Formatting & Linting Instructions
 
 ### Linting Checks
-- **Command**: Run `npm run lint` in the `frontend/` directory.
+- **Command**: Run `make lint` in the `frontend/` directory.
 - **Rules**: Zero ESLint warnings or errors are allowed. Always resolve unused imports, variables, and type warnings.
 
 ### Code Formatting
@@ -49,7 +52,7 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 - **Import Ordering**: Group imports logically: React core/hooks first, external libraries (e.g. `axios`, `lightweight-charts`), internal components/services, assets/CSS.
 
 ### TypeScript Compilation & Build Verification
-- **Command**: Run `npm run build` from the `frontend/` directory.
-- This command triggers `tsc -b` (TypeScript Project Reference Compilation) and then builds the production code using Vite.
+- **Command**: Run `make build` from the `frontend/` directory.
+- This command triggers `tsc -b` (TypeScript Project Reference Compilation) and then builds the production code using Vite. You can also run `make check` to run all validation checks (audit, lint, and build).
 - Ensure that the TypeScript compiler passes with absolutely zero errors before any commit or PR submission.
 
