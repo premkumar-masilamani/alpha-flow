@@ -1,12 +1,11 @@
 package com.alphaflow.api.configs;
 
-import com.alphaflow.persistence.enums.Timeframe;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.alphaflow.persistence.enums.Timeframe;
 import java.util.EnumMap;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
 
 class ApiPropertiesTest {
 
