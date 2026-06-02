@@ -1,6 +1,8 @@
-.PHONY: test
+.PHONY: dev test build compile clean
 
-# Run all backend unit tests and generate JaCoCo code coverage report
+dev:
+	./gradlew bootRun --continuous --daemon --parallel --build-cache
+
 test:
 	@echo "Running backend unit tests and generating JaCoCo coverage report..."
 	./gradlew clean test; \
@@ -8,6 +10,11 @@ test:
 	open build/reports/jacoco/test/html/index.html; \
 	exit $$status
 
+build:
+	./gradlew build -x test
 
+compile:
+	./gradlew compileJava
 
-#	open build/reports/tests/test/index.html; \
+clean:
+	./gradlew clean

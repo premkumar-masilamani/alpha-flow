@@ -1,24 +1,24 @@
 package com.alphaflow.engine.calculators.indicators;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.math.BigDecimal;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
 class StateCodecTest {
 
     @Test
     void testConstructor() throws Exception {
-        Constructor<StateCodec> constructor = StateCodec.class.getDeclaredConstructor();
+        Constructor<StateCodec> constructor =
+            StateCodec.class.getDeclaredConstructor();
         constructor.setAccessible(true);
         StateCodec instance = constructor.newInstance();
         assertNotNull(instance);
@@ -26,7 +26,10 @@ class StateCodecTest {
 
     @Test
     void testRoundTrip() {
-        Map<String, BigDecimal> state = Map.of("ema", new BigDecimal("1.234567890123"));
+        Map<String, BigDecimal> state = Map.of(
+            "ema",
+            new BigDecimal("1.234567890123")
+        );
         String json = StateCodec.encode(state);
         Map<String, BigDecimal> decoded = StateCodec.decode(json);
         assertEquals(state, decoded);
@@ -41,19 +44,24 @@ class StateCodecTest {
 
     @Test
     void testDecodeInvalidJson() {
-        assertThrows(IllegalStateException.class, () -> StateCodec.decode("{invalid"));
+        assertThrows(IllegalStateException.class, () ->
+            StateCodec.decode("{invalid")
+        );
     }
 
     @Test
     void testEncodeException() throws Exception {
         ObjectMapper originalMapper = getMapperField();
         ObjectMapper mockMapper = mock(ObjectMapper.class);
-        when(mockMapper.writeValueAsString(anyMap())).thenThrow(new JsonProcessingException("mocked exception") {
-        });
+        when(mockMapper.writeValueAsString(anyMap())).thenThrow(
+            new JsonProcessingException("mocked exception") {}
+        );
 
         try {
             setMapperField(mockMapper);
-            assertThrows(IllegalStateException.class, () -> StateCodec.encode(Map.of("ema", BigDecimal.ONE)));
+            assertThrows(IllegalStateException.class, () ->
+                StateCodec.encode(Map.of("ema", BigDecimal.ONE))
+            );
         } finally {
             setMapperField(originalMapper);
         }

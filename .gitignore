@@ -3,14 +3,12 @@
 **/Thumbs.db
 
 # IDE configuration files
-.ropeproject/
-.zed/
-.idea/
-.vscode/
-.settings/
+**/.ropeproject/**
+**/.zed/**
+**/.idea/**
+**/.vscode/**
+**/.settings/**
 .project
 .classpath
 .factorypath
 database.iml
-.bugs/
-.backlog/

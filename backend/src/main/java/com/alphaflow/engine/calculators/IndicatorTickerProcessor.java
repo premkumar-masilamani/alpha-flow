@@ -13,17 +13,16 @@ import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.IndicatorStateRepository;
 import com.alphaflow.persistence.repositories.IndicatorValueRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Computes and persists every configured indicator for a single ticker, across both timeframes.
@@ -51,7 +50,9 @@ import java.util.Map;
 @Component
 public class IndicatorTickerProcessor {
 
-    private static final Logger log = LoggerFactory.getLogger(IndicatorTickerProcessor.class);
+    private static final Logger log = LoggerFactory.getLogger(
+        IndicatorTickerProcessor.class
+    );
 
     private final IndicatorRegistry registry;
     private final IndicatorProperties properties;
@@ -61,12 +62,12 @@ public class IndicatorTickerProcessor {
     private final IndicatorStateRepository indicatorStateRepository;
 
     public IndicatorTickerProcessor(
-            IndicatorRegistry registry,
-            IndicatorProperties properties,
-            DailyPriceRepository dailyPriceRepository,
-            WeeklyPriceRepository weeklyPriceRepository,
-            IndicatorValueRepository indicatorValueRepository,
-            IndicatorStateRepository indicatorStateRepository
+        IndicatorRegistry registry,
+        IndicatorProperties properties,
+        DailyPriceRepository dailyPriceRepository,
+        WeeklyPriceRepository weeklyPriceRepository,
+        IndicatorValueRepository indicatorValueRepository,
+        IndicatorStateRepository indicatorStateRepository
     ) {
         this.registry = registry;
         this.properties = properties;
@@ -76,7 +77,11 @@ public class IndicatorTickerProcessor {
         this.indicatorStateRepository = indicatorStateRepository;
     }
 
-    private static String comboKey(IndicatorType type, PriceSource source, String params) {
+    private static String comboKey(
+        IndicatorType type,
+        PriceSource source,
+        String params
+    ) {
         return type + "|" + source + "|" + params;
     }
 
@@ -86,8 +91,14 @@ public class IndicatorTickerProcessor {
         processTimeframe(ticker, Timeframe.WEEKLY, loadWeeklyBars(ticker));
     }
 
-    private void processTimeframe(Ticker ticker, Timeframe timeframe, List<PriceBar> bars) {
-        List<IndicatorDefinition> definitions = properties.forTimeframe(timeframe);
+    private void processTimeframe(
+        Ticker ticker,
+        Timeframe timeframe,
+        List<PriceBar> bars
+    ) {
+        List<IndicatorDefinition> definitions = properties.forTimeframe(
+            timeframe
+        );
         if (definitions.isEmpty() || bars.isEmpty()) {
             return;
         }
@@ -98,21 +109,40 @@ public class IndicatorTickerProcessor {
         }
 
         Map<String, IndicatorState> stateByCombo = new HashMap<>();
-        for (IndicatorState state : indicatorStateRepository.findByTickerAndTimeframe(ticker, timeframe)) {
-            stateByCombo.put(comboKey(state.getIndicatorType(), state.getSource(), state.getParams()), state);
+        for (IndicatorState state : indicatorStateRepository.findByTickerAndTimeframe(
+            ticker,
+            timeframe
+        )) {
+            stateByCombo.put(
+                comboKey(
+                    state.getIndicatorType(),
+                    state.getSource(),
+                    state.getParams()
+                ),
+                state
+            );
         }
 
         for (IndicatorDefinition definition : definitions) {
-            processCombo(ticker, timeframe, bars, indexByDate, stateByCombo, definition);
+            processCombo(
+                ticker,
+                timeframe,
+                bars,
+                indexByDate,
+                stateByCombo,
+                definition
+            );
         }
     }
 
-    private void processCombo(Ticker ticker,
-                              Timeframe timeframe,
-                              List<PriceBar> bars,
-                              Map<LocalDate, Integer> indexByDate,
-                              Map<String, IndicatorState> stateByCombo,
-                              IndicatorDefinition definition) {
+    private void processCombo(
+        Ticker ticker,
+        Timeframe timeframe,
+        List<PriceBar> bars,
+        Map<LocalDate, Integer> indexByDate,
+        Map<String, IndicatorState> stateByCombo,
+        IndicatorDefinition definition
+    ) {
         Indicator indicator = registry.get(definition.getType());
         IndicatorParams params = IndicatorParams.of(definition.getParams());
         String paramsCanonical = params.canonical();
@@ -121,7 +151,9 @@ public class IndicatorTickerProcessor {
         boolean windowed = !indicator.requiresState();
         int n = bars.size();
 
-        IndicatorState prior = stateByCombo.get(comboKey(type, source, paramsCanonical));
+        IndicatorState prior = stateByCombo.get(
+            comboKey(type, source, paramsCanonical)
+        );
 
         // 1. Decide resume vs. backfill (with contiguity check).
         boolean resume = false;
@@ -145,8 +177,15 @@ public class IndicatorTickerProcessor {
             // Windowed indicators need their full lookback, so recompute over all bars and filter;
             // recursive indicators resume from the persisted state over just the new tail.
             computed = windowed
-                    ? indicator.compute(bars, null, params, source).values()
-                    : indicator.compute(bars.subList(checkpointIndex + 1, n), seedJson, params, source).values();
+                ? indicator.compute(bars, null, params, source).values()
+                : indicator
+                      .compute(
+                          bars.subList(checkpointIndex + 1, n),
+                          seedJson,
+                          params,
+                          source
+                      )
+                      .values();
             rewriteFrom = bars.get(checkpointIndex + 1).date();
         } else {
             computed = indicator.compute(bars, null, params, source).values();
@@ -154,13 +193,21 @@ public class IndicatorTickerProcessor {
         }
 
         // 3. Replace published values for the rewrite window (bulk delete runs before inserts flush).
-        indicatorValueRepository.deleteCombo(ticker, timeframe, type, source, paramsCanonical, rewriteFrom);
+        indicatorValueRepository.deleteCombo(
+            ticker,
+            timeframe,
+            type,
+            source,
+            paramsCanonical,
+            rewriteFrom
+        );
         List<IndicatorValue> toInsert = new ArrayList<>();
         for (PlotPoint point : computed) {
             if (point.date().isBefore(rewriteFrom)) {
                 continue;
             }
-            toInsert.add(IndicatorValue.builder()
+            toInsert.add(
+                IndicatorValue.builder()
                     .ticker(ticker)
                     .timeframe(timeframe)
                     .indicatorType(type)
@@ -169,7 +216,8 @@ public class IndicatorTickerProcessor {
                     .outputName(point.outputName())
                     .priceDate(point.date())
                     .value(point.value())
-                    .build());
+                    .build()
+            );
         }
         if (!toInsert.isEmpty()) {
             indicatorValueRepository.saveAll(toInsert);
@@ -184,10 +232,18 @@ public class IndicatorTickerProcessor {
             checkpointInternals = null;
         } else if (resume) {
             // bars.subList(ci+1, n-1) excludes the in-progress bar; empty when ci == n-2 (state unchanged).
-            checkpointInternals = indicator.compute(bars.subList(checkpointIndex + 1, n - 1), seedJson, params, source)
-                    .newStateJson();
+            checkpointInternals = indicator
+                .compute(
+                    bars.subList(checkpointIndex + 1, n - 1),
+                    seedJson,
+                    params,
+                    source
+                )
+                .newStateJson();
         } else {
-            checkpointInternals = indicator.compute(bars.subList(0, n - 1), null, params, source).newStateJson();
+            checkpointInternals = indicator
+                .compute(bars.subList(0, n - 1), null, params, source)
+                .newStateJson();
         }
 
         boolean checkpointable = windowed || checkpointInternals != null;
@@ -195,13 +251,16 @@ public class IndicatorTickerProcessor {
             return; // recursive indicator still warming up: no resumable state yet
         }
 
-        IndicatorState state = prior != null ? prior : IndicatorState.builder()
-                .ticker(ticker)
-                .timeframe(timeframe)
-                .indicatorType(type)
-                .source(source)
-                .params(paramsCanonical)
-                .build();
+        IndicatorState state =
+            prior != null
+                ? prior
+                : IndicatorState.builder()
+                      .ticker(ticker)
+                      .timeframe(timeframe)
+                      .indicatorType(type)
+                      .source(source)
+                      .params(paramsCanonical)
+                      .build();
         state.setLastPriceDate(bars.get(n - 2).date());
         state.setInternals(checkpointInternals);
         IndicatorState saved = indicatorStateRepository.save(state);
@@ -209,16 +268,36 @@ public class IndicatorTickerProcessor {
     }
 
     private List<PriceBar> loadDailyBars(Ticker ticker) {
-        return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-                .map(d -> new PriceBar(d.getPriceDate(), d.getPriceOpen(), d.getPriceHigh(),
-                        d.getPriceLow(), d.getPriceClose(), BigDecimal.valueOf(d.getVolume())))
-                .toList();
+        return dailyPriceRepository
+            .findByTickerOrderByPriceDateAsc(ticker)
+            .stream()
+            .map(d ->
+                new PriceBar(
+                    d.getPriceDate(),
+                    d.getPriceOpen(),
+                    d.getPriceHigh(),
+                    d.getPriceLow(),
+                    d.getPriceClose(),
+                    BigDecimal.valueOf(d.getVolume())
+                )
+            )
+            .toList();
     }
 
     private List<PriceBar> loadWeeklyBars(Ticker ticker) {
-        return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-                .map(w -> new PriceBar(w.getPriceDate(), w.getPriceOpen(), w.getPriceHigh(),
-                        w.getPriceLow(), w.getPriceClose(), BigDecimal.valueOf(w.getVolume())))
-                .toList();
+        return weeklyPriceRepository
+            .findByTickerOrderByPriceDateAsc(ticker)
+            .stream()
+            .map(w ->
+                new PriceBar(
+                    w.getPriceDate(),
+                    w.getPriceOpen(),
+                    w.getPriceHigh(),
+                    w.getPriceLow(),
+                    w.getPriceClose(),
+                    BigDecimal.valueOf(w.getVolume())
+                )
+            )
+            .toList();
     }
 }

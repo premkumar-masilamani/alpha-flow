@@ -1,12 +1,11 @@
 package com.alphaflow.api.configs;
 
 import com.alphaflow.persistence.enums.Timeframe;
+import java.util.EnumMap;
+import java.util.Map;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.EnumMap;
-import java.util.Map;
 
 /**
  * API read tunables. {@code window} caps how many of the most recent bars the OHLCV and indicator
