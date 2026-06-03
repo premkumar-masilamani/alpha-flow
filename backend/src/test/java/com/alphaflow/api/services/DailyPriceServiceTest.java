@@ -22,11 +22,15 @@ class DailyPriceServiceTest {
 
   @Test
   void testGetDailyPriceByTickerNameSuccess() {
+
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+
     TickerRepository tickerRepo = mock(TickerRepository.class);
+
     ApiProperties apiProperties = mock(ApiProperties.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
+
     when(apiProperties.windowFor(Timeframe.DAILY)).thenReturn(180);
 
     DailyPrice dp1 =
@@ -38,6 +42,7 @@ class DailyPriceServiceTest {
             .priceClose(new BigDecimal("102.0000"))
             .volume(1000L)
             .build();
+
     DailyPrice dp2 =
         DailyPrice.builder()
             .priceDate(LocalDate.of(2026, 5, 28))
@@ -50,34 +55,45 @@ class DailyPriceServiceTest {
 
     // Database return is descending/latest first usually or in any order, service sorts them
     // ascending
+
     when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 180)))
         .thenReturn(List.of(dp1, dp2));
 
     DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+
     List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL");
 
     assertEquals(2, result.size());
+
     assertEquals(LocalDate.of(2026, 5, 28), result.get(0).priceDate()); // Sorted ascending by date
+
     assertEquals(LocalDate.of(2026, 5, 29), result.get(1).priceDate());
   }
 
   @Test
   void testGetDailyPriceByTickerNameNotFound() {
+
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+
     TickerRepository tickerRepo = mock(TickerRepository.class);
+
     ApiProperties apiProperties = mock(ApiProperties.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("INVALID")).thenReturn(false);
 
     DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+
     assertThrows(
         ResourceNotFoundException.class, () -> service.getDailyPriceByTickerName("INVALID"));
   }
 
   @Test
   void testGetDailyPriceByTickerNameWithCustomPageAndSizeSuccess() {
+
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+
     TickerRepository tickerRepo = mock(TickerRepository.class);
+
     ApiProperties apiProperties = mock(ApiProperties.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
@@ -95,9 +111,11 @@ class DailyPriceServiceTest {
     when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10))).thenReturn(List.of(dp));
 
     DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+
     List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL", 1, 10);
 
     assertEquals(1, result.size());
+
     assertEquals(LocalDate.of(2026, 5, 29), result.get(0).priceDate());
   }
 }

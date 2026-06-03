@@ -14,7 +14,9 @@ class AnalysisControllerTest {
 
   @Test
   void testGetTechnicalAnalysis() {
+
     AnalysisService service = mock(AnalysisService.class);
+
     AnalysisResponseDTO mockResponse =
         AnalysisResponseDTO.builder()
             .symbol("AAPL")
@@ -31,13 +33,17 @@ class AnalysisControllerTest {
             .volumeValue("Heavy")
             .overallSignal("BUY")
             .build();
+
     when(service.getAnalysis("AAPL")).thenReturn(mockResponse);
 
     AnalysisController controller = new AnalysisController(service);
+
     AnalysisResponseDTO result = controller.getTechnicalAnalysis("AAPL");
 
     assertNotNull(result);
+
     assertEquals("AAPL", result.symbol());
+
     assertEquals("BUY", result.overallSignal());
   }
 }

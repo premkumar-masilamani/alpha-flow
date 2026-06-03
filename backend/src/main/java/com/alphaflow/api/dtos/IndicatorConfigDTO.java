@@ -5,7 +5,8 @@ import lombok.Builder;
 
 /**
  * One configured indicator combo, returned by the discovery endpoint so the UI can build its
- * controls from configuration rather than a hardcoded list.
+ *
+ * <p>controls from configuration rather than a hardcoded list.
  */
 @Builder
 public record IndicatorConfigDTO(

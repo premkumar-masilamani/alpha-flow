@@ -25,15 +25,21 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class WeeklyTickerProcessorTest {
 
   // 2024-01-01 is a Monday.
+
   private static final LocalDate MONDAY = LocalDate.of(2024, 1, 1);
+
   private final Ticker ticker =
       Ticker.builder().tickerId(1L).tickerSymbol("TST").tickerName("Test").build();
+
   @Mock private DailyPriceRepository dailyPriceRepository;
+
   @Mock private WeeklyPriceRepository weeklyPriceRepository;
+
   @InjectMocks private WeeklyTickerProcessor processor;
 
   private DailyPrice daily(
       LocalDate date, String open, String high, String low, String close, long vol) {
+
     return DailyPrice.builder()
         .ticker(ticker)
         .priceDate(date)
@@ -47,6 +53,7 @@ class WeeklyTickerProcessorTest {
 
   @Test
   void rollsDailyPricesIntoWeeklyOhlcv_whenNoExistingWeekly() {
+
     List<DailyPrice> dailies =
         List.of(
             daily(MONDAY, "10", "12", "9", "11", 100),
@@ -55,11 +62,14 @@ class WeeklyTickerProcessorTest {
 
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
+
     when(dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(Optional.of(dailies.getFirst()));
+
     when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
             eq(ticker), any()))
         .thenReturn(dailies);
+
     when(weeklyPriceRepository.findByTickerAndPriceDateGreaterThanEqual(eq(ticker), any()))
         .thenReturn(List.of());
 
@@ -67,21 +77,31 @@ class WeeklyTickerProcessorTest {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklyPrice>> captor = ArgumentCaptor.forClass(List.class);
+
     verify(weeklyPriceRepository).saveAll(captor.capture());
 
     List<WeeklyPrice> saved = captor.getValue();
+
     assertThat(saved).hasSize(1);
+
     WeeklyPrice wp = saved.getFirst();
+
     assertThat(wp.getPriceDate()).isEqualTo(MONDAY);
+
     assertThat(wp.getPriceOpen()).isEqualByComparingTo("10"); // first day's open
+
     assertThat(wp.getPriceClose()).isEqualByComparingTo("12"); // last day's close
+
     assertThat(wp.getPriceHigh()).isEqualByComparingTo("16"); // max high
+
     assertThat(wp.getPriceLow()).isEqualByComparingTo("8"); // min low
+
     assertThat(wp.getVolume()).isEqualTo(450L); // summed volume
   }
 
   @Test
   void reusesExistingWeeklyRow_forUpdateInsteadOfInsert() {
+
     WeeklyPrice existing =
         WeeklyPrice.builder()
             .weeklyPriceId(99L)
@@ -98,9 +118,11 @@ class WeeklyTickerProcessorTest {
 
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.of(existing));
+
     when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
             eq(ticker), any()))
         .thenReturn(dailies);
+
     when(weeklyPriceRepository.findByTickerAndPriceDateGreaterThanEqual(eq(ticker), any()))
         .thenReturn(List.of(existing));
 
@@ -108,22 +130,31 @@ class WeeklyTickerProcessorTest {
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklyPrice>> captor = ArgumentCaptor.forClass(List.class);
+
     verify(weeklyPriceRepository).saveAll(captor.capture());
 
     List<WeeklyPrice> saved = captor.getValue();
+
     assertThat(saved).hasSize(1);
+
     // The same persistent instance must be reused (updated), preserving its id.
+
     assertThat(saved.getFirst()).isSameAs(existing);
+
     assertThat(saved.getFirst().getWeeklyPriceId()).isEqualTo(99L);
+
     assertThat(saved.getFirst().getPriceClose()).isEqualByComparingTo("11");
   }
 
   @Test
   void doesNothing_whenNoDailyPrices() {
+
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
+
     when(dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(Optional.empty());
+
     when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
             eq(ticker), any()))
         .thenReturn(List.of());

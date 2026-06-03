@@ -1,30 +1,31 @@
-# Makefile for React application
+-include ../.env
+ifneq ($(wildcard ../.env),)
+    export $(shell sed 's/=.*//' ../.env)
+endif
 
-.PHONY: install dev build preview lint clean help
+NPM         := npm
+NODE_ENV    ?= development
 
-install:
-	npm install
+.PHONY: dev test lint build clean
+
+all: dev
 
 dev:
-	npm run dev
+	@echo "Starting development environment..."
+	$(NPM) run dev
 
-build:
-	npm run build
-
-preview:
-	npm run preview
+test:
+	@echo "Running unit tests using Vitest..."
+	npx vitest run
 
 lint:
-	npm run lint
+	@echo "Running static analysis code verification..."
+	$(NPM) run lint
+
+build:
+	@echo "Building production bundles (NODE_ENV=$(NODE_ENV))..."
+	$(NPM) run build
 
 clean:
-	rm -rf node_modules dist
-
-help:
-	@echo "Available targets:"
-	@echo "  make install  - Install dependencies"
-	@echo "  make dev      - Run Vite dev server"
-	@echo "  make build    - Create production build"
-	@echo "  make preview  - Preview production build"
-	@echo "  make lint     - Run ESLint"
-	@echo "  make clean    - Remove node_modules and dist"
+	@echo "Cleaning up local build workspaces..."
+	rm -rf dist

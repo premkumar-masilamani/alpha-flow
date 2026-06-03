@@ -15,8 +15,11 @@ class AlphaFlowAppTest {
 
   @Test
   void mainStartsSpringApplication() {
+
     try (MockedStatic<SpringApplication> springAppMock = mockStatic(SpringApplication.class)) {
+
       ConfigurableApplicationContext mockContext = mock(ConfigurableApplicationContext.class);
+
       springAppMock
           .when(() -> SpringApplication.run(eq(AlphaFlowApp.class), any(String[].class)))
           .thenReturn(mockContext);
@@ -28,6 +31,7 @@ class AlphaFlowAppTest {
     }
 
     AlphaFlowApp app = new AlphaFlowApp();
+
     assertNotNull(app);
   }
 }

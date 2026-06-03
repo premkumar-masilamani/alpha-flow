@@ -8,8 +8,9 @@ import lombok.Builder;
 
 /**
  * One indicator reading for one bar. {@code values} is keyed by output name so multi-plot
- * indicators carry all their plots together (e.g. MACD -> {@code
- * {"macd":..,"signal":..,"histogram":..}}).
+ * indicators
+ *
+ * <p>carry all their plots together (e.g. MACD -> {@code {"macd":..,"signal":..,"histogram":..}}).
  */
 @Builder
 public record IndicatorPointDTO(

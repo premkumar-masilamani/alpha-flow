@@ -19,19 +19,24 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ResourceNotFoundException.class)
   public ResponseEntity<Map<String, Object>> handleNotFound(
       ResourceNotFoundException ex, HttpServletRequest request) {
+
     log.warn("Resource not found for path {}: {}", request.getRequestURI(), ex.getMessage());
+
     return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleBadRequest(
       IllegalArgumentException ex, HttpServletRequest request) {
+
     log.warn("Bad request for path {}: {}", request.getRequestURI(), ex.getMessage());
+
     return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
   }
 
   private ResponseEntity<Map<String, Object>> build(
       HttpStatus status, String message, HttpServletRequest request) {
+
     return ResponseEntity.status(status)
         .body(
             Map.of(

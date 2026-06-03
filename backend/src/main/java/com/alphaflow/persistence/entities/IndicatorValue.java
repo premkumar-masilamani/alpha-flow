@@ -12,8 +12,11 @@ import lombok.*;
  * A single published indicator plot value for one bar.
  *
  * <p>The table is long/tall: an indicator that emits multiple plots (MACD -> macd/signal/histogram,
- * Stochastic -> k/d) produces one row per plot, distinguished by {@code outputName}. Rows are only
- * written once the indicator is fully defined, so {@code value} is never null.
+ *
+ * <p>Stochastic -> k/d) produces one row per plot, distinguished by {@code outputName}. Rows are
+ * only
+ *
+ * <p>written once the indicator is fully defined, so {@code value} is never null.
  */
 @Entity
 @Table(name = "indicator_values")

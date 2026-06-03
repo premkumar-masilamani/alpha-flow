@@ -8,11 +8,15 @@ class YahooFinanceConfigTest {
 
   @Test
   void testConfigProperties() {
+
     YahooFinanceConfig config = new YahooFinanceConfig();
+
     config.setDownloadUrl("https://example.com");
+
     config.setDelayMilliseconds(1000L);
 
     assertEquals("https://example.com", config.getDownloadUrl());
+
     assertEquals(1000L, config.getDelayMilliseconds());
   }
 }

@@ -17,10 +17,13 @@ public class CorsConfig implements WebMvcConfigurer {
 
   @Override
   public void addCorsMappings(@NonNull CorsRegistry registry) {
+
     if (allowedOrigins == null || allowedOrigins.isEmpty()) {
+
       throw new IllegalStateException(
           "alphaflow.cors.allowed-origins is not configured. Set the CORS_ALLOWED_ORIGINS environment variable.");
     }
+
     registry
         .addMapping("/api/**")
         .allowedOrigins(allowedOrigins.toArray(String[]::new))

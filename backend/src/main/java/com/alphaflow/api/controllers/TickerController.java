@@ -19,18 +19,23 @@ public class TickerController {
   private final TickerService tickerService;
 
   public TickerController(TickerService tickerService) {
+
     this.tickerService = tickerService;
   }
 
   @GetMapping("/tickers")
   public List<TickerDTO> getAllTickers() {
+
     log.info("Request to get all tickers");
+
     return tickerService.getAllTickers();
   }
 
   @GetMapping("/tickers/{symbol}")
   public TickerDTO getTickerBySymbol(@PathVariable String symbol) {
+
     log.info("Request to get ticker by symbol: {}", symbol);
+
     return tickerService.getTickerBySymbol(symbol);
   }
 }

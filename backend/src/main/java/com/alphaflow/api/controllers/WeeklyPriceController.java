@@ -20,6 +20,7 @@ public class WeeklyPriceController {
   private final WeeklyPriceService weeklyPriceService;
 
   public WeeklyPriceController(WeeklyPriceService weeklyPriceService) {
+
     this.weeklyPriceService = weeklyPriceService;
   }
 
@@ -28,7 +29,9 @@ public class WeeklyPriceController {
       @PathVariable String symbol,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(required = false) Integer size) {
+
     log.info("Request to get weekly data for ticker: {}, page: {}, size: {}", symbol, page, size);
+
     return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, size);
   }
 }

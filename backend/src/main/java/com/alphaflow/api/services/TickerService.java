@@ -19,22 +19,27 @@ public class TickerService {
   private final TickerRepository tickerRepository;
 
   public TickerService(TickerRepository tickerRepository) {
+
     this.tickerRepository = tickerRepository;
   }
 
   public TickerDTO getTickerBySymbol(String symbol) {
+
     log.debug("Fetching ticker for symbol: {}", symbol);
+
     return tickerRepository
         .findByTickerSymbol(symbol)
         .map(TickerMapper::toDTO)
         .orElseThrow(
             () -> {
               log.warn("Ticker not found for symbol: {}", symbol);
+
               return new ResourceNotFoundException("Ticker not found: " + symbol);
             });
   }
 
   public List<TickerDTO> getAllTickers() {
+
     return tickerRepository.findByIsActiveTrue().stream().map(TickerMapper::toDTO).toList();
   }
 }

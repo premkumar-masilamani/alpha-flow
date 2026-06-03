@@ -12,37 +12,46 @@ class IndicatorMapperTest {
 
   @Test
   void testLabelAllTypesAndSources() {
+
     // EMA Close
+
     assertEquals(
         "EMA(20)",
         IndicatorMapper.label(
             IndicatorType.EMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
+
     // EMA Open (non-CLOSE)
+
     assertEquals(
         "EMA(20) OPEN",
         IndicatorMapper.label(
             IndicatorType.EMA, PriceSource.OPEN, IndicatorParams.of(Map.of("period", 20))));
 
     // SMA
+
     assertEquals(
         "SMA(50)",
         IndicatorMapper.label(
             IndicatorType.SMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 50))));
 
     // RSI
+
     assertEquals(
         "RSI(14)",
         IndicatorMapper.label(
             IndicatorType.RSI, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 14))));
 
     // MACD (with default signal)
+
     assertEquals(
         "MACD(12,26,9)",
         IndicatorMapper.label(
             IndicatorType.MACD,
             PriceSource.CLOSE,
             IndicatorParams.of(Map.of("fast", 12, "slow", 26))));
+
     // MACD (with custom signal)
+
     assertEquals(
         "MACD(12,26,8)",
         IndicatorMapper.label(
@@ -51,6 +60,7 @@ class IndicatorMapperTest {
             IndicatorParams.of(Map.of("fast", 12, "slow", 26, "signal", 8))));
 
     // Stochastic
+
     assertEquals(
         "Stoch(14,3,3)",
         IndicatorMapper.label(
@@ -61,14 +71,22 @@ class IndicatorMapperTest {
 
   @Test
   void testConstructorIsPrivate() throws Exception {
+
     java.lang.reflect.Constructor<IndicatorMapper> constructor =
         IndicatorMapper.class.getDeclaredConstructor();
+
     assertTrue(java.lang.reflect.Modifier.isPrivate(constructor.getModifiers()));
+
     constructor.setAccessible(true);
+
     try {
+
       constructor.newInstance();
+
       fail("Should throw exception");
+
     } catch (java.lang.reflect.InvocationTargetException e) {
+
       assertInstanceOf(UnsupportedOperationException.class, e.getCause());
     }
   }

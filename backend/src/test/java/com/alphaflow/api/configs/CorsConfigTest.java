@@ -14,7 +14,9 @@ class CorsConfigTest {
 
   @Test
   void testAddCorsMappingsThrowsExceptionIfNull() {
+
     CorsConfig config = new CorsConfig();
+
     config.setAllowedOrigins(null);
 
     assertThrows(
@@ -23,7 +25,9 @@ class CorsConfigTest {
 
   @Test
   void testAddCorsMappingsThrowsExceptionIfEmpty() {
+
     CorsConfig config = new CorsConfig();
+
     config.setAllowedOrigins(List.of());
 
     assertThrows(
@@ -32,23 +36,35 @@ class CorsConfigTest {
 
   @Test
   void testAddCorsMappingsRegistersCorrectly() {
+
     CorsConfig config = new CorsConfig();
+
     List<String> origins = List.of("http://localhost:3000", "https://app.example.com");
+
     config.setAllowedOrigins(origins);
+
     assertEquals(origins, config.getAllowedOrigins());
 
     CorsRegistry registry = mock(CorsRegistry.class);
+
     CorsRegistration registration = mock(CorsRegistration.class);
+
     when(registry.addMapping("/api/**")).thenReturn(registration);
+
     when(registration.allowedOrigins(any(String[].class))).thenReturn(registration);
+
     when(registration.allowedMethods(any(String[].class))).thenReturn(registration);
+
     when(registration.allowedHeaders(any(String[].class))).thenReturn(registration);
 
     config.addCorsMappings(registry);
 
     verify(registry).addMapping("/api/**");
+
     verify(registration).allowedOrigins("http://localhost:3000", "https://app.example.com");
+
     verify(registration).allowedMethods("GET", "OPTIONS");
+
     verify(registration).allowedHeaders("Content-Type", "Accept");
   }
 }

@@ -18,17 +18,21 @@ import java.util.Map;
 
 /**
  * Maps indicator config and persisted plot values into the API DTOs, including a human-readable
- * label per combo (e.g. {@code "MACD(12,26,9)"}, {@code "SMA(20) VOL"}).
+ *
+ * <p>label per combo (e.g. {@code "MACD(12,26,9)"}, {@code "SMA(20) VOL"}).
  */
 public class IndicatorMapper {
 
   private IndicatorMapper() {
+
     throw new UnsupportedOperationException("Utility class");
   }
 
   public static IndicatorConfigDTO toConfigDTO(
       Timeframe timeframe, IndicatorDefinition definition) {
+
     IndicatorParams params = IndicatorParams.of(definition.getParams());
+
     return IndicatorConfigDTO.builder()
         .timeframe(timeframe.name())
         .type(definition.getType().name())
@@ -42,29 +46,40 @@ public class IndicatorMapper {
 
   /**
    * Groups chronological plot rows into one series per (type, source, params) combo, with each
-   * bar's plots collected into a single point. Encounter order is preserved (rows arrive
+   *
+   * <p>bar's plots collected into a single point. Encounter order is preserved (rows arrive
    * ascending).
    */
   public static List<IndicatorSeriesDTO> toSeries(List<IndicatorValue> rows) {
+
     Map<String, List<IndicatorValue>> byCombo = new LinkedHashMap<>();
+
     for (IndicatorValue row : rows) {
+
       byCombo.computeIfAbsent(comboKey(row), k -> new ArrayList<>()).add(row);
     }
 
     List<IndicatorSeriesDTO> series = new ArrayList<>();
+
     for (List<IndicatorValue> combo : byCombo.values()) {
+
       IndicatorValue first = combo.getFirst();
+
       IndicatorParams params = IndicatorParams.parse(first.getParams());
 
       Map<LocalDate, Map<String, BigDecimal>> byDate = new LinkedHashMap<>();
+
       for (IndicatorValue row : combo) {
+
         byDate
             .computeIfAbsent(row.getPriceDate(), d -> new LinkedHashMap<>())
             .put(row.getOutputName(), row.getValue());
       }
 
       List<IndicatorPointDTO> points = new ArrayList<>();
+
       for (Map.Entry<LocalDate, Map<String, BigDecimal>> entry : byDate.entrySet()) {
+
         points.add(
             IndicatorPointDTO.builder().date(entry.getKey()).values(entry.getValue()).build());
       }
@@ -78,15 +93,20 @@ public class IndicatorMapper {
               .points(points)
               .build());
     }
+
     return series;
   }
 
   static String label(IndicatorType type, PriceSource source, IndicatorParams params) {
+
     String base =
         switch (type) {
           case EMA -> "EMA(" + params.getInt("period") + ")";
+
           case SMA -> "SMA(" + params.getInt("period") + ")";
+
           case RSI -> "RSI(" + params.getInt("period") + ")";
+
           case MACD -> "MACD("
               + params.getInt("fast")
               + ","
@@ -94,6 +114,7 @@ public class IndicatorMapper {
               + ","
               + params.getInt("signal", 9)
               + ")";
+
           case STOCHASTIC -> "Stoch("
               + params.getInt("k")
               + ","
@@ -102,10 +123,12 @@ public class IndicatorMapper {
               + params.getInt("dSmooth")
               + ")";
         };
+
     return source == PriceSource.CLOSE ? base : base + " " + source.name();
   }
 
   private static String comboKey(IndicatorValue row) {
-    return row.getIndicatorType() + "|" + row.getSource() + "|" + row.getParams();
+
+    return (row.getIndicatorType() + "|" + row.getSource() + "|" + row.getParams());
   }
 }

@@ -20,6 +20,7 @@ public class DailyPriceController {
   private final DailyPriceService dailyPriceService;
 
   public DailyPriceController(DailyPriceService dailyPriceService) {
+
     this.dailyPriceService = dailyPriceService;
   }
 
@@ -28,7 +29,9 @@ public class DailyPriceController {
       @PathVariable String symbol,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(required = false) Integer size) {
+
     log.info("Request to get daily data for ticker: {}, page: {}, size: {}", symbol, page, size);
+
     return dailyPriceService.getDailyPriceByTickerName(symbol, page, size);
   }
 }

@@ -18,13 +18,18 @@ public class IndicatorController {
   private final IndicatorService indicatorService;
 
   public IndicatorController(IndicatorService indicatorService) {
+
     this.indicatorService = indicatorService;
   }
 
   private static Timeframe parseTimeframe(String timeframe) {
+
     try {
+
       return Timeframe.valueOf(timeframe.trim().toUpperCase());
+
     } catch (IllegalArgumentException | NullPointerException e) {
+
       throw new IllegalArgumentException(
           "Invalid timeframe: '" + timeframe + "' (expected DAILY or WEEKLY)");
     }
@@ -33,7 +38,9 @@ public class IndicatorController {
   /** Discovery: the configured indicator matrix, so clients can build controls from config. */
   @GetMapping("/indicators")
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
+
     log.info("Request to get configured indicators");
+
     return indicatorService.getConfiguredIndicators();
   }
 
@@ -44,12 +51,14 @@ public class IndicatorController {
       @RequestParam String timeframe,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(required = false) Integer size) {
+
     log.info(
         "Request to get {} indicators for ticker: {}, page: {}, size: {}",
         timeframe,
         symbol,
         page,
         size);
+
     return indicatorService.getIndicatorSeries(symbol, parseTimeframe(timeframe), page, size);
   }
 }

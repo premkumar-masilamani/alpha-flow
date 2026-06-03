@@ -18,12 +18,15 @@ public class AnalysisController {
   private final AnalysisService analysisService;
 
   public AnalysisController(AnalysisService analysisService) {
+
     this.analysisService = analysisService;
   }
 
   @GetMapping("/tickers/{symbol}/analysis")
   public AnalysisResponseDTO getTechnicalAnalysis(@PathVariable String symbol) {
+
     log.info("Request to get technical analysis for ticker: {}", symbol);
+
     return analysisService.getAnalysis(symbol);
   }
 }

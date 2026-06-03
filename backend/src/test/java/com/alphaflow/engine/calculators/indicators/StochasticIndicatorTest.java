@@ -11,6 +11,7 @@ class StochasticIndicatorTest {
 
   @Test
   void stochasticStaysInRange() {
+
     IndicatorResult r =
         new StochasticIndicator()
             .compute(
@@ -18,25 +19,31 @@ class StochasticIndicatorTest {
                 null,
                 IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"),
                 PriceSource.CLOSE);
+
     assertFalse(r.values().isEmpty());
+
     r.values()
         .forEach(
             p -> {
               assertTrue(p.value().compareTo(BigDecimal.ZERO) >= 0);
+
               assertTrue(p.value().compareTo(IndicatorMath.HUNDRED) <= 0);
             });
   }
 
   @Test
   void stochasticResumeMatchesBackfill() {
+
     assertWindowedResumeMatchesBackfill(
         new StochasticIndicator(), IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"), 25, 50, 75);
   }
 
   @Test
   void stochasticZeroRangeDoesNotThrow() {
+
     // Flat price series (highestHigh == lowestLow) should result in %K and %D being 0, not throwing
     // ArithmeticException
+
     IndicatorResult r =
         new StochasticIndicator()
             .compute(
@@ -46,7 +53,9 @@ class StochasticIndicatorTest {
                 null,
                 IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"),
                 PriceSource.CLOSE);
+
     assertFalse(r.values().isEmpty());
+
     r.values()
         .forEach(
             p ->
@@ -56,6 +65,7 @@ class StochasticIndicatorTest {
 
   @Test
   void testRequiresState() {
+
     assertFalse(new StochasticIndicator().requiresState());
   }
 }

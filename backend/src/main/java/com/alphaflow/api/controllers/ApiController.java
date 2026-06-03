@@ -21,6 +21,7 @@ public class ApiController implements ErrorController {
 
   @RequestMapping("/api")
   public Map<String, Object> index() {
+
     return Map.of(
         "name", "Alpha Flow Application",
         "version", "0.1.0",
@@ -32,7 +33,9 @@ public class ApiController implements ErrorController {
   public Map<String, Object> handleError(HttpServletRequest request) {
 
     Integer status = (Integer) request.getAttribute("jakarta.servlet.error.status_code");
+
     Throwable exception = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
+
     String path = (String) request.getAttribute("jakarta.servlet.error.request_uri");
 
     log.error(
@@ -44,7 +47,9 @@ public class ApiController implements ErrorController {
     HttpStatus httpStatus = valueOf(ofNullable(status).orElse(INTERNAL_SERVER_ERROR.value()));
 
     // Do not leak internal exception details to clients; return the generic status reason only.
+
     // Full detail is captured in the server-side log above.
+
     return Map.of(
         "status", httpStatus.value(),
         "error", httpStatus.getReasonPhrase(),

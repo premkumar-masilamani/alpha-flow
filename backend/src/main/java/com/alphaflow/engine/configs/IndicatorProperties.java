@@ -13,14 +13,22 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * The global, hardcoded indicator matrix: which (indicator, source, params) combinations are
- * computed on which timeframe. Bound from {@code alphaflow.indicators.*} so the set can be tuned
- * via configuration without recompiling the engine. The indicator math lives in code; only the
- * which-combos-to-run list is externalized here.
+ *
+ * <p>computed on which timeframe. Bound from {@code alphaflow.indicators.*} so the set can be tuned
+ * via
+ *
+ * <p>configuration without recompiling the engine. The indicator math lives in code; only the
+ *
+ * <p>which-combos-to-run list is externalized here.
  *
  * <pre>
+ *
  * alphaflow.indicators.timeframes.daily[0].type=EMA
+ *
  * alphaflow.indicators.timeframes.daily[0].source=CLOSE
+ *
  * alphaflow.indicators.timeframes.daily[0].params.period=5
+ *
  * </pre>
  */
 @Configuration
@@ -33,12 +41,15 @@ public class IndicatorProperties {
 
   /** The configured indicators for a timeframe, or an empty list if none. */
   public List<IndicatorDefinition> forTimeframe(Timeframe timeframe) {
+
     return timeframes.getOrDefault(timeframe, List.of());
   }
 
   @Data
   public static class IndicatorDefinition {
+
     private IndicatorType type;
+
     private PriceSource source = PriceSource.CLOSE;
 
     /**
@@ -47,6 +58,7 @@ public class IndicatorProperties {
     private Map<String, Integer> params = new LinkedHashMap<>();
 
     private Integer upperBound;
+
     private Integer lowerBound;
   }
 }

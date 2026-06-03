@@ -7,8 +7,10 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * API read tunables. {@code window} caps how many of the most recent bars the OHLCV and indicator
- * endpoints return, per timeframe, so chart overlays line up with the candles they sit on. Bound
- * from {@code alphaflow.api.window}; falls back to {@link #DEFAULT_WINDOW} when unset.
+ *
+ * <p>endpoints return, per timeframe, so chart overlays line up with the candles they sit on. Bound
+ *
+ * <p>from {@code alphaflow.api.window}; falls back to {@link #DEFAULT_WINDOW} when unset.
  */
 @Configuration
 @ConfigurationProperties(prefix = "alphaflow.api")
@@ -20,6 +22,7 @@ public class ApiProperties {
   private int window = DEFAULT_WINDOW;
 
   public int windowFor(Timeframe timeframe) {
+
     return window;
   }
 }

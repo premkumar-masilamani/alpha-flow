@@ -11,14 +11,20 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * Resume checkpoint for one (ticker, timeframe, indicator, source, params) combo, enabling
- * incremental computation without replaying full price history.
  *
- * <p>Every combo has exactly one row — including windowed indicators (SMA, Stochastic) whose {@code
- * internals} stay null — so cold-start detection and the contiguity check are uniform. {@code
- * lastPriceDate} always lags the latest published bar by at least one finalized bar (the
- * in-progress bar is never checkpointed). {@code internals} stores recursive running state (prev
- * EMA, Wilder avg gain/loss, etc.) as a JSON object of string-encoded decimals so resume is
- * bit-exact and never round-trips through {@code double}.
+ * <p>incremental computation without replaying full price history.
+ *
+ * <p>Every combo has exactly one row — including windowed indicators (SMA, Stochastic) whose
+ *
+ * <p>{@code internals} stay null — so cold-start detection and the contiguity check are uniform.
+ *
+ * <p>{@code lastPriceDate} always lags the latest published bar by at least one finalized bar
+ *
+ * <p>(the in-progress bar is never checkpointed). {@code internals} stores recursive running state
+ *
+ * <p>(prev EMA, Wilder avg gain/loss, etc.) as a JSON object of string-encoded decimals so resume
+ *
+ * <p>is bit-exact and never round-trips through {@code double}.
  */
 @Entity
 @Table(name = "indicator_state")

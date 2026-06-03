@@ -10,7 +10,9 @@ import org.springframework.stereotype.Component;
  * Resolves an {@link IndicatorType} to its {@link Indicator} implementation.
  *
  * <p>Spring injects every {@link Indicator} bean; adding a new indicator family is just a new bean
- * — it registers itself here automatically with no change to the engine.
+ * —
+ *
+ * <p>it registers itself here automatically with no change to the engine.
  */
 @Component
 public class IndicatorRegistry {
@@ -18,9 +20,13 @@ public class IndicatorRegistry {
   private final Map<IndicatorType, Indicator> byType = new EnumMap<>(IndicatorType.class);
 
   public IndicatorRegistry(List<Indicator> indicators) {
+
     for (Indicator indicator : indicators) {
+
       Indicator existing = byType.put(indicator.type(), indicator);
+
       if (existing != null) {
+
         throw new IllegalStateException(
             "Duplicate Indicator beans for type "
                 + indicator.type()
@@ -33,10 +39,14 @@ public class IndicatorRegistry {
   }
 
   public Indicator get(IndicatorType type) {
+
     Indicator indicator = byType.get(type);
+
     if (indicator == null) {
+
       throw new IllegalArgumentException("No Indicator registered for type " + type);
     }
+
     return indicator;
   }
 }
