@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h4>Per-combo algorithm</h4>
  *
- * For each (timeframe, indicator, source, params):
+ * <p>For each (timeframe, indicator, source, params):
  *
  * <ol>
  *   <li><b>Resume vs. backfill.</b> If a checkpoint exists, its {@code lastPriceDate} is present in
@@ -54,7 +54,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       <p>never frozen into resume state.
  * </ol>
  *
- * Note: this loads each ticker's full price history per run (a read); the write volume is what is
+ * <p>Note: this loads each ticker's full price history per run (a read); the write volume is what
+ * is
  *
  * <p>minimized (only the tail is rewritten). Tail-only <i>loading</i> is a deferred optimization.
  */

@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code d} (%D) = SMA(%K, dSmooth)
  * </ul>
  *
- * Range is taken from the {@code high}/{@code low} fields (not the configured source); when the
+ * <p>Range is taken from the {@code high}/{@code low} fields (not the configured source); when the
  * range is zero, rawK is defined as 0 to avoid division by zero. Windowed and non-recursive ({@code
  * newStateJson == null}); resumed purely from the price bars the caller loads.
  */

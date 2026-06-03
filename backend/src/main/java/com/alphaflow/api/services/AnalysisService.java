@@ -26,14 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AnalysisService {
 
-  @Autowired @Lazy private AnalysisService self;
-
   private static final Logger log = LoggerFactory.getLogger(AnalysisService.class);
-
   private final DailyPriceService dailyPriceService;
   private final IndicatorService indicatorService;
   private final TickerRepository tickerRepository;
   private final AnalysisResultRepository analysisResultRepository;
+  @Autowired @Lazy private AnalysisService self;
 
   public AnalysisService(
       DailyPriceService dailyPriceService,
@@ -199,16 +197,6 @@ public class AnalysisService {
     result.setOverallSignal(overallSignal);
 
     return analysisResultRepository.save(result);
-  }
-
-  private static class CalculatedSignal {
-    final String signal;
-    final String value;
-
-    CalculatedSignal(String signal, String value) {
-      this.signal = signal;
-      this.value = value;
-    }
   }
 
   private CalculatedSignal evaluateWeeklyMacd(List<IndicatorSeriesDTO> weeklyIndicators) {
@@ -441,6 +429,16 @@ public class AnalysisService {
       return new CalculatedSignal("SELL", "EMA 5 < 13 & 26 (Bearish Alignment)");
     } else {
       return new CalculatedSignal("HOLD", "Mixed EMAs");
+    }
+  }
+
+  private static class CalculatedSignal {
+    final String signal;
+    final String value;
+
+    CalculatedSignal(String signal, String value) {
+      this.signal = signal;
+      this.value = value;
     }
   }
 }

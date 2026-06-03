@@ -8,8 +8,6 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "alphaflow.yahoo")
 @Data
 public class YahooFinanceConfig {
-
   private String downloadUrl;
-
   private long delayMilliseconds;
 }

@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.configs.ApiProperties;
+import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.engine.configs.IndicatorProperties;
@@ -90,7 +90,7 @@ class IndicatorServiceTest {
     service =
         new IndicatorService(
             indicatorProperties,
-            new ApiProperties(),
+            new ChartConfig(),
             tickerRepository,
             dailyPriceRepository,
             weeklyPriceRepository,
@@ -103,13 +103,13 @@ class IndicatorServiceTest {
     indicatorProperties.setTimeframes(
         Map.of(
             Timeframe.DAILY,
-                List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5))),
+            List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5))),
             Timeframe.WEEKLY,
-                List.of(
-                    def(
-                        IndicatorType.MACD,
-                        PriceSource.CLOSE,
-                        Map.of("fast", 12, "slow", 26, "signal", 9)))));
+            List.of(
+                def(
+                    IndicatorType.MACD,
+                    PriceSource.CLOSE,
+                    Map.of("fast", 12, "slow", 26, "signal", 9)))));
 
     List<IndicatorConfigDTO> configs = service.getConfiguredIndicators();
 

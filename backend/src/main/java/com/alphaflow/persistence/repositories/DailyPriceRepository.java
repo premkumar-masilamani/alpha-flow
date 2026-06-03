@@ -15,23 +15,23 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
   @Query(
       """
-                SELECT dp FROM DailyPrice dp
-                JOIN FETCH dp.ticker tk
-                WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
-                ORDER BY dp.priceDate DESC
-            """)
+                        SELECT dp FROM DailyPrice dp
+                        JOIN FETCH dp.ticker tk
+                        WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
+                        ORDER BY dp.priceDate DESC
+                    """)
   List<DailyPrice> findLatestByTickerName(String tickerName, Pageable pageable);
 
   Optional<DailyPrice> findTopByTickerOrderByPriceDateAsc(Ticker ticker);
 
   @Query(
       """
-                SELECT tk.tickerId AS tickerId,
-                       COALESCE(MAX(dp.priceDate), :defaultDate) AS latestPriceDate
-                FROM Ticker tk
-                LEFT JOIN DailyPrice dp ON dp.ticker = tk
-                GROUP BY tk.tickerId
-            """)
+                        SELECT tk.tickerId AS tickerId,
+                               COALESCE(MAX(dp.priceDate), :defaultDate) AS latestPriceDate
+                        FROM Ticker tk
+                        LEFT JOIN DailyPrice dp ON dp.ticker = tk
+                        GROUP BY tk.tickerId
+                    """)
   List<TickerLatestPriceDateView> findLatestPriceDatesForAllTickers(LocalDate defaultDate);
 
   @Query(
@@ -49,10 +49,10 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
   @Query(
       """
-                SELECT dp.priceDate FROM DailyPrice dp
-                WHERE LOWER(dp.ticker.tickerSymbol) = LOWER(:symbol)
-                ORDER BY dp.priceDate DESC
-            """)
+                        SELECT dp.priceDate FROM DailyPrice dp
+                        WHERE LOWER(dp.ticker.tickerSymbol) = LOWER(:symbol)
+                        ORDER BY dp.priceDate DESC
+                    """)
   List<LocalDate> findRecentPriceDates(String symbol, Pageable pageable);
 
   interface TickerLatestPriceDateView {

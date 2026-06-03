@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class AnalysisControllerTest {
 
   @Test
-  void testGetTechnicalAnalysis() {
+  void testGetTechnicalAnalysisForTicker() {
 
     AnalysisService service = mock(AnalysisService.class);
 
@@ -38,7 +38,7 @@ class AnalysisControllerTest {
 
     AnalysisController controller = new AnalysisController(service);
 
-    AnalysisResponseDTO result = controller.getTechnicalAnalysis("AAPL");
+    AnalysisResponseDTO result = controller.getTechnicalAnalysisForTicker("AAPL");
 
     assertNotNull(result);
 

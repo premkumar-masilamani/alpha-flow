@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  *   <li>{@code histogram} = macd − signal
  * </ul>
  *
- * Recursive: state is {@code {"fastEma","slowEma","signalEma"}}. State (and therefore a resume
+ * <p>Recursive: state is {@code {"fastEma","slowEma","signalEma"}}. State (and therefore a resume
  *
  * <p>checkpoint) is only produced once the signal EMA is seeded — before that the warm-up is
  * recomputed

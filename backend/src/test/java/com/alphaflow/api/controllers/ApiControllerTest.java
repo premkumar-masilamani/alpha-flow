@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.api.controllers.generic.ApiController;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

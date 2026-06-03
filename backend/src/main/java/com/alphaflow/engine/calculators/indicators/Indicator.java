@@ -26,7 +26,8 @@ import java.util.List;
  *       <p>ignore state and require the caller to include enough lookback bars in {@code bars}.
  * </ul>
  *
- * The contract guarantees resume reproduces a full backfill bit-for-bit over the overlapping dates.
+ * <p>The contract guarantees resume reproduces a full backfill bit-for-bit over the overlapping
+ * dates.
  */
 public interface Indicator {
 

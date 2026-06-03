@@ -28,22 +28,19 @@ import org.springframework.stereotype.Service;
 public class YahooFinanceDownloader {
 
   private static final Logger log = LoggerFactory.getLogger(YahooFinanceDownloader.class);
-  private static final LocalDate DEFAULT_LATEST_CANDLE_DATE = LocalDate.of(1900, 1, 1);
+  private static final LocalDate DEFAULT_DATE = LocalDate.of(1900, 1, 1);
 
   private final YahooFinanceConfig yahooFinanceConfig;
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
-  private final ObjectMapper objectMapper;
 
   public YahooFinanceDownloader(
       YahooFinanceConfig yahooFinanceConfig,
       TickerRepository tickerRepository,
-      DailyPriceRepository dailyPriceRepository,
-      ObjectMapper objectMapper) {
+      DailyPriceRepository dailyPriceRepository) {
     this.yahooFinanceConfig = yahooFinanceConfig;
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
-    this.objectMapper = objectMapper;
   }
 
   public void download() {
@@ -54,7 +51,7 @@ public class YahooFinanceDownloader {
 
     ZoneId utcZone = ZoneId.of("UTC");
     Map<Long, LocalDate> latestSavedDatesByTickerId =
-        dailyPriceRepository.findLatestPriceDatesForAllTickers(DEFAULT_LATEST_CANDLE_DATE).stream()
+        dailyPriceRepository.findLatestPriceDatesForAllTickers(DEFAULT_DATE).stream()
             .collect(
                 Collectors.toMap(
                     DailyPriceRepository.TickerLatestPriceDateView::getTickerId,
@@ -96,8 +93,7 @@ public class YahooFinanceDownloader {
   }
 
   private void downloadDataForTicker(Ticker ticker, LocalDate latestSavedDate, ZoneId utcZone) {
-    LocalDate startDate =
-        latestSavedDate != null ? latestSavedDate.plusDays(1) : DEFAULT_LATEST_CANDLE_DATE;
+    LocalDate startDate = latestSavedDate != null ? latestSavedDate.plusDays(1) : DEFAULT_DATE;
 
     long startTs = startDate.atStartOfDay(utcZone).toEpochSecond();
     long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
@@ -168,6 +164,7 @@ public class YahooFinanceDownloader {
     connection.setRequestProperty("Accept", "application/json");
 
     InputStream in = connection.getInputStream();
+    ObjectMapper objectMapper = new ObjectMapper();
     try {
       JsonNode root = objectMapper.readTree(in);
       JsonNode result = root.path("chart").path("result").get(0);

@@ -10,12 +10,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.config.annotation.CorsRegistration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
-class CorsConfigTest {
+class CORSConfigTest {
 
   @Test
   void testAddCorsMappingsThrowsExceptionIfNull() {
 
-    CorsConfig config = new CorsConfig();
+    CORSConfig config = new CORSConfig();
 
     config.setAllowedOrigins(null);
 
@@ -26,7 +26,7 @@ class CorsConfigTest {
   @Test
   void testAddCorsMappingsThrowsExceptionIfEmpty() {
 
-    CorsConfig config = new CorsConfig();
+    CORSConfig config = new CORSConfig();
 
     config.setAllowedOrigins(List.of());
 
@@ -37,7 +37,7 @@ class CorsConfigTest {
   @Test
   void testAddCorsMappingsRegistersCorrectly() {
 
-    CorsConfig config = new CorsConfig();
+    CORSConfig config = new CORSConfig();
 
     List<String> origins = List.of("http://localhost:3000", "https://app.example.com");
 

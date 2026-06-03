@@ -8,7 +8,6 @@ import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,7 +28,6 @@ class YahooFinanceDownloaderTest {
     YahooFinanceConfig config = new YahooFinanceConfig();
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -42,8 +40,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     verify(dailyRepo, never()).saveAll(any());
@@ -59,7 +56,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker t1 = new Ticker();
     t1.setTickerId(1L);
@@ -81,8 +77,7 @@ class YahooFinanceDownloaderTest {
         .thenReturn(
             List.of(LocalDate.of(2025, 8, 13))); // One of the downloaded dates already exists
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     // Verifies both AAPL and MSFT processed, and saveAll was called (filtering out duplicate dates)
@@ -99,7 +94,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker t1 = new Ticker();
     t1.setTickerId(1L);
@@ -117,8 +111,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view1, view2));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     // No saveAll since missing node payload returns empty list
@@ -135,7 +128,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -148,8 +140,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     // Should save only the non-null row (1 row synced out of 6 in yahoo_response_nulls.json)
@@ -164,7 +155,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -177,8 +167,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     // Catches and logs the connection exception, does not save anything or crash the run
@@ -195,7 +184,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker t1 = new Ticker();
     t1.setTickerId(1L);
@@ -213,8 +201,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view1, view2));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
 
     // Interrupt thread in background
     Thread mainThread = Thread.currentThread();
@@ -243,7 +230,6 @@ class YahooFinanceDownloaderTest {
     config.setDelayMilliseconds(0);
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -257,8 +243,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view1, view2));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
     // Verify it processes normally and saves since the dates don't exist yet
     verify(dailyRepo, times(1)).saveAll(any());
@@ -274,7 +259,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -285,8 +269,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of()); // Returns empty -> latestSavedDate is null
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     verify(dailyRepo, times(1)).saveAll(any());
@@ -302,7 +285,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -319,8 +301,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findDatesByTickerAndPriceDateIn(any(), any()))
         .thenReturn(List.of(LocalDate.of(2026, 5, 28), LocalDate.of(2026, 5, 29)));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     // saveAll should never be called since all points exist
@@ -337,7 +318,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -349,8 +329,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     verify(dailyRepo, never()).saveAll(any());
@@ -366,7 +345,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -378,8 +356,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     verify(dailyRepo, never()).saveAll(any());
@@ -395,7 +372,6 @@ class YahooFinanceDownloaderTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -407,8 +383,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
         .thenReturn(List.of(view));
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     verify(dailyRepo, never()).saveAll(any());
@@ -437,8 +412,6 @@ class YahooFinanceDownloaderTest {
 
       TickerRepository tickerRepo = mock(TickerRepository.class);
       DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-      ObjectMapper mapper = new ObjectMapper();
-
       Ticker ticker = new Ticker();
       ticker.setTickerId(1L);
       ticker.setTickerSymbol("AAPL");
@@ -449,8 +422,7 @@ class YahooFinanceDownloaderTest {
       when(dailyRepo.findLatestPriceDatesForAllTickers(any(LocalDate.class)))
           .thenReturn(List.of(view));
 
-      YahooFinanceDownloader downloader =
-          new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+      YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
       downloader.download();
 
       verify(dailyRepo, never()).saveAll(any());
@@ -539,12 +511,10 @@ class YahooFinanceDownloaderTest {
     YahooFinanceConfig config = new YahooFinanceConfig();
     TickerRepository tickerRepo = mock(TickerRepository.class);
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    ObjectMapper mapper = new ObjectMapper();
 
     when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of());
 
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, tickerRepo, dailyRepo, mapper);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, tickerRepo, dailyRepo);
     downloader.download();
 
     verify(dailyRepo, never()).saveAll(any());

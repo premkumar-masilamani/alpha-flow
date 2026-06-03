@@ -34,16 +34,16 @@ coverage: test
 	fi
 
 lint:
-	@echo "Executing comprehensive Java static analysis suite..."
-	@echo "1/4 running Spotless code format check..."
-	$(GRADLE) spotlessCheck $(DEV_FLAGS)
-	@echo "2/4 running Checkstyle formatting audit..."
+	@echo "Executing comprehensive Java static analysis suite with auto-fixes..."
+	@echo "1/4 Applying Spotless code formatting and Checkstyle fixes..."
+	$(GRADLE) spotlessApply $(DEV_FLAGS)
+	@echo "2/4 Verifying remaining Checkstyle formatting rules..."
 	$(GRADLE) checkstyleMain checkstyleTest $(DEV_FLAGS)
-	@echo "3/4 running PMD code smell scan..."
+	@echo "3/4 Running PMD code smell scan..."
 	$(GRADLE) pmdMain pmdTest $(DEV_FLAGS)
-	@echo "4/4 running SpotBugs bytecode vulnerability sweep..."
+	@echo "4/4 Running SpotBugs bytecode vulnerability sweep..."
 	$(GRADLE) spotbugsMain spotbugsTest $(DEV_FLAGS)
-	@echo "Code verification passed cleanly."
+	@echo "Code verification and auto-fixing complete."
 
 format:
 	@echo "Reformatting Java codebase using Spotless..."

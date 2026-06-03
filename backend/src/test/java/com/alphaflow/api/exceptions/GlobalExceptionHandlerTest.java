@@ -1,10 +1,11 @@
-package com.alphaflow.api.handlers;
+package com.alphaflow.api.exceptions;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.api.controllers.generic.GlobalExceptionHandler;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;

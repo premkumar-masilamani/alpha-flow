@@ -2,7 +2,8 @@ package com.alphaflow.api.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 import com.alphaflow.api.dtos.AnalysisResponseDTO;
@@ -24,16 +25,15 @@ import org.junit.jupiter.api.Test;
 
 class AnalysisServiceTest {
 
+  private static final String SYMBOL = "TEST";
+  private static final LocalDate TODAY = LocalDate.of(2026, 5, 30);
+  private static final LocalDate YESTERDAY = LocalDate.of(2026, 5, 29);
+  private static final LocalDate TWO_DAYS_AGO = LocalDate.of(2026, 5, 28);
   private DailyPriceService dailyPriceService;
   private IndicatorService indicatorService;
   private TickerRepository tickerRepository;
   private AnalysisResultRepository analysisResultRepository;
   private AnalysisService analysisService;
-
-  private static final String SYMBOL = "TEST";
-  private static final LocalDate TODAY = LocalDate.of(2026, 5, 30);
-  private static final LocalDate YESTERDAY = LocalDate.of(2026, 5, 29);
-  private static final LocalDate TWO_DAYS_AGO = LocalDate.of(2026, 5, 28);
 
   @BeforeEach
   void setUp() {

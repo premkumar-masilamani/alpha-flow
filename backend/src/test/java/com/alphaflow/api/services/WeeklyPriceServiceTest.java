@@ -5,10 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.configs.ApiProperties;
+import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.persistence.entities.WeeklyPrice;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
@@ -22,16 +21,15 @@ class WeeklyPriceServiceTest {
 
   @Test
   void testGetWeeklyPriceByTickerNameSuccess() {
-
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ApiProperties apiProperties = mock(ApiProperties.class);
+    ChartConfig chartConfig = mock(ChartConfig.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
 
-    when(apiProperties.windowFor(Timeframe.WEEKLY)).thenReturn(180);
+    when(chartConfig.getWindow()).thenReturn(180);
 
     WeeklyPrice wp1 =
         WeeklyPrice.builder()
@@ -56,7 +54,7 @@ class WeeklyPriceServiceTest {
     when(weeklyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 180)))
         .thenReturn(List.of(wp1, wp2));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo, apiProperties);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo, chartConfig);
 
     List<OhlcvDTO> result = service.getWeeklyPriceByTickerName("AAPL");
 
@@ -69,16 +67,15 @@ class WeeklyPriceServiceTest {
 
   @Test
   void testGetWeeklyPriceByTickerNameNotFound() {
-
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ApiProperties apiProperties = mock(ApiProperties.class);
+    ChartConfig chartConfig = mock(ChartConfig.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("INVALID")).thenReturn(false);
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo, apiProperties);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo, chartConfig);
 
     assertThrows(
         ResourceNotFoundException.class, () -> service.getWeeklyPriceByTickerName("INVALID"));
@@ -86,12 +83,11 @@ class WeeklyPriceServiceTest {
 
   @Test
   void testGetWeeklyPriceByTickerNameWithCustomPageAndSizeSuccess() {
-
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ApiProperties apiProperties = mock(ApiProperties.class);
+    ChartConfig chartConfig = mock(ChartConfig.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
 
@@ -107,7 +103,7 @@ class WeeklyPriceServiceTest {
 
     when(weeklyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10))).thenReturn(List.of(wp));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo, apiProperties);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo, chartConfig);
 
     List<OhlcvDTO> result = service.getWeeklyPriceByTickerName("AAPL", 1, 10);
 

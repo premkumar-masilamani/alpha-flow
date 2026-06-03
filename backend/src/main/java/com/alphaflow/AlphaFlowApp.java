@@ -15,11 +15,8 @@ public class AlphaFlowApp {
   private static final Logger log = LoggerFactory.getLogger(AlphaFlowApp.class);
 
   public static void main(String[] args) {
-
     log.info("Starting Alpha Flow Application...");
-
     SpringApplication.run(AlphaFlowApp.class, args);
-
     log.info("Alpha Flow Application started successfully.");
   }
 }

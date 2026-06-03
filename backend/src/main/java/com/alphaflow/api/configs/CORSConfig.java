@@ -11,7 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @ConfigurationProperties(prefix = "alphaflow.cors")
 @Data
-public class CorsConfig implements WebMvcConfigurer {
+public class CORSConfig implements WebMvcConfigurer {
 
   private List<String> allowedOrigins;
 
@@ -19,7 +19,6 @@ public class CorsConfig implements WebMvcConfigurer {
   public void addCorsMappings(@NonNull CorsRegistry registry) {
 
     if (allowedOrigins == null || allowedOrigins.isEmpty()) {
-
       throw new IllegalStateException(
           "alphaflow.cors.allowed-origins is not configured. Set the CORS_ALLOWED_ORIGINS environment variable.");
     }

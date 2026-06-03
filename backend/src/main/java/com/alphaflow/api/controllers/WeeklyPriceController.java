@@ -5,11 +5,7 @@ import com.alphaflow.api.services.WeeklyPriceService;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
@@ -20,7 +16,6 @@ public class WeeklyPriceController {
   private final WeeklyPriceService weeklyPriceService;
 
   public WeeklyPriceController(WeeklyPriceService weeklyPriceService) {
-
     this.weeklyPriceService = weeklyPriceService;
   }
 
@@ -31,7 +26,6 @@ public class WeeklyPriceController {
       @RequestParam(required = false) Integer size) {
 
     log.info("Request to get weekly data for ticker: {}, page: {}, size: {}", symbol, page, size);
-
     return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, size);
   }
 }

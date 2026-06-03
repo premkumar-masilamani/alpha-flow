@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test;
 class DailyPriceControllerTest {
 
   @Test
-  void testGetCandleDataForTicker() {
+  void testGetDailyPriceDataForTicker() {
 
     DailyPriceService service = mock(DailyPriceService.class);
 
@@ -31,7 +31,7 @@ class DailyPriceControllerTest {
 
     DailyPriceController controller = new DailyPriceController(service);
 
-    List<OhlcvDTO> res = controller.getCandleDataForTicker("AAPL", 0, null);
+    List<OhlcvDTO> res = controller.getDailyPriceDataForTicker("AAPL", 0, null);
 
     assertEquals(1, res.size());
 
