@@ -11,29 +11,23 @@ class WeeklyPriceCalculatorTest {
 
   @Test
   void testComputeWeeklyPricesSuccessAndErrorHandling() {
-
     TickerRepository tickerRepo = mock(TickerRepository.class);
-
     WeeklyTickerProcessor processor = mock(WeeklyTickerProcessor.class);
 
     Ticker t1 = new Ticker();
-
     t1.setTickerSymbol("AAPL");
-
     Ticker t2 = new Ticker();
-
     t2.setTickerSymbol("MSFT");
 
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
-
+    when(tickerRepo.findByIsActiveTrue(any(org.springframework.data.domain.Pageable.class)))
+        .thenReturn(List.of(t1, t2))
+        .thenReturn(List.of());
     doThrow(new RuntimeException("Computation error")).when(processor).processTicker(t1);
 
     WeeklyPriceCalculator calculator = new WeeklyPriceCalculator(tickerRepo, processor);
-
     calculator.computeWeeklyPrices();
 
     verify(processor).processTicker(t1);
-
     verify(processor).processTicker(t2);
   }
 }

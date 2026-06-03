@@ -1,6 +1,5 @@
 package com.alphaflow.api.configs;
 
-import com.alphaflow.persistence.enums.Timeframe;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -17,12 +16,5 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class ApiProperties {
 
-  private static final int DEFAULT_WINDOW = 180;
-
-  private int window = DEFAULT_WINDOW;
-
-  public int windowFor(Timeframe timeframe) {
-
-    return window;
-  }
+    private int window;
 }
