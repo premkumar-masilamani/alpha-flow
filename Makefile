@@ -9,35 +9,31 @@ endif
 all: run_all
 
 run_database:
+	@echo "Starting the database services..."
 	@$(MAKE) -C database all
 
 connect_database:
+	@echo "Connecting to the database CLI..."
 	@$(MAKE) -C database connect_database
 
 run_backend:
+	@echo "Launching backend development server..."
 	@$(MAKE) -C backend dev
 
 run_frontend:
+	@echo "Launching frontend development server..."
 	@$(MAKE) -C frontend dev
 
-check_frontend:
-	@echo "--- Linting Frontend ---"
-	@$(MAKE) -C frontend lint
-	@echo "--- Testing Frontend ---"
-	@$(MAKE) -C frontend test
-	@echo "--- Building Frontend ---"
-	@$(MAKE) -C frontend build
-
 test:
-	@echo "--- Running Backend Tests ---"
+	@echo "Running backend test suites..."
 	@$(MAKE) -C backend test
-	@echo "--- Running Frontend Tests ---"
+	@echo "Running frontend test suites..."
 	@$(MAKE) -C frontend test
 
 lint:
-	@echo "--- Running Backend Linter ---"
+	@echo "Linting backend source code..."
 	@$(MAKE) -C backend lint
-	@echo "--- Running Frontend Linter ---"
+	@echo "Linting frontend source code..."
 	@$(MAKE) -C frontend lint
 
 diagrams:
