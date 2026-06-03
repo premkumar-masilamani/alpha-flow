@@ -4,7 +4,7 @@ ifneq ($(wildcard .env),)
     export $(shell sed 's/=.*//' .env)
 endif
 
-.PHONY: all run_database connect_database run_backend run_frontend check_frontend diagrams test run_all
+.PHONY: all run_database connect_database run_backend run_frontend check_frontend diagrams test lint run_all
 
 all: run_all
 
@@ -21,13 +21,24 @@ run_frontend:
 	@$(MAKE) -C frontend dev
 
 check_frontend:
-	@$(MAKE) -C frontend check
+	@echo "--- Linting Frontend ---"
+	@$(MAKE) -C frontend lint
+	@echo "--- Testing Frontend ---"
+	@$(MAKE) -C frontend test
+	@echo "--- Building Frontend ---"
+	@$(MAKE) -C frontend build
 
 test:
 	@echo "--- Running Backend Tests ---"
 	@$(MAKE) -C backend test
 	@echo "--- Running Frontend Tests ---"
 	@$(MAKE) -C frontend test
+
+lint:
+	@echo "--- Running Backend Linter ---"
+	@$(MAKE) -C backend lint
+	@echo "--- Running Frontend Linter ---"
+	@$(MAKE) -C frontend lint
 
 diagrams:
 	@echo "Compiling D2 architecture diagrams to sketch SVG assets..."

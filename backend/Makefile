@@ -7,7 +7,7 @@ GRADLE := ./gradlew
 DEV_FLAGS   := --daemon --parallel --build-cache --configuration-cache
 PROD_FLAGS  := --no-daemon --parallel --build-cache --configuration-cache
 
-.PHONY: dev test coverage build
+.PHONY: dev test coverage lint build
 
 all: dev
 
