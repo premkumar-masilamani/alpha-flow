@@ -1,40 +1,70 @@
 package com.alphaflow.api.controllers;
 
+
 import com.alphaflow.api.dtos.TickerDTO;
+
 import com.alphaflow.api.services.TickerService;
+
 import org.junit.jupiter.api.Test;
+
 
 import java.util.List;
 
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import static org.mockito.Mockito.mock;
+
 import static org.mockito.Mockito.when;
+
 
 class TickerControllerTest {
 
-    @Test
-    void testGetAllTickers() {
-        TickerService service = mock(TickerService.class);
-        TickerDTO dto = new TickerDTO(1L, "AAPL", "Apple Inc.");
-        when(service.getAllTickers()).thenReturn(List.of(dto));
 
-        TickerController controller = new TickerController(service);
-        List<TickerDTO> res = controller.getAllTickers();
+  @Test
 
-        assertEquals(1, res.size());
-        assertEquals("AAPL", res.get(0).tickerSymbol());
-    }
+  void testGetAllTickers() {
 
-    @Test
-    void testGetTickerBySymbol() {
-        TickerService service = mock(TickerService.class);
-        TickerDTO dto = new TickerDTO(1L, "AAPL", "Apple Inc.");
-        when(service.getTickerBySymbol("AAPL")).thenReturn(dto);
+    TickerService service = mock(TickerService.class);
 
-        TickerController controller = new TickerController(service);
-        TickerDTO res = controller.getTickerBySymbol("AAPL");
+    TickerDTO dto = new TickerDTO(1L, "AAPL", "Apple Inc.");
 
-        assertEquals("AAPL", res.tickerSymbol());
-        assertEquals("Apple Inc.", res.tickerName());
-    }
+    when(service.getAllTickers()).thenReturn(List.of(dto));
+
+
+    TickerController controller = new TickerController(service);
+
+    List<TickerDTO> res = controller.getAllTickers();
+
+
+    assertEquals(1, res.size());
+
+    assertEquals("AAPL", res.get(0).tickerSymbol());
+
+  }
+
+
+  @Test
+
+  void testGetTickerBySymbol() {
+
+    TickerService service = mock(TickerService.class);
+
+    TickerDTO dto = new TickerDTO(1L, "AAPL", "Apple Inc.");
+
+    when(service.getTickerBySymbol("AAPL")).thenReturn(dto);
+
+
+    TickerController controller = new TickerController(service);
+
+    TickerDTO res = controller.getTickerBySymbol("AAPL");
+
+
+    assertEquals("AAPL", res.tickerSymbol());
+
+    assertEquals("Apple Inc.", res.tickerName());
+
+  }
+
 }
+
