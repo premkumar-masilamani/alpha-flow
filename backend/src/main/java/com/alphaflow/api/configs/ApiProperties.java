@@ -19,10 +19,36 @@ public class ApiProperties {
 
   private static final int DEFAULT_WINDOW = 180;
 
-  private int window = DEFAULT_WINDOW;
+  private Object window = DEFAULT_WINDOW;
 
   public int windowFor(Timeframe timeframe) {
-
-    return window;
+    if (window instanceof java.util.Map) {
+      java.util.Map<?, ?> map = (java.util.Map<?, ?>) window;
+      Object val = map.get(timeframe);
+      if (val == null) {
+        val = map.get(timeframe.name());
+      }
+      if (val == null) {
+        val = map.get(timeframe.name().toLowerCase());
+      }
+      if (val instanceof Number) {
+        return ((Number) val).intValue();
+      } else if (val instanceof String) {
+        try {
+          return Integer.parseInt((String) val);
+        } catch (NumberFormatException ignored) {
+          // Ignored intentionally
+        }
+      }
+    } else if (window instanceof Number) {
+      return ((Number) window).intValue();
+    } else if (window instanceof String) {
+      try {
+        return Integer.parseInt((String) window);
+      } catch (NumberFormatException ignored) {
+        // Ignored intentionally
+      }
+    }
+    return DEFAULT_WINDOW;
   }
 }

@@ -14,6 +14,7 @@ public interface TickerRepository extends JpaRepository<Ticker, Long> {
   Optional<Ticker> findByTickerSymbolIgnoreCase(String symbol);
 
   boolean existsByTickerSymbolIgnoreCase(String symbol);
+
   List<Ticker> findByIsActiveTrue();
 
   List<Ticker> findByIsActiveTrue(org.springframework.data.domain.Pageable pageable);

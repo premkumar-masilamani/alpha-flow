@@ -74,11 +74,25 @@ public class AnalysisService {
     Optional<AnalysisResult> existingOpt = analysisResultRepository.findByTicker(ticker);
     if (existingOpt.isPresent()) {
       AnalysisResult res = existingOpt.get();
-      return toDTO(res);
+      List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
+      if (!latestCandles.isEmpty()) {
+        LocalDate latestPriceDate = latestCandles.get(0).priceDate();
+        if (res.getPriceDate().isBefore(latestPriceDate)) {
+          log.info(
+              "Persisted analysis for symbol: {} is stale (date: {}, latest: {}). Recomputing.",
+              symbol,
+              res.getPriceDate(),
+              latestPriceDate);
+        } else {
+          return toDTO(res, symbol);
+        }
+      } else {
+        return toDTO(res, symbol);
+      }
     }
 
-    // Fallback: Compute on-the-fly and persist if not found
-    log.info("No persisted analysis found for symbol: {}. Computing on-the-fly.", symbol);
+    // Fallback: Compute on-the-fly and persist if not found or stale
+    log.info("Persisted analysis not found or stale for symbol: {}. Computing on-the-fly.", symbol);
     AnalysisResult res;
     try {
       AnalysisService proxy = (self != null) ? self : this;
@@ -97,12 +111,12 @@ public class AnalysisService {
                       new IllegalStateException(
                           "Failed to find or compute analysis for symbol: " + symbol, e));
     }
-    return toDTO(res);
+    return toDTO(res, symbol);
   }
 
-  private AnalysisResponseDTO toDTO(AnalysisResult res) {
+  private AnalysisResponseDTO toDTO(AnalysisResult res, String symbol) {
     return AnalysisResponseDTO.builder()
-        .symbol(res.getTicker().getTickerSymbol())
+        .symbol(symbol)
         .priceDate(res.getPriceDate())
         .emaSignal(res.getEmaSignal())
         .emaValue(res.getEmaValue())
