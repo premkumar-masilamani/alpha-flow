@@ -4,36 +4,40 @@ ifneq ($(wildcard .env),)
     export $(shell sed 's/=.*//' .env)
 endif
 
-.PHONY: all run_database connect_database run_backend run_frontend check_frontend diagrams test lint run_all
+.PHONY: all run_database connect_database run_backend run_frontend check_frontend diagrams test lint run_all stop_all
 
 all: run_all
 
 run_database:
-	@echo "Starting the database services..."
 	@$(MAKE) -C database all
 
 connect_database:
-	@echo "Connecting to the database CLI..."
 	@$(MAKE) -C database connect_database
 
 run_backend:
-	@echo "Launching backend development server..."
 	@$(MAKE) -C backend dev
 
 run_frontend:
-	@echo "Launching frontend development server..."
 	@$(MAKE) -C frontend dev
 
+check_frontend:
+	@echo "--- Linting Frontend ---"
+	@$(MAKE) -C frontend lint
+	@echo "--- Testing Frontend ---"
+	@$(MAKE) -C frontend test
+	@echo "--- Building Frontend ---"
+	@$(MAKE) -C frontend build
+
 test:
-	@echo "Running backend test suites..."
+	@echo "--- Running Backend Tests ---"
 	@$(MAKE) -C backend test
-	@echo "Running frontend test suites..."
+	@echo "--- Running Frontend Tests ---"
 	@$(MAKE) -C frontend test
 
 lint:
-	@echo "Linting backend source code..."
+	@echo "--- Running Backend Linter ---"
 	@$(MAKE) -C backend lint
-	@echo "Linting frontend source code..."
+	@echo "--- Running Frontend Linter ---"
 	@$(MAKE) -C frontend lint
 
 diagrams:
@@ -50,11 +54,34 @@ diagrams:
 run_all:
 	@echo "Step 1/2: Initializing database cluster infrastructures..."
 	@$(MAKE) run_database
-	@echo "Step 2/2: Spawning application instances concurrently..."
-	@backend_pid=""; frontend_pid=""; \
-	trap 'echo "\nShutting down environments..."; [ -n "$$backend_pid" ] && kill $$backend_pid 2>/dev/null; [ -n "$$frontend_pid" ] && kill $$frontend_pid 2>/dev/null; trap - SIGINT SIGTERM; exit 0' SIGINT SIGTERM; \
-	$(MAKE) run_backend & \
-	backend_pid=$$!; \
-	$(MAKE) run_frontend & \
-	frontend_pid=$$!; \
-	wait $$backend_pid $$frontend_pid
+	@echo "Step 2/2: Spawning application instances concurrently in the background..."
+	@$(MAKE) run_backend > backend.log 2>&1 & \
+	echo $$! > .backend.pid; \
+	$(MAKE) run_frontend > frontend.log 2>&1 & \
+	echo $$! > .frontend.pid; \
+	echo "Applications spawned successfully in the background."
+	@echo " - Backend log: backend.log"
+	@echo " - Frontend log: frontend.log"
+	@echo "Run 'make stop_all' to stop them."
+
+stop_all:
+	@echo "Stopping application instances..."
+	@if [ -f .backend.pid ]; then \
+		pid=$$(cat .backend.pid); \
+		echo "Stopping backend process $$pid..."; \
+		kill -15 $$pid 2>/dev/null || true; \
+		rm -f .backend.pid; \
+	fi
+	@if [ -f .frontend.pid ]; then \
+		pid=$$(cat .frontend.pid); \
+		echo "Stopping frontend process $$pid..."; \
+		kill -15 $$pid 2>/dev/null || true; \
+		rm -f .frontend.pid; \
+	fi
+	@echo "Cleaning up port 8080 (backend)..."
+	@pids=$$(lsof -t -i :8080 2>/dev/null); if [ -n "$$pids" ]; then kill -15 $$pids 2>/dev/null || true; fi
+	@echo "Cleaning up port 5173 (frontend)..."
+	@pids=$$(lsof -t -i :5173 2>/dev/null); if [ -n "$$pids" ]; then kill -15 $$pids 2>/dev/null || true; fi
+	@echo "Stopping database container..."
+	@-docker stop $$(docker ps -q --filter name=$(POSTGRES_DB)) >/dev/null 2>&1 || true
+	@echo "All processes stopped successfully."
