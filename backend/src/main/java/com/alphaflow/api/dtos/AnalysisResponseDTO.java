@@ -17,5 +17,4 @@ public record AnalysisResponseDTO(
     String rsiValue,
     String volumeSignal,
     String volumeValue,
-    String overallSignal
-) {}
+    String overallSignal) {}

@@ -1,42 +1,48 @@
-# Load environment variables from .env
-include .env
-export $(shell sed 's/=.*//' .env)
+# Gracefully handle missing local environment configurations in CI/CD
+-include .env
+ifneq ($(wildcard .env),)
+    export $(shell sed 's/=.*//' .env)
+endif
 
-.PHONY: run_database migrate_database connect_database run_backend run_frontend check_frontend clean diagrams test run_all
+.PHONY: all run_database connect_database run_backend run_frontend test lint diagrams
+
+all: run_backend
 
 run_database:
-	make -C database run_database
-
-migrate_database:
-	make -C database migrate_database
+	@echo "Starting the database..."
+	@$(MAKE) -C database all
 
 connect_database:
-	make -C database connect_database
+	@echo "Connecting to the database CLI..."
+	@$(MAKE) -C database connect_database
 
-run_backend:
-	make -C backend dev
+run_backend: run_database
+	@echo "Launching backend development server..."
+	@$(MAKE) -C backend dev
 
 run_frontend:
-	make -C frontend install
-	make -C frontend dev
-
-check_frontend:
-	make -C frontend check
+	@echo "Launching frontend development server..."
+	@$(MAKE) -C frontend dev
 
 test:
-	make -C backend test
+	@echo "Running backend test suites..."
+	@$(MAKE) -C backend test
+	@echo "Running frontend test suites..."
+	@$(MAKE) -C frontend test
 
-clean:
-	make -C database clean
+lint:
+	@echo "Linting backend source code..."
+	@$(MAKE) -C backend lint
+	@echo "Linting frontend source code..."
+	@$(MAKE) -C frontend lint
 
 diagrams:
-	for file in $(DIAGRAMS_DIR)/*.d2; do \
-		d2 --sketch "$$file" "$${file%.d2}.svg"; \
-	done
-
-run_all: run_database
-	@echo "Starting backend and frontend concurrently..."
-	@trap 'kill 0' SIGINT; \
-	make run_backend & \
-	make run_frontend & \
-	wait
+	@echo "Compiling D2 architecture diagrams to sketch SVG assets..."
+	@if [ -d "$(DIAGRAMS_DIR)" ]; then \
+		for file in $(DIAGRAMS_DIR)/*.d2; do \
+			[ -e "$$file" ] || continue; \
+			d2 --sketch "$$file" "$${file%.d2}.svg"; \
+		done; \
+	else \
+		echo "Diagram directory '$(DIAGRAMS_DIR)' not found."; \
+	fi

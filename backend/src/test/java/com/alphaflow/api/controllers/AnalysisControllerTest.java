@@ -12,10 +12,13 @@ import org.junit.jupiter.api.Test;
 
 class AnalysisControllerTest {
 
-    @Test
-    void testGetTechnicalAnalysis() {
-        AnalysisService service = mock(AnalysisService.class);
-        AnalysisResponseDTO mockResponse = AnalysisResponseDTO.builder()
+  @Test
+  void testGetTechnicalAnalysis() {
+
+    AnalysisService service = mock(AnalysisService.class);
+
+    AnalysisResponseDTO mockResponse =
+        AnalysisResponseDTO.builder()
             .symbol("AAPL")
             .priceDate(LocalDate.of(2026, 5, 30))
             .emaSignal("BUY")
@@ -30,13 +33,17 @@ class AnalysisControllerTest {
             .volumeValue("Heavy")
             .overallSignal("BUY")
             .build();
-        when(service.getAnalysis("AAPL")).thenReturn(mockResponse);
 
-        AnalysisController controller = new AnalysisController(service);
-        AnalysisResponseDTO result = controller.getTechnicalAnalysis("AAPL");
+    when(service.getAnalysis("AAPL")).thenReturn(mockResponse);
 
-        assertNotNull(result);
-        assertEquals("AAPL", result.symbol());
-        assertEquals("BUY", result.overallSignal());
-    }
+    AnalysisController controller = new AnalysisController(service);
+
+    AnalysisResponseDTO result = controller.getTechnicalAnalysis("AAPL");
+
+    assertNotNull(result);
+
+    assertEquals("AAPL", result.symbol());
+
+    assertEquals("BUY", result.overallSignal());
+  }
 }

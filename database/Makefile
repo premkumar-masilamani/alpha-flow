@@ -1,9 +1,16 @@
-include ../.env
-export $(shell sed 's/=.*//' ../.env)
+-include ../.env
+ifneq ($(wildcard ../.env),)
+    export $(shell sed 's/=.*//' ../.env)
+endif
 
-.PHONY: run_database network database migrate_database import_seed_data connect_database clean
+# Fail immediately if crucial variables are missing
+ifndef POSTGRES_DB
+    $(error POSTGRES_DB is not set. Check your ../.env file)
+endif
 
-run_database: network database migrate_database import_seed_data
+.PHONY: all network database migrate_database import_seed_data connect_database clean
+
+all: network database migrate_database import_seed_data
 
 network:
 	@if ! docker network inspect $(DOCKER_NETWORK_NAME) >/dev/null 2>&1; then \
@@ -70,8 +77,8 @@ clean:
 	@echo "  - Volume:    $(DOCKER_POSTGRES_VOLUME)"
 	@echo "  - Network:   $(DOCKER_NETWORK_NAME)"
 	@echo ""
-	@read -p "Are you sure you want to delete these? (yes/no): " ans && [ "$$ans" = "yes" ] || (echo "Aborted." && exit 1)
-	@read -p "Please type 'delete' to confirm irreversible removal: " ans && [ "$$ans" = "delete" ] || (echo "Aborted." && exit 1)
+	@printf "Are you sure you want to delete these? (yes/no): " && read ans && [ "$$ans" = "yes" ] || (echo "Aborted." && exit 1)
+	@printf "Please type 'delete' to confirm irreversible removal: " && read ans && [ "$$ans" = "delete" ] || (echo "Aborted." && exit 1)
 	@echo "Cleaning up containers, volumes, and network..."
 	-docker rm -f $(POSTGRES_DB) >/dev/null 2>&1 || true
 	-docker volume rm -f $(DOCKER_POSTGRES_VOLUME) >/dev/null 2>&1 || true

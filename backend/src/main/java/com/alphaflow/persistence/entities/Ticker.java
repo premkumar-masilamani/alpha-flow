@@ -14,20 +14,19 @@ import lombok.*;
 @Builder
 public class Ticker {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ticker_id")
-    private Long tickerId;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Column(name = "ticker_id")
+  private Long tickerId;
 
-    @EqualsAndHashCode.Include
-    @Column(name = "ticker_symbol", nullable = false, unique = true)
-    private String tickerSymbol;
+  @EqualsAndHashCode.Include
+  @Column(name = "ticker_symbol", nullable = false, unique = true)
+  private String tickerSymbol;
 
-    @Column(name = "ticker_name", nullable = false)
-    private String tickerName;
+  @Column(name = "ticker_name", nullable = false)
+  private String tickerName;
 
-    @Column(name = "is_active", nullable = false)
-    @Builder.Default
-    private boolean isActive = true;
-
+  @Column(name = "is_active", nullable = false)
+  @Builder.Default
+  private boolean isActive = true;
 }
