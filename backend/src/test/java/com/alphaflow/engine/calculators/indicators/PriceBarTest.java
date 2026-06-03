@@ -1,37 +1,36 @@
 package com.alphaflow.engine.calculators.indicators;
 
-import com.alphaflow.persistence.enums.PriceSource;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.Test;
 
 class PriceBarTest {
 
-    @Test
-    void testPriceBarAccessorsAndValueFor() {
-        LocalDate date = LocalDate.of(2026, 5, 29);
-        BigDecimal open = new BigDecimal("100.00");
-        BigDecimal high = new BigDecimal("105.00");
-        BigDecimal low = new BigDecimal("99.00");
-        BigDecimal close = new BigDecimal("102.00");
-        BigDecimal volume = new BigDecimal("1000");
+  @Test
+  void testPriceBarAccessorsAndValueFor() {
+    LocalDate date = LocalDate.of(2026, 5, 29);
+    BigDecimal open = new BigDecimal("100.00");
+    BigDecimal high = new BigDecimal("105.00");
+    BigDecimal low = new BigDecimal("99.00");
+    BigDecimal close = new BigDecimal("102.00");
+    BigDecimal volume = new BigDecimal("1000");
 
-        PriceBar bar = new PriceBar(date, open, high, low, close, volume);
+    PriceBar bar = new PriceBar(date, open, high, low, close, volume);
 
-        assertEquals(date, bar.date());
-        assertEquals(open, bar.open());
-        assertEquals(high, bar.high());
-        assertEquals(low, bar.low());
-        assertEquals(close, bar.close());
-        assertEquals(volume, bar.volume());
+    assertEquals(date, bar.date());
+    assertEquals(open, bar.open());
+    assertEquals(high, bar.high());
+    assertEquals(low, bar.low());
+    assertEquals(close, bar.close());
+    assertEquals(volume, bar.volume());
 
-        assertEquals(open, bar.valueFor(PriceSource.OPEN));
-        assertEquals(high, bar.valueFor(PriceSource.HIGH));
-        assertEquals(low, bar.valueFor(PriceSource.LOW));
-        assertEquals(close, bar.valueFor(PriceSource.CLOSE));
-        assertEquals(volume, bar.valueFor(PriceSource.VOLUME));
-    }
+    assertEquals(open, bar.valueFor(PriceSource.OPEN));
+    assertEquals(high, bar.valueFor(PriceSource.HIGH));
+    assertEquals(low, bar.valueFor(PriceSource.LOW));
+    assertEquals(close, bar.valueFor(PriceSource.CLOSE));
+    assertEquals(volume, bar.valueFor(PriceSource.VOLUME));
+  }
 }

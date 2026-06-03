@@ -9,12 +9,10 @@ import lombok.Builder;
  */
 @Builder
 public record IndicatorConfigDTO(
-        @JsonProperty("timeframe") String timeframe,
-        @JsonProperty("type") String type,
-        @JsonProperty("source") String source,
-        @JsonProperty("params") String params,
-        @JsonProperty("label") String label,
-        @JsonProperty("upperBound") Integer upperBound,
-        @JsonProperty("lowerBound") Integer lowerBound
-) {
-}
+    @JsonProperty("timeframe") String timeframe,
+    @JsonProperty("type") String type,
+    @JsonProperty("source") String source,
+    @JsonProperty("params") String params,
+    @JsonProperty("label") String label,
+    @JsonProperty("upperBound") Integer upperBound,
+    @JsonProperty("lowerBound") Integer lowerBound) {}

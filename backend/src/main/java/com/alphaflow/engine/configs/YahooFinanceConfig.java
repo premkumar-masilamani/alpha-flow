@@ -9,8 +9,7 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class YahooFinanceConfig {
 
-    private String downloadUrl;
+  private String downloadUrl;
 
-    private long delayMilliseconds;
-
+  private long delayMilliseconds;
 }

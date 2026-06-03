@@ -8,5 +8,4 @@ import java.time.LocalDate;
  * rows. An indicator that emits multiple plots (MACD, Stochastic) produces several PlotPoints per
  * date, distinguished by {@link #outputName()}.
  */
-public record PlotPoint(LocalDate date, String outputName, BigDecimal value) {
-}
+public record PlotPoint(LocalDate date, String outputName, BigDecimal value) {}
