@@ -3,6 +3,10 @@ plugins {
     id 'org.springframework.boot' version '3.5.3'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'jacoco'
+    // Java Linting Ecosystem Plugins
+    id 'checkstyle'
+    id 'pmd'
+    id 'com.github.spotbugs' version '6.0.14'
 }
 
 group = 'com.alphaflow'
@@ -38,9 +42,67 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok:1.18.34'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
+    // SpotBugs annotations (allows checking code-level hints & suppressing false positives)
+    compileOnly 'com.github.spotbugs:spotbugs-annotations:4.8.6'
+
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+/* =========================================================================
+   Static Analysis & Linting Configurations
+   ========================================================================= */
+
+checkstyle {
+    toolVersion = '10.15.0'
+    ignoreFailures = false // Fails the build on code-style violations
+    showViolations = true
+    configFile = file("config/checkstyle/google_checks.xml")
+}
+
+// 2. PMD: Scans for bugs, dead code, and suboptimal code structures
+pmd {
+    toolVersion = '7.1.0'
+    ignoreFailures = false
+    consoleOutput = true
+    ruleSets = []
+    ruleSetFiles = files("config/pmd/pmd-ruleset.xml")
+}
+
+// 3. SpotBugs: Bytecode scanner checking for explicit structural or security flaws
+spotbugs {
+    ignoreFailures = false
+    showProgress = false
+    effort = 'max'
+    reportLevel = 'medium'
+    excludeFilter = file("config/spotbugs/excludeFilter.xml")
+}
+
+// Configure static analysis tasks to skip messy XML sheets and strictly output clean HTML dashboards
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = false
+        html.required = true
+    }
+}
+
+tasks.withType(Pmd).configureEach {
+    reports {
+        xml.required = false
+        html.required = true
+    }
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+    reports {
+        xml.required = false
+        html.required = true
+    }
+}
+
+/* =========================================================================
+   Testing & Test Coverage Verification
+   ========================================================================= */
 
 test {
     useJUnitPlatform()
@@ -80,4 +142,3 @@ jacocoTestCoverageVerification {
         }
     }
 }
-

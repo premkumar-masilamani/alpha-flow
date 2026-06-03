@@ -1,9 +1,16 @@
-include ../.env
-export $(shell sed 's/=.*//' ../.env)
+-include ../.env
+ifneq ($(wildcard ../.env),)
+    export $(shell sed 's/=.*//' ../.env)
+endif
 
-.PHONY: run_database network database migrate_database import_seed_data connect_database clean
+# Fail immediately if crucial variables are missing
+ifndef POSTGRES_DB
+    $(error POSTGRES_DB is not set. Check your ../.env file)
+endif
 
-run_database: network database migrate_database import_seed_data
+.PHONY: all network database migrate_database import_seed_data connect_database clean
+
+all: network database migrate_database import_seed_data
 
 network:
 	@if ! docker network inspect $(DOCKER_NETWORK_NAME) >/dev/null 2>&1; then \

@@ -1,37 +1,56 @@
-# Makefile for React application
+NODE_ENV    ?= development
+NPM         := npm
 
-.PHONY: install dev build preview lint clean audit check help
+.PHONY: all install dev build preview lint audit check clean help
 
+# Default target
+all: help
+
+# Enforced npm ci for strict determinism across all environments
 install:
-	npm install
+	@echo "Installing deterministic dependencies via npm ci..."
+	$(NPM) ci
 
-dev:
-	npm run dev
+dev: install
+	@echo "Starting development environment..."
+	$(NPM) run dev
 
-build:
-	npm run build
+build: install
+	@echo "Building production bundles (NODE_ENV=$(NODE_ENV))..."
+	$(NPM) run build
 
 preview:
-	npm run preview
+	@echo "Previewing the production build local server..."
+	$(NPM) run preview
 
-lint:
-	npm run lint
+lint: install
+	@echo "Running static analysis code verification..."
+	$(NPM) run lint
 
 audit:
-	npm audit --audit-level=high
+	@echo "Auditing production dependencies for high/critical security risks..."
+	$(NPM) audit --omit=dev --audit-level=high
 
-check: install audit lint build
+check:
+	@$(MAKE) install
+	@$(MAKE) audit
+	@$(MAKE) lint
+	@$(MAKE) build
 
 clean:
-	rm -rf node_modules dist
+	@echo "Cleaning up local build workspaces and dependency trees..."
+	rm -rf node_modules dist .nuxt .next .svelte-kit
+	@echo "Workspace cleaned. Run 'make install' to regenerate node_modules from lockfile."
 
 help:
-	@echo "Available targets:"
-	@echo "  make install  - Install dependencies"
-	@echo "  make dev      - Run Vite dev server"
-	@echo "  make build    - Create production build"
-	@echo "  make preview  - Preview production build"
-	@echo "  make lint     - Run ESLint"
-	@echo "  make audit    - Run npm audit"
-	@echo "  make check    - Run audit, lint, and build checks"
-	@echo "  make clean    - Remove node_modules and dist"
+	@echo "========================================================================"
+	@echo "Production-Grade Frontend Management Utilities (Enforced npm ci)"
+	@echo "========================================================================"
+	@echo "  make install  - Strictly install dependencies using package-lock.json"
+	@echo "  make dev      - Spin up local development infrastructure"
+	@echo "  make build    - Compile optimized production code distribution assets"
+	@echo "  make preview  - Boot local wrapper to check compiled bundle assets"
+	@echo "  make lint     - Execute ESLint validation maps"
+	@echo "  make audit    - Run strict production security validation scripts"
+	@echo "  make check    - Comprehensive sequential validation workflow execution"
+	@echo "  make clean    - Wipe local build caches and workspace nodes"
