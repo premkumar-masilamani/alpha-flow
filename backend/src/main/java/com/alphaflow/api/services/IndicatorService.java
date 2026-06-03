@@ -1,71 +1,40 @@
 package com.alphaflow.api.services;
 
-
 import com.alphaflow.api.configs.ApiProperties;
-
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
-
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-
 import com.alphaflow.api.mappers.IndicatorMapper;
-
 import com.alphaflow.engine.configs.IndicatorProperties;
-
 import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
-
 import com.alphaflow.persistence.entities.IndicatorValue;
-
 import com.alphaflow.persistence.enums.Timeframe;
-
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-
 import com.alphaflow.persistence.repositories.IndicatorValueRepository;
-
 import com.alphaflow.persistence.repositories.TickerRepository;
-
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
-
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import org.slf4j.Logger;
-
 import org.slf4j.LoggerFactory;
-
 import org.springframework.data.domain.PageRequest;
-
 import org.springframework.stereotype.Service;
-
 import org.springframework.transaction.annotation.Transactional;
 
-
-import java.time.LocalDate;
-
-import java.util.ArrayList;
-
-import java.util.List;
-
-
 /**
-
  * Serves the indicator discovery matrix and the per-ticker, per-timeframe indicator series.
-
- * <p>
-
- * The series window mirrors the price endpoint: indicators are returned for the same date range as
-
- * the most recent {@code window} candles, so chart overlays align exactly with the bars.
-
+ *
+ * <p>The series window mirrors the price endpoint: indicators are returned for the same date range
+ * as
+ *
+ * <p>the most recent {@code window} candles, so chart overlays align exactly with the bars.
  */
-
 @Service
-
 @Transactional(readOnly = true)
-
 public class IndicatorService {
 
-
   private static final Logger log = LoggerFactory.getLogger(IndicatorService.class);
-
 
   private final IndicatorProperties indicatorProperties;
 
@@ -79,18 +48,13 @@ public class IndicatorService {
 
   private final IndicatorValueRepository indicatorValueRepository;
 
-
-  public IndicatorService(IndicatorProperties indicatorProperties,
-
-              ApiProperties apiProperties,
-
-              TickerRepository tickerRepository,
-
-              DailyPriceRepository dailyPriceRepository,
-
-              WeeklyPriceRepository weeklyPriceRepository,
-
-              IndicatorValueRepository indicatorValueRepository) {
+  public IndicatorService(
+      IndicatorProperties indicatorProperties,
+      ApiProperties apiProperties,
+      TickerRepository tickerRepository,
+      DailyPriceRepository dailyPriceRepository,
+      WeeklyPriceRepository weeklyPriceRepository,
+      IndicatorValueRepository indicatorValueRepository) {
 
     this.indicatorProperties = indicatorProperties;
 
@@ -103,16 +67,9 @@ public class IndicatorService {
     this.weeklyPriceRepository = weeklyPriceRepository;
 
     this.indicatorValueRepository = indicatorValueRepository;
-
   }
 
-
-  /**
-
-   * The configured indicator matrix across all timeframes.
-
-   */
-
+  /** The configured indicator matrix across all timeframes. */
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
 
     List<IndicatorConfigDTO> configs = new ArrayList<>();
@@ -122,67 +79,54 @@ public class IndicatorService {
       for (IndicatorDefinition definition : indicatorProperties.forTimeframe(timeframe)) {
 
         configs.add(IndicatorMapper.toConfigDTO(timeframe, definition));
-
       }
-
     }
 
     return configs;
-
   }
-
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe) {
 
     return getIndicatorSeries(symbol, timeframe, 0, null);
-
   }
 
+  public List<IndicatorSeriesDTO> getIndicatorSeries(
+      String symbol, Timeframe timeframe, int page, Integer size) {
 
-  public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe, int page, Integer size) {
-
-    log.debug("Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
+    log.debug(
+        "Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
 
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
 
       log.warn("Ticker not found for symbol: {}", symbol);
 
       throw new ResourceNotFoundException("Ticker not found: " + symbol);
-
     }
-
 
     int actualSize = size != null ? size : apiProperties.windowFor(timeframe);
 
     PageRequest pageRequest = PageRequest.of(page, actualSize);
 
-    List<LocalDate> pageDates = timeframe == Timeframe.WEEKLY
-
-        ? weeklyPriceRepository.findRecentPriceDates(symbol, pageRequest)
-
-        : dailyPriceRepository.findRecentPriceDates(symbol, pageRequest);
-
+    List<LocalDate> pageDates =
+        timeframe == Timeframe.WEEKLY
+            ? weeklyPriceRepository.findRecentPriceDates(symbol, pageRequest)
+            : dailyPriceRepository.findRecentPriceDates(symbol, pageRequest);
 
     if (pageDates.isEmpty()) {
 
       return List.of();
-
     }
 
-
-    // pageDates is ordered DESC, so the last element is the oldest and the first element is the newest
+    // pageDates is ordered DESC, so the last element is the oldest and the first element is the
+    // newest
 
     LocalDate start = pageDates.getLast();
 
     LocalDate end = pageDates.getFirst();
 
-
-    List<IndicatorValue> rows = indicatorValueRepository.findSeriesBetween(symbol, timeframe, start, end);
+    List<IndicatorValue> rows =
+        indicatorValueRepository.findSeriesBetween(symbol, timeframe, start, end);
 
     return IndicatorMapper.toSeries(rows);
-
   }
-
-
 }
-

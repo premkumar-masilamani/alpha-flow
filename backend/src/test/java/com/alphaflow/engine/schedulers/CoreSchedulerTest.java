@@ -1,30 +1,18 @@
 package com.alphaflow.engine.schedulers;
 
-
-import com.alphaflow.api.services.AnalysisService;
-
-import com.alphaflow.engine.calculators.IndicatorCalculator;
-
-import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
-
-import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
-
-import org.junit.jupiter.api.Test;
-
-
-import java.util.concurrent.CountDownLatch;
-
-import java.util.concurrent.TimeUnit;
-
-
 import static org.mockito.Mockito.*;
 
+import com.alphaflow.api.services.AnalysisService;
+import com.alphaflow.engine.calculators.IndicatorCalculator;
+import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
+import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Test;
 
 class CoreSchedulerTest {
 
-
   @Test
-
   void testScheduledUpdateSuccess() {
 
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
@@ -35,11 +23,10 @@ class CoreSchedulerTest {
 
     AnalysisService analysisService = mock(AnalysisService.class);
 
-
-    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+    CoreScheduler scheduler =
+        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
 
     scheduler.runScheduledUpdate();
-
 
     verify(downloader, times(1)).download();
 
@@ -48,12 +35,9 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, times(1)).computeIndicators();
 
     verify(analysisService, times(1)).computeAnalysis();
-
   }
 
-
   @Test
-
   void testRunOnStartupWithException() {
 
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
@@ -64,14 +48,12 @@ class CoreSchedulerTest {
 
     AnalysisService analysisService = mock(AnalysisService.class);
 
-
     doThrow(new RuntimeException("Injected download error")).when(downloader).download();
 
-
-    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+    CoreScheduler scheduler =
+        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
 
     scheduler.runOnStartup();
-
 
     verify(downloader, times(1)).download();
 
@@ -82,12 +64,9 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, never()).computeIndicators();
 
     verify(analysisService, never()).computeAnalysis();
-
   }
 
-
   @Test
-
   void testConcurrentExecutionSkipped() throws InterruptedException {
 
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
@@ -98,27 +77,25 @@ class CoreSchedulerTest {
 
     AnalysisService analysisService = mock(AnalysisService.class);
 
-
     CountDownLatch startLatch = new CountDownLatch(1);
 
     CountDownLatch finishLatch = new CountDownLatch(1);
 
-
     // Block inside the first download call
 
-    doAnswer(invocation -> {
+    doAnswer(
+            invocation -> {
+              startLatch.countDown();
 
-      startLatch.countDown();
+              finishLatch.await(5, TimeUnit.SECONDS);
 
-      finishLatch.await(5, TimeUnit.SECONDS);
+              return null;
+            })
+        .when(downloader)
+        .download();
 
-      return null;
-
-    }).when(downloader).download();
-
-
-    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
-
+    CoreScheduler scheduler =
+        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
 
     // Start thread for first invocation
 
@@ -126,23 +103,19 @@ class CoreSchedulerTest {
 
     t.start();
 
-
     // Wait for first invocation to start and block
 
     startLatch.await(2, TimeUnit.SECONDS);
 
-
     // Call scheduler again in main thread — should skip since t is still running
 
     scheduler.runOnStartup();
-
 
     // Release first thread
 
     finishLatch.countDown();
 
     t.join(2000);
-
 
     // Verify t executed download, but second call skipped it
 
@@ -153,8 +126,5 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, times(1)).computeIndicators();
 
     verify(analysisService, times(1)).computeAnalysis();
-
   }
-
 }
-

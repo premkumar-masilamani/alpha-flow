@@ -1,82 +1,79 @@
 package com.alphaflow.api.mappers;
 
-
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-
-import com.alphaflow.persistence.enums.IndicatorType;
-
-import com.alphaflow.persistence.enums.PriceSource;
-
-import org.junit.jupiter.api.Test;
-
-
-import java.util.Map;
-
-
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.alphaflow.engine.calculators.indicators.IndicatorParams;
+import com.alphaflow.persistence.enums.IndicatorType;
+import com.alphaflow.persistence.enums.PriceSource;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 class IndicatorMapperTest {
 
-
   @Test
-
   void testLabelAllTypesAndSources() {
 
     // EMA Close
 
-    assertEquals("EMA(20)", IndicatorMapper.label(IndicatorType.EMA, PriceSource.CLOSE,
-
-        IndicatorParams.of(Map.of("period", 20))));
+    assertEquals(
+        "EMA(20)",
+        IndicatorMapper.label(
+            IndicatorType.EMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
 
     // EMA Open (non-CLOSE)
 
-    assertEquals("EMA(20) OPEN", IndicatorMapper.label(IndicatorType.EMA, PriceSource.OPEN,
-
-        IndicatorParams.of(Map.of("period", 20))));
-
+    assertEquals(
+        "EMA(20) OPEN",
+        IndicatorMapper.label(
+            IndicatorType.EMA, PriceSource.OPEN, IndicatorParams.of(Map.of("period", 20))));
 
     // SMA
 
-    assertEquals("SMA(50)", IndicatorMapper.label(IndicatorType.SMA, PriceSource.CLOSE,
-
-        IndicatorParams.of(Map.of("period", 50))));
-
+    assertEquals(
+        "SMA(50)",
+        IndicatorMapper.label(
+            IndicatorType.SMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 50))));
 
     // RSI
 
-    assertEquals("RSI(14)", IndicatorMapper.label(IndicatorType.RSI, PriceSource.CLOSE,
-
-        IndicatorParams.of(Map.of("period", 14))));
-
+    assertEquals(
+        "RSI(14)",
+        IndicatorMapper.label(
+            IndicatorType.RSI, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 14))));
 
     // MACD (with default signal)
 
-    assertEquals("MACD(12,26,9)", IndicatorMapper.label(IndicatorType.MACD, PriceSource.CLOSE,
-
-        IndicatorParams.of(Map.of("fast", 12, "slow", 26))));
+    assertEquals(
+        "MACD(12,26,9)",
+        IndicatorMapper.label(
+            IndicatorType.MACD,
+            PriceSource.CLOSE,
+            IndicatorParams.of(Map.of("fast", 12, "slow", 26))));
 
     // MACD (with custom signal)
 
-    assertEquals("MACD(12,26,8)", IndicatorMapper.label(IndicatorType.MACD, PriceSource.CLOSE,
-
-        IndicatorParams.of(Map.of("fast", 12, "slow", 26, "signal", 8))));
-
+    assertEquals(
+        "MACD(12,26,8)",
+        IndicatorMapper.label(
+            IndicatorType.MACD,
+            PriceSource.CLOSE,
+            IndicatorParams.of(Map.of("fast", 12, "slow", 26, "signal", 8))));
 
     // Stochastic
 
-    assertEquals("Stoch(14,3,3)", IndicatorMapper.label(IndicatorType.STOCHASTIC, PriceSource.CLOSE,
-
-        IndicatorParams.of(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))));
-
+    assertEquals(
+        "Stoch(14,3,3)",
+        IndicatorMapper.label(
+            IndicatorType.STOCHASTIC,
+            PriceSource.CLOSE,
+            IndicatorParams.of(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))));
   }
 
-
   @Test
-
   void testConstructorIsPrivate() throws Exception {
 
-    java.lang.reflect.Constructor<IndicatorMapper> constructor = IndicatorMapper.class.getDeclaredConstructor();
+    java.lang.reflect.Constructor<IndicatorMapper> constructor =
+        IndicatorMapper.class.getDeclaredConstructor();
 
     assertTrue(java.lang.reflect.Modifier.isPrivate(constructor.getModifiers()));
 
@@ -91,10 +88,6 @@ class IndicatorMapperTest {
     } catch (java.lang.reflect.InvocationTargetException e) {
 
       assertInstanceOf(UnsupportedOperationException.class, e.getCause());
-
     }
-
   }
-
 }
-

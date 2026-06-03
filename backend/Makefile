@@ -7,7 +7,7 @@ GRADLE := ./gradlew
 DEV_FLAGS   := --daemon --parallel --build-cache --configuration-cache
 PROD_FLAGS  := --no-daemon --parallel --build-cache --configuration-cache
 
-.PHONY: dev test coverage lint build
+.PHONY: dev test coverage lint build format
 
 all: dev
 
@@ -35,13 +35,19 @@ coverage: test
 
 lint:
 	@echo "Executing comprehensive Java static analysis suite..."
-	@echo "1/3 running Checkstyle formatting audit..."
+	@echo "1/4 running Spotless code format check..."
+	$(GRADLE) spotlessCheck $(DEV_FLAGS)
+	@echo "2/4 running Checkstyle formatting audit..."
 	$(GRADLE) checkstyleMain checkstyleTest $(DEV_FLAGS)
-	@echo "2/3 running PMD code smell scan..."
+	@echo "3/4 running PMD code smell scan..."
 	$(GRADLE) pmdMain pmdTest $(DEV_FLAGS)
-	@echo "3/3 running SpotBugs bytecode vulnerability sweep..."
+	@echo "4/4 running SpotBugs bytecode vulnerability sweep..."
 	$(GRADLE) spotbugsMain spotbugsTest $(DEV_FLAGS)
 	@echo "Code verification passed cleanly."
+
+format:
+	@echo "Reformatting Java codebase using Spotless..."
+	$(GRADLE) spotlessApply $(DEV_FLAGS)
 
 build:
 	@echo "Building production artifact (running full verification)..."

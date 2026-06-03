@@ -1,94 +1,68 @@
 package com.alphaflow.engine.calculators.indicators;
 
-
 import com.alphaflow.persistence.enums.IndicatorType;
-
 import com.alphaflow.persistence.enums.PriceSource;
-
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
-
-import java.math.BigDecimal;
-
-import java.util.ArrayList;
-
-import java.util.LinkedHashMap;
-
-import java.util.List;
-
-import java.util.Map;
-
-
 /**
-
  * Relative Strength Index using Wilder's smoothing.
-
- * <p>
-
- * Seeding: the first {@code period} gains/losses are simple-averaged; thereafter Wilder smoothing
-
- * applies: {@code avg = (avgPrev·(period−1) + current) / period}. {@code RSI = 100 − 100/(1+RS)}
-
- * with {@code RS = avgGain/avgLoss}; a zero average loss yields RSI 100.
-
- * <p>
-
- * Recursive: state is {@code {"avgGain","avgLoss","prevClose"}} — {@code prevClose} (the last source
-
- * value, named for the usual close source) is needed to compute the next delta on resume.
-
+ *
+ * <p>Seeding: the first {@code period} gains/losses are simple-averaged; thereafter Wilder
+ * smoothing
+ *
+ * <p>applies: {@code avg = (avgPrev·(period−1) + current) / period}. {@code RSI = 100 − 100/(1+RS)}
+ *
+ * <p>with {@code RS = avgGain/avgLoss}; a zero average loss yields RSI 100.
+ *
+ * <p>Recursive: state is {@code {"avgGain","avgLoss","prevClose"}} — {@code prevClose} (the last
+ * source
+ *
+ * <p>value, named for the usual close source) is needed to compute the next delta on resume.
  */
-
 @Component
-
 public class RsiIndicator implements Indicator {
-
 
   private static BigDecimal wilder(BigDecimal avgPrev, BigDecimal current, BigDecimal period) {
 
     BigDecimal smoothed = avgPrev.multiply(period.subtract(BigDecimal.ONE)).add(current);
 
     return IndicatorMath.divide(smoothed, period);
-
   }
-
 
   private static BigDecimal rsi(BigDecimal avgGain, BigDecimal avgLoss) {
 
     if (avgLoss.signum() == 0) {
 
       return IndicatorMath.publish(IndicatorMath.HUNDRED);
-
     }
 
     BigDecimal rs = IndicatorMath.divide(avgGain, avgLoss);
 
-    BigDecimal rsi = IndicatorMath.HUNDRED.subtract(
-
-        IndicatorMath.divide(IndicatorMath.HUNDRED, BigDecimal.ONE.add(rs)));
+    BigDecimal rsi =
+        IndicatorMath.HUNDRED.subtract(
+            IndicatorMath.divide(IndicatorMath.HUNDRED, BigDecimal.ONE.add(rs)));
 
     return IndicatorMath.publish(rsi);
-
   }
 
-
   @Override
-
   public IndicatorType type() {
 
     return IndicatorType.RSI;
-
   }
 
-
   @Override
-
-  public IndicatorResult compute(List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
+  public IndicatorResult compute(
+      List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
 
     int period = params.getInt("period");
 
     BigDecimal periodBd = BigDecimal.valueOf(period);
-
 
     Map<String, BigDecimal> prior = StateCodec.decode(priorStateJson);
 
@@ -100,13 +74,11 @@ public class RsiIndicator implements Indicator {
 
     boolean seeded = avgGain != null && avgLoss != null;
 
-
     List<BigDecimal> seedGains = new ArrayList<>();
 
     List<BigDecimal> seedLosses = new ArrayList<>();
 
     List<PlotPoint> values = new ArrayList<>();
-
 
     for (PriceBar bar : bars) {
 
@@ -119,16 +91,13 @@ public class RsiIndicator implements Indicator {
         prevValue = value;
 
         continue;
-
       }
-
 
       BigDecimal delta = value.subtract(prevValue);
 
       BigDecimal gain = delta.signum() > 0 ? delta : BigDecimal.ZERO;
 
       BigDecimal loss = delta.signum() < 0 ? delta.negate() : BigDecimal.ZERO;
-
 
       if (!seeded) {
 
@@ -145,7 +114,6 @@ public class RsiIndicator implements Indicator {
           seeded = true;
 
           values.add(new PlotPoint(bar.date(), "value", rsi(avgGain, avgLoss)));
-
         }
 
       } else {
@@ -155,13 +123,10 @@ public class RsiIndicator implements Indicator {
         avgLoss = wilder(avgLoss, loss, periodBd);
 
         values.add(new PlotPoint(bar.date(), "value", rsi(avgGain, avgLoss)));
-
       }
 
       prevValue = value;
-
     }
-
 
     String newState = null;
 
@@ -176,12 +141,8 @@ public class RsiIndicator implements Indicator {
       state.put("prevClose", prevValue);
 
       newState = StateCodec.encode(state);
-
     }
 
     return new IndicatorResult(values, newState);
-
   }
-
 }
-

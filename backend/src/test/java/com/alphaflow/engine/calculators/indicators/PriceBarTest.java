@@ -1,24 +1,15 @@
 package com.alphaflow.engine.calculators.indicators;
 
-
-import com.alphaflow.persistence.enums.PriceSource;
-
-import org.junit.jupiter.api.Test;
-
-
-import java.math.BigDecimal;
-
-import java.time.LocalDate;
-
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.alphaflow.persistence.enums.PriceSource;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import org.junit.jupiter.api.Test;
 
 class PriceBarTest {
 
-
   @Test
-
   void testPriceBarAccessorsAndValueFor() {
 
     LocalDate date = LocalDate.of(2026, 5, 29);
@@ -33,9 +24,7 @@ class PriceBarTest {
 
     BigDecimal volume = new BigDecimal("1000");
 
-
     PriceBar bar = new PriceBar(date, open, high, low, close, volume);
-
 
     assertEquals(date, bar.date());
 
@@ -49,7 +38,6 @@ class PriceBarTest {
 
     assertEquals(volume, bar.volume());
 
-
     assertEquals(open, bar.valueFor(PriceSource.OPEN));
 
     assertEquals(high, bar.valueFor(PriceSource.HIGH));
@@ -59,8 +47,5 @@ class PriceBarTest {
     assertEquals(close, bar.valueFor(PriceSource.CLOSE));
 
     assertEquals(volume, bar.valueFor(PriceSource.VOLUME));
-
   }
-
 }
-

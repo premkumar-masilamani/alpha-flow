@@ -1,58 +1,40 @@
 package com.alphaflow.api.configs;
 
-
-import org.junit.jupiter.api.Test;
-
-import org.springframework.web.servlet.config.annotation.CorsRegistration;
-
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-
-
-import java.util.List;
-
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
 import static org.mockito.ArgumentMatchers.any;
-
 import static org.mockito.Mockito.*;
 
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.servlet.config.annotation.CorsRegistration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
 class CorsConfigTest {
 
-
   @Test
-
   void testAddCorsMappingsThrowsExceptionIfNull() {
 
     CorsConfig config = new CorsConfig();
 
     config.setAllowedOrigins(null);
 
-
-    assertThrows(IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
-
+    assertThrows(
+        IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
   }
 
-
   @Test
-
   void testAddCorsMappingsThrowsExceptionIfEmpty() {
 
     CorsConfig config = new CorsConfig();
 
     config.setAllowedOrigins(List.of());
 
-
-    assertThrows(IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
-
+    assertThrows(
+        IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
   }
 
-
   @Test
-
   void testAddCorsMappingsRegistersCorrectly() {
 
     CorsConfig config = new CorsConfig();
@@ -62,7 +44,6 @@ class CorsConfigTest {
     config.setAllowedOrigins(origins);
 
     assertEquals(origins, config.getAllowedOrigins());
-
 
     CorsRegistry registry = mock(CorsRegistry.class);
 
@@ -76,9 +57,7 @@ class CorsConfigTest {
 
     when(registration.allowedHeaders(any(String[].class))).thenReturn(registration);
 
-
     config.addCorsMappings(registry);
-
 
     verify(registry).addMapping("/api/**");
 
@@ -87,8 +66,5 @@ class CorsConfigTest {
     verify(registration).allowedMethods("GET", "OPTIONS");
 
     verify(registration).allowedHeaders("Content-Type", "Accept");
-
   }
-
 }
-

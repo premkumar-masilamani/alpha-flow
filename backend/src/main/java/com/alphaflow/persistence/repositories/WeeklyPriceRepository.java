@@ -1,41 +1,26 @@
 package com.alphaflow.persistence.repositories;
 
-
 import com.alphaflow.persistence.entities.Ticker;
-
 import com.alphaflow.persistence.entities.WeeklyPrice;
-
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
-
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import org.springframework.data.jpa.repository.Query;
-
 import org.springframework.stereotype.Repository;
 
-
-import java.time.LocalDate;
-
-import java.util.List;
-
-import java.util.Optional;
-
-
 @Repository
-
 public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> {
-
 
   Optional<WeeklyPrice> findTopByTickerOrderByPriceDateDesc(Ticker ticker);
 
-
   List<WeeklyPrice> findByTickerAndPriceDateGreaterThanEqual(Ticker ticker, LocalDate priceDate);
-
 
   List<WeeklyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);
 
-
-  @Query("""
+  @Query(
+      """
 
         SELECT wp FROM WeeklyPrice wp
 
@@ -46,11 +31,10 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
         ORDER BY wp.priceDate DESC
 
       """)
-
   List<WeeklyPrice> findLatestByTickerName(String tickerName, Pageable pageable);
 
-
-  @Query("""
+  @Query(
+      """
 
         SELECT wp.priceDate FROM WeeklyPrice wp
 
@@ -59,9 +43,5 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
         ORDER BY wp.priceDate DESC
 
       """)
-
   List<LocalDate> findRecentPriceDates(String symbol, Pageable pageable);
-
-
 }
-

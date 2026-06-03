@@ -1,50 +1,34 @@
 package com.alphaflow.engine.calculators.indicators;
 
-
 import com.alphaflow.persistence.enums.IndicatorType;
-
 import com.alphaflow.persistence.enums.PriceSource;
-
+import java.math.BigDecimal;
+import java.util.*;
 import org.springframework.stereotype.Component;
 
-
-import java.math.BigDecimal;
-
-import java.util.*;
-
-
 /**
-
  * Exponential moving average over a configurable source field, with standard SMA seeding.
-
- * <p>
-
- * Recursive: resumes from the persisted EMA value ({@code {"ema": "..."}}) so a single new bar can
-
- * be computed without replaying history. See {@link EmaAccumulator} for the seeding/recurrence math.
-
+ *
+ * <p>Recursive: resumes from the persisted EMA value ({@code {"ema": "..."}}) so a single new bar
+ * can
+ *
+ * <p>be computed without replaying history. See {@link EmaAccumulator} for the seeding/recurrence
+ * math.
  */
-
 @Component
-
 public class EmaIndicator implements Indicator {
 
-
   @Override
-
   public IndicatorType type() {
 
     return IndicatorType.EMA;
-
   }
 
-
   @Override
-
-  public IndicatorResult compute(List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
+  public IndicatorResult compute(
+      List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
 
     int period = params.getInt("period");
-
 
     EmaAccumulator acc;
 
@@ -57,9 +41,7 @@ public class EmaIndicator implements Indicator {
     } else {
 
       acc = EmaAccumulator.fresh(period);
-
     }
-
 
     List<PlotPoint> values = new ArrayList<>();
 
@@ -68,9 +50,7 @@ public class EmaIndicator implements Indicator {
       Optional<BigDecimal> ema = acc.next(bar.valueFor(source));
 
       ema.ifPresent(v -> values.add(new PlotPoint(bar.date(), "value", IndicatorMath.publish(v))));
-
     }
-
 
     String newState = null;
 
@@ -81,12 +61,8 @@ public class EmaIndicator implements Indicator {
       state.put("ema", acc.current());
 
       newState = StateCodec.encode(state);
-
     }
 
     return new IndicatorResult(values, newState);
-
   }
-
 }
-
