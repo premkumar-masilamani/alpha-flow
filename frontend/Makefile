@@ -1,7 +1,7 @@
 NODE_ENV    ?= development
 NPM         := npm
 
-.PHONY: all install dev build preview lint audit check clean help
+.PHONY: all install dev build preview lint audit test check clean help
 
 # Default target
 all: help
@@ -31,10 +31,15 @@ audit:
 	@echo "Auditing production dependencies for high/critical security risks..."
 	$(NPM) audit --omit=dev --audit-level=high
 
+test: install
+	@echo "Running unit tests using Vitest..."
+	npx vitest run
+
 check:
 	@$(MAKE) install
 	@$(MAKE) audit
 	@$(MAKE) lint
+	@$(MAKE) test
 	@$(MAKE) build
 
 clean:
@@ -52,5 +57,6 @@ help:
 	@echo "  make preview  - Boot local wrapper to check compiled bundle assets"
 	@echo "  make lint     - Execute ESLint validation maps"
 	@echo "  make audit    - Run strict production security validation scripts"
+	@echo "  make test     - Run unit tests with Vitest"
 	@echo "  make check    - Comprehensive sequential validation workflow execution"
 	@echo "  make clean    - Wipe local build caches and workspace nodes"

@@ -24,7 +24,10 @@ check_frontend:
 	@$(MAKE) -C frontend check
 
 test:
+	@echo "--- Running Backend Tests ---"
 	@$(MAKE) -C backend test
+	@echo "--- Running Frontend Tests ---"
+	@$(MAKE) -C frontend test
 
 diagrams:
 	@echo "Compiling D2 architecture diagrams to sketch SVG assets..."
