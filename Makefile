@@ -51,7 +51,10 @@ run_all:
 	@echo "Step 1/2: Initializing database cluster infrastructures..."
 	@$(MAKE) run_database
 	@echo "Step 2/2: Spawning application instances concurrently..."
-	@trap 'echo "\nShutting down environments..."; kill 0' SIGINT SIGTERM; \
+	@backend_pid=""; frontend_pid=""; \
+	trap 'echo "\nShutting down environments..."; [ -n "$$backend_pid" ] && kill $$backend_pid 2>/dev/null; [ -n "$$frontend_pid" ] && kill $$frontend_pid 2>/dev/null; trap - SIGINT SIGTERM; exit 0' SIGINT SIGTERM; \
 	$(MAKE) run_backend & \
+	backend_pid=$$!; \
 	$(MAKE) run_frontend & \
-	wait
+	frontend_pid=$$!; \
+	wait $$backend_pid $$frontend_pid
