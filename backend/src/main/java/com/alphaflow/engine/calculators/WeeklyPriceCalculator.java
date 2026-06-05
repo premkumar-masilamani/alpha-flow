@@ -48,10 +48,13 @@ public class WeeklyPriceCalculator {
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for weekly prices.", tickers.size());
 
+    Map<Ticker, LocalDate> latestDailyDates =
+        dailyPriceRepository.findLatestPriceDatesForActiveTickers();
+
     WeeklyPriceCalculator proxy = (self != null) ? self : this;
     for (Ticker ticker : tickers) {
       try {
-        proxy.processTicker(ticker);
+        proxy.processTicker(ticker, latestDailyDates.get(ticker));
       } catch (Exception e) {
         log.error(
             "Failed to compute weekly prices for ticker {}: {}",
@@ -66,6 +69,13 @@ public class WeeklyPriceCalculator {
 
   @Transactional
   public void processTicker(Ticker ticker) {
+    LocalDate latestDailyDate =
+        dailyPriceRepository.findLatestPriceDatesForActiveTickers().get(ticker);
+    processTicker(ticker, latestDailyDate);
+  }
+
+  @Transactional
+  public void processTicker(Ticker ticker, LocalDate latestDailyDate) {
     // 1. Determine start date
     Optional<WeeklyPrice> latestWeeklyOpt =
         weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker);
@@ -79,21 +89,16 @@ public class WeeklyPriceCalculator {
           ticker.getTickerSymbol(),
           calculationStartDate);
     } else {
-      Optional<DailyPrice> firstDailyOpt =
-          dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker);
-      if (firstDailyOpt.isEmpty()) {
+      if (latestDailyDate == null || latestDailyDate.equals(LocalDate.of(1900, 1, 1))) {
         log.warn(
             "Ticker {}: No daily prices found! Skipping weekly price computation.",
             ticker.getTickerSymbol());
         return;
       }
       calculationStartDate =
-          firstDailyOpt
-              .get()
-              .getPriceDate()
-              .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+          latestDailyDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
       log.debug(
-          "Ticker {}: No weekly prices found. Starting computation from first daily price date (aligned to Monday): {}",
+          "Ticker {}: No weekly prices found. Starting computation from latest daily price date (aligned to Monday): {}",
           ticker.getTickerSymbol(),
           calculationStartDate);
     }
