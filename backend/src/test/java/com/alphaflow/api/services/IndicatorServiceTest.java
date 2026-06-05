@@ -8,8 +8,8 @@ import static org.mockito.Mockito.*;
 import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.engine.configs.IndicatorProperties;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorValue;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
@@ -35,7 +35,7 @@ class IndicatorServiceTest {
 
   private static final LocalDate D3 = LocalDate.of(2024, 1, 3);
 
-  private IndicatorProperties indicatorProperties;
+  private IndicatorConfig indicatorConfig;
 
   private TickerRepository tickerRepository;
 
@@ -77,7 +77,7 @@ class IndicatorServiceTest {
   @BeforeEach
   void setUp() {
 
-    indicatorProperties = new IndicatorProperties();
+    indicatorConfig = new IndicatorConfig();
 
     tickerRepository = mock(TickerRepository.class);
 
@@ -89,7 +89,7 @@ class IndicatorServiceTest {
 
     service =
         new IndicatorService(
-            indicatorProperties,
+            indicatorConfig,
             new ChartConfig(),
             tickerRepository,
             dailyPriceRepository,
@@ -100,7 +100,7 @@ class IndicatorServiceTest {
   @Test
   void discoveryFlattensConfiguredMatrix() {
 
-    indicatorProperties.setTimeframes(
+    indicatorConfig.setTimeframes(
         Map.of(
             Timeframe.DAILY,
             List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5))),

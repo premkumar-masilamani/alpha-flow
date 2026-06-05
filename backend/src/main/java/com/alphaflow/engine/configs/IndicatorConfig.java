@@ -34,7 +34,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "alphaflow.indicators")
 @Data
-public class IndicatorProperties {
+public class IndicatorConfig {
 
   /** Indicator definitions keyed by timeframe. */
   private Map<Timeframe, List<IndicatorDefinition>> timeframes = new EnumMap<>(Timeframe.class);

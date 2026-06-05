@@ -1,8 +1,8 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.engine.calculators.indicators.*;
-import com.alphaflow.engine.configs.IndicatorProperties;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorState;
 import com.alphaflow.persistence.entities.IndicatorValue;
 import com.alphaflow.persistence.entities.Ticker;
@@ -65,7 +65,7 @@ public class IndicatorTickerProcessor {
 
   private final IndicatorRegistry registry;
 
-  private final IndicatorProperties properties;
+  private final IndicatorConfig properties;
 
   private final DailyPriceRepository dailyPriceRepository;
 
@@ -77,7 +77,7 @@ public class IndicatorTickerProcessor {
 
   public IndicatorTickerProcessor(
       IndicatorRegistry registry,
-      IndicatorProperties properties,
+      IndicatorConfig properties,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       IndicatorValueRepository indicatorValueRepository,

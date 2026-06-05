@@ -4,8 +4,8 @@ import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.mappers.IndicatorMapper;
-import com.alphaflow.engine.configs.IndicatorProperties;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorValue;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
@@ -34,7 +34,7 @@ public class IndicatorService {
 
   private static final Logger log = LoggerFactory.getLogger(IndicatorService.class);
 
-  private final IndicatorProperties indicatorProperties;
+  private final IndicatorConfig indicatorConfig;
   private final ChartConfig chartConfig;
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
@@ -42,13 +42,13 @@ public class IndicatorService {
   private final IndicatorValueRepository indicatorValueRepository;
 
   public IndicatorService(
-      IndicatorProperties indicatorProperties,
+      IndicatorConfig indicatorConfig,
       ChartConfig chartConfig,
       TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       IndicatorValueRepository indicatorValueRepository) {
-    this.indicatorProperties = indicatorProperties;
+    this.indicatorConfig = indicatorConfig;
     this.chartConfig = chartConfig;
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
@@ -60,7 +60,7 @@ public class IndicatorService {
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
     List<IndicatorConfigDTO> configs = new ArrayList<>();
     for (Timeframe timeframe : Timeframe.values()) {
-      for (IndicatorDefinition definition : indicatorProperties.forTimeframe(timeframe)) {
+      for (IndicatorDefinition definition : indicatorConfig.forTimeframe(timeframe)) {
         configs.add(IndicatorMapper.toConfigDTO(timeframe, definition));
       }
     }

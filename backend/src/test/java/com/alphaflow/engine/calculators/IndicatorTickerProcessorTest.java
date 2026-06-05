@@ -5,8 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.alphaflow.engine.calculators.indicators.*;
-import com.alphaflow.engine.configs.IndicatorProperties;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.IndicatorState;
 import com.alphaflow.persistence.entities.IndicatorValue;
@@ -147,7 +147,7 @@ class IndicatorTickerProcessorTest {
 
     // Matrix: EMA-3 on close (recursive) + SMA-2 on volume (windowed), daily only.
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef(), smaVolumeDef())));
 
@@ -246,7 +246,7 @@ class IndicatorTickerProcessorTest {
 
     // Only the EMA combo here, to keep the assertions on the rewrite window unambiguous.
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
 
@@ -376,7 +376,7 @@ class IndicatorTickerProcessorTest {
             .internals("{\"ema\":\"10.0\"}")
             .build();
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
 
@@ -422,7 +422,7 @@ class IndicatorTickerProcessorTest {
             .internals(null)
             .build();
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
 
@@ -468,7 +468,7 @@ class IndicatorTickerProcessorTest {
             .internals(null)
             .build();
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(smaVolumeDef())));
 
@@ -550,7 +550,7 @@ class IndicatorTickerProcessorTest {
 
     weeklyDef.setParams(Map.of("period", 2));
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.WEEKLY, List.of(weeklyDef)));
 
@@ -595,7 +595,7 @@ class IndicatorTickerProcessorTest {
             .internals("{\"ema\":\"10.0\"}")
             .build();
 
-    IndicatorProperties properties = new IndicatorProperties();
+    IndicatorConfig properties = new IndicatorConfig();
 
     properties.setTimeframes(Map.of(Timeframe.DAILY, List.of(emaDef())));
 

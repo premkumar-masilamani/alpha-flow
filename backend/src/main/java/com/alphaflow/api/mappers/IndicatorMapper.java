@@ -4,7 +4,7 @@ import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorPointDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorValue;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;

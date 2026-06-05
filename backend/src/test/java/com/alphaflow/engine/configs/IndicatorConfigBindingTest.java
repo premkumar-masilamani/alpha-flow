@@ -3,7 +3,7 @@ package com.alphaflow.engine.configs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.Timeframe;
@@ -22,9 +22,9 @@ import org.springframework.boot.context.properties.source.MapConfigurationProper
  *
  * <p>which is the subtle gotcha when binding {@code Map<String, ?>} keys.
  */
-class IndicatorPropertiesBindingTest {
+class IndicatorConfigBindingTest {
 
-  private static IndicatorProperties bind() {
+  private static IndicatorConfig bind() {
 
     Map<String, String> props = new HashMap<>();
 
@@ -67,14 +67,14 @@ class IndicatorPropertiesBindingTest {
     props.put("alphaflow.indicators.timeframes.weekly[0].params.signal", "9");
 
     return new Binder(new MapConfigurationPropertySource(props))
-        .bind("alphaflow.indicators", IndicatorProperties.class)
+        .bind("alphaflow.indicators", IndicatorConfig.class)
         .get();
   }
 
   @Test
   void bindsDailyAndWeeklyMatrix() {
 
-    IndicatorProperties properties = bind();
+    IndicatorConfig properties = bind();
 
     List<IndicatorDefinition> daily = properties.forTimeframe(Timeframe.DAILY);
 

@@ -44,7 +44,7 @@ com.alphaflow
 │   ├── enums/             # IndicatorType, Timeframe, PriceSource
 │   └── exceptions/        # ResourceNotFoundException
 ├── engine/                # Computation layer (no API dependencies)
-│   ├── configs/           # @ConfigurationProperties (IndicatorProperties, YahooFinanceConfig)
+│   ├── configs/           # @ConfigurationProperties (IndicatorConfig, YahooFinanceConfig)
 │   ├── downloaders/       # YahooFinanceDownloader
 │   ├── calculators/       # WeeklyPriceCalculator, IndicatorCalculator
 │   │   └── indicators/    # Indicator interface + implementations (SMA, EMA, RSI, MACD, Stochastic)
@@ -160,7 +160,7 @@ alphaflow.indicators.timeframes.daily[0].source=CLOSE
 alphaflow.indicators.timeframes.daily[0].params.period=5
 ```
 
-This drives the `IndicatorProperties.IndicatorDefinition` class.
+This drives the `IndicatorConfig.IndicatorDefinition` class.
 
 ### Scheduler (`engine/schedulers/`)
 
