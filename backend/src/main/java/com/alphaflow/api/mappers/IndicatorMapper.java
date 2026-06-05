@@ -4,7 +4,7 @@ import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorPointDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorValue;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
@@ -22,10 +22,8 @@ import java.util.Map;
  * <p>label per combo (e.g. {@code "MACD(12,26,9)"}, {@code "SMA(20) VOL"}).
  */
 public class IndicatorMapper {
-
   private IndicatorMapper() {
-
-    throw new UnsupportedOperationException("Utility class");
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
   public static IndicatorConfigDTO toConfigDTO(

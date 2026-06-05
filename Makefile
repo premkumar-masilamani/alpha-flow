@@ -16,7 +16,7 @@ connect_database:
 	@echo "Connecting to the database CLI..."
 	@$(MAKE) -C database connect_database
 
-run_backend: run_database
+run_backend:
 	@echo "Launching backend development server..."
 	@$(MAKE) -C backend dev
 

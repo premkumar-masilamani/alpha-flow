@@ -26,14 +26,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AnalysisService {
 
-  @Autowired @Lazy private AnalysisService self;
-
   private static final Logger log = LoggerFactory.getLogger(AnalysisService.class);
-
   private final DailyPriceService dailyPriceService;
   private final IndicatorService indicatorService;
   private final TickerRepository tickerRepository;
   private final AnalysisResultRepository analysisResultRepository;
+  @Autowired @Lazy private AnalysisService self;
 
   public AnalysisService(
       DailyPriceService dailyPriceService,
@@ -201,16 +199,6 @@ public class AnalysisService {
     return analysisResultRepository.save(result);
   }
 
-  private static class CalculatedSignal {
-    final String signal;
-    final String value;
-
-    CalculatedSignal(String signal, String value) {
-      this.signal = signal;
-      this.value = value;
-    }
-  }
-
   private CalculatedSignal evaluateWeeklyMacd(List<IndicatorSeriesDTO> weeklyIndicators) {
     Optional<IndicatorSeriesDTO> macdSeriesOpt =
         weeklyIndicators.stream().filter(s -> "MACD".equalsIgnoreCase(s.type())).findFirst();
@@ -347,7 +335,7 @@ public class AnalysisService {
       return new CalculatedSignal("HOLD", "Missing volume SMA value");
     }
 
-    BigDecimal volume = BigDecimal.valueOf(latestCandle.volume());
+    BigDecimal volume = latestCandle.volume();
     boolean isHeavyVolume = volume.compareTo(volSmaValue) > 0;
     boolean isGreen = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) > 0;
     boolean isRed = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) < 0;
@@ -441,6 +429,16 @@ public class AnalysisService {
       return new CalculatedSignal("SELL", "EMA 5 < 13 & 26 (Bearish Alignment)");
     } else {
       return new CalculatedSignal("HOLD", "Mixed EMAs");
+    }
+  }
+
+  private static class CalculatedSignal {
+    final String signal;
+    final String value;
+
+    CalculatedSignal(String signal, String value) {
+      this.signal = signal;
+      this.value = value;
     }
   }
 }

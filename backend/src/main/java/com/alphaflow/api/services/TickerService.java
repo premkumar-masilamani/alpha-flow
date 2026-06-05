@@ -15,11 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class TickerService {
 
   private static final Logger log = LoggerFactory.getLogger(TickerService.class);
-
   private final TickerRepository tickerRepository;
 
   public TickerService(TickerRepository tickerRepository) {
-
     this.tickerRepository = tickerRepository;
   }
 

@@ -42,6 +42,6 @@ public class WeeklyPrice {
   @Column(name = "price_close", nullable = false, precision = 18, scale = 4)
   private BigDecimal priceClose;
 
-  @Column(name = "volume", nullable = false)
-  private Long volume;
+  @Column(name = "volume", nullable = false, precision = 18, scale = 4)
+  private BigDecimal volume;
 }

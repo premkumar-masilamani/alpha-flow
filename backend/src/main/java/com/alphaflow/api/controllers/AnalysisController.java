@@ -14,19 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class AnalysisController {
 
   private static final Logger log = LoggerFactory.getLogger(AnalysisController.class);
-
   private final AnalysisService analysisService;
 
   public AnalysisController(AnalysisService analysisService) {
-
     this.analysisService = analysisService;
   }
 
   @GetMapping("/tickers/{symbol}/analysis")
-  public AnalysisResponseDTO getTechnicalAnalysis(@PathVariable String symbol) {
-
+  public AnalysisResponseDTO getTechnicalAnalysisForTicker(@PathVariable String symbol) {
     log.info("Request to get technical analysis for ticker: {}", symbol);
-
     return analysisService.getAnalysis(symbol);
   }
 }

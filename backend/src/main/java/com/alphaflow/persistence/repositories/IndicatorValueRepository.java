@@ -30,21 +30,21 @@ public interface IndicatorValueRepository extends JpaRepository<IndicatorValue, 
   @Query(
       """
 
-      DELETE FROM IndicatorValue v
+                    DELETE FROM IndicatorValue v
 
-      WHERE v.ticker = :ticker
+                    WHERE v.ticker = :ticker
 
-        AND v.timeframe = :timeframe
+                      AND v.timeframe = :timeframe
 
-        AND v.indicatorType = :indicatorType
+                      AND v.indicatorType = :indicatorType
 
-        AND v.source = :source
+                      AND v.source = :source
 
-        AND v.params = :params
+                      AND v.params = :params
 
-        AND v.priceDate >= :from
+                      AND v.priceDate >= :from
 
-      """)
+                    """)
   void deleteCombo(
       Ticker ticker,
       Timeframe timeframe,
@@ -62,39 +62,39 @@ public interface IndicatorValueRepository extends JpaRepository<IndicatorValue, 
   @Query(
       """
 
-      SELECT iv FROM IndicatorValue iv
+                    SELECT iv FROM IndicatorValue iv
 
-      JOIN iv.ticker tk
+                    JOIN iv.ticker tk
 
-      WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
+                    WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
 
-        AND iv.timeframe = :timeframe
+                      AND iv.timeframe = :timeframe
 
-        AND iv.priceDate >= :from
+                      AND iv.priceDate >= :from
 
-      ORDER BY iv.priceDate ASC
+                    ORDER BY iv.priceDate ASC
 
-      """)
+                    """)
   List<IndicatorValue> findSeries(String symbol, Timeframe timeframe, LocalDate from);
 
   @Query(
       """
 
-      SELECT iv FROM IndicatorValue iv
+                    SELECT iv FROM IndicatorValue iv
 
-      JOIN iv.ticker tk
+                    JOIN iv.ticker tk
 
-      WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
+                    WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
 
-        AND iv.timeframe = :timeframe
+                      AND iv.timeframe = :timeframe
 
-        AND iv.priceDate >= :from
+                      AND iv.priceDate >= :from
 
-        AND iv.priceDate <= :to
+                      AND iv.priceDate <= :to
 
-      ORDER BY iv.priceDate ASC
+                    ORDER BY iv.priceDate ASC
 
-      """)
+                    """)
   List<IndicatorValue> findSeriesBetween(
       String symbol, Timeframe timeframe, LocalDate from, LocalDate to);
 }

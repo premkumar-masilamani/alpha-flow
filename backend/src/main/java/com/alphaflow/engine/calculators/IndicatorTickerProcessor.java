@@ -1,8 +1,8 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.engine.calculators.indicators.*;
-import com.alphaflow.engine.configs.IndicatorProperties;
-import com.alphaflow.engine.configs.IndicatorProperties.IndicatorDefinition;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
 import com.alphaflow.persistence.entities.IndicatorState;
 import com.alphaflow.persistence.entities.IndicatorValue;
 import com.alphaflow.persistence.entities.Ticker;
@@ -13,7 +13,6 @@ import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.IndicatorStateRepository;
 import com.alphaflow.persistence.repositories.IndicatorValueRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <h4>Per-combo algorithm</h4>
  *
- * For each (timeframe, indicator, source, params):
+ * <p>For each (timeframe, indicator, source, params):
  *
  * <ol>
  *   <li><b>Resume vs. backfill.</b> If a checkpoint exists, its {@code lastPriceDate} is present in
@@ -54,7 +53,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       <p>never frozen into resume state.
  * </ol>
  *
- * Note: this loads each ticker's full price history per run (a read); the write volume is what is
+ * <p>Note: this loads each ticker's full price history per run (a read); the write volume is what
+ * is
  *
  * <p>minimized (only the tail is rewritten). Tail-only <i>loading</i> is a deferred optimization.
  */
@@ -65,7 +65,7 @@ public class IndicatorTickerProcessor {
 
   private final IndicatorRegistry registry;
 
-  private final IndicatorProperties properties;
+  private final IndicatorConfig properties;
 
   private final DailyPriceRepository dailyPriceRepository;
 
@@ -77,7 +77,7 @@ public class IndicatorTickerProcessor {
 
   public IndicatorTickerProcessor(
       IndicatorRegistry registry,
-      IndicatorProperties properties,
+      IndicatorConfig properties,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       IndicatorValueRepository indicatorValueRepository,
@@ -318,7 +318,7 @@ public class IndicatorTickerProcessor {
                     d.getPriceHigh(),
                     d.getPriceLow(),
                     d.getPriceClose(),
-                    BigDecimal.valueOf(d.getVolume())))
+                    d.getVolume()))
         .toList();
   }
 
@@ -333,7 +333,7 @@ public class IndicatorTickerProcessor {
                     w.getPriceHigh(),
                     w.getPriceLow(),
                     w.getPriceClose(),
-                    BigDecimal.valueOf(w.getVolume())))
+                    w.getVolume()))
         .toList();
   }
 }

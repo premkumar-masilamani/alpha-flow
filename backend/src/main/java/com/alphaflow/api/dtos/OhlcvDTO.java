@@ -12,4 +12,4 @@ public record OhlcvDTO(
     @JsonProperty("high") BigDecimal priceHigh,
     @JsonProperty("low") BigDecimal priceLow,
     @JsonProperty("close") BigDecimal priceClose,
-    @JsonProperty("vol") Long volume) {}
+    @JsonProperty("vol") BigDecimal volume) {}

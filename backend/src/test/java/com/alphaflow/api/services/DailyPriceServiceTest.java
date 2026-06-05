@@ -5,10 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.configs.ApiProperties;
+import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.persistence.entities.DailyPrice;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
@@ -22,16 +21,15 @@ class DailyPriceServiceTest {
 
   @Test
   void testGetDailyPriceByTickerNameSuccess() {
-
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ApiProperties apiProperties = mock(ApiProperties.class);
+    ChartConfig chartConfig = mock(ChartConfig.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
 
-    when(apiProperties.windowFor(Timeframe.DAILY)).thenReturn(180);
+    when(chartConfig.getWindow()).thenReturn(180);
 
     DailyPrice dp1 =
         DailyPrice.builder()
@@ -40,7 +38,7 @@ class DailyPriceServiceTest {
             .priceHigh(new BigDecimal("105.0000"))
             .priceLow(new BigDecimal("99.0000"))
             .priceClose(new BigDecimal("102.0000"))
-            .volume(1000L)
+            .volume(new BigDecimal("1000.0000"))
             .build();
 
     DailyPrice dp2 =
@@ -50,7 +48,7 @@ class DailyPriceServiceTest {
             .priceHigh(new BigDecimal("101.0000"))
             .priceLow(new BigDecimal("97.0000"))
             .priceClose(new BigDecimal("99.0000"))
-            .volume(800L)
+            .volume(new BigDecimal("800.0000"))
             .build();
 
     // Database return is descending/latest first usually or in any order, service sorts them
@@ -59,7 +57,7 @@ class DailyPriceServiceTest {
     when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 180)))
         .thenReturn(List.of(dp1, dp2));
 
-    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, chartConfig);
 
     List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL");
 
@@ -72,16 +70,15 @@ class DailyPriceServiceTest {
 
   @Test
   void testGetDailyPriceByTickerNameNotFound() {
-
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ApiProperties apiProperties = mock(ApiProperties.class);
+    ChartConfig chartConfig = mock(ChartConfig.class);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("INVALID")).thenReturn(false);
 
-    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, chartConfig);
 
     assertThrows(
         ResourceNotFoundException.class, () -> service.getDailyPriceByTickerName("INVALID"));
@@ -89,12 +86,13 @@ class DailyPriceServiceTest {
 
   @Test
   void testGetDailyPriceByTickerNameWithCustomPageAndSizeSuccess() {
-
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ApiProperties apiProperties = mock(ApiProperties.class);
+    ChartConfig chartConfig = mock(ChartConfig.class);
+
+    when(chartConfig.getWindow()).thenReturn(180);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
 
@@ -105,12 +103,12 @@ class DailyPriceServiceTest {
             .priceHigh(new BigDecimal("105.0000"))
             .priceLow(new BigDecimal("99.0000"))
             .priceClose(new BigDecimal("102.0000"))
-            .volume(1000L)
+            .volume(new BigDecimal("1000.0000"))
             .build();
 
     when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10))).thenReturn(List.of(dp));
 
-    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, apiProperties);
+    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, chartConfig);
 
     List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL", 1, 10);
 

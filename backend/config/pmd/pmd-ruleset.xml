@@ -1,61 +1,61 @@
 <?xml version="1.0"?>
-<ruleset name="Custom Ruleset"
-    xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         name="Custom Ruleset"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
 
     <description>Custom PMD Ruleset for AlphaFlow</description>
 
     <!-- Import categories and exclude noisy rules -->
     <rule ref="category/java/errorprone.xml">
-        <exclude name="AvoidFieldNameMatchingMethodName" />
-        <exclude name="AvoidFieldNameMatchingTypeName" />
-        <exclude name="AvoidDuplicateLiterals" />
-        <exclude name="AvoidLiteralsInIfCondition" />
-        <exclude name="NullAssignment" />
-        <exclude name="MissingSerialVersionUID" />
-        <exclude name="UseLocaleWithCaseConversions" />
-        <exclude name="CloseResource" />
-        <exclude name="AvoidAccessibilityAlteration" />
-        <exclude name="AssignmentInOperand" />
+        <exclude name="AvoidFieldNameMatchingMethodName"/>
+        <exclude name="AvoidFieldNameMatchingTypeName"/>
+        <exclude name="AvoidDuplicateLiterals"/>
+        <exclude name="AvoidLiteralsInIfCondition"/>
+        <exclude name="NullAssignment"/>
+        <exclude name="MissingSerialVersionUID"/>
+        <exclude name="UseLocaleWithCaseConversions"/>
+        <exclude name="CloseResource"/>
+        <exclude name="AvoidAccessibilityAlteration"/>
+        <exclude name="AssignmentInOperand"/>
     </rule>
-    
+
     <rule ref="category/java/bestpractices.xml">
-        <exclude name="JUnitTestContainsTooManyAsserts" />
-        <exclude name="JUnitTestsShouldIncludeAssert" />
-        <exclude name="JUnitAssertionsShouldIncludeMessage" />
-        <exclude name="PreserveStackTrace" />
-        <exclude name="GuardLogStatement" />
-        <exclude name="AvoidReassigningParameters" />
-        <exclude name="UseTryWithResources" />
-        <exclude name="SystemPrintln" />
-        <exclude name="UnusedAssignment" />
-        <exclude name="LiteralsFirstInComparisons" />
+        <exclude name="JUnitTestContainsTooManyAsserts"/>
+        <exclude name="JUnitTestsShouldIncludeAssert"/>
+        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
+        <exclude name="PreserveStackTrace"/>
+        <exclude name="GuardLogStatement"/>
+        <exclude name="AvoidReassigningParameters"/>
+        <exclude name="UseTryWithResources"/>
+        <exclude name="SystemPrintln"/>
+        <exclude name="UnusedAssignment"/>
+        <exclude name="LiteralsFirstInComparisons"/>
     </rule>
 
     <rule ref="category/java/codestyle.xml">
-        <exclude name="LocalVariableCouldBeFinal" />
-        <exclude name="MethodArgumentCouldBeFinal" />
-        <exclude name="OnlyOneReturn" />
-        <exclude name="AtLeastOneConstructor" />
-        <exclude name="ShortVariable" />
-        <exclude name="LongVariable" />
-        <exclude name="TooManyStaticImports" />
-        <exclude name="ClassNamingConventions" />
-        <exclude name="MethodNamingConventions" />
-        <exclude name="FieldNamingConventions" />
-        <exclude name="LocalVariableNamingConventions" />
-        <exclude name="FormalParameterNamingConventions" />
-        <exclude name="GenericsNaming" />
-        <exclude name="LinguisticNaming" />
-        <exclude name="ConfusingTernary" />
-        <exclude name="ControlStatementBraces" />
-        <exclude name="UselessParentheses" />
-        <exclude name="CommentDefaultAccessModifier" />
-        <exclude name="ShortMethodName" />
-        <exclude name="UseExplicitTypes" />
-        <exclude name="UseUnderscoresInNumericLiterals" />
-        <exclude name="UnnecessaryImport" />
-        <exclude name="UnnecessaryFullyQualifiedName" />
+        <exclude name="LocalVariableCouldBeFinal"/>
+        <exclude name="MethodArgumentCouldBeFinal"/>
+        <exclude name="OnlyOneReturn"/>
+        <exclude name="AtLeastOneConstructor"/>
+        <exclude name="ShortVariable"/>
+        <exclude name="LongVariable"/>
+        <exclude name="TooManyStaticImports"/>
+        <exclude name="ClassNamingConventions"/>
+        <exclude name="MethodNamingConventions"/>
+        <exclude name="FieldNamingConventions"/>
+        <exclude name="LocalVariableNamingConventions"/>
+        <exclude name="FormalParameterNamingConventions"/>
+        <exclude name="GenericsNaming"/>
+        <exclude name="LinguisticNaming"/>
+        <exclude name="ConfusingTernary"/>
+        <exclude name="ControlStatementBraces"/>
+        <exclude name="UselessParentheses"/>
+        <exclude name="CommentDefaultAccessModifier"/>
+        <exclude name="ShortMethodName"/>
+        <exclude name="UseExplicitTypes"/>
+        <exclude name="UseUnderscoresInNumericLiterals"/>
+        <exclude name="UnnecessaryImport"/>
+        <exclude name="UnnecessaryFullyQualifiedName"/>
     </rule>
 </ruleset>
