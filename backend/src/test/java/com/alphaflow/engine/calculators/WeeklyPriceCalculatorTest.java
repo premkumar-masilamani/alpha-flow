@@ -159,10 +159,6 @@ class WeeklyPriceCalculatorTest {
     when(dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(Optional.empty());
 
-    when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
-            eq(ticker), any()))
-        .thenReturn(List.of());
-
     calculator.processTicker(ticker);
 
     verify(weeklyPriceRepository, never()).saveAll(any());

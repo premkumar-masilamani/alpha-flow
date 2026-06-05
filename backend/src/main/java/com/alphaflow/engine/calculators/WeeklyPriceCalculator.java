@@ -79,15 +79,19 @@ public class WeeklyPriceCalculator {
           ticker.getTickerSymbol(),
           calculationStartDate);
     } else {
-      // Default to the first daily price date (aligned to Monday of that week) or a fallback date
-      // if no daily prices exist
+      Optional<DailyPrice> firstDailyOpt =
+          dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker);
+      if (firstDailyOpt.isEmpty()) {
+        log.warn(
+            "Ticker {}: No daily prices found! Skipping weekly price computation.",
+            ticker.getTickerSymbol());
+        return;
+      }
       calculationStartDate =
-          dailyPriceRepository
-              .findTopByTickerOrderByPriceDateAsc(ticker)
-              .map(DailyPrice::getPriceDate)
-              .orElse(LocalDate.of(1900, 1, 1))
+          firstDailyOpt
+              .get()
+              .getPriceDate()
               .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-
       log.debug(
           "Ticker {}: No weekly prices found. Starting computation from first daily price date (aligned to Monday): {}",
           ticker.getTickerSymbol(),
