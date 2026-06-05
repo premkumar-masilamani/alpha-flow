@@ -138,3 +138,20 @@ The task compiles and scans the code in four parallelizable stages:
 - **Verification Commands**:
   - Run all tests: `make test`
   - Run tests and open coverage page: `make coverage`
+
+---
+
+## AI Learnings & Coding Guidelines
+
+### JPQL Date Literals (Hibernate 6)
+- **Always use the standard JPA/JDBC date escape syntax `{d 'yyyy-MM-dd'}`** (e.g., `{d '1900-01-01'}`) when hardcoding date literals in JPQL `@Query` annotations. Avoid dialect-specific strings like `date 'yyyy-MM-dd'` which are rejected by Hibernate 6.
+
+### Decoupled Parser and Network Boundaries
+- Keep connection/fetching logic (like opening HTTP streams) separate from parser/deserialization logic. Inject parser components (e.g., `YahooResponseParser`) to process fetched strings, enabling isolated testing of serialization formats.
+
+### Nesting DTO Java Records
+- Inner records are **implicitly static**. Do not add the `static` modifier to nested records (e.g., use `private record YahooResponse(...) {}` instead of `private static record YahooResponse(...) {}`) to avoid PMD static analysis violations (`UnnecessaryModifier`).
+
+### SpotBugs and Stream Closure
+- Always wrap resource-acquiring methods (like `getClass().getResourceAsStream(...)`) in **try-with-resources** blocks. This ensures streams are cleaned up and prevents SpotBugs resource leaks (`OS_OPEN_STREAM`, `OBL_UNSATISFIED_OBLIGATION`).
+
