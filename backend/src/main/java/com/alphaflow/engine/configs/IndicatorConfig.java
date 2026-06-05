@@ -36,29 +36,25 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class IndicatorConfig {
 
-  /** Indicator definitions keyed by timeframe. */
-  private Map<Timeframe, List<IndicatorDefinition>> timeframes = new EnumMap<>(Timeframe.class);
+    /** Indicator definitions keyed by timeframe. */
+    private Map<Timeframe, List<IndicatorDefinition>> timeframes =
+        new EnumMap<>(Timeframe.class);
 
-  /** The configured indicators for a timeframe, or an empty list if none. */
-  public List<IndicatorDefinition> forTimeframe(Timeframe timeframe) {
+    /** The configured indicators for a timeframe, or an empty list if none. */
+    public List<IndicatorDefinition> forTimeframe(Timeframe timeframe) {
+        return timeframes.getOrDefault(timeframe, List.of());
+    }
 
-    return timeframes.getOrDefault(timeframe, List.of());
-  }
+    @Data
+    public static class IndicatorDefinition {
 
-  @Data
-  public static class IndicatorDefinition {
-
-    private IndicatorType type;
-
-    private PriceSource source = PriceSource.CLOSE;
-
-    /**
-     * Integer periods keyed by name, e.g. {@code period=14} or {@code fast=12,slow=26,signal=9}.
-     */
-    private Map<String, Integer> params = new LinkedHashMap<>();
-
-    private Integer upperBound;
-
-    private Integer lowerBound;
-  }
+        private IndicatorType type;
+        private PriceSource source = PriceSource.CLOSE;
+        /**
+         * Integer periods keyed by name, e.g. {@code period=14} or {@code fast=12,slow=26,signal=9}.
+         */
+        private Map<String, Integer> params = new LinkedHashMap<>();
+        private Integer upperBound;
+        private Integer lowerBound;
+    }
 }

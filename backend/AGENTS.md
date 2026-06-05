@@ -155,3 +155,13 @@ The task compiles and scans the code in four parallelizable stages:
 ### SpotBugs and Stream Closure
 - Always wrap resource-acquiring methods (like `getClass().getResourceAsStream(...)`) in **try-with-resources** blocks. This ensures streams are cleaned up and prevents SpotBugs resource leaks (`OS_OPEN_STREAM`, `OBL_UNSATISFIED_OBLIGATION`).
 
+### Spring AOP Self-Proxy Fallback
+- When injecting a self-referential Spring bean proxy (`@Autowired @Lazy private MyService self`) to invoke `@Transactional` methods internally, always implement a fallback to `this` when `self` is null (e.g., `MyService proxy = (self != null) ? self : this;`). This ensures the code remains fully testable in unit tests without a Spring context.
+
+### Bulk Data Querying (Avoiding N+1 Query Patterns)
+- Avoid query operations in a loop (e.g., retrieving the first/last date per-ticker). Instead, fetch the required attributes in a single bulk query (e.g., returning a `Map<Ticker, LocalDate>`) and iterate over the map.
+
+### Stream Aggregators for Extremum Finding
+- Prefer Java Stream API operations (e.g., `stream().max(BigDecimal::compareTo)` and `stream().min(BigDecimal::compareTo)`) over manual `for` loops when finding minimum/maximum values of lists to write clean, declarative Java code.
+
+
