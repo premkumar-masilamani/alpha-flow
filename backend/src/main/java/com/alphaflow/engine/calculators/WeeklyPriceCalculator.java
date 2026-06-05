@@ -45,6 +45,7 @@ public class WeeklyPriceCalculator {
     log.info("Found {} active tickers to process for weekly prices.", latestDailyDates.size());
 
     WeeklyPriceCalculator proxy = (self != null) ? self : this;
+
     for (Map.Entry<Ticker, LocalDate> entry : latestDailyDates.entrySet()) {
       Ticker ticker = entry.getKey();
       LocalDate latestDailyDate = entry.getValue();
@@ -130,17 +131,16 @@ public class WeeklyPriceCalculator {
       DailyPrice lastDay = weeklyPrices.getLast();
       BigDecimal open = firstDay.getPriceOpen();
       BigDecimal close = lastDay.getPriceClose();
-      BigDecimal high = firstDay.getPriceHigh();
-      BigDecimal low = firstDay.getPriceLow();
-
-      for (DailyPrice dp : weeklyPrices) {
-        if (dp.getPriceHigh().compareTo(high) > 0) {
-          high = dp.getPriceHigh();
-        }
-        if (dp.getPriceLow().compareTo(low) < 0) {
-          low = dp.getPriceLow();
-        }
-      }
+      BigDecimal high =
+          weeklyPrices.stream()
+              .map(DailyPrice::getPriceHigh)
+              .max(BigDecimal::compareTo)
+              .orElse(firstDay.getPriceHigh());
+      BigDecimal low =
+          weeklyPrices.stream()
+              .map(DailyPrice::getPriceLow)
+              .min(BigDecimal::compareTo)
+              .orElse(firstDay.getPriceLow());
 
       BigDecimal volume =
           weeklyPrices.stream().map(DailyPrice::getVolume).reduce(BigDecimal.ZERO, BigDecimal::add);
