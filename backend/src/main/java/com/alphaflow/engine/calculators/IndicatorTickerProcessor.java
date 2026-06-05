@@ -13,7 +13,6 @@ import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.IndicatorStateRepository;
 import com.alphaflow.persistence.repositories.IndicatorValueRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -319,7 +318,7 @@ public class IndicatorTickerProcessor {
                     d.getPriceHigh(),
                     d.getPriceLow(),
                     d.getPriceClose(),
-                    BigDecimal.valueOf(d.getVolume())))
+                    d.getVolume()))
         .toList();
   }
 
@@ -334,7 +333,7 @@ public class IndicatorTickerProcessor {
                     w.getPriceHigh(),
                     w.getPriceLow(),
                     w.getPriceClose(),
-                    BigDecimal.valueOf(w.getVolume())))
+                    w.getVolume()))
         .toList();
   }
 }

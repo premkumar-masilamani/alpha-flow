@@ -101,7 +101,7 @@ class IndicatorTickerProcessorTest {
               .priceHigh(close.add(BigDecimal.ONE))
               .priceLow(close.subtract(BigDecimal.ONE))
               .priceClose(close)
-              .volume(100L + i)
+              .volume(BigDecimal.valueOf(100L + i))
               .build());
     }
 
@@ -121,7 +121,7 @@ class IndicatorTickerProcessorTest {
                     d.getPriceHigh(),
                     d.getPriceLow(),
                     d.getPriceClose(),
-                    BigDecimal.valueOf(d.getVolume())))
+                    d.getVolume()))
         .toList();
   }
 
@@ -524,7 +524,7 @@ class IndicatorTickerProcessorTest {
             .priceHigh(BigDecimal.TEN)
             .priceLow(BigDecimal.TEN)
             .priceClose(BigDecimal.TEN)
-            .volume(100L)
+            .volume(BigDecimal.valueOf(100L))
             .build();
 
     com.alphaflow.persistence.entities.WeeklyPrice w2 =
@@ -535,7 +535,7 @@ class IndicatorTickerProcessorTest {
             .priceHigh(BigDecimal.TEN)
             .priceLow(BigDecimal.TEN)
             .priceClose(BigDecimal.TEN)
-            .volume(100L)
+            .volume(BigDecimal.valueOf(100L))
             .build();
 
     when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(w1, w2));

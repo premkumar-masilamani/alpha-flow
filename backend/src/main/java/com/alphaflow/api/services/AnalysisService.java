@@ -335,7 +335,7 @@ public class AnalysisService {
       return new CalculatedSignal("HOLD", "Missing volume SMA value");
     }
 
-    BigDecimal volume = BigDecimal.valueOf(latestCandle.volume());
+    BigDecimal volume = latestCandle.volume();
     boolean isHeavyVolume = volume.compareTo(volSmaValue) > 0;
     boolean isGreen = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) > 0;
     boolean isRed = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) < 0;

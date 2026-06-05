@@ -38,7 +38,7 @@ class WeeklyTickerProcessorTest {
   @InjectMocks private WeeklyTickerProcessor processor;
 
   private DailyPrice daily(
-      LocalDate date, String open, String high, String low, String close, long vol) {
+      LocalDate date, String open, String high, String low, String close, double vol) {
 
     return DailyPrice.builder()
         .ticker(ticker)
@@ -47,7 +47,7 @@ class WeeklyTickerProcessorTest {
         .priceHigh(new BigDecimal(high))
         .priceLow(new BigDecimal(low))
         .priceClose(new BigDecimal(close))
-        .volume(vol)
+        .volume(BigDecimal.valueOf(vol))
         .build();
   }
 
@@ -96,7 +96,7 @@ class WeeklyTickerProcessorTest {
 
     assertThat(wp.getPriceLow()).isEqualByComparingTo("8"); // min low
 
-    assertThat(wp.getVolume()).isEqualTo(450L); // summed volume
+    assertThat(wp.getVolume()).isEqualByComparingTo("450"); // summed volume
   }
 
   @Test
@@ -111,7 +111,7 @@ class WeeklyTickerProcessorTest {
             .priceHigh(new BigDecimal("1"))
             .priceLow(new BigDecimal("1"))
             .priceClose(new BigDecimal("1"))
-            .volume(1L)
+            .volume(BigDecimal.ONE)
             .build();
 
     List<DailyPrice> dailies = List.of(daily(MONDAY, "10", "12", "9", "11", 100));

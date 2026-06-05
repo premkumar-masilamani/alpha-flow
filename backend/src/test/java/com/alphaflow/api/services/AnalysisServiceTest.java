@@ -47,14 +47,14 @@ class AnalysisServiceTest {
   }
 
   private OhlcvDTO candle(
-      LocalDate date, double open, double high, double low, double close, long volume) {
+      LocalDate date, double open, double high, double low, double close, double volume) {
     return OhlcvDTO.builder()
         .priceDate(date)
         .priceOpen(BigDecimal.valueOf(open))
         .priceHigh(BigDecimal.valueOf(high))
         .priceLow(BigDecimal.valueOf(low))
         .priceClose(BigDecimal.valueOf(close))
-        .volume(volume)
+        .volume(BigDecimal.valueOf(volume))
         .build();
   }
 

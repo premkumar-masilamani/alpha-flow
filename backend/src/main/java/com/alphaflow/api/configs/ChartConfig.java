@@ -13,5 +13,5 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "alphaflow.chart")
 @Data
 public class ChartConfig {
-  private int window;
+  private int window = 180;
 }

@@ -25,7 +25,7 @@ class WeeklyPriceControllerTest {
             new BigDecimal("105.00"),
             new BigDecimal("99.00"),
             new BigDecimal("102.00"),
-            1000L);
+            new BigDecimal("1000.00"));
 
     when(service.getWeeklyPriceByTickerName("AAPL", 0, null)).thenReturn(List.of(dto));
 

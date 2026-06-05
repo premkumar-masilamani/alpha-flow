@@ -151,7 +151,8 @@ public class WeeklyTickerProcessor {
         }
       }
 
-      long volume = weeklyPrices.stream().mapToLong(DailyPrice::getVolume).sum();
+      BigDecimal volume =
+          weeklyPrices.stream().map(DailyPrice::getVolume).reduce(BigDecimal.ZERO, BigDecimal::add);
 
       // Look up existing weekly price record (from the pre-fetched map) to update or insert
 

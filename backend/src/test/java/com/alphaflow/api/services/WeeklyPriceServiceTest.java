@@ -38,7 +38,7 @@ class WeeklyPriceServiceTest {
             .priceHigh(new BigDecimal("105.0000"))
             .priceLow(new BigDecimal("99.0000"))
             .priceClose(new BigDecimal("102.0000"))
-            .volume(1000L)
+            .volume(new BigDecimal("1000.0000"))
             .build();
 
     WeeklyPrice wp2 =
@@ -48,7 +48,7 @@ class WeeklyPriceServiceTest {
             .priceHigh(new BigDecimal("101.0000"))
             .priceLow(new BigDecimal("97.0000"))
             .priceClose(new BigDecimal("99.0000"))
-            .volume(800L)
+            .volume(new BigDecimal("800.0000"))
             .build();
 
     when(weeklyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 180)))
@@ -89,6 +89,8 @@ class WeeklyPriceServiceTest {
 
     ChartConfig chartConfig = mock(ChartConfig.class);
 
+    when(chartConfig.getWindow()).thenReturn(180);
+
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
 
     WeeklyPrice wp =
@@ -98,7 +100,7 @@ class WeeklyPriceServiceTest {
             .priceHigh(new BigDecimal("105.0000"))
             .priceLow(new BigDecimal("99.0000"))
             .priceClose(new BigDecimal("102.0000"))
-            .volume(1000L)
+            .volume(new BigDecimal("1000.0000"))
             .build();
 
     when(weeklyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10))).thenReturn(List.of(wp));

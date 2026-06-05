@@ -22,6 +22,9 @@ import java.util.Map;
  * <p>label per combo (e.g. {@code "MACD(12,26,9)"}, {@code "SMA(20) VOL"}).
  */
 public class IndicatorMapper {
+  private IndicatorMapper() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
 
   public static IndicatorConfigDTO toConfigDTO(
       Timeframe timeframe, IndicatorDefinition definition) {
