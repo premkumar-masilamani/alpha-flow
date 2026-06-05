@@ -9,7 +9,6 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,7 +30,6 @@ class WeeklyPriceCalculatorTest {
   private final Ticker ticker =
       Ticker.builder().tickerId(1L).tickerSymbol("TST").tickerName("Test").build();
 
-  @Mock private TickerRepository tickerRepository;
   @Mock private DailyPriceRepository dailyPriceRepository;
   @Mock private WeeklyPriceRepository weeklyPriceRepository;
 
@@ -39,8 +37,7 @@ class WeeklyPriceCalculatorTest {
 
   @BeforeEach
   void setUp() {
-    calculator =
-        new WeeklyPriceCalculator(tickerRepository, dailyPriceRepository, weeklyPriceRepository);
+    calculator = new WeeklyPriceCalculator(dailyPriceRepository, weeklyPriceRepository);
   }
 
   private DailyPrice daily(
@@ -60,8 +57,6 @@ class WeeklyPriceCalculatorTest {
   void testComputeWeeklyPricesSuccessAndErrorHandling() {
     Ticker t1 = Ticker.builder().tickerSymbol("AAPL").build();
     Ticker t2 = Ticker.builder().tickerSymbol("MSFT").build();
-
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
 
     LocalDate date1 = LocalDate.of(2024, 1, 1);
     LocalDate date2 = LocalDate.of(2024, 1, 2);
@@ -89,9 +84,6 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    when(dailyPriceRepository.findLatestPriceDatesForActiveTickers())
-        .thenReturn(Map.of(ticker, MONDAY.plusDays(2)));
-
     when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
             eq(ticker), any()))
         .thenReturn(dailies);
@@ -99,7 +91,7 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findByTickerAndPriceDateGreaterThanEqual(eq(ticker), any()))
         .thenReturn(List.of());
 
-    calculator.processTicker(ticker);
+    calculator.processTicker(ticker, MONDAY.plusDays(2));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklyPrice>> captor = ArgumentCaptor.forClass(List.class);
@@ -136,9 +128,6 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.of(existing));
 
-    when(dailyPriceRepository.findLatestPriceDatesForActiveTickers())
-        .thenReturn(Map.of(ticker, MONDAY));
-
     when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
             eq(ticker), any()))
         .thenReturn(dailies);
@@ -146,7 +135,7 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findByTickerAndPriceDateGreaterThanEqual(eq(ticker), any()))
         .thenReturn(List.of(existing));
 
-    calculator.processTicker(ticker);
+    calculator.processTicker(ticker, MONDAY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklyPrice>> captor = ArgumentCaptor.forClass(List.class);
@@ -165,10 +154,7 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    when(dailyPriceRepository.findLatestPriceDatesForActiveTickers())
-        .thenReturn(Map.of(ticker, LocalDate.of(1900, 1, 1)));
-
-    calculator.processTicker(ticker);
+    calculator.processTicker(ticker, LocalDate.of(1900, 1, 1));
 
     verify(weeklyPriceRepository, never()).saveAll(any());
   }
