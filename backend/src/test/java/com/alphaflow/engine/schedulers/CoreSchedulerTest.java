@@ -12,119 +12,141 @@ import org.junit.jupiter.api.Test;
 
 class CoreSchedulerTest {
 
-  @Test
-  void testScheduledUpdateSuccess() {
+    @Test
+    void testScheduledUpdateSuccess() {
+        YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
 
-    YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
+        WeeklyPriceCalculator weeklyCalculator = mock(
+            WeeklyPriceCalculator.class
+        );
 
-    WeeklyPriceCalculator weeklyCalculator = mock(WeeklyPriceCalculator.class);
+        IndicatorCalculator indicatorCalculator = mock(
+            IndicatorCalculator.class
+        );
 
-    IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+        AnalysisService analysisService = mock(AnalysisService.class);
 
-    AnalysisService analysisService = mock(AnalysisService.class);
+        CoreScheduler scheduler = new CoreScheduler(
+            downloader,
+            weeklyCalculator,
+            indicatorCalculator,
+            analysisService
+        );
 
-    CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+        scheduler.runScheduledUpdate();
 
-    scheduler.runScheduledUpdate();
+        verify(downloader, times(1)).downloadDailyPrices();
 
-    verify(downloader, times(1)).download();
+        verify(weeklyCalculator, times(1)).computeWeeklyPrices();
 
-    verify(weeklyCalculator, times(1)).computeWeeklyPrices();
+        verify(indicatorCalculator, times(1)).computeIndicators();
 
-    verify(indicatorCalculator, times(1)).computeIndicators();
+        verify(analysisService, times(1)).computeAnalysis();
+    }
 
-    verify(analysisService, times(1)).computeAnalysis();
-  }
+    @Test
+    void testRunOnStartupWithException() {
+        YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
 
-  @Test
-  void testRunOnStartupWithException() {
+        WeeklyPriceCalculator weeklyCalculator = mock(
+            WeeklyPriceCalculator.class
+        );
 
-    YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
+        IndicatorCalculator indicatorCalculator = mock(
+            IndicatorCalculator.class
+        );
 
-    WeeklyPriceCalculator weeklyCalculator = mock(WeeklyPriceCalculator.class);
+        AnalysisService analysisService = mock(AnalysisService.class);
 
-    IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+        doThrow(new RuntimeException("Injected download error"))
+            .when(downloader)
+            .downloadDailyPrices();
 
-    AnalysisService analysisService = mock(AnalysisService.class);
+        CoreScheduler scheduler = new CoreScheduler(
+            downloader,
+            weeklyCalculator,
+            indicatorCalculator,
+            analysisService
+        );
 
-    doThrow(new RuntimeException("Injected download error")).when(downloader).download();
+        scheduler.runOnStartup();
 
-    CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+        verify(downloader, times(1)).downloadDailyPrices();
 
-    scheduler.runOnStartup();
+        // Subsequent steps skipped due to exception
 
-    verify(downloader, times(1)).download();
+        verify(weeklyCalculator, never()).computeWeeklyPrices();
 
-    // Subsequent steps skipped due to exception
+        verify(indicatorCalculator, never()).computeIndicators();
 
-    verify(weeklyCalculator, never()).computeWeeklyPrices();
+        verify(analysisService, never()).computeAnalysis();
+    }
 
-    verify(indicatorCalculator, never()).computeIndicators();
+    @Test
+    void testConcurrentExecutionSkipped() throws InterruptedException {
+        YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
 
-    verify(analysisService, never()).computeAnalysis();
-  }
+        WeeklyPriceCalculator weeklyCalculator = mock(
+            WeeklyPriceCalculator.class
+        );
 
-  @Test
-  void testConcurrentExecutionSkipped() throws InterruptedException {
+        IndicatorCalculator indicatorCalculator = mock(
+            IndicatorCalculator.class
+        );
 
-    YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
+        AnalysisService analysisService = mock(AnalysisService.class);
 
-    WeeklyPriceCalculator weeklyCalculator = mock(WeeklyPriceCalculator.class);
+        CountDownLatch startLatch = new CountDownLatch(1);
 
-    IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+        CountDownLatch finishLatch = new CountDownLatch(1);
 
-    AnalysisService analysisService = mock(AnalysisService.class);
+        // Block inside the first download call
 
-    CountDownLatch startLatch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            startLatch.countDown();
 
-    CountDownLatch finishLatch = new CountDownLatch(1);
+            finishLatch.await(5, TimeUnit.SECONDS);
 
-    // Block inside the first download call
+            return null;
+        })
+            .when(downloader)
+            .downloadDailyPrices();
 
-    doAnswer(
-            invocation -> {
-              startLatch.countDown();
+        CoreScheduler scheduler = new CoreScheduler(
+            downloader,
+            weeklyCalculator,
+            indicatorCalculator,
+            analysisService
+        );
 
-              finishLatch.await(5, TimeUnit.SECONDS);
+        // Start thread for first invocation
 
-              return null;
-            })
-        .when(downloader)
-        .download();
+        Thread t = new Thread(scheduler::runScheduledUpdate);
 
-    CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+        t.start();
 
-    // Start thread for first invocation
+        // Wait for first invocation to start and block
 
-    Thread t = new Thread(scheduler::runScheduledUpdate);
+        startLatch.await(2, TimeUnit.SECONDS);
 
-    t.start();
+        // Call scheduler again in main thread — should skip since t is still running
 
-    // Wait for first invocation to start and block
+        scheduler.runOnStartup();
 
-    startLatch.await(2, TimeUnit.SECONDS);
+        // Release first thread
 
-    // Call scheduler again in main thread — should skip since t is still running
+        finishLatch.countDown();
 
-    scheduler.runOnStartup();
+        t.join(2000);
 
-    // Release first thread
+        // Verify t executed download, but second call skipped it
 
-    finishLatch.countDown();
+        verify(downloader, times(1)).downloadDailyPrices();
 
-    t.join(2000);
+        verify(weeklyCalculator, times(1)).computeWeeklyPrices();
 
-    // Verify t executed download, but second call skipped it
+        verify(indicatorCalculator, times(1)).computeIndicators();
 
-    verify(downloader, times(1)).download();
-
-    verify(weeklyCalculator, times(1)).computeWeeklyPrices();
-
-    verify(indicatorCalculator, times(1)).computeIndicators();
-
-    verify(analysisService, times(1)).computeAnalysis();
-  }
+        verify(analysisService, times(1)).computeAnalysis();
+    }
 }
