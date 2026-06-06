@@ -7,6 +7,7 @@ import type {
     IPrimitivePaneRenderer
 } from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
+import { INDICATOR_COLORS } from '../config/indicatorColors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Custom series primitive to fill a background color band between upper and lower bounds.
@@ -89,29 +90,29 @@ class HorizontalBandRenderer implements IPrimitivePaneRenderer {
 
 
 
-// Hardcoded indicator color mapping
+// Hardcoded indicator color mapping from configuration
 const getIndicatorColor = (type: string, source: string, params: string, outputName: string): string | null => {
-    const p = params.replace(/\s+/g, '');
-    if (type === 'EMA') {
-        if (p === 'period=5') return '#3b82f6'; // BLUE
-        if (p === 'period=13') return '#ef4444'; // RED
-        if (p === 'period=26') return '#22c55e'; // GREEN
+    const rules = INDICATOR_COLORS[type];
+    if (!rules) return null;
+
+    const cleanParams = params.replace(/\s+/g, '');
+
+    if (rules.bySourceAndParams) {
+        const key = `${source}|${cleanParams}`;
+        if (rules.bySourceAndParams[key]) {
+            return rules.bySourceAndParams[key];
+        }
     }
-    if (type === 'SMA') {
-        if (source === 'VOLUME' && p === 'period=20') return '#3b82f6'; // Blue
+
+    if (rules.byParams && rules.byParams[cleanParams]) {
+        return rules.byParams[cleanParams];
     }
-    if (type === 'MACD') {
-        if (outputName === 'macd') return '#3b82f6'; // MACD Line - Blue
-        if (outputName === 'signal') return '#f97316'; // MACD Signal - Orange
+
+    if (rules.byOutput && rules.byOutput[outputName]) {
+        return rules.byOutput[outputName];
     }
-    if (type === 'RSI') {
-        return '#a855f7'; // RSI - Purple
-    }
-    if (type === 'STOCHASTIC') {
-        if (outputName === 'k') return '#3b82f6'; // %K - Blue
-        if (outputName === 'd') return '#f97316'; // %D - Orange
-    }
-    return null;
+
+    return rules.default || null;
 };
 
 import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
