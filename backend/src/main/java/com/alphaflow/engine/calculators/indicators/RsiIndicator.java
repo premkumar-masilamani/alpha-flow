@@ -4,21 +4,10 @@ import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.springframework.stereotype.Component;
 
-/**
- * Relative Strength Index using Wilder's smoothing.
- *
- * <p>Seeding: the first {@code period} gains/losses are simple-averaged; thereafter Wilder
- * smoothing applies: {@code avg = (avgPrev·(period−1) + current) / period}. {@code RSI = 100 −
- * 100/(1+RS)} with {@code RS = avgGain/avgLoss}; a zero average loss yields RSI 100.
- *
- * <p>Recursive: state is {@code {"avgGain","avgLoss","prevClose"}} — {@code prevClose} (the last
- * source value, named for the usual close source) is needed to compute the next delta on resume.
- */
+/** Relative Strength Index using Wilder's smoothing. */
 @Component
 public class RsiIndicator implements Indicator {
 
@@ -44,19 +33,17 @@ public class RsiIndicator implements Indicator {
   }
 
   @Override
-  public IndicatorResult compute(
-      List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
+  public List<PlotPoint> compute(List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     int period = params.getInt("period");
     if (period < 1) {
       throw new IllegalArgumentException("RSI period must be >= 1. Provided: " + period);
     }
     BigDecimal periodBd = BigDecimal.valueOf(period);
 
-    Map<String, BigDecimal> prior = StateCodec.decode(priorStateJson);
-    BigDecimal avgGain = prior.get("avgGain");
-    BigDecimal avgLoss = prior.get("avgLoss");
-    BigDecimal prevValue = prior.get("prevClose");
-    boolean seeded = avgGain != null && avgLoss != null;
+    BigDecimal avgGain = null;
+    BigDecimal avgLoss = null;
+    BigDecimal prevValue = null;
+    boolean seeded = false;
 
     List<BigDecimal> seedGains = new ArrayList<>();
     List<BigDecimal> seedLosses = new ArrayList<>();
@@ -65,7 +52,6 @@ public class RsiIndicator implements Indicator {
     for (PriceBar bar : bars) {
       BigDecimal value = bar.valueFor(source);
       if (prevValue == null) {
-        // First value seen on a cold backfill: no delta yet.
         prevValue = value;
         continue;
       }
@@ -91,14 +77,6 @@ public class RsiIndicator implements Indicator {
       prevValue = value;
     }
 
-    String newState = null;
-    if (seeded) {
-      Map<String, BigDecimal> state = new LinkedHashMap<>();
-      state.put("avgGain", avgGain);
-      state.put("avgLoss", avgLoss);
-      state.put("prevClose", prevValue);
-      newState = StateCodec.encode(state);
-    }
-    return new IndicatorResult(values, newState);
+    return values;
   }
 }

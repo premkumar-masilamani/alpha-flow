@@ -2,7 +2,6 @@ package com.alphaflow.engine.calculators.indicators;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.alphaflow.persistence.enums.PriceSource;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
@@ -72,56 +71,6 @@ public final class IndicatorTestHelper {
         .findFirst()
         .orElseThrow(
             () -> new IllegalArgumentException("No plot point found for " + date + " " + output));
-  }
-
-  /** Asserts resume-from-checkpoint reproduces a full backfill for a recursive indicator. */
-  public static void assertRecursiveResumeMatchesBackfill(
-      Indicator indicator, IndicatorParams params, int... splits) {
-
-    List<PriceBar> all = walk(100);
-
-    IndicatorResult full = indicator.compute(all, null, params, PriceSource.CLOSE);
-
-    for (int split : splits) {
-
-      IndicatorResult head =
-          indicator.compute(all.subList(0, split), null, params, PriceSource.CLOSE);
-
-      assertNotNull(
-          head.newStateJson(), "checkpoint state must exist past warm-up at split " + split);
-
-      IndicatorResult resumed =
-          indicator.compute(
-              all.subList(split, all.size()), head.newStateJson(), params, PriceSource.CLOSE);
-
-      assertEquals(
-          from(full.values(), all.get(split).date()),
-          resumed.values(),
-          "resume must equal backfill from split " + split);
-    }
-  }
-
-  /** Asserts a windowed indicator yields identical values over a sufficient sub-window. */
-  public static void assertWindowedResumeMatchesBackfill(
-      Indicator indicator, IndicatorParams params, int lookback, int... splits) {
-
-    List<PriceBar> all = walk(100);
-
-    IndicatorResult full = indicator.compute(all, null, params, PriceSource.CLOSE);
-
-    for (int split : splits) {
-
-      IndicatorResult resumed =
-          indicator.compute(
-              all.subList(split - lookback, all.size()), null, params, PriceSource.CLOSE);
-
-      assertNull(resumed.newStateJson(), "windowed indicator carries no state");
-
-      assertEquals(
-          from(full.values(), all.get(split).date()),
-          from(resumed.values(), all.get(split).date()),
-          "windowed resume must equal backfill from split " + split);
-    }
   }
 
   /** Helper to load AAPL stock daily price data from resources (aapl.csv). */

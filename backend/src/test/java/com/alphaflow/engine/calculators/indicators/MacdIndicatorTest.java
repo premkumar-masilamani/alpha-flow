@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MacdIndicatorTest {
@@ -17,91 +18,57 @@ class MacdIndicatorTest {
 
     java.util.Arrays.fill(flat, 50.0);
 
-    IndicatorResult r =
+    List<PlotPoint> r =
         new MacdIndicator()
             .compute(
-                closes(flat),
-                null,
-                IndicatorParams.parse("fast=12,slow=26,signal=9"),
-                PriceSource.CLOSE);
+                closes(flat), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
+    assertFalse(r.isEmpty());
 
-    r.values()
-        .forEach(
-            p ->
-                assertEquals(
-                    0,
-                    p.value().compareTo(bd(0)),
-                    "constant series must give zero macd/signal/histogram ("
-                        + p.outputName()
-                        + ")"));
+    r.forEach(
+        p ->
+            assertEquals(
+                0,
+                p.value().compareTo(bd(0)),
+                "constant series must give zero macd/signal/histogram (" + p.outputName() + ")"));
   }
 
   @Test
   void macdEmitsThreePlotsOnceDefined() {
 
-    IndicatorResult r =
+    List<PlotPoint> r =
         new MacdIndicator()
             .compute(
-                walk(80),
-                null,
-                IndicatorParams.parse("fast=12,slow=26,signal=9"),
-                PriceSource.CLOSE);
+                walk(80), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
     // Last bar (well past warm-up) must carry all three plots.
 
     LocalDate last = EPOCH.plusDays(79);
 
-    assertNotNull(plot(r.values(), last, "macd"));
+    assertNotNull(plot(r, last, "macd"));
 
-    assertNotNull(plot(r.values(), last, "signal"));
+    assertNotNull(plot(r, last, "signal"));
 
-    assertNotNull(plot(r.values(), last, "histogram"));
+    assertNotNull(plot(r, last, "histogram"));
 
     // histogram == macd - signal at that bar.
 
-    BigDecimal macd = plot(r.values(), last, "macd").value();
+    BigDecimal macd = plot(r, last, "macd").value();
 
-    BigDecimal signal = plot(r.values(), last, "signal").value();
+    BigDecimal signal = plot(r, last, "signal").value();
 
-    BigDecimal hist = plot(r.values(), last, "histogram").value();
+    BigDecimal hist = plot(r, last, "histogram").value();
 
     assertEquals(0, hist.compareTo(macd.subtract(signal)));
   }
 
   @Test
-  void macdResumeMatchesBackfill() {
-
-    assertRecursiveResumeMatchesBackfill(
-        new MacdIndicator(), IndicatorParams.parse("fast=12,slow=26,signal=9"), 45, 60, 75);
-  }
-
-  @Test
   void macdDefaultSignalPeriod() {
 
-    IndicatorResult r =
+    List<PlotPoint> r =
         new MacdIndicator()
-            .compute(walk(50), null, IndicatorParams.parse("fast=12,slow=26"), PriceSource.CLOSE);
+            .compute(walk(50), IndicatorParams.parse("fast=12,slow=26"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
-  }
-
-  @Test
-  void macdWarmupPhaseProducesNoState() {
-
-    // fast=12, slow=26, signal=9 -> needs at least 26 + 9 - 1 = 34 bars to seed signal EMA
-
-    // 30 bars is not enough to seed the signal EMA, so newStateJson should be null.
-
-    IndicatorResult r =
-        new MacdIndicator()
-            .compute(
-                walk(30),
-                null,
-                IndicatorParams.parse("fast=12,slow=26,signal=9"),
-                PriceSource.CLOSE);
-
-    assertNull(r.newStateJson());
+    assertFalse(r.isEmpty());
   }
 }

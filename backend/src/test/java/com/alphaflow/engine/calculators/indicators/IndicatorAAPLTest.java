@@ -26,13 +26,12 @@ class IndicatorAAPLTest {
   @Test
   void testAaplSMA() {
 
-    IndicatorResult r =
-        new SmaIndicator()
-            .compute(aaplBars, null, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
+    List<PlotPoint> r =
+        new SmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
+    assertFalse(r.isEmpty());
 
-    PlotPoint latest = r.values().get(r.values().size() - 1);
+    PlotPoint latest = r.get(r.size() - 1);
 
     System.out.println(
         "[AAPL-SMA-20] Latest point: Date=" + latest.date() + ", Value=" + latest.value());
@@ -45,13 +44,12 @@ class IndicatorAAPLTest {
   @Test
   void testAaplEMA() {
 
-    IndicatorResult r =
-        new EmaIndicator()
-            .compute(aaplBars, null, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
+    List<PlotPoint> r =
+        new EmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
+    assertFalse(r.isEmpty());
 
-    PlotPoint latest = r.values().get(r.values().size() - 1);
+    PlotPoint latest = r.get(r.size() - 1);
 
     System.out.println(
         "[AAPL-EMA-20] Latest point: Date=" + latest.date() + ", Value=" + latest.value());
@@ -64,13 +62,12 @@ class IndicatorAAPLTest {
   @Test
   void testAaplRSI() {
 
-    IndicatorResult r =
-        new RsiIndicator()
-            .compute(aaplBars, null, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
+    List<PlotPoint> r =
+        new RsiIndicator().compute(aaplBars, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
+    assertFalse(r.isEmpty());
 
-    PlotPoint latest = r.values().get(r.values().size() - 1);
+    PlotPoint latest = r.get(r.size() - 1);
 
     System.out.println(
         "[AAPL-RSI-14] Latest point: Date=" + latest.date() + ", Value=" + latest.value());
@@ -83,21 +80,18 @@ class IndicatorAAPLTest {
   @Test
   void testAaplMACD() {
 
-    IndicatorResult r =
+    List<PlotPoint> r =
         new MacdIndicator()
             .compute(
-                aaplBars,
-                null,
-                IndicatorParams.parse("fast=12,slow=26,signal=9"),
-                PriceSource.CLOSE);
+                aaplBars, IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
+    assertFalse(r.isEmpty());
 
-    PlotPoint macd = IndicatorTestHelper.plot(r.values(), LocalDate.of(2026, 5, 29), "macd");
+    PlotPoint macd = IndicatorTestHelper.plot(r, LocalDate.of(2026, 5, 29), "macd");
 
-    PlotPoint signal = IndicatorTestHelper.plot(r.values(), LocalDate.of(2026, 5, 29), "signal");
+    PlotPoint signal = IndicatorTestHelper.plot(r, LocalDate.of(2026, 5, 29), "signal");
 
-    PlotPoint hist = IndicatorTestHelper.plot(r.values(), LocalDate.of(2026, 5, 29), "histogram");
+    PlotPoint hist = IndicatorTestHelper.plot(r, LocalDate.of(2026, 5, 29), "histogram");
 
     System.out.println(
         "[AAPL-MACD] Latest point: MACD="
@@ -117,19 +111,16 @@ class IndicatorAAPLTest {
   @Test
   void testAaplStochastic() {
 
-    IndicatorResult r =
+    List<PlotPoint> r =
         new StochasticIndicator()
             .compute(
-                aaplBars,
-                null,
-                IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"),
-                PriceSource.CLOSE);
+                aaplBars, IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"), PriceSource.CLOSE);
 
-    assertFalse(r.values().isEmpty());
+    assertFalse(r.isEmpty());
 
-    PlotPoint kVal = IndicatorTestHelper.plot(r.values(), LocalDate.of(2026, 5, 29), "k");
+    PlotPoint kVal = IndicatorTestHelper.plot(r, LocalDate.of(2026, 5, 29), "k");
 
-    PlotPoint dVal = IndicatorTestHelper.plot(r.values(), LocalDate.of(2026, 5, 29), "d");
+    PlotPoint dVal = IndicatorTestHelper.plot(r, LocalDate.of(2026, 5, 29), "d");
 
     System.out.println(
         "[AAPL-STOCHASTIC] Latest point: %K=" + kVal.value() + ", %D=" + dVal.value());

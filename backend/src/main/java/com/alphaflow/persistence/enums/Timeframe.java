@@ -11,6 +11,5 @@ package com.alphaflow.persistence.enums;
  */
 public enum Timeframe {
   DAILY,
-
-  WEEKLY
+  WEEKLY,
 }
