@@ -9,14 +9,7 @@ import java.util.Deque;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/**
- * Simple moving average over a configurable source field (e.g. SMA-20 on volume).
- *
- * <p>Windowed and non-recursive: the value at a bar depends only on the last {@code period} source
- * values, so it carries no running state ({@code newStateJson == null}) and is reconstructed on
- * resume purely from the price bars the caller loads. The running sum uses exact {@code BigDecimal}
- * add/subtract (no rounding), so there is no drift; only the final division rounds.
- */
+/** Simple moving average over a configurable source field (e.g. SMA-20 on volume). */
 @Component
 public class SmaIndicator implements Indicator {
 
@@ -26,13 +19,7 @@ public class SmaIndicator implements Indicator {
   }
 
   @Override
-  public boolean requiresState() {
-    return false; // windowed: reconstructed from the last `period` bars
-  }
-
-  @Override
-  public IndicatorResult compute(
-      List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
+  public List<PlotPoint> compute(List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     int period = params.getInt("period");
     if (period < 1) {
       throw new IllegalArgumentException("SMA period must be >= 1. Provided: " + period);
@@ -53,6 +40,6 @@ public class SmaIndicator implements Indicator {
         values.add(new PlotPoint(bar.date(), "value", IndicatorMath.publish(sma)));
       }
     }
-    return new IndicatorResult(values, null);
+    return values;
   }
 }

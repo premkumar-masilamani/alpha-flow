@@ -11,12 +11,8 @@ package com.alphaflow.persistence.enums;
  */
 public enum PriceSource {
   OPEN,
-
   HIGH,
-
   LOW,
-
   CLOSE,
-
-  VOLUME
+  VOLUME,
 }

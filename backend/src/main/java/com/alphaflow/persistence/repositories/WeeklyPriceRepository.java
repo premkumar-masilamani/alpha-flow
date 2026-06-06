@@ -44,4 +44,10 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
                     """)
   List<LocalDate> findRecentPriceDates(String symbol, Pageable pageable);
+
+  List<WeeklyPrice> findByTickerAndPriceDateLessThanEqualOrderByPriceDateDesc(
+      Ticker ticker, LocalDate priceDate, Pageable pageable);
+
+  List<WeeklyPrice> findByTickerAndPriceDateGreaterThanOrderByPriceDateAsc(
+      Ticker ticker, LocalDate priceDate);
 }

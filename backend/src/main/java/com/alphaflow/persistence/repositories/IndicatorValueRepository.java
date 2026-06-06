@@ -53,6 +53,16 @@ public interface IndicatorValueRepository extends JpaRepository<IndicatorValue, 
       String params,
       LocalDate from);
 
+  /** Deletes all published values for a ticker and timeframe. */
+  @Modifying
+  @Query(
+      """
+      DELETE FROM IndicatorValue v
+      WHERE v.ticker = :ticker
+        AND v.timeframe = :timeframe
+      """)
+  void deleteByTickerAndTimeframe(Ticker ticker, Timeframe timeframe);
+
   /**
    * All published plot values for a ticker on a timeframe from {@code from} (inclusive) onward,
    *

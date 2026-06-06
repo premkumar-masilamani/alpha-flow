@@ -69,6 +69,15 @@ public class YahooResponseParser {
         continue;
       }
 
+      // Discard invalid (zero or negative) price bars (e.g. during market transition / incomplete
+      // day downloads)
+      if (open.compareTo(BigDecimal.ZERO) <= 0
+          || high.compareTo(BigDecimal.ZERO) <= 0
+          || low.compareTo(BigDecimal.ZERO) <= 0
+          || close.compareTo(BigDecimal.ZERO) <= 0) {
+        continue;
+      }
+
       LocalDate date =
           Instant.ofEpochSecond(result.timestamp().get(i)).atZone(ZoneId.of("UTC")).toLocalDate();
 

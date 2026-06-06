@@ -9,19 +9,7 @@ import java.util.Deque;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
-/**
- * Slow Stochastic oscillator (standard "(k, kSmooth, dSmooth)", e.g. 14,3,3).
- *
- * <ul>
- *   <li>rawK = (close − lowestLow) / (highestHigh − lowestLow) × 100 over the {@code k}-bar range
- *   <li>{@code k} (%K) = SMA(rawK, kSmooth)
- *   <li>{@code d} (%D) = SMA(%K, dSmooth)
- * </ul>
- *
- * <p>Range is taken from the {@code high}/{@code low} fields (not the configured source); when the
- * range is zero, rawK is defined as 0 to avoid division by zero. Windowed and non-recursive ({@code
- * newStateJson == null}); resumed purely from the price bars the caller loads.
- */
+/** Slow Stochastic oscillator (standard "(k, kSmooth, dSmooth)", e.g. 14,3,3). */
 @Component
 public class StochasticIndicator implements Indicator {
 
@@ -51,13 +39,7 @@ public class StochasticIndicator implements Indicator {
   }
 
   @Override
-  public boolean requiresState() {
-    return false; // windowed: reconstructed from the last k + smoothing bars
-  }
-
-  @Override
-  public IndicatorResult compute(
-      List<PriceBar> bars, String priorStateJson, IndicatorParams params, PriceSource source) {
+  public List<PlotPoint> compute(List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     int k = params.getInt("k");
     int kSmooth = params.getInt("kSmooth");
     int dSmooth = params.getInt("dSmooth");
@@ -118,6 +100,6 @@ public class StochasticIndicator implements Indicator {
         values.add(new PlotPoint(bar.date(), "d", IndicatorMath.publish(dValue)));
       }
     }
-    return new IndicatorResult(values, null);
+    return values;
   }
 }

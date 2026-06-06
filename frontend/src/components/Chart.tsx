@@ -1,6 +1,119 @@
 import React, {useEffect, useRef, useState} from 'react';
-import type {ISeriesApi, Time} from 'lightweight-charts';
+import type {
+    ISeriesApi,
+    Time,
+    ISeriesPrimitive,
+    IPrimitivePaneView,
+    IPrimitivePaneRenderer
+} from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// Custom series primitive to fill a background color band between upper and lower bounds.
+class HorizontalBandPrimitive implements ISeriesPrimitive {
+    private _series: ISeriesApi<any> | null = null;
+    private _topPrice: number;
+    private _bottomPrice: number;
+    private _color: string;
+
+    constructor(topPrice: number, bottomPrice: number, color: string) {
+        this._topPrice = topPrice;
+        this._bottomPrice = bottomPrice;
+        this._color = color;
+    }
+
+    attached(param: { series: ISeriesApi<any> }) {
+        this._series = param.series;
+    }
+
+    detached() {
+        this._series = null;
+    }
+
+    paneViews() {
+        return [new HorizontalBandPaneView(this)];
+    }
+
+    getTopPrice() { return this._topPrice; }
+    getBottomPrice() { return this._bottomPrice; }
+    getColor() { return this._color; }
+    getSeries() { return this._series; }
+}
+
+class HorizontalBandPaneView implements IPrimitivePaneView {
+    private _primitive: HorizontalBandPrimitive;
+
+    constructor(primitive: HorizontalBandPrimitive) {
+        this._primitive = primitive;
+    }
+
+    zOrder() {
+        return 'bottom' as const;
+    }
+
+    renderer() {
+        return new HorizontalBandRenderer(this._primitive);
+    }
+}
+
+class HorizontalBandRenderer implements IPrimitivePaneRenderer {
+    private _primitive: HorizontalBandPrimitive;
+
+    constructor(primitive: HorizontalBandPrimitive) {
+        this._primitive = primitive;
+    }
+
+    draw(target: any) {
+        const series = this._primitive.getSeries();
+        if (!series) return;
+
+        const topY = series.priceToCoordinate(this._primitive.getTopPrice());
+        const bottomY = series.priceToCoordinate(this._primitive.getBottomPrice());
+
+        if (topY === null || bottomY === null) return;
+
+        target.useBitmapCoordinateSpace((scope: any) => {
+            const ctx = scope.context;
+            const verticalPixelRatio = scope.verticalPixelRatio;
+
+            const renderTopY = topY * verticalPixelRatio;
+            const renderBottomY = bottomY * verticalPixelRatio;
+            const renderWidth = scope.bitmapSize.width;
+
+            ctx.fillStyle = this._primitive.getColor();
+            ctx.fillRect(0, renderTopY, renderWidth, renderBottomY - renderTopY);
+        });
+    }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+
+
+// Hardcoded indicator color mapping
+const getIndicatorColor = (type: string, source: string, params: string, outputName: string): string | null => {
+    const p = params.replace(/\s+/g, '');
+    if (type === 'EMA') {
+        if (p === 'period=5') return '#3b82f6'; // BLUE
+        if (p === 'period=13') return '#ef4444'; // RED
+        if (p === 'period=26') return '#22c55e'; // GREEN
+    }
+    if (type === 'SMA') {
+        if (source === 'VOLUME' && p === 'period=20') return '#3b82f6'; // Blue
+    }
+    if (type === 'MACD') {
+        if (outputName === 'macd') return '#3b82f6'; // MACD Line - Blue
+        if (outputName === 'signal') return '#f97316'; // MACD Signal - Orange
+    }
+    if (type === 'RSI') {
+        return '#a855f7'; // RSI - Purple
+    }
+    if (type === 'STOCHASTIC') {
+        if (outputName === 'k') return '#3b82f6'; // %K - Blue
+        if (outputName === 'd') return '#f97316'; // %D - Orange
+    }
+    return null;
+};
+
 import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
@@ -165,12 +278,20 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             for (const output of outputsFor(series.type)) {
                 const points = lineData(series, output.name);
                 if (points.length === 0) continue;
-                const color = nextColor();
+                const hardcodedColor = getIndicatorColor(series.type, series.source, series.params, output.name);
+                const color = hardcodedColor || nextColor();
                 const formattedTitle = formatLabel(series.label) + output.suffix;
 
                 if (output.style === 'histogram') {
-                    const hist = chart.addSeries(HistogramSeries, {color, priceLineVisible: false}, paneIndex);
-                    hist.setData(points);
+                    const histData = points.map(p => ({
+                        time: p.time,
+                        value: p.value,
+                        color: series.type === 'MACD'
+                            ? (p.value >= 0 ? 'rgba(34, 197, 94, 0.7)' : 'rgba(239, 68, 68, 0.7)')
+                            : color
+                    }));
+                    const hist = chart.addSeries(HistogramSeries, {priceLineVisible: false}, paneIndex);
+                    hist.setData(histData);
                 } else {
                     const line: ISeriesApi<'Line'> = chart.addSeries(LineSeries, {
                         color,
@@ -219,6 +340,21 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                                 axisLabelVisible: true,
                                 title: '',
                             });
+                        }
+
+                        // Attach the shaded background primitive for RSI and Stochastic bounds
+                        if ((series.type === 'RSI' || series.type === 'STOCHASTIC') && (output.name === 'value' || output.name === 'k')) {
+                            if (upper !== undefined && upper !== null && lower !== undefined && lower !== null) {
+                                const bandColor = series.type === 'RSI'
+                                    ? 'rgba(168, 85, 247, 0.1)' // RSI Purple with 10% opacity
+                                    : 'rgba(59, 130, 246, 0.1)'; // Stochastic Blue with 10% opacity
+                                const bandPrimitive = new HorizontalBandPrimitive(
+                                    Number(upper),
+                                    Number(lower),
+                                    bandColor
+                                );
+                                line.attachPrimitive(bandPrimitive);
+                            }
                         }
                     }
                 }
