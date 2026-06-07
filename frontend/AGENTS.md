@@ -21,6 +21,7 @@ make clean           # Remove node_modules and dist
 
 The frontend is a lightweight Single Page App (SPA) structured under `frontend/src/`:
 
+- `config/` — Configuration files like `indicatorColors.ts` containing custom indicator mapping colors.
 - `components/` — UI components like `Header`, `Sidebar` (ticker list), `Chart` (lightweight-charts candlestick & volume chart), `IndicatorControls` (controls for toggling indicators).
 - `services/` — API clients. `api.ts` houses custom API calls using Axios (`getTickers`, `getCandleData`) with an in-memory cache to prevent redundant requests.
 - `App.tsx` — Global state management (selected ticker, indicator toggles, loaded data series) and page layout.
@@ -33,9 +34,23 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 - For CSS and layout, use Tailwind CSS. Make components clean and visually premium.
 - Charting: Use `lightweight-charts` API strictly for daily candlesticks, volume bars, and overlaying indicators.
 
+### Indicator Theme & Colors Configuration
+- **Centralized Colors Config**: All indicator line/plot colors must be declared inside [indicatorColors.ts](file:///Users/premkumar/Code/alpha-flow/frontend/src/config/indicatorColors.ts) rather than hardcoded in the canvas drawing script.
+- **RSI Shading**: Styled with purple (`rgba(168, 85, 247, 0.1)`) at 10% opacity.
+- **Stochastic Shading**: Styled with blue (`rgba(59, 130, 246, 0.1)`) at 10% opacity.
+- **MACD Histogram**: Dynamic coloring (green `rgba(34, 197, 94, 0.7)` for positive values $\ge 0$, red `rgba(239, 68, 68, 0.7)` for negative values $< 0$).
+
 ### API & Data Fetching
 - Consume the local API base URL via `NEXT_PUBLIC_API_URL` (configured in root `.env`).
 - Utilize the in-memory cache configured in `services/api.ts` to cache ticker list and candle histories, minimizing unnecessary HTTP calls.
+
+## Project Boundaries
+
+### Ask First
+- Modifying core chart plotting defaults or color schemes.
+
+### Never Do
+- Do not commit secrets, private API keys, or `.env` files.
 
 ## Formatting & Linting Instructions
 
@@ -55,4 +70,3 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 - **Command**: Run `make build` from the `frontend/` directory.
 - This command triggers `tsc -b` (TypeScript Project Reference Compilation) and then builds the production code using Vite. You can also run `make check` to run all validation checks (audit, lint, and build).
 - Ensure that the TypeScript compiler passes with absolutely zero errors before any commit or PR submission.
-

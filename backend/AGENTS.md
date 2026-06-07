@@ -80,18 +80,76 @@ When defining or modifying JPA Entity classes under `persistence/entities/`, ens
 - **Default Values**: Use Lombok `@Builder.Default` on fields with defaults (e.g., `private String currency = "USD"`).
 - **BigDecimal Details**: Always define exact database alignment with `@Column(precision = 18, scale = 4)` for all prices, indicators, and volume fields.
 - **Enums**: Map using `@Enumerated(EnumType.STRING)` with a specified `@Column(length = N)` to avoid default length issues.
-- **JSONB**: For opaque/internal state representations, use `@JdbcTypeCode(SqlTypes.JSON)` with `columnDefinition = "jsonb"`.
 - **Strings**: Map using `@Column(length = N)`. Always specify explicit column lengths.
+- **Class naming**: Avoid names that conflict with SQL reserved words. Use alternatives (e.g., `TradingOrder` instead of `Order`).
 
-### Data Types & Calculations
+### Enums (`persistence/enums/`)
 
-- **BigDecimal Mandatory**: All pricing, volumes, calculations, indicators, and monetary values must strictly use `BigDecimal`. Never use `double` or `float` primitive/boxed types.
-- **Math Precision**: Perform indicator mathematics using `new MathContext(18)` for precise division and rounding.
+- `IndicatorType`: `SMA`, `EMA`, `RSI`, `MACD`, `STOCHASTIC`. Stored as `VARCHAR(32)` in DB via `@Enumerated(EnumType.STRING)`.
+- `Timeframe`: `DAILY`, `WEEKLY`. Stored as `VARCHAR(16)`.
+- `PriceSource`: `OPEN`, `HIGH`, `LOW`, `CLOSE`, `VOLUME`. Stored as `VARCHAR(16)`.
 
-### Schema Management
+### Repository Classes (`persistence/repositories/`)
 
-- Hibernate `ddl-auto=none` is enforced. All schema mutations must be written as raw SQL migration scripts under `database/migrations/` and run using the migration pipeline.
-- Ensure that Entity columns (`name`, `length`, `precision`, `scale`, `nullable`) match their matching database migration columns exactly.
+- Extend `JpaRepository<Entity, Long>` and annotate with `@Repository`.
+- Return `Optional<Entity>` for single-result lookups.
+- For `indicator_values` queries, always include `timeframe`, `indicatorType`, `source`, and `params` in filters.
+- JPQL is preferred over native SQL.
+
+### Indicator Engine (`engine/calculators/indicators/`)
+
+- **`Indicator` interface**: All indicators implement `compute(List<PriceBar> bars, IndicatorParams params, PriceSource source)`. Lookback limits and state resumption logic are removed.
+- **`IndicatorRegistry`**: Factory that maps `IndicatorType` → concrete `Indicator` implementation.
+- **`PriceBar` record**: Lightweight `record(LocalDate date, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, BigDecimal volume)` used as input to all indicators.
+- **MathContext**: Indicator calculations use `new MathContext(18)` for `BigDecimal` arithmetic.
+- **Calculations Workflow**: On each pipeline run, all prior computed indicator values for the ticker/timeframe are completely cleared from the database via `indicatorValueRepository.deleteByTickerAndTimeframe(ticker, timeframe)` and recalculated over the entire historical price list.
+- **Multi-output indicators**: MACD produces `macd`, `signal`, `histogram` — each stored as a separate row in `indicator_values` via the `output_name` column.
+
+### Indicator Configuration (`application.properties`)
+
+Indicators are configured externally via `@ConfigurationProperties(prefix = "alphaflow.indicators")`:
+
+```properties
+alphaflow.indicators.timeframes.daily[0].type=EMA
+alphaflow.indicators.timeframes.daily[0].source=CLOSE
+alphaflow.indicators.timeframes.daily[0].params.period=5
+```
+
+- **Strict Validation**: The price `source` property is mandatory and must be explicitly specified (no implicit defaults). Startup JSR-380 validation (`@NotNull`) is enforced.
+
+### Scheduler (`engine/schedulers/`)
+
+- `CoreScheduler` orchestrates the data pipeline: download daily prices → compute weekly prices → compute indicators.
+- Runs on startup via `@EventListener(ApplicationReadyEvent.class)` and hourly via `@Scheduled(cron = "0 0 * * * *")`.
+
+### Downloader (`engine/downloaders/`)
+
+- Uses Java `HttpClient` (no third-party HTTP libraries).
+- Rate-limited via `alphaflow.yahoo.delay-milliseconds` (default 1000ms between requests).
+- **Data Integrity / Zero Price Filter**: The downloader discards any parsed price bars where `open`, `high`, `low`, or `close` price is less than or equal to `0`. This filters out mid-day or incomplete Yahoo Finance chart returns containing zero prices.
+- All config externalized to `application.properties` via `YahooFinanceConfig` (bound with prefix `alphaflow.yahoo`).
+- Timestamps from Yahoo Finance are converted to `LocalDate` using the ticker's timezone.
+
+---
+
+## Project Boundaries
+
+### Always Do
+- Use `BigDecimal` for all prices, monetary values, and volume. Never `double` or `float`.
+- Use `Long` for all IDs. Use `LocalDate` for dates, `LocalDateTime` for timestamps.
+- Compile after code changes: `./backend/gradlew -p ./backend compileJava`.
+- Keep PK and FK types consistent (`INT8` / `BIGINT` everywhere).
+
+### Ask First
+- Modifying scheduled core jobs or the downloader frequency/rate-limiting logic.
+- Adding third-party libraries/dependencies to `build.gradle`.
+
+### Never Do
+- Do not bypass `BigDecimal` for price data types.
+- Do not use JPA `ddl-auto` to generate database schemas directly.
+- Do not omit `@Column(length = N)` on `String` entity fields — always match the DB `VARCHAR(N)`.
+- Do not omit `precision` and `scale` on `BigDecimal` entity fields — always match the DB `NUMERIC(P, S)`.
+- Do not use `INT` for primary keys or foreign keys — always use `INT8` / `BIGINT`.
 
 ---
 
@@ -100,7 +158,6 @@ When defining or modifying JPA Entity classes under `persistence/entities/`, ens
 Formatting and code style are strictly checked via the static analysis suite. Any style or structural warning will fail build pipelines.
 
 ### Code Formatting (Spotless)
-
 - **Standard**: Formatting is strictly managed by **Spotless** using the **Google Java Format (v1.17.0)**.
 - **Indentation**: 2 spaces (no tabs).
 - **Imports**: Google Java Style import order rules (alphabetical grouping).
@@ -111,7 +168,6 @@ Formatting and code style are strictly checked via the static analysis suite. An
   ```
 
 ### Static Analysis (Checkstyle, PMD, SpotBugs)
-
 Run all validation checks using:
 ```bash
 make lint
@@ -125,7 +181,6 @@ The task compiles and scans the code in four parallelizable stages:
 *Note: Reports are output as interactive HTML files under `build/reports/` for simple dashboard debugging.*
 
 ### Testing & Code Coverage (JaCoCo)
-
 - **100% Coverage Target**: The project enforces strict verification via `jacocoTestCoverageVerification`. All non-excluded packages MUST maintain 100% line and branch coverage.
 - **Exclusion Packages**:
   - `com.alphaflow.api.dtos.*`
@@ -163,5 +218,3 @@ The task compiles and scans the code in four parallelizable stages:
 
 ### Stream Aggregators for Extremum Finding
 - Prefer Java Stream API operations (e.g., `stream().max(BigDecimal::compareTo)` and `stream().min(BigDecimal::compareTo)`) over manual `for` loops when finding minimum/maximum values of lists to write clean, declarative Java code.
-
-
