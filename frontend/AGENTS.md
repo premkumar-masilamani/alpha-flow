@@ -44,6 +44,15 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 - Consume the local API base URL via `NEXT_PUBLIC_API_URL` (configured in root `.env`).
 - Utilize the in-memory cache configured in `services/api.ts` to cache ticker list and candle histories, minimizing unnecessary HTTP calls.
 
+## Chart Viewport & Customizations
+
+- **Chart Window Size**: The default viewport size is fixed at `CHART_WINDOW = 250` bars in the frontend (`services/api.ts`).
+- **Right Margin Spacing**: The chart reserves exactly 10 empty bars of space at the extreme right to improve visibility of the latest candles and indicator lines.
+- **Viewport Persistence**: The visible viewport is persisted and updated using logical index coordinates (`setVisibleLogicalRange`) instead of date timestamps (`setVisibleRange`). Logical coordinates prevent the chart from snapping back to the rightmost edge and discarding the 10-bar offset during re-renders, and are corrected for prepended candles when loading older data to avoid visual jumps.
+- **Indicator Default Selection**: On daily charts, the `Vol (20)` (Volume SMA 20) indicator is checked/enabled by default alongside the standard EMA indicators.
+- **Indicator Legends**: The main chart legend must always sort indicators in a fixed, predefined order: `EMA (5)`, `EMA (13)`, `EMA (26)`, `Vol (20)`. Any other custom indicators are appended at the end.
+- **Volume SMA Renaming**: The indicator `SMA(20) VOLUME` is formatted and rendered as `Vol (20)` in both controls and the legend.
+
 ## Project Boundaries
 
 ### Ask First

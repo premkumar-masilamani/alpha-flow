@@ -125,6 +125,8 @@ function App() {
     new Set(),
   );
   const [chartCandleData, setChartCandleData] = useState<DailyCandleData[]>([]);
+  const [loadedSymbol, setLoadedSymbol] = useState<string | null>(null);
+  const [loadedTimeframe, setLoadedTimeframe] = useState<Timeframe>("DAILY");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -194,7 +196,18 @@ function App() {
       const dailyEmaConfigs = indicatorConfigs.filter(
         (c) => c.timeframe === "DAILY" && c.type === "EMA",
       );
-      setEnabledIndicators(new Set(dailyEmaConfigs.map(indicatorKey)));
+      const dailyVolSmaConfig = indicatorConfigs.find(
+        (c) =>
+          c.timeframe === "DAILY" &&
+          c.type === "SMA" &&
+          c.source === "VOLUME" &&
+          c.params === "period=20",
+      );
+      const defaultEnabled = dailyEmaConfigs.map(indicatorKey);
+      if (dailyVolSmaConfig) {
+        defaultEnabled.push(indicatorKey(dailyVolSmaConfig));
+      }
+      setEnabledIndicators(new Set(defaultEnabled));
     }
   }, [timeframe, indicatorConfigs]);
 
@@ -243,71 +256,61 @@ function App() {
     };
   }, [selectedTicker]);
 
-  // Fetch chart candle data when selectedTicker or timeframe changes
+  // Fetch chart candle data and indicator series when selectedTicker or timeframe changes
   useEffect(() => {
     let active = true;
-    const fetchChartCandleData = async () => {
-      if (selectedTicker) {
-        setLoading(true);
-        setPage(0);
-        setHasMore(true);
-        setLoadingOlder(false);
-        try {
-          const data = await getCandleData(selectedTicker, timeframe, 0);
-          if (active) {
-            setChartCandleData(data);
-          }
-        } catch (error) {
-          console.error(
-            `Failed to fetch ${timeframe} chart candle data:`,
-            error,
-          );
-          if (active) {
-            setChartCandleData([]);
-          }
-        } finally {
-          if (active) {
-            setLoading(false);
-          }
+    const fetchChartData = async () => {
+      if (!selectedTicker) {
+        setChartCandleData([]);
+        setChartIndicators([]);
+        setLoadedSymbol(null);
+        return;
+      }
+      setLoading(true);
+      setChartCandleData([]);
+      setChartIndicators([]);
+      setLoadedSymbol(null);
+      setPage(0);
+      setHasMore(true);
+      setLoadingOlder(false);
+      try {
+        const [candles, indicators] = await Promise.all([
+          getCandleData(selectedTicker, timeframe, 0),
+          getIndicatorSeries(selectedTicker, timeframe, 0),
+        ]);
+        if (active) {
+          setChartCandleData(candles);
+          setChartIndicators(indicators);
+          setLoadedSymbol(selectedTicker);
+          setLoadedTimeframe(timeframe);
+        }
+      } catch (error) {
+        console.error(
+          `Failed to fetch chart data for ${selectedTicker} (${timeframe}):`,
+          error,
+        );
+        if (active) {
+          setChartCandleData([]);
+          setChartIndicators([]);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
         }
       }
     };
-    fetchChartCandleData();
-    return () => {
-      active = false;
-    };
-  }, [selectedTicker, timeframe]);
-
-  // Fetch indicator series when the ticker or timeframe changes
-  useEffect(() => {
-    let active = true;
-    if (!selectedTicker) {
-      setChartIndicators([]);
-      return;
-    }
-    getIndicatorSeries(selectedTicker, timeframe, 0)
-      .then((data) => {
-        if (active) {
-          setChartIndicators(data);
-        }
-      })
-      .catch((error) => {
-        console.error(`Failed to fetch ${timeframe} indicators:`, error);
-        if (active) {
-          setChartIndicators([]);
-        }
-      });
+    fetchChartData();
     return () => {
       active = false;
     };
   }, [selectedTicker, timeframe]);
 
   const handleLoadOlderData = async () => {
-    if (loadingOlder || !hasMore || !selectedTicker) return;
+    if (loadingOlder || !hasMore || !loadedSymbol) return;
     setLoadingOlder(true);
 
-    const targetTicker = selectedTicker;
-    const targetTimeframe = timeframe;
+    const targetTicker = loadedSymbol;
+    const targetTimeframe = loadedTimeframe;
     const nextPage = page + 1;
 
     try {
@@ -931,21 +934,26 @@ function App() {
               </div>
             )}
             <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
-              {chartCandleData.length > 0 ? (
+              {chartCandleData.length > 0 && loadedSymbol ? (
                 <Chart
                   data={chartCandleData}
                   indicators={chartIndicators}
                   enabled={enabledIndicators}
                   configs={indicatorConfigs}
-                  symbol={selectedTicker}
-                  timeframe={timeframe}
+                  symbol={loadedSymbol}
+                  timeframe={loadedTimeframe}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-slate-500">
-                  {loading
-                    ? "Loading chart data..."
-                    : "No data available for this ticker"}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin text-blue-500" size={32} />
+                      <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
+                    </>
+                  ) : (
+                    "No data available for this ticker"
+                  )}
                 </div>
               )}
             </div>

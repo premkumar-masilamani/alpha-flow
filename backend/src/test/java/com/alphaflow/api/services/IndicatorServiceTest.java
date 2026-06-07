@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.engine.configs.IndicatorConfig;
@@ -90,7 +89,6 @@ class IndicatorServiceTest {
     service =
         new IndicatorService(
             indicatorConfig,
-            new ChartConfig(),
             tickerRepository,
             dailyPriceRepository,
             weeklyPriceRepository,

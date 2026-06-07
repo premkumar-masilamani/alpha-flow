@@ -12,6 +12,9 @@ const IndicatorControls: React.FC<IndicatorControlsProps> = ({configs, enabled, 
     if (configs.length === 0) return null;
 
     const formatLabel = (label: string): string => {
+        if (/^SMA\(20\)\s+VOLUME$/i.test(label)) {
+            return 'Vol (20)';
+        }
         return label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
     };
 

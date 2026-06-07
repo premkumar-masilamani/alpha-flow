@@ -31,16 +31,17 @@ public class IndicatorController {
       @PathVariable String symbol,
       @RequestParam String timeframe,
       @RequestParam(defaultValue = "0") int page,
-      @RequestParam(required = false) Integer size) {
+      @RequestParam(defaultValue = "250") int size) {
 
+    int finalSize = Math.max(1, Math.min(size, 1000));
     log.info(
         "Request to get {} indicators for ticker: {}, page: {}, size: {}",
         timeframe,
         symbol,
         page,
-        size);
+        finalSize);
 
     return indicatorService.getIndicatorSeries(
-        symbol, APIUtil.parseTimeframe(timeframe), page, size);
+        symbol, APIUtil.parseTimeframe(timeframe), page, finalSize);
   }
 }

@@ -37,8 +37,6 @@ public class IndicatorMapper {
         .source(definition.getSource().name())
         .params(params.canonical())
         .label(label(definition.getType(), definition.getSource(), params))
-        .upperBound(definition.getUpperBound())
-        .lowerBound(definition.getLowerBound())
         .build();
   }
 

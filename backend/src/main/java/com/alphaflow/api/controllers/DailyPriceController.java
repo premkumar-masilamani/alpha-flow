@@ -22,9 +22,10 @@ public class DailyPriceController {
   public List<OhlcvDTO> getDailyPriceDataForTicker(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "0") int page,
-      @RequestParam(required = false) Integer size) {
+      @RequestParam(defaultValue = "250") int size) {
 
-    log.info("Request to get daily data for ticker: {}, page: {}, size: {}", symbol, page, size);
-    return dailyPriceService.getDailyPriceByTickerName(symbol, page, size);
+    int finalSize = Math.max(1, Math.min(size, 1000));
+    log.info("Request to get daily data for ticker: {}, page: {}, size: {}", symbol, page, finalSize);
+    return dailyPriceService.getDailyPriceByTickerName(symbol, page, finalSize);
   }
 }

@@ -12,6 +12,7 @@ export const createChart = vi.fn().mockReturnValue({
     applyOptions: vi.fn(),
     timeScale: vi.fn().mockReturnValue({
         setVisibleRange: vi.fn(),
+        setVisibleLogicalRange: vi.fn(),
         subscribeVisibleTimeRangeChange: vi.fn(),
         subscribeVisibleLogicalRangeChange: vi.fn(),
     }),
