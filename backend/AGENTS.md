@@ -93,7 +93,7 @@ When defining or modifying JPA Entity classes under `persistence/entities/`, ens
 
 - Extend `JpaRepository<Entity, Long>` and annotate with `@Repository`.
 - Return `Optional<Entity>` for single-result lookups.
-- For `indicator_values` queries, always include `timeframe`, `indicatorType`, `source`, and `params` in filters.
+- For technical indicators, use the unified `IndicatorRepository` interface. It routes CRUD operations dynamically to package-private daily/weekly JPA repositories depending on the timeframe.
 - JPQL is preferred over native SQL.
 
 ### Indicator Engine (`engine/calculators/indicators/`)
@@ -102,20 +102,22 @@ When defining or modifying JPA Entity classes under `persistence/entities/`, ens
 - **`IndicatorRegistry`**: Factory that maps `IndicatorType` → concrete `Indicator` implementation.
 - **`PriceBar` record**: Lightweight `record(LocalDate date, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, BigDecimal volume)` used as input to all indicators.
 - **MathContext**: Indicator calculations use `new MathContext(18)` for `BigDecimal` arithmetic.
-- **Calculations Workflow**: On each pipeline run, all prior computed indicator values for the ticker/timeframe are completely cleared from the database via `indicatorValueRepository.deleteByTickerAndTimeframe(ticker, timeframe)` and recalculated over the entire historical price list.
-- **Multi-output indicators**: MACD produces `macd`, `signal`, `histogram` — each stored as a separate row in `indicator_values` via the `output_name` column.
+- **Calculations Workflow**: On each pipeline run, all prior computed indicator values for the ticker, timeframe, and active indicator definitions are completely cleared from the database via `indicatorRepository.deleteByTickerAndIndicatorIds(ticker, ids, timeframe)` and recalculated over the entire historical price list.
+- **Multi-output indicators**: All computed outputs (e.g., `macd`, `signal`, `histogram` for MACD, or `k`, `d` for Stochastic) are combined into a single row per date as a key-value mapping (`Map<String, BigDecimal>`) stored in the `values` JSONB column.
 
-### Indicator Configuration (`application.properties`)
+### Indicator Configuration
 
-Indicators are configured externally via `@ConfigurationProperties(prefix = "alphaflow.indicators")`:
+Indicator configurations are stored in the database under `indicator_definitions` (`indicator_id`, `indicator_type`, `source`, `params`). 
+
+Active indicators are mapped to timeframes inside `application.properties` via comma-separated indicator IDs:
 
 ```properties
-alphaflow.indicators.timeframes.daily[0].type=EMA
-alphaflow.indicators.timeframes.daily[0].source=CLOSE
-alphaflow.indicators.timeframes.daily[0].params.period=5
+alphaflow.indicators.timeframes.daily=1,2,3,4,5,6
+alphaflow.indicators.timeframes.weekly=7
 ```
 
-- **Strict Validation**: The price `source` property is mandatory and must be explicitly specified (no implicit defaults). Startup JSR-380 validation (`@NotNull`) is enforced.
+- **In-Memory Cache**: `IndicatorConfig` loads all definitions from the database at startup (`@PostConstruct`), mapping and caching them by timeframe.
+- **Strict Validation**: The config warns at startup if any indicator ID specified in the properties is not found in the database.
 
 ### Scheduler (`engine/schedulers/`)
 

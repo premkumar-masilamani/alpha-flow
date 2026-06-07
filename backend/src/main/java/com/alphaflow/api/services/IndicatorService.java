@@ -4,12 +4,12 @@ import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.mappers.IndicatorMapper;
 import com.alphaflow.engine.configs.IndicatorConfig;
-import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
-import com.alphaflow.persistence.entities.IndicatorValue;
+import com.alphaflow.persistence.entities.Indicator;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.IndicatorValueRepository;
+import com.alphaflow.persistence.repositories.IndicatorRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.time.LocalDate;
@@ -37,19 +37,19 @@ public class IndicatorService {
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
-  private final IndicatorValueRepository indicatorValueRepository;
+  private final IndicatorRepository indicatorRepository;
 
   public IndicatorService(
       IndicatorConfig indicatorConfig,
       TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
-      IndicatorValueRepository indicatorValueRepository) {
+      IndicatorRepository indicatorRepository) {
     this.indicatorConfig = indicatorConfig;
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
-    this.indicatorValueRepository = indicatorValueRepository;
+    this.indicatorRepository = indicatorRepository;
   }
 
   /** The configured indicator matrix across all timeframes. */
@@ -62,7 +62,6 @@ public class IndicatorService {
     }
     return configs;
   }
-
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(
       String symbol, Timeframe timeframe, int page, int size) {
@@ -88,8 +87,15 @@ public class IndicatorService {
     LocalDate start = pageDates.getLast();
     LocalDate end = pageDates.getFirst();
 
-    List<IndicatorValue> rows =
-        indicatorValueRepository.findSeriesBetween(symbol, timeframe, start, end);
+    List<IndicatorDefinition> definitions = indicatorConfig.forTimeframe(timeframe);
+    if (definitions.isEmpty()) {
+      return List.of();
+    }
+    List<Long> indicatorIds =
+        definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
+
+    List<? extends Indicator> rows =
+        indicatorRepository.findSeriesBetween(symbol, indicatorIds, start, end, timeframe);
     return IndicatorMapper.toSeries(rows);
   }
 }

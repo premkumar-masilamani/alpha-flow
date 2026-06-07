@@ -28,19 +28,14 @@ public class WeeklyPriceService {
   private final TickerRepository tickerRepository;
 
   public WeeklyPriceService(
-      WeeklyPriceRepository weeklyPriceRepository,
-      TickerRepository tickerRepository) {
+      WeeklyPriceRepository weeklyPriceRepository, TickerRepository tickerRepository) {
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.tickerRepository = tickerRepository;
   }
 
-
   public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(
-        "Fetching weekly candle data for ticker: {} (page={}, size={})",
-        tickerName,
-        page,
-        size);
+        "Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
       log.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);

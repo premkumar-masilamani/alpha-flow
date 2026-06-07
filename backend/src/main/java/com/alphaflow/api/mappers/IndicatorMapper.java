@@ -4,13 +4,11 @@ import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorPointDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
-import com.alphaflow.persistence.entities.IndicatorValue;
+import com.alphaflow.persistence.entities.Indicator;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.Timeframe;
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,38 +44,28 @@ public class IndicatorMapper {
    * <p>bar's plots collected into a single point. Encounter order is preserved (rows arrive
    * ascending).
    */
-  public static List<IndicatorSeriesDTO> toSeries(List<IndicatorValue> rows) {
+  public static List<IndicatorSeriesDTO> toSeries(List<? extends Indicator> rows) {
 
-    Map<String, List<IndicatorValue>> byCombo = new LinkedHashMap<>();
+    Map<String, List<Indicator>> byCombo = new LinkedHashMap<>();
 
-    for (IndicatorValue row : rows) {
+    for (Indicator row : rows) {
 
       byCombo.computeIfAbsent(comboKey(row), k -> new ArrayList<>()).add(row);
     }
 
     List<IndicatorSeriesDTO> series = new ArrayList<>();
 
-    for (List<IndicatorValue> combo : byCombo.values()) {
+    for (List<Indicator> combo : byCombo.values()) {
 
-      IndicatorValue first = combo.getFirst();
+      Indicator first = combo.getFirst();
 
       IndicatorParams params = IndicatorParams.parse(first.getParams());
 
-      Map<LocalDate, Map<String, BigDecimal>> byDate = new LinkedHashMap<>();
-
-      for (IndicatorValue row : combo) {
-
-        byDate
-            .computeIfAbsent(row.getPriceDate(), d -> new LinkedHashMap<>())
-            .put(row.getOutputName(), row.getValue());
-      }
-
       List<IndicatorPointDTO> points = new ArrayList<>();
 
-      for (Map.Entry<LocalDate, Map<String, BigDecimal>> entry : byDate.entrySet()) {
-
+      for (Indicator row : combo) {
         points.add(
-            IndicatorPointDTO.builder().date(entry.getKey()).values(entry.getValue()).build());
+            IndicatorPointDTO.builder().date(row.getPriceDate()).values(row.getValues()).build());
       }
 
       series.add(
@@ -94,7 +82,9 @@ public class IndicatorMapper {
   }
 
   static String label(IndicatorType type, PriceSource source, IndicatorParams params) {
-    if (type == IndicatorType.SMA && source == PriceSource.VOLUME && params.getInt("period") == 20) {
+    if (type == IndicatorType.SMA
+        && source == PriceSource.VOLUME
+        && params.getInt("period") == 20) {
       return "Vol (20)";
     }
 
@@ -126,7 +116,7 @@ public class IndicatorMapper {
     return source == PriceSource.CLOSE ? base : base + " " + source.name();
   }
 
-  private static String comboKey(IndicatorValue row) {
+  private static String comboKey(Indicator row) {
 
     return (row.getIndicatorType() + "|" + row.getSource() + "|" + row.getParams());
   }

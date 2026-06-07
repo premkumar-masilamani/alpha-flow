@@ -25,19 +25,13 @@ public record PriceBar(
     BigDecimal low,
     BigDecimal close,
     BigDecimal volume) {
-
   /** Returns the field this indicator's input series should be drawn from. */
   public BigDecimal valueFor(PriceSource source) {
-
     return switch (source) {
       case OPEN -> open;
-
       case HIGH -> high;
-
       case LOW -> low;
-
       case CLOSE -> close;
-
       case VOLUME -> volume;
     };
   }

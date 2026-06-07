@@ -73,7 +73,6 @@ class IndicatorControllerTest {
         IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", null, 0, 250));
 
     assertThrows(
-        IllegalArgumentException.class,
-        () -> controller.getIndicatorSeries("AAPL", "   ", 0, 250));
+        IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", "   ", 0, 250));
   }
 }

@@ -38,7 +38,7 @@ Data source is Yahoo Finance (free tier). Daily and weekly timeframes only.
 ```
 com.alphaflow
 ├── persistence/           # Database layer
-│   ├── entities/          # JPA entities (Ticker, DailyPrice, WeeklyPrice, IndicatorValue, AnalysisResult)
+│   ├── entities/          # JPA entities (Ticker, DailyPrice, WeeklyPrice, IndicatorDefinition, Indicator, DailyIndicator, WeeklyIndicator, AnalysisResult)
 │   ├── repositories/      # Spring Data JPA repositories
 │   ├── enums/             # IndicatorType, Timeframe, PriceSource
 │   └── exceptions/        # ResourceNotFoundException

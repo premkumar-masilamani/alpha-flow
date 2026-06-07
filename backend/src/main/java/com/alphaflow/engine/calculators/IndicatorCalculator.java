@@ -6,16 +6,21 @@ import com.alphaflow.engine.calculators.indicators.IndicatorRegistry;
 import com.alphaflow.engine.calculators.indicators.PlotPoint;
 import com.alphaflow.engine.calculators.indicators.PriceBar;
 import com.alphaflow.engine.configs.IndicatorConfig;
-import com.alphaflow.engine.configs.IndicatorConfig.IndicatorDefinition;
-import com.alphaflow.persistence.entities.IndicatorValue;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.IndicatorValueRepository;
+import com.alphaflow.persistence.repositories.IndicatorRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +44,7 @@ public class IndicatorCalculator {
   private final IndicatorConfig properties;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
-  private final IndicatorValueRepository indicatorValueRepository;
+  private final IndicatorRepository indicatorRepository;
 
   @Autowired @Lazy private IndicatorCalculator self;
 
@@ -51,7 +56,7 @@ public class IndicatorCalculator {
    * @param properties the configured active indicators properties
    * @param dailyPriceRepository the daily prices repository
    * @param weeklyPriceRepository the weekly prices repository
-   * @param indicatorValueRepository the indicator values repository
+   * @param indicatorRepository the indicators repository
    */
   public IndicatorCalculator(
       TickerRepository tickerRepository,
@@ -59,13 +64,13 @@ public class IndicatorCalculator {
       IndicatorConfig properties,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
-      IndicatorValueRepository indicatorValueRepository) {
+      IndicatorRepository indicatorRepository) {
     this.tickerRepository = tickerRepository;
     this.registry = registry;
     this.properties = properties;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
-    this.indicatorValueRepository = indicatorValueRepository;
+    this.indicatorRepository = indicatorRepository;
   }
 
   /** Triggers the computation of indicators across all active tickers. */
@@ -113,33 +118,68 @@ public class IndicatorCalculator {
       }
 
       // Delete all existing indicators for this ticker and timeframe to perform full overwrite
-      indicatorValueRepository.deleteByTickerAndTimeframe(ticker, timeframe);
+      List<Long> indicatorIds =
+          definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
+      indicatorRepository.deleteByTickerAndIndicatorIds(ticker, indicatorIds, timeframe);
 
-      List<IndicatorValue> toInsert = new ArrayList<>();
-      for (IndicatorDefinition definition : definitions) {
-        Indicator indicator = registry.get(definition.getType());
-        IndicatorParams params = IndicatorParams.of(definition.getParams());
-        String paramsCanonical = params.canonical();
+      if (timeframe == Timeframe.DAILY) {
+        List<DailyIndicator> toInsert = new ArrayList<>();
+        for (IndicatorDefinition definition : definitions) {
+          Indicator indicator = registry.get(definition.getType());
+          IndicatorParams params = IndicatorParams.of(definition.getParams());
 
-        List<PlotPoint> computed = indicator.compute(bars, params, definition.getSource());
+          List<PlotPoint> computed = indicator.compute(bars, params, definition.getSource());
 
-        for (PlotPoint point : computed) {
-          toInsert.add(
-              IndicatorValue.builder()
-                  .ticker(ticker)
-                  .timeframe(timeframe)
-                  .indicatorType(definition.getType())
-                  .source(definition.getSource())
-                  .params(paramsCanonical)
-                  .outputName(point.outputName())
-                  .priceDate(point.date())
-                  .value(point.value())
-                  .build());
+          Map<LocalDate, Map<String, BigDecimal>> pointsByDate = new LinkedHashMap<>();
+          for (PlotPoint point : computed) {
+            pointsByDate
+                .computeIfAbsent(point.date(), d -> new LinkedHashMap<>())
+                .put(point.outputName(), point.value());
+          }
+
+          for (Map.Entry<LocalDate, Map<String, BigDecimal>> entry : pointsByDate.entrySet()) {
+            toInsert.add(
+                DailyIndicator.builder()
+                    .ticker(ticker)
+                    .indicatorDefinition(definition)
+                    .priceDate(entry.getKey())
+                    .values(entry.getValue())
+                    .build());
+          }
         }
-      }
 
-      if (!toInsert.isEmpty()) {
-        indicatorValueRepository.saveAll(toInsert);
+        if (!toInsert.isEmpty()) {
+          indicatorRepository.saveAll(toInsert, timeframe);
+        }
+      } else {
+        List<WeeklyIndicator> toInsert = new ArrayList<>();
+        for (IndicatorDefinition definition : definitions) {
+          Indicator indicator = registry.get(definition.getType());
+          IndicatorParams params = IndicatorParams.of(definition.getParams());
+
+          List<PlotPoint> computed = indicator.compute(bars, params, definition.getSource());
+
+          Map<LocalDate, Map<String, BigDecimal>> pointsByDate = new LinkedHashMap<>();
+          for (PlotPoint point : computed) {
+            pointsByDate
+                .computeIfAbsent(point.date(), d -> new LinkedHashMap<>())
+                .put(point.outputName(), point.value());
+          }
+
+          for (Map.Entry<LocalDate, Map<String, BigDecimal>> entry : pointsByDate.entrySet()) {
+            toInsert.add(
+                WeeklyIndicator.builder()
+                    .ticker(ticker)
+                    .indicatorDefinition(definition)
+                    .priceDate(entry.getKey())
+                    .values(entry.getValue())
+                    .build());
+          }
+        }
+
+        if (!toInsert.isEmpty()) {
+          indicatorRepository.saveAll(toInsert, timeframe);
+        }
       }
     }
   }

@@ -96,6 +96,15 @@ public final class IndicatorParams {
     return sb.toString();
   }
 
+  /**
+   * Returns the underlying parameter values map.
+   *
+   * @return the parameters map
+   */
+  public Map<String, Integer> getValues() {
+    return values;
+  }
+
   @Override
   public String toString() {
 
