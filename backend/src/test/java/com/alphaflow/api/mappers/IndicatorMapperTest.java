@@ -28,11 +28,16 @@ class IndicatorMapperTest {
             IndicatorType.EMA, PriceSource.OPEN, IndicatorParams.of(Map.of("period", 20))));
 
     // SMA
-
     assertEquals(
         "SMA(50)",
         IndicatorMapper.label(
             IndicatorType.SMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 50))));
+
+    // SMA Volume (Vol (20))
+    assertEquals(
+        "Vol (20)",
+        IndicatorMapper.label(
+            IndicatorType.SMA, PriceSource.VOLUME, IndicatorParams.of(Map.of("period", 20))));
 
     // RSI
 

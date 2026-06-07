@@ -1,6 +1,5 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.persistence.entities.DailyPrice;
@@ -23,39 +22,28 @@ public class DailyPriceService {
 
   private final DailyPriceRepository dailyPriceRepository;
   private final TickerRepository tickerRepository;
-  private final ChartConfig chartConfig;
 
   public DailyPriceService(
       DailyPriceRepository dailyPriceRepository,
-      TickerRepository tickerRepository,
-      ChartConfig chartConfig) {
+      TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.tickerRepository = tickerRepository;
-    this.chartConfig = chartConfig;
   }
 
-  public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName) {
-    return getDailyPriceByTickerName(tickerName, 0, null);
-  }
 
-  public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, Integer size) {
-    int window = chartConfig.getWindow();
-    int actualSize = size != null ? Math.min(size, window * 5) : window;
-    if (actualSize < 1) {
-      actualSize = 1;
-    }
+  public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(
         "Fetching daily candle data for ticker: {} (page={}, size={})",
         tickerName,
         page,
-        actualSize);
+        size);
     // Match the case-insensitive lookup used by findLatestByTickerName below.
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
       log.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);
     }
     return dailyPriceRepository
-        .findLatestByTickerName(tickerName, PageRequest.of(page, actualSize))
+        .findLatestByTickerName(tickerName, PageRequest.of(page, size))
         .stream()
         .sorted(Comparator.comparing(DailyPrice::getPriceDate))
         .map(OhlcvMapper::toDTO)

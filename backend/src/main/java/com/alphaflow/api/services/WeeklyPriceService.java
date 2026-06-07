@@ -1,6 +1,5 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.persistence.entities.WeeklyPrice;
@@ -27,38 +26,27 @@ public class WeeklyPriceService {
 
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final TickerRepository tickerRepository;
-  private final ChartConfig chartConfig;
 
   public WeeklyPriceService(
       WeeklyPriceRepository weeklyPriceRepository,
-      TickerRepository tickerRepository,
-      ChartConfig chartConfig) {
+      TickerRepository tickerRepository) {
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.tickerRepository = tickerRepository;
-    this.chartConfig = chartConfig;
   }
 
-  public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName) {
-    return getWeeklyPriceByTickerName(tickerName, 0, null);
-  }
 
-  public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, Integer size) {
-    int window = chartConfig.getWindow();
-    int actualSize = size != null ? Math.min(size, window * 5) : window;
-    if (actualSize < 1) {
-      actualSize = 1;
-    }
+  public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(
         "Fetching weekly candle data for ticker: {} (page={}, size={})",
         tickerName,
         page,
-        actualSize);
+        size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
       log.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);
     }
     return weeklyPriceRepository
-        .findLatestByTickerName(tickerName, PageRequest.of(page, actualSize))
+        .findLatestByTickerName(tickerName, PageRequest.of(page, size))
         .stream()
         .sorted(Comparator.comparing(WeeklyPrice::getPriceDate))
         .map(OhlcvMapper::toDTO)

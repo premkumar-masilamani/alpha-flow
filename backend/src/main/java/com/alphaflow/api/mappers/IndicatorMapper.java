@@ -37,8 +37,6 @@ public class IndicatorMapper {
         .source(definition.getSource().name())
         .params(params.canonical())
         .label(label(definition.getType(), definition.getSource(), params))
-        .upperBound(definition.getUpperBound())
-        .lowerBound(definition.getLowerBound())
         .build();
   }
 
@@ -96,6 +94,9 @@ public class IndicatorMapper {
   }
 
   static String label(IndicatorType type, PriceSource source, IndicatorParams params) {
+    if (type == IndicatorType.SMA && source == PriceSource.VOLUME && params.getInt("period") == 20) {
+      return "Vol (20)";
+    }
 
     String base =
         switch (type) {

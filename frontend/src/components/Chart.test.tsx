@@ -83,7 +83,7 @@ describe('Chart Component', () => {
         expect(chartInstance.addSeries).toHaveBeenCalledTimes(3);
     });
 
-    it('triggers setVisibleRange when clicking Reset Zoom', () => {
+    it('triggers setVisibleLogicalRange when clicking Reset Zoom', async () => {
         render(
             <Chart
                 data={mockData}
@@ -97,12 +97,14 @@ describe('Chart Component', () => {
         );
 
         const chartInstance = vi.mocked(createChart).mock.results[0].value;
-        const setVisibleRangeMock = chartInstance.timeScale().setVisibleRange;
+        const setVisibleLogicalRangeMock = chartInstance.timeScale().setVisibleLogicalRange;
 
         const resetButton = screen.getByText('Reset Zoom');
         fireEvent.click(resetButton);
 
-        expect(setVisibleRangeMock).toHaveBeenCalled();
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        expect(setVisibleLogicalRangeMock).toHaveBeenCalled();
     });
 
     it('triggers onLoadOlderData when logical range change reaches early index', () => {
@@ -123,6 +125,7 @@ describe('Chart Component', () => {
                 applyOptions: vi.fn(),
                 timeScale: vi.fn().mockReturnValue({
                     setVisibleRange: vi.fn(),
+                    setVisibleLogicalRange: vi.fn(),
                     subscribeVisibleTimeRangeChange: vi.fn(),
                     subscribeVisibleLogicalRangeChange: (cb: (logicalRange: { from: number; to: number } | null) => void) => {
                         capturedCallback = cb;

@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
@@ -25,11 +24,7 @@ class DailyPriceServiceTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ChartConfig chartConfig = mock(ChartConfig.class);
-
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
-
-    when(chartConfig.getWindow()).thenReturn(180);
 
     DailyPrice dp1 =
         DailyPrice.builder()
@@ -54,12 +49,12 @@ class DailyPriceServiceTest {
     // Database return is descending/latest first usually or in any order, service sorts them
     // ascending
 
-    when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 180)))
+    when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 250)))
         .thenReturn(List.of(dp1, dp2));
 
-    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, chartConfig);
+    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo);
 
-    List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL");
+    List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL", 0, 250);
 
     assertEquals(2, result.size());
 
@@ -74,14 +69,13 @@ class DailyPriceServiceTest {
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
 
-    ChartConfig chartConfig = mock(ChartConfig.class);
-
     when(tickerRepo.existsByTickerSymbolIgnoreCase("INVALID")).thenReturn(false);
 
-    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, chartConfig);
+    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo);
 
     assertThrows(
-        ResourceNotFoundException.class, () -> service.getDailyPriceByTickerName("INVALID"));
+        ResourceNotFoundException.class,
+        () -> service.getDailyPriceByTickerName("INVALID", 0, 250));
   }
 
   @Test
@@ -89,10 +83,6 @@ class DailyPriceServiceTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
 
     TickerRepository tickerRepo = mock(TickerRepository.class);
-
-    ChartConfig chartConfig = mock(ChartConfig.class);
-
-    when(chartConfig.getWindow()).thenReturn(180);
 
     when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
 
@@ -108,7 +98,7 @@ class DailyPriceServiceTest {
 
     when(dailyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10))).thenReturn(List.of(dp));
 
-    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo, chartConfig);
+    DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo);
 
     List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL", 1, 10);
 

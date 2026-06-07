@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const API_BASE_URL = `${import.meta.env.NEXT_PUBLIC_API_URL || ''}/api`;
 
+export const CHART_WINDOW = 250;
+
 export interface Ticker {
     id: number;
     symbol: string;
@@ -32,7 +34,7 @@ export const getCandleData = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
     page: number = 0,
-    size?: number
+    size: number = CHART_WINDOW
 ): Promise<DailyCandleData[]> => {
     const now = Date.now();
     const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
@@ -94,7 +96,23 @@ export const indicatorKey = (i: {type: string; source: string; params: string}):
 
 export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
     const response = await axios.get(`${API_BASE_URL}/indicators`);
-    return response.data;
+    return response.data.map((config: any) => {
+        if (config.type === 'RSI') {
+            return {
+                ...config,
+                upperBound: 70,
+                lowerBound: 30,
+            };
+        }
+        if (config.type === 'STOCHASTIC') {
+            return {
+                ...config,
+                upperBound: 80,
+                lowerBound: 20,
+            };
+        }
+        return config;
+    });
 };
 
 // Cache indicator series per symbol+timeframe, mirroring the candle cache (backend re-syncs hourly).
@@ -104,7 +122,7 @@ export const getIndicatorSeries = async (
     symbol: string,
     timeframe: Timeframe,
     page: number = 0,
-    size?: number
+    size: number = CHART_WINDOW
 ): Promise<IndicatorSeries[]> => {
     const now = Date.now();
     const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;

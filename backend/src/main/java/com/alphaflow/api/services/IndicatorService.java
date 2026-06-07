@@ -1,6 +1,5 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.mappers.IndicatorMapper;
@@ -35,7 +34,6 @@ public class IndicatorService {
   private static final Logger log = LoggerFactory.getLogger(IndicatorService.class);
 
   private final IndicatorConfig indicatorConfig;
-  private final ChartConfig chartConfig;
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
@@ -43,13 +41,11 @@ public class IndicatorService {
 
   public IndicatorService(
       IndicatorConfig indicatorConfig,
-      ChartConfig chartConfig,
       TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       IndicatorValueRepository indicatorValueRepository) {
     this.indicatorConfig = indicatorConfig;
-    this.chartConfig = chartConfig;
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
@@ -67,12 +63,9 @@ public class IndicatorService {
     return configs;
   }
 
-  public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe) {
-    return getIndicatorSeries(symbol, timeframe, 0, null);
-  }
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(
-      String symbol, Timeframe timeframe, int page, Integer size) {
+      String symbol, Timeframe timeframe, int page, int size) {
     log.debug(
         "Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
@@ -80,12 +73,7 @@ public class IndicatorService {
       throw new ResourceNotFoundException("Ticker not found: " + symbol);
     }
 
-    int window = chartConfig.getWindow();
-    int actualSize = size != null ? Math.min(size, window * 5) : window;
-    if (actualSize < 1) {
-      actualSize = 1;
-    }
-    PageRequest pageRequest = PageRequest.of(page, actualSize);
+    PageRequest pageRequest = PageRequest.of(page, size);
     List<LocalDate> pageDates =
         timeframe == Timeframe.WEEKLY
             ? weeklyPriceRepository.findRecentPriceDates(symbol, pageRequest)

@@ -200,7 +200,8 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
-    const visibleRangeRef = useRef<{ from: Time; to: Time } | null>(null);
+    const visibleLogicalRangeRef = useRef<any>(null);
+    const prevDataLengthRef = useRef<number>(0);
     const prevSymbolRef = useRef<string>('');
     const prevTimeframeRef = useRef<string>('');
 
@@ -212,9 +213,10 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             return;
         }
 
-        // Reset visible range if symbol or timeframe changed
+        // Reset logical range if symbol or timeframe changed
         if (prevSymbolRef.current !== symbol || prevTimeframeRef.current !== timeframe) {
-            visibleRangeRef.current = null;
+            visibleLogicalRangeRef.current = null;
+            prevDataLengthRef.current = 0;
             prevSymbolRef.current = symbol;
             prevTimeframeRef.current = timeframe;
         }
@@ -233,7 +235,11 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             },
             width: width,
             height: height,
-            timeScale: {borderColor: '#334155', timeVisible: true},
+            timeScale: {
+                borderColor: '#334155',
+                timeVisible: true,
+                rightOffset: 10,
+            },
         });
         chartRef.current = chart;
 
@@ -380,18 +386,37 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             // setStretchFactor unavailable — fall back to default pane sizing.
         }
 
-        // Set visible range (either restore saved or set default 180 bars)
-        if (visibleRangeRef.current) {
-            chart.timeScale().setVisibleRange(visibleRangeRef.current);
+        // Adjust logical range if older data was prepended
+        if (visibleLogicalRangeRef.current && prevDataLengthRef.current > 0) {
+            const addedCount = sortedData.length - prevDataLengthRef.current;
+            if (addedCount > 0) {
+                visibleLogicalRangeRef.current = {
+                    from: visibleLogicalRangeRef.current.from + addedCount,
+                    to: visibleLogicalRangeRef.current.to + addedCount,
+                };
+            }
+        }
+        prevDataLengthRef.current = sortedData.length;
+
+        // Set visible range (either restore saved or set default 250 bars)
+        if (visibleLogicalRangeRef.current) {
+            chart.timeScale().setVisibleLogicalRange(visibleLogicalRangeRef.current);
         } else {
-            // Default view: latest 180 bars
-            const lastBar = sortedData[sortedData.length - 1];
-            const firstBar = sortedData[Math.max(0, sortedData.length - 180)];
-            chart.timeScale().setVisibleRange({
-                from: firstBar.date as Time,
-                to: lastBar.date as Time,
+            // Default view: latest 250 bars with 10 bars of empty space on the right
+            requestAnimationFrame(() => {
+                chart.timeScale().setVisibleLogicalRange({
+                    from: sortedData.length - 250,
+                    to: sortedData.length - 1 + 10,
+                });
             });
         }
+
+        const LEGEND_ORDER = ['EMA (5)', 'EMA (13)', 'EMA (26)', 'Vol (20)'];
+        const getOrderIndex = (label: string): number => {
+            const index = LEGEND_ORDER.findIndex(prefix => label.startsWith(prefix));
+            return index === -1 ? 999 : index;
+        };
+        legendEntries.sort((a, b) => getOrderIndex(a.label) - getOrderIndex(b.label));
 
         setLegend(legendEntries);
 
@@ -408,16 +433,10 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             setChartHeight(chartContainerRef.current.clientHeight || height);
         }
 
-        // Subscribe to time scale visible range changes
-        chart.timeScale().subscribeVisibleTimeRangeChange((range) => {
-            if (range) {
-                visibleRangeRef.current = range;
-            }
-        });
-
-        // Trigger load older data when scrolled left
+        // Subscribe to logical range changes for scroll position and older data loading
         chart.timeScale().subscribeVisibleLogicalRangeChange((logicalRange) => {
             if (!logicalRange) return;
+            visibleLogicalRangeRef.current = logicalRange;
             if (logicalRange.from <= 2) {
                 onLoadOlderData();
             }
@@ -433,16 +452,15 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
-        const lastBar = sortedData[sortedData.length - 1];
-        const firstBar = sortedData[Math.max(0, sortedData.length - 180)];
-        const fromStr = firstBar.date as Time;
-        const toStr = lastBar.date as Time;
 
-        chartRef.current.timeScale().setVisibleRange({
-            from: fromStr,
-            to: toStr,
+        const targetRange = {
+            from: sortedData.length - 250,
+            to: sortedData.length - 1 + 10,
+        };
+        requestAnimationFrame(() => {
+            chartRef.current?.timeScale().setVisibleLogicalRange(targetRange);
         });
-        visibleRangeRef.current = { from: fromStr, to: toStr };
+        visibleLogicalRangeRef.current = targetRange;
     };
 
     const oscillatorIndicators = indicators.filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator');
@@ -452,7 +470,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             <button
                 onClick={handleResetZoom}
                 className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded shadow-lg backdrop-blur text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-                title="Reset zoom to default (180 bars)"
+                title="Reset zoom to default (250 bars)"
             >
                 <RefreshCw size={12} className="animate-hover" />
                 <span>Reset Zoom</span>

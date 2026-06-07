@@ -61,8 +61,5 @@ public class IndicatorConfig {
      * Integer periods keyed by name, e.g. {@code period=14} or {@code fast=12,slow=26,signal=9}.
      */
     private Map<String, Integer> params = new LinkedHashMap<>();
-
-    private Integer upperBound;
-    private Integer lowerBound;
   }
 }

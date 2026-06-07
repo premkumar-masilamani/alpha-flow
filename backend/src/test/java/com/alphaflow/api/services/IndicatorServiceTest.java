@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.configs.ChartConfig;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.engine.configs.IndicatorConfig;
@@ -90,7 +89,6 @@ class IndicatorServiceTest {
     service =
         new IndicatorService(
             indicatorConfig,
-            new ChartConfig(),
             tickerRepository,
             dailyPriceRepository,
             weeklyPriceRepository,
@@ -153,7 +151,7 @@ class IndicatorServiceTest {
                 value(IndicatorType.MACD, "fast=12,signal=9,slow=26", "signal", D2, "0.6"),
                 value(IndicatorType.MACD, "fast=12,signal=9,slow=26", "histogram", D2, "0.6")));
 
-    List<IndicatorSeriesDTO> series = service.getIndicatorSeries("TEST", Timeframe.DAILY);
+    List<IndicatorSeriesDTO> series = service.getIndicatorSeries("TEST", Timeframe.DAILY, 0, 250);
 
     assertEquals(2, series.size());
 
@@ -186,7 +184,7 @@ class IndicatorServiceTest {
     when(tickerRepository.existsByTickerSymbolIgnoreCase("NOPE")).thenReturn(false);
 
     assertThrows(
-        ResourceNotFoundException.class, () -> service.getIndicatorSeries("NOPE", Timeframe.DAILY));
+        ResourceNotFoundException.class, () -> service.getIndicatorSeries("NOPE", Timeframe.DAILY, 0, 250));
 
     verify(indicatorValueRepository, never()).findSeriesBetween(any(), any(), any(), any());
   }
@@ -200,7 +198,7 @@ class IndicatorServiceTest {
 
     when(dailyPriceRepository.findRecentPriceDates(eq("TEST"), any())).thenReturn(List.of());
 
-    assertTrue(service.getIndicatorSeries("TEST", Timeframe.DAILY).isEmpty());
+    assertTrue(service.getIndicatorSeries("TEST", Timeframe.DAILY, 0, 250).isEmpty());
 
     verify(indicatorValueRepository, never()).findSeriesBetween(any(), any(), any(), any());
   }
@@ -216,7 +214,7 @@ class IndicatorServiceTest {
             eq("TEST"), eq(Timeframe.WEEKLY), eq(D1), eq(D1)))
         .thenReturn(List.of());
 
-    List<IndicatorSeriesDTO> result = service.getIndicatorSeries("TEST", Timeframe.WEEKLY);
+    List<IndicatorSeriesDTO> result = service.getIndicatorSeries("TEST", Timeframe.WEEKLY, 0, 250);
 
     assertTrue(result.isEmpty());
 
