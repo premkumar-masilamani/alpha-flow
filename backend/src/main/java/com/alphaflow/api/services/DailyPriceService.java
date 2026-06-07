@@ -24,19 +24,14 @@ public class DailyPriceService {
   private final TickerRepository tickerRepository;
 
   public DailyPriceService(
-      DailyPriceRepository dailyPriceRepository,
-      TickerRepository tickerRepository) {
+      DailyPriceRepository dailyPriceRepository, TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.tickerRepository = tickerRepository;
   }
 
-
   public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(
-        "Fetching daily candle data for ticker: {} (page={}, size={})",
-        tickerName,
-        page,
-        size);
+        "Fetching daily candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     // Match the case-insensitive lookup used by findLatestByTickerName below.
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
       log.warn("Ticker not found for symbol: {}", tickerName);
