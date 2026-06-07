@@ -63,9 +63,6 @@ public class IndicatorService {
     return configs;
   }
 
-  public List<IndicatorSeriesDTO> getIndicatorSeries(String symbol, Timeframe timeframe) {
-    return getIndicatorSeries(symbol, timeframe, 0, 250);
-  }
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(
       String symbol, Timeframe timeframe, int page, int size) {

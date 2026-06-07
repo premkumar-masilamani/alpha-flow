@@ -34,9 +34,6 @@ public class WeeklyPriceService {
     this.tickerRepository = tickerRepository;
   }
 
-  public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName) {
-    return getWeeklyPriceByTickerName(tickerName, 0, 250);
-  }
 
   public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(

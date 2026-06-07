@@ -30,9 +30,6 @@ public class DailyPriceService {
     this.tickerRepository = tickerRepository;
   }
 
-  public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName) {
-    return getDailyPriceByTickerName(tickerName, 0, 250);
-  }
 
   public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(

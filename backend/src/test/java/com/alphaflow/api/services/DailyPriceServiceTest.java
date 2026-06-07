@@ -54,7 +54,7 @@ class DailyPriceServiceTest {
 
     DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo);
 
-    List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL");
+    List<OhlcvDTO> result = service.getDailyPriceByTickerName("AAPL", 0, 250);
 
     assertEquals(2, result.size());
 
@@ -74,7 +74,8 @@ class DailyPriceServiceTest {
     DailyPriceService service = new DailyPriceService(dailyRepo, tickerRepo);
 
     assertThrows(
-        ResourceNotFoundException.class, () -> service.getDailyPriceByTickerName("INVALID"));
+        ResourceNotFoundException.class,
+        () -> service.getDailyPriceByTickerName("INVALID", 0, 250));
   }
 
   @Test

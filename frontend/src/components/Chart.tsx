@@ -166,12 +166,8 @@ const lineData = (series: IndicatorSeries, output: string) =>
         .map((p) => ({time: p.date as Time, value: Number(p.values[output])}))
         .sort((a, b) => String(a.time).localeCompare(String(b.time)));
 
-const formatLabel = (label: string): string => {
-    if (/^SMA\(20\)\s+VOLUME$/i.test(label)) {
-        return 'Vol (20)';
-    }
-    return label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
-};
+const formatLabel = (label: string): string =>
+    label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
 
 const getLatestValuesString = (series: IndicatorSeries): string => {
     switch (series.type) {

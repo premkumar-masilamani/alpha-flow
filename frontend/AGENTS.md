@@ -51,7 +51,6 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 - **Viewport Persistence**: The visible viewport is persisted and updated using logical index coordinates (`setVisibleLogicalRange`) instead of date timestamps (`setVisibleRange`). Logical coordinates prevent the chart from snapping back to the rightmost edge and discarding the 10-bar offset during re-renders, and are corrected for prepended candles when loading older data to avoid visual jumps.
 - **Indicator Default Selection**: On daily charts, the `Vol (20)` (Volume SMA 20) indicator is checked/enabled by default alongside the standard EMA indicators.
 - **Indicator Legends**: The main chart legend must always sort indicators in a fixed, predefined order: `EMA (5)`, `EMA (13)`, `EMA (26)`, `Vol (20)`. Any other custom indicators are appended at the end.
-- **Volume SMA Renaming**: The indicator `SMA(20) VOLUME` is formatted and rendered as `Vol (20)` in both controls and the legend.
 
 ## Project Boundaries
 

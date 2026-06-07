@@ -94,6 +94,9 @@ public class IndicatorMapper {
   }
 
   static String label(IndicatorType type, PriceSource source, IndicatorParams params) {
+    if (type == IndicatorType.SMA && source == PriceSource.VOLUME && params.getInt("period") == 20) {
+      return "Vol (20)";
+    }
 
     String base =
         switch (type) {

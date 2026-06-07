@@ -51,7 +51,7 @@ class WeeklyPriceServiceTest {
 
     WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
 
-    List<OhlcvDTO> result = service.getWeeklyPriceByTickerName("AAPL");
+    List<OhlcvDTO> result = service.getWeeklyPriceByTickerName("AAPL", 0, 250);
 
     assertEquals(2, result.size());
 
@@ -71,7 +71,8 @@ class WeeklyPriceServiceTest {
     WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
 
     assertThrows(
-        ResourceNotFoundException.class, () -> service.getWeeklyPriceByTickerName("INVALID"));
+        ResourceNotFoundException.class,
+        () -> service.getWeeklyPriceByTickerName("INVALID", 0, 250));
   }
 
   @Test
