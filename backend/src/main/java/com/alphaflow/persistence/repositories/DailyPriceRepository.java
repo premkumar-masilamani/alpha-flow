@@ -26,6 +26,8 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
   Optional<DailyPrice> findTopByTickerOrderByPriceDateAsc(Ticker ticker);
 
+  Optional<DailyPrice> findTopByTickerOrderByPriceDateDesc(Ticker ticker);
+
   @Query(
       """
                 SELECT tk, COALESCE(MAX(dp.priceDate), {d '1900-01-01'})
