@@ -5,13 +5,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.alphaflow.engine.configs.YahooFinanceConfig;
-import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.net.URL;
 import java.time.LocalDate;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class YahooFinanceDownloaderTest {
@@ -60,10 +58,6 @@ class YahooFinanceDownloaderTest {
     latestDates.put(t1, LocalDate.of(2025, 8, 12));
     latestDates.put(t2, LocalDate.of(2025, 8, 12));
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-    when(dailyRepo.findTopByTickerOrderByPriceDateDesc(t1))
-        .thenReturn(Optional.of(DailyPrice.builder().priceDate(LocalDate.of(2025, 8, 12)).build()));
-    when(dailyRepo.findTopByTickerOrderByPriceDateDesc(t2))
-        .thenReturn(Optional.of(DailyPrice.builder().priceDate(LocalDate.of(2025, 8, 12)).build()));
 
     YahooFinanceDownloader downloader =
         new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
@@ -121,8 +115,6 @@ class YahooFinanceDownloaderTest {
     latestDates.put(t1, LocalDate.of(2025, 8, 12));
     latestDates.put(t2, LocalDate.of(2025, 8, 12));
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-    when(dailyRepo.findTopByTickerOrderByPriceDateDesc(t1))
-        .thenReturn(Optional.of(DailyPrice.builder().priceDate(LocalDate.of(2025, 8, 12)).build()));
 
     YahooFinanceDownloader downloader =
         new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
@@ -162,8 +154,6 @@ class YahooFinanceDownloaderTest {
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
     latestDates.put(ticker, LocalDate.of(2025, 8, 12));
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-    when(dailyRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(DailyPrice.builder().priceDate(LocalDate.of(2025, 8, 12)).build()));
 
     YahooFinanceDownloader downloader =
         new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
@@ -190,7 +180,6 @@ class YahooFinanceDownloaderTest {
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
     latestDates.put(ticker, null); // Returns empty -> latestSavedDate is null
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-    when(dailyRepo.findTopByTickerOrderByPriceDateDesc(ticker)).thenReturn(Optional.empty());
 
     YahooFinanceDownloader downloader =
         new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
@@ -217,8 +206,6 @@ class YahooFinanceDownloaderTest {
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
     latestDates.put(ticker, LocalDate.of(2026, 5, 29));
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-    when(dailyRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(DailyPrice.builder().priceDate(LocalDate.of(2026, 5, 29)).build()));
 
     YahooFinanceDownloader downloader =
         new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());

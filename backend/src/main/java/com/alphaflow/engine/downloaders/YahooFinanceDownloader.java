@@ -104,15 +104,9 @@ public class YahooFinanceDownloader {
       String json = downloadData(url);
       List<DailyPrice> dailyPriceList = yahooResponseParser.parse(json, ticker);
       if (!dailyPriceList.isEmpty()) {
-        LocalDate freshLatestDate =
-            dailyPriceRepository
-                .findTopByTickerOrderByPriceDateDesc(ticker)
-                .map(DailyPrice::getPriceDate)
-                .orElse(null);
-
         List<DailyPrice> newDailyPriceData =
             dailyPriceList.stream()
-                .filter(c -> freshLatestDate == null || c.getPriceDate().isAfter(freshLatestDate))
+                .filter(c -> latestSavedDate == null || c.getPriceDate().isAfter(latestSavedDate))
                 .collect(Collectors.toList());
 
         if (!newDailyPriceData.isEmpty()) {
