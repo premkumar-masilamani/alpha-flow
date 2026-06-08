@@ -2,7 +2,10 @@ package com.alphaflow.engine.calculators.indicators;
 
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A single technical-indicator family (one bean per family, discovered via {@link
@@ -20,7 +23,8 @@ public interface Indicator {
    * @param bars chronologically ascending bars to compute over
    * @param params parsed indicator parameters (periods)
    * @param source which bar field single-series indicators read; ignored by multi-field ones
-   * @return list of computed plot points
+   * @return map of computed indicator values grouped by date
    */
-  List<PlotPoint> compute(List<PriceBar> bars, IndicatorParams params, PriceSource source);
+  Map<LocalDate, Map<String, BigDecimal>> compute(
+      List<PriceBar> bars, IndicatorParams params, PriceSource source);
 }

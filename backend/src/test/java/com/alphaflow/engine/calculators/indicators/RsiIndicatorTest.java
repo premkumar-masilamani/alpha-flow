@@ -5,7 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
-import java.util.List;
+import java.time.LocalDate;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class RsiIndicatorTest {
@@ -13,7 +14,7 @@ class RsiIndicatorTest {
   @Test
   void rsiAllGainsIsHundred() {
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new RsiIndicator()
             .compute(
                 closes(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16),
@@ -22,13 +23,15 @@ class RsiIndicatorTest {
 
     assertFalse(r.isEmpty());
 
-    r.forEach(p -> assertEquals(0, p.value().compareTo(bd(100)), "all-gains RSI must be 100"));
+    r.values()
+        .forEach(
+            m -> assertEquals(0, m.get("value").compareTo(bd(100)), "all-gains RSI must be 100"));
   }
 
   @Test
   void rsiAllLossesIsZero() {
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new RsiIndicator()
             .compute(
                 closes(16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1),
@@ -37,28 +40,31 @@ class RsiIndicatorTest {
 
     assertFalse(r.isEmpty());
 
-    r.forEach(p -> assertEquals(0, p.value().compareTo(bd(0)), "all-losses RSI must be 0"));
+    r.values()
+        .forEach(m -> assertEquals(0, m.get("value").compareTo(bd(0)), "all-losses RSI must be 0"));
   }
 
   @Test
   void rsiStaysInRange() {
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new RsiIndicator()
             .compute(walk(100), IndicatorParams.parse("period=14"), PriceSource.CLOSE);
 
-    r.forEach(
-        p -> {
-          assertTrue(p.value().compareTo(BigDecimal.ZERO) >= 0);
+    r.values()
+        .forEach(
+            m -> {
+              BigDecimal val = m.get("value");
+              assertTrue(val.compareTo(BigDecimal.ZERO) >= 0);
 
-          assertTrue(p.value().compareTo(IndicatorMath.HUNDRED) <= 0);
-        });
+              assertTrue(val.compareTo(IndicatorMath.HUNDRED) <= 0);
+            });
   }
 
   @Test
   void rsiFlatPricesOutputHundred() {
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new RsiIndicator()
             .compute(
                 closes(
@@ -68,6 +74,8 @@ class RsiIndicatorTest {
 
     assertFalse(r.isEmpty());
 
-    r.forEach(p -> assertEquals(0, p.value().compareTo(bd(100)), "flat prices RSI must be 100"));
+    r.values()
+        .forEach(
+            m -> assertEquals(0, m.get("value").compareTo(bd(100)), "flat prices RSI must be 100"));
   }
 }

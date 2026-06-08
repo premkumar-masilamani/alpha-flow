@@ -3,15 +3,14 @@ package com.alphaflow.api.controllers;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.api.services.DailyPriceService;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
+@Slf4j
 public class DailyPriceController {
 
-  private static final Logger logger = LoggerFactory.getLogger(DailyPriceController.class);
   private final DailyPriceService dailyPriceService;
 
   public DailyPriceController(DailyPriceService dailyPriceService) {
@@ -25,7 +24,7 @@ public class DailyPriceController {
       @RequestParam(defaultValue = "250") int size) {
 
     int finalSize = Math.max(1, Math.min(size, 1000));
-    logger.info(
+    log.info(
         "Request to get daily data for ticker: {}, page: {}, size: {}", symbol, page, finalSize);
     return dailyPriceService.getDailyPriceByTickerName(symbol, page, finalSize);
   }

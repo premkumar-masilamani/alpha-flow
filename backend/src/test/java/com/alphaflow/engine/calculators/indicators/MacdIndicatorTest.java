@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class MacdIndicatorTest {
@@ -18,25 +18,28 @@ class MacdIndicatorTest {
 
     java.util.Arrays.fill(flat, 50.0);
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new MacdIndicator()
             .compute(
                 closes(flat), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
-    r.forEach(
-        p ->
-            assertEquals(
-                0,
-                p.value().compareTo(bd(0)),
-                "constant series must give zero macd/signal/histogram (" + p.outputName() + ")"));
+    r.values()
+        .forEach(
+            m ->
+                m.forEach(
+                    (k, val) ->
+                        assertEquals(
+                            0,
+                            val.compareTo(bd(0)),
+                            "constant series must give zero macd/signal/histogram (" + k + ")")));
   }
 
   @Test
   void macdEmitsThreePlotsOnceDefined() {
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new MacdIndicator()
             .compute(
                 walk(80), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
@@ -53,11 +56,11 @@ class MacdIndicatorTest {
 
     // histogram == macd - signal at that bar.
 
-    BigDecimal macd = plot(r, last, "macd").value();
+    BigDecimal macd = plot(r, last, "macd");
 
-    BigDecimal signal = plot(r, last, "signal").value();
+    BigDecimal signal = plot(r, last, "signal");
 
-    BigDecimal hist = plot(r, last, "histogram").value();
+    BigDecimal hist = plot(r, last, "histogram");
 
     assertEquals(0, hist.compareTo(macd.subtract(signal)));
   }
@@ -65,7 +68,7 @@ class MacdIndicatorTest {
   @Test
   void macdDefaultSignalPeriod() {
 
-    List<PlotPoint> r =
+    Map<LocalDate, Map<String, BigDecimal>> r =
         new MacdIndicator()
             .compute(walk(50), IndicatorParams.parse("fast=12,slow=26"), PriceSource.CLOSE);
 

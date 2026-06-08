@@ -8,8 +8,7 @@ import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.util.Comparator;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,9 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional(readOnly = true)
+@Slf4j
 public class WeeklyPriceService {
-
-  private static final Logger logger = LoggerFactory.getLogger(WeeklyPriceService.class);
 
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final TickerRepository tickerRepository;
@@ -34,10 +32,10 @@ public class WeeklyPriceService {
   }
 
   public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
-    logger.debug(
+    log.debug(
         "Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
-      logger.warn("Ticker not found for symbol: {}", tickerName);
+      log.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);
     }
     return weeklyPriceRepository

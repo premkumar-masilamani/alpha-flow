@@ -15,8 +15,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -24,9 +23,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 public class AnalysisService {
 
-  private static final Logger logger = LoggerFactory.getLogger(AnalysisService.class);
   private final DailyPriceService dailyPriceService;
   private final IndicatorService indicatorService;
   private final TickerRepository tickerRepository;
@@ -46,7 +45,7 @@ public class AnalysisService {
 
   /** Scheduled update step. Run this after indicator calculation. */
   public void computeAnalysis() {
-    logger.info("Starting Technical Analysis computation for all active tickers...");
+    log.info("Starting Technical Analysis computation for all active tickers...");
     List<Ticker> activeTickers =
         tickerRepository.findAll().stream().filter(Ticker::isActive).toList();
 
@@ -55,11 +54,11 @@ public class AnalysisService {
       try {
         proxy.computeAndPersist(ticker);
       } catch (Exception e) {
-        logger.error(
+        log.error(
             "Failed to compute technical analysis for ticker: {}", ticker.getTickerSymbol(), e);
       }
     }
-    logger.info("Technical Analysis computation finished.");
+    log.info("Technical Analysis computation finished.");
   }
 
   @Transactional
@@ -76,7 +75,7 @@ public class AnalysisService {
       if (!latestCandles.isEmpty()) {
         LocalDate latestPriceDate = latestCandles.get(0).priceDate();
         if (res.getPriceDate().isBefore(latestPriceDate)) {
-          logger.info(
+          log.info(
               "Persisted analysis for symbol: {} is stale (date: {}, latest: {}). Recomputing.",
               symbol,
               res.getPriceDate(),
@@ -90,14 +89,13 @@ public class AnalysisService {
     }
 
     // Fallback: Compute on-the-fly and persist if not found or stale
-    logger.info(
-        "Persisted analysis not found or stale for symbol: {}. Computing on-the-fly.", symbol);
+    log.info("Persisted analysis not found or stale for symbol: {}. Computing on-the-fly.", symbol);
     AnalysisResult res;
     try {
       AnalysisService proxy = (analysisService != null) ? analysisService : this;
       res = proxy.computeAndPersist(ticker);
     } catch (Exception e) {
-      logger.warn(
+      log.warn(
           "Duplicate/race condition detected during computeAndPersist for ticker: {}. Re-fetching.",
           symbol,
           e);

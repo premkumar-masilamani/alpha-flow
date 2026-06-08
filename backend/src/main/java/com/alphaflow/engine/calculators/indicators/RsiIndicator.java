@@ -3,12 +3,16 @@ package com.alphaflow.engine.calculators.indicators;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /** Relative Strength Index using Wilder's smoothing. */
 @Component
+@Slf4j
 public class RsiIndicator implements Indicator {
 
   private static BigDecimal wilder(BigDecimal avgPrev, BigDecimal current, BigDecimal period) {
@@ -33,11 +37,14 @@ public class RsiIndicator implements Indicator {
   }
 
   @Override
-  public List<PlotPoint> compute(List<PriceBar> bars, IndicatorParams params, PriceSource source) {
+  public Map<LocalDate, Map<String, BigDecimal>> compute(
+      List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     int period = params.getInt("period");
     if (period < 1) {
       throw new IllegalArgumentException("RSI period must be >= 1. Provided: " + period);
     }
+    log.debug(
+        "Computing RSI indicator for {} bars, period={}, source={}", bars.size(), period, source);
     BigDecimal periodBd = BigDecimal.valueOf(period);
 
     BigDecimal avgGain = null;
@@ -47,7 +54,7 @@ public class RsiIndicator implements Indicator {
 
     List<BigDecimal> seedGains = new ArrayList<>();
     List<BigDecimal> seedLosses = new ArrayList<>();
-    List<PlotPoint> values = new ArrayList<>();
+    Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
 
     for (PriceBar bar : bars) {
       BigDecimal value = bar.valueFor(source);
@@ -67,12 +74,12 @@ public class RsiIndicator implements Indicator {
           avgGain = IndicatorMath.average(seedGains);
           avgLoss = IndicatorMath.average(seedLosses);
           seeded = true;
-          values.add(new PlotPoint(bar.date(), "value", rsi(avgGain, avgLoss)));
+          values.put(bar.date(), Map.of("value", rsi(avgGain, avgLoss)));
         }
       } else {
         avgGain = wilder(avgGain, gain, periodBd);
         avgLoss = wilder(avgLoss, loss, periodBd);
-        values.add(new PlotPoint(bar.date(), "value", rsi(avgGain, avgLoss)));
+        values.put(bar.date(), Map.of("value", rsi(avgGain, avgLoss)));
       }
       prevValue = value;
     }

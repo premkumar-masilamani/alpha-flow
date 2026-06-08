@@ -8,15 +8,15 @@ import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.IndicatorRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,27 +29,29 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional(readOnly = true)
+@Slf4j
 public class IndicatorService {
-
-  private static final Logger logger = LoggerFactory.getLogger(IndicatorService.class);
 
   private final IndicatorConfig indicatorConfig;
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
-  private final IndicatorRepository indicatorRepository;
+  private final DailyIndicatorRepository dailyIndicatorRepository;
+  private final WeeklyIndicatorRepository weeklyIndicatorRepository;
 
   public IndicatorService(
       IndicatorConfig indicatorConfig,
       TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
-      IndicatorRepository indicatorRepository) {
+      DailyIndicatorRepository dailyIndicatorRepository,
+      WeeklyIndicatorRepository weeklyIndicatorRepository) {
     this.indicatorConfig = indicatorConfig;
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
-    this.indicatorRepository = indicatorRepository;
+    this.dailyIndicatorRepository = dailyIndicatorRepository;
+    this.weeklyIndicatorRepository = weeklyIndicatorRepository;
   }
 
   /** The configured indicator matrix across all timeframes. */
@@ -65,10 +67,10 @@ public class IndicatorService {
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(
       String symbol, Timeframe timeframe, int page, int size) {
-    logger.debug(
+    log.debug(
         "Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
-      logger.warn("Ticker not found for symbol: {}", symbol);
+      log.warn("Ticker not found for symbol: {}", symbol);
       throw new ResourceNotFoundException("Ticker not found: " + symbol);
     }
 
@@ -95,7 +97,9 @@ public class IndicatorService {
         definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
 
     List<? extends Indicator> rows =
-        indicatorRepository.findSeriesBetween(symbol, indicatorIds, start, end, timeframe);
+        timeframe == Timeframe.DAILY
+            ? dailyIndicatorRepository.findSeriesBetween(symbol, indicatorIds, start, end)
+            : weeklyIndicatorRepository.findSeriesBetween(symbol, indicatorIds, start, end);
     return IndicatorMapper.toSeries(rows);
   }
 }

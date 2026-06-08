@@ -3,14 +3,19 @@ package com.alphaflow.engine.calculators.indicators;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /** Slow Stochastic oscillator (standard "(k, kSmooth, dSmooth)", e.g. 14,3,3). */
 @Component
+@Slf4j
 public class StochasticIndicator implements Indicator {
 
   private static BigDecimal max(Deque<BigDecimal> values) {
@@ -39,7 +44,8 @@ public class StochasticIndicator implements Indicator {
   }
 
   @Override
-  public List<PlotPoint> compute(List<PriceBar> bars, IndicatorParams params, PriceSource source) {
+  public Map<LocalDate, Map<String, BigDecimal>> compute(
+      List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     int k = params.getInt("k");
     int kSmooth = params.getInt("kSmooth");
     int dSmooth = params.getInt("dSmooth");
@@ -53,12 +59,20 @@ public class StochasticIndicator implements Indicator {
       throw new IllegalArgumentException("Stochastic dSmooth must be >= 1. Provided: " + dSmooth);
     }
 
+    log.debug(
+        "Computing Stochastic indicator for {} bars, k={}, kSmooth={}, dSmooth={}, source={}",
+        bars.size(),
+        k,
+        kSmooth,
+        dSmooth,
+        source);
+
     Deque<BigDecimal> highs = new ArrayDeque<>(k);
     Deque<BigDecimal> lows = new ArrayDeque<>(k);
     Deque<BigDecimal> rawKWindow = new ArrayDeque<>(kSmooth);
     Deque<BigDecimal> kWindow = new ArrayDeque<>(dSmooth);
 
-    List<PlotPoint> values = new ArrayList<>();
+    Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
     for (PriceBar bar : bars) {
       highs.addLast(bar.high());
       lows.addLast(bar.low());
@@ -89,7 +103,8 @@ public class StochasticIndicator implements Indicator {
       }
 
       BigDecimal kValue = IndicatorMath.average(new ArrayList<>(rawKWindow));
-      values.add(new PlotPoint(bar.date(), "k", IndicatorMath.publish(kValue)));
+      Map<String, BigDecimal> barValues = new LinkedHashMap<>();
+      barValues.put("k", IndicatorMath.publish(kValue));
 
       kWindow.addLast(kValue);
       if (kWindow.size() > dSmooth) {
@@ -97,8 +112,9 @@ public class StochasticIndicator implements Indicator {
       }
       if (kWindow.size() == dSmooth) {
         BigDecimal dValue = IndicatorMath.average(new ArrayList<>(kWindow));
-        values.add(new PlotPoint(bar.date(), "d", IndicatorMath.publish(dValue)));
+        barValues.put("d", IndicatorMath.publish(dValue));
       }
+      values.put(bar.date(), barValues);
     }
     return values;
   }

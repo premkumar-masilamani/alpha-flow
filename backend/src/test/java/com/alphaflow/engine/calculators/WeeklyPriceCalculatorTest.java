@@ -84,6 +84,9 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
+    when(dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(Optional.of(dailies.getFirst()));
+
     when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
             eq(ticker), any()))
         .thenReturn(dailies);
@@ -152,6 +155,9 @@ class WeeklyPriceCalculatorTest {
   @Test
   void doesNothing_whenNoDailyPrices() {
     when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.empty());
+
+    when(dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(Optional.empty());
 
     calculator.processTicker(ticker, LocalDate.of(1900, 1, 1));

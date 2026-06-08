@@ -16,9 +16,10 @@ import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.IndicatorRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -39,7 +40,8 @@ class IndicatorServiceTest {
   private TickerRepository tickerRepository;
   private DailyPriceRepository dailyPriceRepository;
   private WeeklyPriceRepository weeklyPriceRepository;
-  private IndicatorRepository indicatorRepository;
+  private DailyIndicatorRepository dailyIndicatorRepository;
+  private WeeklyIndicatorRepository weeklyIndicatorRepository;
   private IndicatorService indicatorService;
 
   private static IndicatorDefinition def(
@@ -72,7 +74,8 @@ class IndicatorServiceTest {
     tickerRepository = mock(TickerRepository.class);
     dailyPriceRepository = mock(DailyPriceRepository.class);
     weeklyPriceRepository = mock(WeeklyPriceRepository.class);
-    indicatorRepository = mock(IndicatorRepository.class);
+    dailyIndicatorRepository = mock(DailyIndicatorRepository.class);
+    weeklyIndicatorRepository = mock(WeeklyIndicatorRepository.class);
 
     indicatorService =
         new IndicatorService(
@@ -80,7 +83,8 @@ class IndicatorServiceTest {
             tickerRepository,
             dailyPriceRepository,
             weeklyPriceRepository,
-            indicatorRepository);
+            dailyIndicatorRepository,
+            weeklyIndicatorRepository);
   }
 
   @Test
@@ -137,8 +141,8 @@ class IndicatorServiceTest {
                     "fast=12,signal=9,slow=26",
                     D2,
                     Map.of("macd", "1.2", "signal", "0.6", "histogram", "0.6"))))
-        .when(indicatorRepository)
-        .findSeriesBetween(eq("TEST"), any(), eq(D1), eq(D3), eq(Timeframe.DAILY));
+        .when(dailyIndicatorRepository)
+        .findSeriesBetween(eq("TEST"), any(), eq(D1), eq(D3));
 
     List<IndicatorSeriesDTO> series =
         indicatorService.getIndicatorSeries("TEST", Timeframe.DAILY, 0, 250);
@@ -171,7 +175,8 @@ class IndicatorServiceTest {
         ResourceNotFoundException.class,
         () -> indicatorService.getIndicatorSeries("NOPE", Timeframe.DAILY, 0, 250));
 
-    verify(indicatorRepository, never()).findSeriesBetween(any(), any(), any(), any(), any());
+    verify(dailyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
+    verify(weeklyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
   }
 
   @Test
@@ -181,7 +186,8 @@ class IndicatorServiceTest {
 
     assertTrue(indicatorService.getIndicatorSeries("TEST", Timeframe.DAILY, 0, 250).isEmpty());
 
-    verify(indicatorRepository, never()).findSeriesBetween(any(), any(), any(), any(), any());
+    verify(dailyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
+    verify(weeklyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
   }
 
   @Test
@@ -193,8 +199,8 @@ class IndicatorServiceTest {
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 2))));
 
     doReturn(List.of())
-        .when(indicatorRepository)
-        .findSeriesBetween(eq("TEST"), any(), eq(D1), eq(D1), eq(Timeframe.WEEKLY));
+        .when(weeklyIndicatorRepository)
+        .findSeriesBetween(eq("TEST"), any(), eq(D1), eq(D1));
 
     List<IndicatorSeriesDTO> result =
         indicatorService.getIndicatorSeries("TEST", Timeframe.WEEKLY, 0, 250);
@@ -214,8 +220,8 @@ class IndicatorServiceTest {
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 2))));
 
     doReturn(List.of())
-        .when(indicatorRepository)
-        .findSeriesBetween(eq("TEST"), any(), eq(D1), eq(D1), eq(Timeframe.DAILY));
+        .when(dailyIndicatorRepository)
+        .findSeriesBetween(eq("TEST"), any(), eq(D1), eq(D1));
 
     List<IndicatorSeriesDTO> result =
         indicatorService.getIndicatorSeries("TEST", Timeframe.DAILY, 1, 10);
@@ -232,6 +238,7 @@ class IndicatorServiceTest {
 
     assertTrue(indicatorService.getIndicatorSeries("TEST", Timeframe.DAILY, 0, 250).isEmpty());
 
-    verify(indicatorRepository, never()).findSeriesBetween(any(), any(), any(), any(), any());
+    verify(dailyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
+    verify(weeklyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
   }
 }

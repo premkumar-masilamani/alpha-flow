@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class IndicatorTestHelper {
 
@@ -59,18 +60,29 @@ public final class IndicatorTestHelper {
     return BigDecimal.valueOf(v).setScale(4, IndicatorMath.ROUNDING);
   }
 
-  public static List<PlotPoint> from(List<PlotPoint> values, LocalDate fromInclusive) {
-
-    return values.stream().filter(p -> !p.date().isBefore(fromInclusive)).toList();
+  public static Map<LocalDate, Map<String, BigDecimal>> from(
+      Map<LocalDate, Map<String, BigDecimal>> values, LocalDate fromInclusive) {
+    Map<LocalDate, Map<String, BigDecimal>> result = new java.util.LinkedHashMap<>();
+    values.forEach(
+        (date, map) -> {
+          if (!date.isBefore(fromInclusive)) {
+            result.put(date, map);
+          }
+        });
+    return result;
   }
 
-  public static PlotPoint plot(List<PlotPoint> values, LocalDate date, String output) {
-
-    return values.stream()
-        .filter(p -> p.date().equals(date) && p.outputName().equals(output))
-        .findFirst()
-        .orElseThrow(
-            () -> new IllegalArgumentException("No plot point found for " + date + " " + output));
+  public static BigDecimal plot(
+      Map<LocalDate, Map<String, BigDecimal>> values, LocalDate date, String output) {
+    Map<String, BigDecimal> map = values.get(date);
+    if (map == null) {
+      throw new IllegalArgumentException("No indicator values found for date: " + date);
+    }
+    BigDecimal value = map.get(output);
+    if (value == null) {
+      throw new IllegalArgumentException("No plot point found for " + date + " " + output);
+    }
+    return value;
   }
 
   /** Helper to load AAPL stock daily price data from resources (aapl.csv). */
