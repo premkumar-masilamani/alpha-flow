@@ -21,7 +21,6 @@ public class TickerService {
   }
 
   public TickerDTO getTickerBySymbol(String symbol) {
-
     log.debug("Fetching ticker for symbol: {}", symbol);
 
     return tickerRepository
@@ -36,7 +35,6 @@ public class TickerService {
   }
 
   public List<TickerDTO> getAllTickers() {
-
     return tickerRepository.findByIsActiveTrue().stream().map(TickerMapper::toDTO).toList();
   }
 }

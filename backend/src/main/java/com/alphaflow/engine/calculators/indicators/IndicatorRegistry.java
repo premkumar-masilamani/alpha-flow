@@ -20,13 +20,9 @@ public class IndicatorRegistry {
   private final Map<IndicatorType, Indicator> byType = new EnumMap<>(IndicatorType.class);
 
   public IndicatorRegistry(List<Indicator> indicators) {
-
     for (Indicator indicator : indicators) {
-
       Indicator existing = byType.put(indicator.type(), indicator);
-
       if (existing != null) {
-
         throw new IllegalStateException(
             "Duplicate Indicator beans for type "
                 + indicator.type()
@@ -39,14 +35,10 @@ public class IndicatorRegistry {
   }
 
   public Indicator get(IndicatorType type) {
-
     Indicator indicator = byType.get(type);
-
     if (indicator == null) {
-
       throw new IllegalArgumentException("No Indicator registered for type " + type);
     }
-
     return indicator;
   }
 }

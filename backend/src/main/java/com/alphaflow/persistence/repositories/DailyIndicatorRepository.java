@@ -26,25 +26,6 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
       Ticker ticker, IndicatorDefinition indicatorDefinition);
 
   /**
-   * Finds daily indicators series from a start date.
-   *
-   * @param symbol the ticker symbol
-   * @param indicatorIds the indicator IDs
-   * @param from the start date (inclusive)
-   * @return list of daily indicators
-   */
-  @Query(
-      """
-      SELECT iv FROM DailyIndicator iv
-      JOIN iv.ticker tk
-      WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
-        AND iv.indicatorDefinition.indicatorId IN :indicatorIds
-        AND iv.priceDate >= :from
-      ORDER BY iv.priceDate ASC
-      """)
-  List<DailyIndicator> findSeries(String symbol, Collection<Long> indicatorIds, LocalDate from);
-
-  /**
    * Finds daily indicators series between two dates.
    *
    * @param symbol the ticker symbol
@@ -55,14 +36,14 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
    */
   @Query(
       """
-      SELECT iv FROM DailyIndicator iv
-      JOIN iv.ticker tk
-      WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
-        AND iv.indicatorDefinition.indicatorId IN :indicatorIds
-        AND iv.priceDate >= :from
-        AND iv.priceDate <= :to
-      ORDER BY iv.priceDate ASC
-      """)
+            SELECT iv FROM DailyIndicator iv
+            JOIN iv.ticker tk
+            WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
+              AND iv.indicatorDefinition.indicatorId IN :indicatorIds
+              AND iv.priceDate >= :from
+              AND iv.priceDate <= :to
+            ORDER BY iv.priceDate ASC
+            """)
   List<DailyIndicator> findSeriesBetween(
       String symbol, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
 }

@@ -50,37 +50,25 @@ public class YahooFinanceDownloader {
 
     List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
     for (int i = 0; i < tickers.size(); i++) {
+      if (Thread.currentThread().isInterrupted()) {
+        log.info("Download process stopped early due to thread interruption.");
+        break;
+      }
       Ticker ticker = tickers.get(i);
       downloadDataForTicker(ticker, latestSavedDates.get(ticker));
 
-      // Throttle between requests to avoid rate-limiting; stop early if interrupted.
-      if (i < tickers.size() - 1 && !pauseBetweenRequests()) {
-        break;
+      // Pause between requests to avoid rate-limiting
+      if (i < tickers.size() - 1) {
+        try {
+          Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          log.warn("Download process interrupted during delay.");
+          break;
+        }
       }
     }
-
     log.info("All Yahoo Finance downloads completed!");
-  }
-
-  /**
-   * Sleeps for the configured inter-request delay to throttle calls to Yahoo Finance.
-   *
-   * @return {@code false} if the thread was interrupted (the caller should stop), {@code true}
-   *     otherwise.
-   */
-  private boolean pauseBetweenRequests() {
-    long delayMilliseconds = yahooFinanceConfig.getDelayMilliseconds();
-    if (delayMilliseconds <= 0) {
-      return true;
-    }
-    try {
-      Thread.sleep(delayMilliseconds);
-      return true;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      log.warn("Download process interrupted during delay.");
-      return false;
-    }
   }
 
   private void downloadDataForTicker(Ticker ticker, LocalDate latestSavedDate) {

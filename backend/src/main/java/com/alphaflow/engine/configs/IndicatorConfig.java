@@ -4,13 +4,11 @@ import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
 import jakarta.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -25,16 +23,13 @@ public class IndicatorConfig {
   private static final Logger logger = LoggerFactory.getLogger(IndicatorConfig.class);
 
   private final IndicatorDefinitionRepository indicatorDefinitionRepository;
-  private final Map<Timeframe, List<Long>> timeframes = new EnumMap<>(Timeframe.class);
+  @Getter private final Map<Timeframe, List<Long>> timeframes = new EnumMap<>(Timeframe.class);
   private final Map<Timeframe, List<IndicatorDefinition>> cachedDefinitions =
       new EnumMap<>(Timeframe.class);
 
+  @Autowired
   public IndicatorConfig(IndicatorDefinitionRepository indicatorDefinitionRepository) {
     this.indicatorDefinitionRepository = indicatorDefinitionRepository;
-  }
-
-  public Map<Timeframe, List<Long>> getTimeframes() {
-    return timeframes;
   }
 
   @PostConstruct

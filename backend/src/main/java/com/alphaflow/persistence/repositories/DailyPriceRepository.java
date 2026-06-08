@@ -17,23 +17,23 @@ import org.springframework.stereotype.Repository;
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
   @Query(
       """
-            SELECT dp FROM DailyPrice dp
-            JOIN FETCH dp.ticker tk
-            WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
-            ORDER BY dp.priceDate DESC
-        """)
+                SELECT dp FROM DailyPrice dp
+                JOIN FETCH dp.ticker tk
+                WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
+                ORDER BY dp.priceDate DESC
+            """)
   List<DailyPrice> findLatestByTickerName(String tickerName, Pageable pageable);
 
   Optional<DailyPrice> findTopByTickerOrderByPriceDateAsc(Ticker ticker);
 
   @Query(
       """
-            SELECT tk, COALESCE(MAX(dp.priceDate), {d '1900-01-01'})
-            FROM Ticker tk
-            LEFT JOIN DailyPrice dp ON dp.ticker = tk
-            WHERE tk.isActive = true
-            GROUP BY tk
-        """)
+                SELECT tk, COALESCE(MAX(dp.priceDate), {d '1900-01-01'})
+                FROM Ticker tk
+                LEFT JOIN DailyPrice dp ON dp.ticker = tk
+                WHERE tk.isActive = true
+                GROUP BY tk
+            """)
   List<Object[]> findLatestPriceDatesForActiveTickersQuery();
 
   default Map<Ticker, LocalDate> findLatestPriceDatesForActiveTickers() {
@@ -46,10 +46,6 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
                 LinkedHashMap::new));
   }
 
-  @Query(
-      "SELECT dp.priceDate FROM DailyPrice dp WHERE dp.ticker = :ticker AND dp.priceDate >= :startDate")
-  List<LocalDate> findDatesByTickerAndDateGreaterThanEqual(Ticker ticker, LocalDate startDate);
-
   List<DailyPrice> findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
       Ticker ticker, LocalDate startDate);
 
@@ -57,15 +53,9 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
   @Query(
       """
-            SELECT dp.priceDate FROM DailyPrice dp
-            WHERE LOWER(dp.ticker.tickerSymbol) = LOWER(:symbol)
-            ORDER BY dp.priceDate DESC
-        """)
+                SELECT dp.priceDate FROM DailyPrice dp
+                WHERE LOWER(dp.ticker.tickerSymbol) = LOWER(:symbol)
+                ORDER BY dp.priceDate DESC
+            """)
   List<LocalDate> findRecentPriceDates(String symbol, Pageable pageable);
-
-  List<DailyPrice> findByTickerAndPriceDateLessThanEqualOrderByPriceDateDesc(
-      Ticker ticker, LocalDate priceDate, Pageable pageable);
-
-  List<DailyPrice> findByTickerAndPriceDateGreaterThanOrderByPriceDateAsc(
-      Ticker ticker, LocalDate priceDate);
 }

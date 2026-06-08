@@ -30,47 +30,30 @@ import java.util.Optional;
 final class EmaAccumulator {
 
   private final int period;
-
   private final BigDecimal multiplier;
-
   private final List<BigDecimal> seedWindow = new ArrayList<>();
-
   private BigDecimal ema; // null until seeded
 
   private EmaAccumulator(int period, BigDecimal ema) {
-
     if (period < 1) {
-
       throw new IllegalArgumentException("EMA period must be >= 1, got " + period);
     }
-
     this.period = period;
-
     this.multiplier = IndicatorMath.divide(BigDecimal.valueOf(2), BigDecimal.valueOf(period + 1L));
-
     this.ema = ema;
   }
 
   /** A fresh accumulator that self-seeds from the first {@code period} values it sees. */
   static EmaAccumulator fresh(int period) {
-
     return new EmaAccumulator(period, null);
   }
 
-  /** An accumulator resumed from a persisted EMA value (already past the seeding phase). */
-  static EmaAccumulator seeded(int period, BigDecimal ema) {
-
-    return new EmaAccumulator(period, IndicatorMath.internal(ema));
-  }
-
   boolean isSeeded() {
-
     return ema != null;
   }
 
   /** The current EMA value, or {@code null} if still seeding. */
   BigDecimal current() {
-
     return ema;
   }
 
@@ -80,28 +63,19 @@ final class EmaAccumulator {
    * @return the EMA for this bar if defined, or empty while still accumulating the seed window.
    */
   Optional<BigDecimal> next(BigDecimal value) {
-
     if (ema == null) {
-
       seedWindow.add(value);
-
       if (seedWindow.size() < period) {
-
         return Optional.empty();
       }
-
       ema = IndicatorMath.average(seedWindow); // first EMA = SMA of first `period` values
-
       return Optional.of(ema);
     }
 
     // ema = value * k + emaPrev * (1 - k)
-
     BigDecimal next =
         value.multiply(multiplier).add(ema.multiply(BigDecimal.ONE.subtract(multiplier)));
-
     ema = IndicatorMath.internal(next);
-
     return Optional.of(ema);
   }
 }

@@ -20,15 +20,14 @@ import java.util.Map;
  * <p>label per combo (e.g. {@code "MACD(12,26,9)"}, {@code "SMA(20) VOL"}).
  */
 public class IndicatorMapper {
+
   private IndicatorMapper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
   public static IndicatorConfigDTO toConfigDTO(
       Timeframe timeframe, IndicatorDefinition definition) {
-
     IndicatorParams params = IndicatorParams.of(definition.getParams());
-
     return IndicatorConfigDTO.builder()
         .timeframe(timeframe.name())
         .type(definition.getType().name())
@@ -47,27 +46,19 @@ public class IndicatorMapper {
   public static List<IndicatorSeriesDTO> toSeries(List<? extends Indicator> rows) {
 
     Map<String, List<Indicator>> byCombo = new LinkedHashMap<>();
-
     for (Indicator row : rows) {
-
       byCombo.computeIfAbsent(comboKey(row), k -> new ArrayList<>()).add(row);
     }
 
     List<IndicatorSeriesDTO> series = new ArrayList<>();
-
     for (List<Indicator> combo : byCombo.values()) {
-
       Indicator first = combo.getFirst();
-
       IndicatorParams params = IndicatorParams.parse(first.getParams());
-
       List<IndicatorPointDTO> points = new ArrayList<>();
-
       for (Indicator row : combo) {
         points.add(
             IndicatorPointDTO.builder().date(row.getPriceDate()).values(row.getValues()).build());
       }
-
       series.add(
           IndicatorSeriesDTO.builder()
               .type(first.getIndicatorType().name())
@@ -77,7 +68,6 @@ public class IndicatorMapper {
               .points(points)
               .build());
     }
-
     return series;
   }
 
@@ -91,11 +81,8 @@ public class IndicatorMapper {
     String base =
         switch (type) {
           case EMA -> "EMA(" + params.getInt("period") + ")";
-
           case SMA -> "SMA(" + params.getInt("period") + ")";
-
           case RSI -> "RSI(" + params.getInt("period") + ")";
-
           case MACD -> "MACD("
               + params.getInt("fast")
               + ","
@@ -103,7 +90,6 @@ public class IndicatorMapper {
               + ","
               + params.getInt("signal", 9)
               + ")";
-
           case STOCHASTIC -> "Stoch("
               + params.getInt("k")
               + ","
@@ -117,7 +103,6 @@ public class IndicatorMapper {
   }
 
   private static String comboKey(Indicator row) {
-
     return (row.getIndicatorType() + "|" + row.getSource() + "|" + row.getParams());
   }
 }

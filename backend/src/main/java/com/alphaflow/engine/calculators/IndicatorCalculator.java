@@ -10,11 +10,7 @@ import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.enums.Timeframe;
-import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
-import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
-import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
-import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
+import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -86,7 +82,7 @@ public class IndicatorCalculator {
 
     for (Ticker ticker : tickers) {
       try {
-        proxy.processTicker(ticker);
+        proxy.computeIndicatorForTicker(ticker);
       } catch (Exception e) {
         log.error(
             "Failed to compute indicators for ticker {}: {}",
@@ -105,7 +101,7 @@ public class IndicatorCalculator {
    * @param ticker the ticker entity to process
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void processTicker(Ticker ticker) {
+  public void computeIndicatorForTicker(Ticker ticker) {
     for (Timeframe timeframe : Timeframe.values()) {
       List<IndicatorDefinition> IndicatorDefinitions = indicatorConfig.forTimeframe(timeframe);
       if (IndicatorDefinitions.isEmpty()) {
