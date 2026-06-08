@@ -2,6 +2,7 @@ package com.alphaflow.engine.strategies;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
@@ -15,6 +16,7 @@ import com.alphaflow.api.services.IndicatorService;
 import com.alphaflow.persistence.entities.AnalysisResult;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Timeframe;
+import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.AnalysisResultRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.math.BigDecimal;
@@ -79,6 +81,8 @@ class ASTAStrategyTest {
   void testGetAnalysisPullsPersistedResult() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
+    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 1))
+        .thenReturn(List.of(candle(TODAY, 100, 105, 95, 102, 1000)));
 
     AnalysisResult result =
         AnalysisResult.builder()
@@ -104,6 +108,34 @@ class ASTAStrategyTest {
     assertEquals("BUY", response.overallSignal());
     assertEquals("Positive Crossover", response.macdValue());
     verify(analysisResultRepository, never()).save(any());
+  }
+
+  @Test
+  void testGetAnalysisThrowsNotFoundWhenMissing() {
+    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
+    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
+    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 1))
+        .thenReturn(List.of(candle(TODAY, 100, 105, 95, 102, 1000)));
+    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
+
+    assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
+  }
+
+  @Test
+  void testGetAnalysisThrowsNotFoundWhenStale() {
+    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
+    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
+
+    // Latest price date is TODAY
+    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 1))
+        .thenReturn(List.of(candle(TODAY, 100, 105, 95, 102, 1000)));
+
+    // Persisted analysis is older (YESTERDAY)
+    AnalysisResult result =
+        AnalysisResult.builder().ticker(ticker).priceDate(YESTERDAY).overallSignal("BUY").build();
+    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.of(result));
+
+    assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
   }
 
   @Test
@@ -187,17 +219,17 @@ class ASTAStrategyTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
+    AnalysisResult response = astaStrategy.computeAndPersist(ticker);
 
     assertNotNull(response);
-    assertEquals("BUY", response.overallSignal());
-    assertEquals("Positive Crossover", response.macdValue());
-    assertEquals("BUY", response.macdSignal());
-    assertEquals("Positive Crossover", response.stochasticValue());
-    assertEquals("BUY", response.stochasticSignal());
-    assertEquals("BUY", response.rsiSignal());
-    assertEquals("BUY", response.volumeSignal());
-    assertEquals("BUY", response.emaSignal());
+    assertEquals("BUY", response.getOverallSignal());
+    assertEquals("Positive Crossover", response.getMacdValue());
+    assertEquals("BUY", response.getMacdSignal());
+    assertEquals("Positive Crossover", response.getStochasticValue());
+    assertEquals("BUY", response.getStochasticSignal());
+    assertEquals("BUY", response.getRsiSignal());
+    assertEquals("BUY", response.getVolumeSignal());
+    assertEquals("BUY", response.getEmaSignal());
 
     verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
   }
@@ -222,7 +254,7 @@ class ASTAStrategyTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    astaStrategy.computeAnalysis();
+    astaStrategy.doTechnicalAnalysis();
 
     // Verify that only T2 was successfully saved
     verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
@@ -260,12 +292,12 @@ class ASTAStrategyTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
+    AnalysisResult response = astaStrategy.computeAndPersist(ticker);
 
     // Verify stochastic signal is HOLD and value is "K = D"
     assertNotNull(response);
-    assertEquals("HOLD", response.stochasticSignal());
-    assertEquals("K = D", response.stochasticValue());
+    assertEquals("HOLD", response.getStochasticSignal());
+    assertEquals("K = D", response.getStochasticValue());
   }
 
   @Test
@@ -298,38 +330,11 @@ class ASTAStrategyTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
+    AnalysisResult response = astaStrategy.computeAndPersist(ticker);
 
     // Verify MACD signal is HOLD and value is "MACD = Signal"
     assertNotNull(response);
-    assertEquals("HOLD", response.macdSignal());
-    assertEquals("MACD = Signal", response.macdValue());
-  }
-
-  @Test
-  void testGetAnalysisHandlesConcurrentInsertRaceCondition() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-
-    // First call returns empty, second call returns the concurrently saved result
-    when(analysisResultRepository.findByTicker(ticker))
-        .thenReturn(Optional.empty())
-        .thenReturn(
-            Optional.of(AnalysisResult.builder().ticker(ticker).overallSignal("BUY").build()));
-
-    // Simulate database integrity error (unique key constraint violation) during computeAndPersist
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50))
-        .thenThrow(
-            new org.springframework.dao.DataIntegrityViolationException("Duplicate key violation"));
-
-    // Run
-    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
-
-    // Verify that it successfully recovered by fetching the concurrently saved row
-    assertNotNull(response);
-    assertEquals("BUY", response.overallSignal());
-
-    // Verify findByTicker was called twice
-    verify(analysisResultRepository, times(2)).findByTicker(ticker);
+    assertEquals("HOLD", response.getMacdSignal());
+    assertEquals("MACD = Signal", response.getMacdValue());
   }
 }

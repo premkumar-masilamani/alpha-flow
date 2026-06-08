@@ -33,7 +33,7 @@ class CoreSchedulerTest {
 
     verify(indicatorCalculator, times(1)).computeIndicators();
 
-    verify(astaStrategy, times(1)).computeAnalysis();
+    verify(astaStrategy, times(1)).doTechnicalAnalysis();
   }
 
   @Test
@@ -61,7 +61,7 @@ class CoreSchedulerTest {
 
     verify(indicatorCalculator, never()).computeIndicators();
 
-    verify(astaStrategy, never()).computeAnalysis();
+    verify(astaStrategy, never()).doTechnicalAnalysis();
   }
 
   @Test
@@ -122,6 +122,6 @@ class CoreSchedulerTest {
 
     verify(indicatorCalculator, times(1)).computeIndicators();
 
-    verify(astaStrategy, times(1)).computeAnalysis();
+    verify(astaStrategy, times(1)).doTechnicalAnalysis();
   }
 }

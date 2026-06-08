@@ -47,7 +47,7 @@ public class ASTAStrategy {
   }
 
   /** Scheduled update step. Run this after indicator calculation. */
-  public void computeAnalysis() {
+  public void doTechnicalAnalysis() {
     log.info("Starting Technical Analysis computation for all active tickers...");
     List<Ticker> activeTickers =
         tickerRepository.findAll().stream().filter(Ticker::isActive).toList();
@@ -71,46 +71,24 @@ public class ASTAStrategy {
             .findByTickerSymbolIgnoreCase(symbol)
             .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
-    Optional<AnalysisResult> existingOpt = analysisResultRepository.findByTicker(ticker);
-    if (existingOpt.isPresent()) {
-      AnalysisResult res = existingOpt.get();
-      List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
-      if (!latestCandles.isEmpty()) {
-        LocalDate latestPriceDate = latestCandles.getFirst().priceDate();
-        if (res.getPriceDate().isBefore(latestPriceDate)) {
-          log.info(
-              "Persisted analysis for symbol: {} is stale (date: {}, latest: {}). Recomputing.",
-              symbol,
-              res.getPriceDate(),
-              latestPriceDate);
-        } else {
-          return toDTO(res, symbol);
-        }
-      } else {
-        return toDTO(res, symbol);
-      }
+    List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
+    if (latestCandles.isEmpty()) {
+      throw new ResourceNotFoundException("No daily price data found for symbol: " + symbol);
+    }
+    LocalDate latestPriceDate = latestCandles.getFirst().priceDate();
+
+    AnalysisResult res =
+        analysisResultRepository
+            .findByTicker(ticker)
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "Analysis result not found or stale for symbol: " + symbol));
+
+    if (res.getPriceDate().isBefore(latestPriceDate)) {
+      throw new ResourceNotFoundException("Analysis result is stale for symbol: " + symbol);
     }
 
-    // Fallback: Compute on-the-fly and persist if not found or stale
-    log.info("Persisted analysis not found or stale for symbol: {}. Computing on-the-fly.", symbol);
-    AnalysisResult res;
-    try {
-      ASTAStrategy proxy = (astaStrategy != null) ? astaStrategy : this;
-      res = proxy.computeAndPersist(ticker);
-    } catch (Exception e) {
-      log.warn(
-          "Duplicate/race condition detected during computeAndPersist for ticker: {}. Re-fetching.",
-          symbol,
-          e);
-      // The row was likely created by a concurrent request/scheduler run. Re-fetch it.
-      res =
-          analysisResultRepository
-              .findByTicker(ticker)
-              .orElseThrow(
-                  () ->
-                      new IllegalStateException(
-                          "Failed to find or compute analysis for symbol: " + symbol, e));
-    }
     return toDTO(res, symbol);
   }
 

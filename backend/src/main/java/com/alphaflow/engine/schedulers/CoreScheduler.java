@@ -90,9 +90,9 @@ public class CoreScheduler {
       indicatorCalculator.computeIndicators();
       log.info("Step 3/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 4/4: Computing technical analysis signals...");
+      log.info("Step 4/4: ASTA technical analysis...");
       start = System.currentTimeMillis();
-      astaStrategy.computeAnalysis();
+      astaStrategy.doTechnicalAnalysis();
       log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(
