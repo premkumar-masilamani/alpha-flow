@@ -7,8 +7,8 @@ import static org.mockito.Mockito.*;
 
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
 import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;

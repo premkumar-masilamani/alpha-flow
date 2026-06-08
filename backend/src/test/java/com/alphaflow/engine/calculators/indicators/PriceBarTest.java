@@ -2,6 +2,7 @@ package com.alphaflow.engine.calculators.indicators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;

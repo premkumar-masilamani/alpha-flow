@@ -1,5 +1,6 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators.utils;
 
+import com.alphaflow.engine.indicators.Indicator;
 import com.alphaflow.persistence.enums.IndicatorType;
 import java.util.EnumMap;
 import java.util.List;

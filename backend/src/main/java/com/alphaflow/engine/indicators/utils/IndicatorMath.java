@@ -1,7 +1,8 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators.utils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -60,5 +61,27 @@ public final class IndicatorMath {
       sum = sum.add(v);
     }
     return divide(sum, BigDecimal.valueOf(values.size()));
+  }
+
+  /** Returns the maximum value in the collection, or null if empty. */
+  public static BigDecimal max(Collection<BigDecimal> values) {
+    BigDecimal m = null;
+    for (BigDecimal v : values) {
+      if (m == null || v.compareTo(m) > 0) {
+        m = v;
+      }
+    }
+    return m;
+  }
+
+  /** Returns the minimum value in the collection, or null if empty. */
+  public static BigDecimal min(Collection<BigDecimal> values) {
+    BigDecimal m = null;
+    for (BigDecimal v : values) {
+      if (m == null || v.compareTo(m) < 0) {
+        m = v;
+      }
+    }
+    return m;
   }
 }

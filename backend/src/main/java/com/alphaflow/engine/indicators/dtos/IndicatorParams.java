@@ -1,4 +1,4 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators.dtos;
 
 import java.util.Map;
 import java.util.TreeMap;

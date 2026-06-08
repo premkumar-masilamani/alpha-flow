@@ -1,5 +1,8 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators;
 
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -13,26 +16,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class StochasticIndicator implements Indicator {
 
-  private static BigDecimal max(Deque<BigDecimal> values) {
-    BigDecimal m = null;
-    for (BigDecimal v : values) {
-      if (m == null || v.compareTo(m) > 0) {
-        m = v;
-      }
-    }
-    return m;
-  }
-
-  private static BigDecimal min(Deque<BigDecimal> values) {
-    BigDecimal m = null;
-    for (BigDecimal v : values) {
-      if (m == null || v.compareTo(m) < 0) {
-        m = v;
-      }
-    }
-    return m;
-  }
-
   @Override
   public IndicatorType type() {
     return IndicatorType.STOCHASTIC;
@@ -41,6 +24,7 @@ public class StochasticIndicator implements Indicator {
   @Override
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
+    // 1. Setup and parameter retrieval
     int k = params.getInt("k");
     int kSmooth = params.getInt("kSmooth");
     int dSmooth = params.getInt("dSmooth");
@@ -62,13 +46,17 @@ public class StochasticIndicator implements Indicator {
         dSmooth,
         source);
 
+    // Deques representing sliding windows for tracking values
     Deque<BigDecimal> highs = new ArrayDeque<>(k);
     Deque<BigDecimal> lows = new ArrayDeque<>(k);
     Deque<BigDecimal> rawKWindow = new ArrayDeque<>(kSmooth);
     Deque<BigDecimal> kWindow = new ArrayDeque<>(dSmooth);
 
     Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
+
+    // 2. Loop chronologically through all bars
     for (PriceBar bar : bars) {
+      // Step 1: Accumulate Highs & Lows (First k bars)
       highs.addLast(bar.high());
       lows.addLast(bar.low());
       if (highs.size() > k) {
@@ -76,11 +64,12 @@ public class StochasticIndicator implements Indicator {
         lows.removeFirst();
       }
       if (highs.size() < k) {
-        continue;
+        continue; // Skip until we have k bars of history
       }
 
-      BigDecimal highestHigh = max(highs);
-      BigDecimal lowestLow = min(lows);
+      // Step 2: Compute Raw %K = ((Close - LL_k) / (HH_k - LL_k)) * 100
+      BigDecimal highestHigh = IndicatorMath.max(highs);
+      BigDecimal lowestLow = IndicatorMath.min(lows);
       BigDecimal range = highestHigh.subtract(lowestLow);
       BigDecimal rawK =
           range.signum() == 0
@@ -89,18 +78,20 @@ public class StochasticIndicator implements Indicator {
                   IndicatorMath.divide(bar.close().subtract(lowestLow), range)
                       .multiply(IndicatorMath.HUNDRED));
 
+      // Step 3: Compute Slow %K (Output `k`) using simple averaging of rawKWindow
       rawKWindow.addLast(rawK);
       if (rawKWindow.size() > kSmooth) {
         rawKWindow.removeFirst();
       }
       if (rawKWindow.size() < kSmooth) {
-        continue;
+        continue; // Skip until we have enough rawK values for smoothing
       }
 
       BigDecimal kValue = IndicatorMath.average(new ArrayList<>(rawKWindow));
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
       barValues.put("k", IndicatorMath.publish(kValue));
 
+      // Step 4: Compute Slow %D (Output `d`) using simple averaging of kWindow
       kWindow.addLast(kValue);
       if (kWindow.size() > dSmooth) {
         kWindow.removeFirst();
@@ -109,6 +100,7 @@ public class StochasticIndicator implements Indicator {
         BigDecimal dValue = IndicatorMath.average(new ArrayList<>(kWindow));
         barValues.put("d", IndicatorMath.publish(dValue));
       }
+      // Step 5: Save published output mapped to bar date
       values.put(bar.date(), barValues);
     }
     return values;

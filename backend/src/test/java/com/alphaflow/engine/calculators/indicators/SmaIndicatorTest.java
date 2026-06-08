@@ -3,6 +3,8 @@ package com.alphaflow.engine.calculators.indicators;
 import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.alphaflow.engine.indicators.SMAIndicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,7 +17,7 @@ class SmaIndicatorTest {
   void smaReferenceValues() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new SmaIndicator()
+        new SMAIndicator()
             .compute(closes(1, 2, 3, 4, 5), IndicatorParams.parse("period=3"), PriceSource.CLOSE);
 
     // Defined from the 3rd bar: avg(1,2,3)=2, avg(2,3,4)=3, avg(3,4,5)=4.
@@ -35,7 +37,7 @@ class SmaIndicatorTest {
     // volume = 1000 + dayOffset -> [1000,1001,1002]; SMA-2 -> 1000.5, 1001.5
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new SmaIndicator()
+        new SMAIndicator()
             .compute(closes(1, 2, 3), IndicatorParams.parse("period=2"), PriceSource.VOLUME);
 
     assertEquals(2, r.size());

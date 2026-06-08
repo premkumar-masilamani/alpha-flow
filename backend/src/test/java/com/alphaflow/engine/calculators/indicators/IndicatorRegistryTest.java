@@ -3,6 +3,9 @@ package com.alphaflow.engine.calculators.indicators;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.alphaflow.engine.indicators.EMAIndicator;
+import com.alphaflow.engine.indicators.SMAIndicator;
+import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
 import com.alphaflow.persistence.enums.IndicatorType;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -12,9 +15,9 @@ class IndicatorRegistryTest {
   @Test
   void testRegistryResolvesKnownRejectsDuplicateAndUnknown() {
 
-    SmaIndicator sma = new SmaIndicator();
+    SMAIndicator sma = new SMAIndicator();
 
-    EmaIndicator ema = new EmaIndicator();
+    EMAIndicator ema = new EMAIndicator();
 
     IndicatorRegistry registry = new IndicatorRegistry(List.of(sma, ema));
 

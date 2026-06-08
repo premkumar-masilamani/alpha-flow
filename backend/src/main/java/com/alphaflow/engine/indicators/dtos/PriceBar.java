@@ -1,4 +1,4 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators.dtos;
 
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;

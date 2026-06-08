@@ -73,24 +73,44 @@ public class CoreScheduler {
       return;
     }
 
+    long cycleStart = System.currentTimeMillis();
     try {
       log.info("Step 1/4: Downloading Yahoo Finance daily data...");
+      long start = System.currentTimeMillis();
       yahooFinanceDownloader.downloadDailyPrices();
+      log.info("Step 1/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info("Step 2/4: Computing weekly candles...");
+      start = System.currentTimeMillis();
       weeklyPriceCalculator.computeWeeklyPrices();
+      log.info("Step 2/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info("Step 3/4: Computing indicators...");
+      start = System.currentTimeMillis();
       indicatorCalculator.computeIndicators();
+      log.info("Step 3/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info("Step 4/4: Computing technical analysis signals...");
+      start = System.currentTimeMillis();
       analysisService.computeAnalysis();
+      log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Scheduled data update cycle completed successfully.");
+      log.info(
+          "Scheduled data update cycle completed successfully in {}.",
+          formatDuration(System.currentTimeMillis() - cycleStart));
     } catch (Exception e) {
-      log.error("Error occurred during scheduled data update cycle", e);
+      log.error(
+          "Error occurred during scheduled data update cycle after {}",
+          formatDuration(System.currentTimeMillis() - cycleStart),
+          e);
     } finally {
       running.set(false);
     }
+  }
+
+  private String formatDuration(long ms) {
+    long minutes = ms / 60000;
+    long seconds = (ms % 60000) / 1000;
+    return String.format("%d m %d s (%d ms)", minutes, seconds, ms);
   }
 }

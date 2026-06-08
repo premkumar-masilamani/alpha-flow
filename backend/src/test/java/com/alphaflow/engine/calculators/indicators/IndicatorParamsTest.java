@@ -3,6 +3,7 @@ package com.alphaflow.engine.calculators.indicators;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
