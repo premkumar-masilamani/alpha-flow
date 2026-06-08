@@ -1,9 +1,11 @@
-package com.alphaflow.api.services;
+package com.alphaflow.engine.strategies;
 
 import com.alphaflow.api.dtos.AnalysisResponseDTO;
 import com.alphaflow.api.dtos.IndicatorPointDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.services.DailyPriceService;
+import com.alphaflow.api.services.IndicatorService;
 import com.alphaflow.persistence.entities.AnalysisResult;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Timeframe;
@@ -18,22 +20,22 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-@Service
+@Component
 @Slf4j
-public class AnalysisService {
+public class ASTAStrategy {
 
   private final DailyPriceService dailyPriceService;
   private final IndicatorService indicatorService;
   private final TickerRepository tickerRepository;
   private final AnalysisResultRepository analysisResultRepository;
 
-  @Autowired @Lazy private AnalysisService analysisService;
+  @Autowired @Lazy private ASTAStrategy astaStrategy;
 
-  public AnalysisService(
+  public ASTAStrategy(
       DailyPriceService dailyPriceService,
       IndicatorService indicatorService,
       TickerRepository tickerRepository,
@@ -50,7 +52,7 @@ public class AnalysisService {
     List<Ticker> activeTickers =
         tickerRepository.findAll().stream().filter(Ticker::isActive).toList();
 
-    AnalysisService proxy = (analysisService != null) ? analysisService : this;
+    ASTAStrategy proxy = (astaStrategy != null) ? astaStrategy : this;
     for (Ticker ticker : activeTickers) {
       try {
         proxy.computeAndPersist(ticker);
@@ -93,7 +95,7 @@ public class AnalysisService {
     log.info("Persisted analysis not found or stale for symbol: {}. Computing on-the-fly.", symbol);
     AnalysisResult res;
     try {
-      AnalysisService proxy = (analysisService != null) ? analysisService : this;
+      ASTAStrategy proxy = (astaStrategy != null) ? astaStrategy : this;
       res = proxy.computeAndPersist(ticker);
     } catch (Exception e) {
       log.warn(

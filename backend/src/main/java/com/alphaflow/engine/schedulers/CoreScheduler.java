@@ -1,9 +1,9 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.api.services.AnalysisService;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
+import com.alphaflow.engine.strategies.ASTAStrategy;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -26,7 +26,7 @@ public class CoreScheduler {
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
   private final IndicatorCalculator indicatorCalculator;
-  private final AnalysisService analysisService;
+  private final ASTAStrategy astaStrategy;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   /**
@@ -35,17 +35,17 @@ public class CoreScheduler {
    * @param yahooFinanceDownloader the Yahoo Finance downloader
    * @param weeklyPriceCalculator the weekly price calculator
    * @param indicatorCalculator the indicator calculator
-   * @param analysisService the technical analysis service
+   * @param astaStrategy the technical analysis strategy
    */
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
       IndicatorCalculator indicatorCalculator,
-      AnalysisService analysisService) {
+      ASTAStrategy astaStrategy) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.indicatorCalculator = indicatorCalculator;
-    this.analysisService = analysisService;
+    this.astaStrategy = astaStrategy;
   }
 
   /** Runs the data update pipeline every hour on the hour. */
@@ -92,7 +92,7 @@ public class CoreScheduler {
 
       log.info("Step 4/4: Computing technical analysis signals...");
       start = System.currentTimeMillis();
-      analysisService.computeAnalysis();
+      astaStrategy.computeAnalysis();
       log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(

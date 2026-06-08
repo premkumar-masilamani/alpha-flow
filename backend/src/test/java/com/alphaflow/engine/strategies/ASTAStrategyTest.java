@@ -1,4 +1,4 @@
-package com.alphaflow.api.services;
+package com.alphaflow.engine.strategies;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -10,6 +10,8 @@ import com.alphaflow.api.dtos.AnalysisResponseDTO;
 import com.alphaflow.api.dtos.IndicatorPointDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.services.DailyPriceService;
+import com.alphaflow.api.services.IndicatorService;
 import com.alphaflow.persistence.entities.AnalysisResult;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Timeframe;
@@ -23,7 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class AnalysisServiceTest {
+class ASTAStrategyTest {
 
   private static final String SYMBOL = "TEST";
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 30);
@@ -33,7 +35,7 @@ class AnalysisServiceTest {
   private IndicatorService indicatorService;
   private TickerRepository tickerRepository;
   private AnalysisResultRepository analysisResultRepository;
-  private AnalysisService analysisService;
+  private ASTAStrategy astaStrategy;
 
   @BeforeEach
   void setUp() {
@@ -41,8 +43,8 @@ class AnalysisServiceTest {
     indicatorService = mock(IndicatorService.class);
     tickerRepository = mock(TickerRepository.class);
     analysisResultRepository = mock(AnalysisResultRepository.class);
-    analysisService =
-        new AnalysisService(
+    astaStrategy =
+        new ASTAStrategy(
             dailyPriceService, indicatorService, tickerRepository, analysisResultRepository);
   }
 
@@ -96,7 +98,7 @@ class AnalysisServiceTest {
             .build();
     when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.of(result));
 
-    AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
 
     assertNotNull(response);
     assertEquals("BUY", response.overallSignal());
@@ -185,7 +187,7 @@ class AnalysisServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
 
     assertNotNull(response);
     assertEquals("BUY", response.overallSignal());
@@ -220,7 +222,7 @@ class AnalysisServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    analysisService.computeAnalysis();
+    astaStrategy.computeAnalysis();
 
     // Verify that only T2 was successfully saved
     verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
@@ -258,7 +260,7 @@ class AnalysisServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
 
     // Verify stochastic signal is HOLD and value is "K = D"
     assertNotNull(response);
@@ -296,7 +298,7 @@ class AnalysisServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
 
     // Verify MACD signal is HOLD and value is "MACD = Signal"
     assertNotNull(response);
@@ -321,7 +323,7 @@ class AnalysisServiceTest {
             new org.springframework.dao.DataIntegrityViolationException("Duplicate key violation"));
 
     // Run
-    AnalysisResponseDTO response = analysisService.getAnalysis(SYMBOL);
+    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
 
     // Verify that it successfully recovered by fetching the concurrently saved row
     assertNotNull(response);

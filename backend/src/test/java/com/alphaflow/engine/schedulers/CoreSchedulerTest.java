@@ -2,10 +2,10 @@ package com.alphaflow.engine.schedulers;
 
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.services.AnalysisService;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
+import com.alphaflow.engine.strategies.ASTAStrategy;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -20,10 +20,10 @@ class CoreSchedulerTest {
 
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
 
-    AnalysisService analysisService = mock(AnalysisService.class);
+    ASTAStrategy astaStrategy = mock(ASTAStrategy.class);
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, astaStrategy);
 
     scheduler.runScheduledUpdate();
 
@@ -33,7 +33,7 @@ class CoreSchedulerTest {
 
     verify(indicatorCalculator, times(1)).computeIndicators();
 
-    verify(analysisService, times(1)).computeAnalysis();
+    verify(astaStrategy, times(1)).computeAnalysis();
   }
 
   @Test
@@ -44,12 +44,12 @@ class CoreSchedulerTest {
 
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
 
-    AnalysisService analysisService = mock(AnalysisService.class);
+    ASTAStrategy astaStrategy = mock(ASTAStrategy.class);
 
     doThrow(new RuntimeException("Injected download error")).when(downloader).downloadDailyPrices();
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, astaStrategy);
 
     scheduler.runOnStartup();
 
@@ -61,7 +61,7 @@ class CoreSchedulerTest {
 
     verify(indicatorCalculator, never()).computeIndicators();
 
-    verify(analysisService, never()).computeAnalysis();
+    verify(astaStrategy, never()).computeAnalysis();
   }
 
   @Test
@@ -72,7 +72,7 @@ class CoreSchedulerTest {
 
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
 
-    AnalysisService analysisService = mock(AnalysisService.class);
+    ASTAStrategy astaStrategy = mock(ASTAStrategy.class);
 
     CountDownLatch startLatch = new CountDownLatch(1);
 
@@ -92,7 +92,7 @@ class CoreSchedulerTest {
         .downloadDailyPrices();
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, analysisService);
+        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, astaStrategy);
 
     // Start thread for first invocation
 
@@ -122,6 +122,6 @@ class CoreSchedulerTest {
 
     verify(indicatorCalculator, times(1)).computeIndicators();
 
-    verify(analysisService, times(1)).computeAnalysis();
+    verify(astaStrategy, times(1)).computeAnalysis();
   }
 }
