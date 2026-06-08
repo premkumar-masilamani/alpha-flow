@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CoreScheduler {
 
-  private static final Logger log = LoggerFactory.getLogger(CoreScheduler.class);
+  private static final Logger logger = LoggerFactory.getLogger(CoreScheduler.class);
 
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
@@ -45,7 +45,7 @@ public class CoreScheduler {
   /** Runs the data update pipeline every hour on the hour. */
   @Scheduled(cron = "0 0 * * * *")
   public void runScheduledUpdate() {
-    log.info("Starting scheduled data update cycle (on the hour)...");
+    logger.info("Starting scheduled data update cycle (on the hour)...");
     run();
   }
 
@@ -57,32 +57,32 @@ public class CoreScheduler {
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
-    log.info("Starting initial data update cycle upon startup...");
+    logger.info("Starting initial data update cycle upon startup...");
     run();
   }
 
   private void run() {
     if (!running.compareAndSet(false, true)) {
-      log.warn("Data update cycle skipped: a previous run is still in progress.");
+      logger.warn("Data update cycle skipped: a previous run is still in progress.");
       return;
     }
 
     try {
-      log.info("Step 1/4: Downloading Yahoo Finance daily data...");
+      logger.info("Step 1/4: Downloading Yahoo Finance daily data...");
       yahooFinanceDownloader.downloadDailyPrices();
 
-      log.info("Step 2/4: Computing weekly candles...");
+      logger.info("Step 2/4: Computing weekly candles...");
       weeklyPriceCalculator.computeWeeklyPrices();
 
-      log.info("Step 3/4: Computing indicators...");
+      logger.info("Step 3/4: Computing indicators...");
       indicatorCalculator.computeIndicators();
 
-      log.info("Step 4/4: Computing technical analysis signals...");
+      logger.info("Step 4/4: Computing technical analysis signals...");
       analysisService.computeAnalysis();
 
-      log.info("Scheduled data update cycle completed successfully.");
+      logger.info("Scheduled data update cycle completed successfully.");
     } catch (Exception e) {
-      log.error("Error occurred during scheduled data update cycle", e);
+      logger.error("Error occurred during scheduled data update cycle", e);
     } finally {
       running.set(false);
     }

@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class WeeklyPriceService {
 
-  private static final Logger log = LoggerFactory.getLogger(WeeklyPriceService.class);
+  private static final Logger logger = LoggerFactory.getLogger(WeeklyPriceService.class);
 
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final TickerRepository tickerRepository;
@@ -34,10 +34,10 @@ public class WeeklyPriceService {
   }
 
   public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
-    log.debug(
+    logger.debug(
         "Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
-      log.warn("Ticker not found for symbol: {}", tickerName);
+      logger.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);
     }
     return weeklyPriceRepository

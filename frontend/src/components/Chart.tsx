@@ -4,7 +4,8 @@ import type {
     Time,
     ISeriesPrimitive,
     IPrimitivePaneView,
-    IPrimitivePaneRenderer
+    IPrimitivePaneRenderer,
+    LogicalRange
 } from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
 import { INDICATOR_COLORS } from '../config/indicatorColors';
@@ -200,7 +201,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
-    const visibleLogicalRangeRef = useRef<any>(null);
+    const visibleLogicalRangeRef = useRef<LogicalRange | null>(null);
     const prevDataLengthRef = useRef<number>(0);
     const prevSymbolRef = useRef<string>('');
     const prevTimeframeRef = useRef<string>('');

@@ -316,7 +316,8 @@ class IndicatorCalculatorTest {
 
     IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
 
-    java.lang.reflect.Field selfField = IndicatorCalculator.class.getDeclaredField("self");
+    java.lang.reflect.Field selfField =
+        IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 

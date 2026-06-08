@@ -10,9 +10,6 @@ package com.alphaflow.persistence.enums;
  * <p>fields they intrinsically require regardless of this selector.
  */
 public enum PriceSource {
-  OPEN,
-  HIGH,
-  LOW,
   CLOSE,
   VOLUME,
 }

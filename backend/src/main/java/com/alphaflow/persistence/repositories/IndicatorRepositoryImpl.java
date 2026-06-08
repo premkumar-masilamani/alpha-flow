@@ -20,28 +20,29 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class IndicatorRepositoryImpl implements IndicatorRepository {
 
-  private final DailyIndicatorRepository dailyRepository;
-  private final WeeklyIndicatorRepository weeklyRepository;
+  private final DailyIndicatorRepository dailyIndicatorRepository;
+  private final WeeklyIndicatorRepository weeklyIndicatorRepository;
 
   /**
    * Constructs an IndicatorRepositoryImpl.
    *
-   * @param dailyRepository the daily indicators repository
-   * @param weeklyRepository the weekly indicators repository
+   * @param dailyIndicatorRepository the daily indicators repository
+   * @param weeklyIndicatorRepository the weekly indicators repository
    */
   public IndicatorRepositoryImpl(
-      DailyIndicatorRepository dailyRepository, WeeklyIndicatorRepository weeklyRepository) {
-    this.dailyRepository = dailyRepository;
-    this.weeklyRepository = weeklyRepository;
+      DailyIndicatorRepository dailyIndicatorRepository,
+      WeeklyIndicatorRepository weeklyIndicatorRepository) {
+    this.dailyIndicatorRepository = dailyIndicatorRepository;
+    this.weeklyIndicatorRepository = weeklyIndicatorRepository;
   }
 
   @Override
   public void deleteByTickerAndIndicatorIds(
       Ticker ticker, Collection<Long> indicatorIds, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
-      dailyRepository.deleteByTickerAndIndicatorIds(ticker, indicatorIds);
+      dailyIndicatorRepository.deleteByTickerAndIndicatorIds(ticker, indicatorIds);
     } else if (timeframe == Timeframe.WEEKLY) {
-      weeklyRepository.deleteByTickerAndIndicatorIds(ticker, indicatorIds);
+      weeklyIndicatorRepository.deleteByTickerAndIndicatorIds(ticker, indicatorIds);
     }
   }
 
@@ -50,9 +51,9 @@ public class IndicatorRepositoryImpl implements IndicatorRepository {
   public List<? extends Indicator> findSeries(
       String symbol, Collection<Long> indicatorIds, LocalDate from, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
-      return dailyRepository.findSeries(symbol, indicatorIds, from);
+      return dailyIndicatorRepository.findSeries(symbol, indicatorIds, from);
     } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyRepository.findSeries(symbol, indicatorIds, from);
+      return weeklyIndicatorRepository.findSeries(symbol, indicatorIds, from);
     }
     return List.of();
   }
@@ -66,9 +67,9 @@ public class IndicatorRepositoryImpl implements IndicatorRepository {
       LocalDate to,
       Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
-      return dailyRepository.findSeriesBetween(symbol, indicatorIds, from, to);
+      return dailyIndicatorRepository.findSeriesBetween(symbol, indicatorIds, from, to);
     } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyRepository.findSeriesBetween(symbol, indicatorIds, from, to);
+      return weeklyIndicatorRepository.findSeriesBetween(symbol, indicatorIds, from, to);
     }
     return List.of();
   }
@@ -88,7 +89,7 @@ public class IndicatorRepositoryImpl implements IndicatorRepository {
               "Expected DailyIndicator, got: " + e.getClass().getName());
         }
       }
-      dailyRepository.saveAll(dailyList);
+      dailyIndicatorRepository.saveAll(dailyList);
     } else if (timeframe == Timeframe.WEEKLY) {
       List<WeeklyIndicator> weeklyList = new ArrayList<>(entities.size());
       for (Indicator e : entities) {
@@ -99,7 +100,7 @@ public class IndicatorRepositoryImpl implements IndicatorRepository {
               "Expected WeeklyIndicator, got: " + e.getClass().getName());
         }
       }
-      weeklyRepository.saveAll(weeklyList);
+      weeklyIndicatorRepository.saveAll(weeklyList);
     }
   }
 }

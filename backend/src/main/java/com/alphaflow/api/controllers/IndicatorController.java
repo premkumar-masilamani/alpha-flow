@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 public class IndicatorController {
 
-  private static final Logger log = LoggerFactory.getLogger(IndicatorController.class);
+  private static final Logger logger = LoggerFactory.getLogger(IndicatorController.class);
   private final IndicatorService indicatorService;
 
   public IndicatorController(IndicatorService indicatorService) {
@@ -22,7 +22,7 @@ public class IndicatorController {
 
   @GetMapping("/indicators")
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
-    log.info("Request to get configured indicators");
+    logger.info("Request to get configured indicators");
     return indicatorService.getConfiguredIndicators();
   }
 
@@ -34,7 +34,7 @@ public class IndicatorController {
       @RequestParam(defaultValue = "250") int size) {
 
     int finalSize = Math.max(1, Math.min(size, 1000));
-    log.info(
+    logger.info(
         "Request to get {} indicators for ticker: {}, page: {}, size: {}",
         timeframe,
         symbol,

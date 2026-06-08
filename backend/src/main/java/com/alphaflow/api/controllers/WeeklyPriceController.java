@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 public class WeeklyPriceController {
 
-  private static final Logger log = LoggerFactory.getLogger(WeeklyPriceController.class);
+  private static final Logger logger = LoggerFactory.getLogger(WeeklyPriceController.class);
 
   private final WeeklyPriceService weeklyPriceService;
 
@@ -26,7 +26,7 @@ public class WeeklyPriceController {
       @RequestParam(defaultValue = "250") int size) {
 
     int finalSize = Math.max(1, Math.min(size, 1000));
-    log.info(
+    logger.info(
         "Request to get weekly data for ticker: {}, page: {}, size: {}", symbol, page, finalSize);
     return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, finalSize);
   }

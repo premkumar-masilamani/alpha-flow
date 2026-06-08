@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api")
 public class DailyPriceController {
 
-  private static final Logger log = LoggerFactory.getLogger(DailyPriceController.class);
+  private static final Logger logger = LoggerFactory.getLogger(DailyPriceController.class);
   private final DailyPriceService dailyPriceService;
 
   public DailyPriceController(DailyPriceService dailyPriceService) {
@@ -25,7 +25,7 @@ public class DailyPriceController {
       @RequestParam(defaultValue = "250") int size) {
 
     int finalSize = Math.max(1, Math.min(size, 1000));
-    log.info(
+    logger.info(
         "Request to get daily data for ticker: {}, page: {}, size: {}", symbol, page, finalSize);
     return dailyPriceService.getDailyPriceByTickerName(symbol, page, finalSize);
   }
