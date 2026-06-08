@@ -23,7 +23,7 @@ public class WeeklyPriceController {
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "250") int size) {
 
-    int finalSize = Math.max(1, Math.min(size, 1000));
+    int finalSize = Math.clamp(size, size, 1000);
     log.info(
         "Request to get weekly data for ticker: {}, page: {}, size: {}", symbol, page, finalSize);
     return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, finalSize);

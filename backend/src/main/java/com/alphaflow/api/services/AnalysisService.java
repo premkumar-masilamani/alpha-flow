@@ -30,6 +30,7 @@ public class AnalysisService {
   private final IndicatorService indicatorService;
   private final TickerRepository tickerRepository;
   private final AnalysisResultRepository analysisResultRepository;
+
   @Autowired @Lazy private AnalysisService analysisService;
 
   public AnalysisService(
@@ -61,7 +62,7 @@ public class AnalysisService {
     log.info("Technical Analysis computation finished.");
   }
 
-  @Transactional
+  @Transactional(readOnly = true)
   public AnalysisResponseDTO getAnalysis(String symbol) {
     Ticker ticker =
         tickerRepository
@@ -73,7 +74,7 @@ public class AnalysisService {
       AnalysisResult res = existingOpt.get();
       List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
       if (!latestCandles.isEmpty()) {
-        LocalDate latestPriceDate = latestCandles.get(0).priceDate();
+        LocalDate latestPriceDate = latestCandles.getFirst().priceDate();
         if (res.getPriceDate().isBefore(latestPriceDate)) {
           log.info(
               "Persisted analysis for symbol: {} is stale (date: {}, latest: {}). Recomputing.",
@@ -431,13 +432,5 @@ public class AnalysisService {
     }
   }
 
-  private static class CalculatedSignal {
-    final String signal;
-    final String value;
-
-    CalculatedSignal(String signal, String value) {
-      this.signal = signal;
-      this.value = value;
-    }
-  }
+  private record CalculatedSignal(String signal, String value) {}
 }

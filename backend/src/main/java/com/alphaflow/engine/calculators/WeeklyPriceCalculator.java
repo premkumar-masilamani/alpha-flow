@@ -4,16 +4,13 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,13 +23,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class WeeklyPriceCalculator {
 
+  private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
 
   @Autowired @Lazy private WeeklyPriceCalculator weeklyPriceCalculator;
 
   public WeeklyPriceCalculator(
-      DailyPriceRepository dailyPriceRepository, WeeklyPriceRepository weeklyPriceRepository) {
+      TickerRepository tickerRepository,
+      DailyPriceRepository dailyPriceRepository,
+      WeeklyPriceRepository weeklyPriceRepository) {
+    this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
   }
@@ -40,17 +41,14 @@ public class WeeklyPriceCalculator {
   public void computeWeeklyPrices() {
     log.info("Starting weekly price computation...");
 
-    Map<Ticker, LocalDate> latestDailyDates =
-        dailyPriceRepository.findLatestPriceDatesForActiveTickers();
-    log.info("Found {} active tickers to process for weekly prices.", latestDailyDates.size());
+    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for weekly prices.", tickers.size());
 
     WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
 
-    for (Map.Entry<Ticker, LocalDate> entry : latestDailyDates.entrySet()) {
-      Ticker ticker = entry.getKey();
-      LocalDate latestDailyDate = entry.getValue();
+    for (Ticker ticker : tickers) {
       try {
-        proxy.processTicker(ticker, latestDailyDate);
+        proxy.processTicker(ticker);
       } catch (Exception e) {
         log.error(
             "Failed to compute weekly prices for ticker {}: {}",
@@ -64,7 +62,7 @@ public class WeeklyPriceCalculator {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void processTicker(Ticker ticker, LocalDate latestDailyDate) {
+  public void processTicker(Ticker ticker) {
     // 1. Determine start date
     Optional<WeeklyPrice> latestWeeklyOpt =
         weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker);

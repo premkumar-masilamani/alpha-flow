@@ -1,26 +1,17 @@
 package com.alphaflow.engine.calculators;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.alphaflow.engine.calculators.indicators.*;
 import com.alphaflow.engine.configs.IndicatorConfig;
-import com.alphaflow.persistence.entities.DailyIndicator;
-import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.entities.Indicator;
-import com.alphaflow.persistence.entities.IndicatorDefinition;
-import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.Timeframe;
-import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
-import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
-import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
-import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
+import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -131,18 +122,20 @@ class IndicatorCalculatorTest {
     when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
 
     IndicatorCalculator calculatorSpy = spy(calculator);
-    doThrow(new RuntimeException("Computation error")).when(calculatorSpy).processTicker(t1);
-    doNothing().when(calculatorSpy).processTicker(t2);
+    doThrow(new RuntimeException("Computation error"))
+        .when(calculatorSpy)
+        .computeIndicatorForTicker(t1);
+    doNothing().when(calculatorSpy).computeIndicatorForTicker(t2);
 
     calculatorSpy.computeIndicators();
 
-    verify(calculatorSpy).processTicker(t1);
-    verify(calculatorSpy).processTicker(t2);
+    verify(calculatorSpy).computeIndicatorForTicker(t1);
+    verify(calculatorSpy).computeIndicatorForTicker(t2);
   }
 
   @Test
   void processTickerDeletesAndBackfillsWholeSeries() {
-    calculator.processTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker);
 
     // Verify check of last stored indicator date
     verify(dailyIndicatorRepo, times(2))
@@ -162,7 +155,7 @@ class IndicatorCalculatorTest {
   void processTimeframeWithEmptyBarsReturnsEarly() {
     when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
 
-    calculator.processTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker);
 
     verify(dailyIndicatorRepo, never())
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(any(), any());
@@ -224,7 +217,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
-    calculator.processTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker);
 
     verify(weeklyIndicatorRepo)
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
@@ -279,7 +272,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
-    testCalculator.processTicker(testTicker);
+    testCalculator.computeIndicatorForTicker(testTicker);
 
     verify(dailyIndicatorRepo)
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(testTicker), any());
@@ -322,7 +315,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
-    calculator.processTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker);
 
     verify(weeklyIndicatorRepo)
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
@@ -344,7 +337,7 @@ class IndicatorCalculatorTest {
 
     calculator.computeIndicators();
 
-    verify(selfMock).processTicker(t1);
+    verify(selfMock).computeIndicatorForTicker(t1);
   }
 
   @SuppressWarnings("unchecked")

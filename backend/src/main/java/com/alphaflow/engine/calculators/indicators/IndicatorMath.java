@@ -40,32 +40,25 @@ public final class IndicatorMath {
    * Rounds an internal value to {@link #INTERNAL_SCALE} to keep scale bounded and deterministic.
    */
   public static BigDecimal internal(BigDecimal value) {
-
     return value.setScale(INTERNAL_SCALE, ROUNDING);
   }
 
   /** Rounds a value for publication to {@code indicator_values}. */
   public static BigDecimal publish(BigDecimal value) {
-
     return value.setScale(PUBLISHED_SCALE, ROUNDING);
   }
 
   /** Internal-scale division. */
   public static BigDecimal divide(BigDecimal numerator, BigDecimal denominator) {
-
     return numerator.divide(denominator, INTERNAL_SCALE, ROUNDING);
   }
 
   /** Simple average of {@code values} at internal scale. */
   public static BigDecimal average(List<BigDecimal> values) {
-
     BigDecimal sum = BigDecimal.ZERO;
-
     for (BigDecimal v : values) {
-
       sum = sum.add(v);
     }
-
     return divide(sum, BigDecimal.valueOf(values.size()));
   }
 }

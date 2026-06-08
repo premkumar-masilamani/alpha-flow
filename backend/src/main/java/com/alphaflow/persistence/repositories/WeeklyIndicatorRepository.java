@@ -26,25 +26,6 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
       Ticker ticker, IndicatorDefinition indicatorDefinition);
 
   /**
-   * Finds weekly indicators series from a start date.
-   *
-   * @param symbol the ticker symbol
-   * @param indicatorIds the indicator IDs
-   * @param from the start date (inclusive)
-   * @return list of weekly indicators
-   */
-  @Query(
-      """
-      SELECT iv FROM WeeklyIndicator iv
-      JOIN iv.ticker tk
-      WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
-        AND iv.indicatorDefinition.indicatorId IN :indicatorIds
-        AND iv.priceDate >= :from
-      ORDER BY iv.priceDate ASC
-      """)
-  List<WeeklyIndicator> findSeries(String symbol, Collection<Long> indicatorIds, LocalDate from);
-
-  /**
    * Finds weekly indicators series between two dates.
    *
    * @param symbol the ticker symbol
@@ -55,14 +36,14 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
    */
   @Query(
       """
-      SELECT iv FROM WeeklyIndicator iv
-      JOIN iv.ticker tk
-      WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
-        AND iv.indicatorDefinition.indicatorId IN :indicatorIds
-        AND iv.priceDate >= :from
-        AND iv.priceDate <= :to
-      ORDER BY iv.priceDate ASC
-      """)
+            SELECT iv FROM WeeklyIndicator iv
+            JOIN iv.ticker tk
+            WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
+              AND iv.indicatorDefinition.indicatorId IN :indicatorIds
+              AND iv.priceDate >= :from
+              AND iv.priceDate <= :to
+            ORDER BY iv.priceDate ASC
+            """)
   List<WeeklyIndicator> findSeriesBetween(
       String symbol, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
 }

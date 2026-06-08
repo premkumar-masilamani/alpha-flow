@@ -6,7 +6,6 @@ import com.alphaflow.persistence.entities.Ticker;
 public class TickerMapper {
 
   public static TickerDTO toDTO(Ticker tickerEntity) {
-
     return TickerDTO.builder()
         .tickerId(tickerEntity.getTickerId())
         .tickerSymbol(tickerEntity.getTickerSymbol())

@@ -2,6 +2,7 @@ package com.alphaflow.engine.calculators.indicators;
 
 import java.util.Map;
 import java.util.TreeMap;
+import lombok.Getter;
 
 /**
  * Parsed indicator parameters (integer periods) plus their canonical string form.
@@ -20,94 +21,64 @@ import java.util.TreeMap;
  *
  * <p>Lookups are by name, so ordering never affects computation.
  */
+@Getter
 public final class IndicatorParams {
 
   private final Map<String, Integer> values;
 
   private IndicatorParams(Map<String, Integer> values) {
-
     this.values = values;
   }
 
   /** Builds from a map of name → period (key order is irrelevant; canonical form is sorted). */
   public static IndicatorParams of(Map<String, Integer> values) {
-
     return new IndicatorParams(new TreeMap<>(values));
   }
 
   /** Parses a canonical string like {@code "fast=12,signal=9,slow=26"}. */
   public static IndicatorParams parse(String canonical) {
-
     Map<String, Integer> parsed = new TreeMap<>();
-
     if (canonical != null && !canonical.isBlank()) {
-
       for (String pair : canonical.split(",")) {
-
         String[] kv = pair.split("=", 2);
-
         if (kv.length != 2) {
-
           throw new IllegalArgumentException(
               "Malformed param pair: '" + pair + "' in '" + canonical + "'");
         }
-
         parsed.put(kv[0].trim(), Integer.valueOf(kv[1].trim()));
       }
     }
-
     return new IndicatorParams(parsed);
   }
 
   /** Required integer param; throws if absent. */
   public int getInt(String name) {
-
     Integer v = values.get(name);
-
     if (v == null) {
-
       throw new IllegalArgumentException("Missing required param '" + name + "' in " + canonical());
     }
-
     return v;
   }
 
   /** Optional integer param with a fallback default. */
   public int getInt(String name, int defaultValue) {
-
     return values.getOrDefault(name, defaultValue);
   }
 
   /** The stable canonical string used for storage and as part of the natural key. */
   public String canonical() {
-
     StringBuilder sb = new StringBuilder();
-
     for (Map.Entry<String, Integer> e : values.entrySet()) {
-
       if (!sb.isEmpty()) {
-
         sb.append(',');
       }
-
       sb.append(e.getKey()).append('=').append(e.getValue());
     }
-
     return sb.toString();
-  }
-
-  /**
-   * Returns the underlying parameter values map.
-   *
-   * @return the parameters map
-   */
-  public Map<String, Integer> getValues() {
-    return values;
   }
 
   @Override
   public String toString() {
-
     return canonical();
   }
 }
