@@ -1,5 +1,9 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators;
 
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.EMAAccumulator;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -13,7 +17,7 @@ import org.springframework.stereotype.Component;
 /** Exponential moving average over a configurable source field, with standard SMA seeding. */
 @Component
 @Slf4j
-public class EmaIndicator implements Indicator {
+public class EMAIndicator implements Indicator {
 
   @Override
   public IndicatorType type() {
@@ -26,11 +30,16 @@ public class EmaIndicator implements Indicator {
     int period = params.getInt("period");
     log.debug(
         "Computing EMA indicator for {} bars, period={}, source={}", bars.size(), period, source);
-    EmaAccumulator acc = EmaAccumulator.fresh(period);
+    // 1. Instantiate a stateful accumulator for the given period
+    EMAAccumulator acc = EMAAccumulator.fresh(period);
     Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
 
+    // 2. Stream all price bars chronologically
     for (PriceBar bar : bars) {
+      // Extract the value (e.g. CLOSE or VOLUME) and feed it to the accumulator
       Optional<BigDecimal> ema = acc.next(bar.valueFor(source));
+
+      // 3. If the accumulator is seeded, save the published value (4 decimal places)
       ema.ifPresent(v -> values.put(bar.date(), Map.of("value", IndicatorMath.publish(v))));
     }
 

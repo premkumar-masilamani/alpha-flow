@@ -2,7 +2,7 @@ package com.alphaflow.api.mappers;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.util.Map;

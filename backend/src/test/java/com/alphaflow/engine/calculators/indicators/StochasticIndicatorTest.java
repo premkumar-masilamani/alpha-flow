@@ -3,6 +3,9 @@ package com.alphaflow.engine.calculators.indicators;
 import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.alphaflow.engine.indicators.StochasticIndicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;

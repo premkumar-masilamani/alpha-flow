@@ -1,4 +1,4 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators.utils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

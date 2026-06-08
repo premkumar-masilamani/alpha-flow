@@ -1,5 +1,8 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators;
 
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;

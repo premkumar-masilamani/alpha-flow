@@ -1,5 +1,9 @@
-package com.alphaflow.engine.calculators.indicators;
+package com.alphaflow.engine.indicators;
 
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.EMAAccumulator;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -14,7 +18,7 @@ import org.springframework.stereotype.Component;
 /** Moving Average Convergence Divergence: three chained EMAs over a source field. */
 @Component
 @Slf4j
-public class MacdIndicator implements Indicator {
+public class MACDIndicator implements Indicator {
 
   @Override
   public IndicatorType type() {
@@ -24,6 +28,7 @@ public class MacdIndicator implements Indicator {
   @Override
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
+    // 1. Setup and parameter retrieval
     int fastPeriod = params.getInt("fast");
     int slowPeriod = params.getInt("slow");
     int signalPeriod = params.getInt("signal", 9);
@@ -36,30 +41,39 @@ public class MacdIndicator implements Indicator {
         signalPeriod,
         source);
 
-    EmaAccumulator fast = EmaAccumulator.fresh(fastPeriod);
-    EmaAccumulator slow = EmaAccumulator.fresh(slowPeriod);
-    EmaAccumulator signal = EmaAccumulator.fresh(signalPeriod);
+    // Create stateful fast, slow, and signal accumulators
+    EMAAccumulator fast = EMAAccumulator.fresh(fastPeriod);
+    EMAAccumulator slow = EMAAccumulator.fresh(slowPeriod);
+    EMAAccumulator signal = EMAAccumulator.fresh(signalPeriod);
 
     Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
 
     for (PriceBar bar : bars) {
       BigDecimal v = bar.valueFor(source);
+      // Feed values to fast and slow EMAs
       fast.next(v);
       slow.next(v);
 
+      // 2. Seeding stage: wait until both fast & slow EMAs are seeded (usually limited by slow
+      // period)
       if (!fast.isSeeded() || !slow.isSeeded()) {
         continue;
       }
 
+      // 3. Calculate MACD Line = Fast EMA - Slow EMA (calculated at 12 decimals internal scale)
       BigDecimal macd = IndicatorMath.internal(fast.current().subtract(slow.current()));
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
       barValues.put("macd", IndicatorMath.publish(macd));
 
+      // Feed MACD line value into the signal EMA accumulator
       Optional<BigDecimal> signalEma = signal.next(macd);
+
+      // 4. Seeding stage for signal EMA: wait until signal EMA is seeded
       if (signalEma.isPresent()) {
         BigDecimal signalVal = signalEma.get();
         barValues.put("signal", IndicatorMath.publish(signalVal));
 
+        // Calculate Histogram = MACD Line - Signal Line
         BigDecimal histogram = IndicatorMath.internal(macd.subtract(signalVal));
         barValues.put("histogram", IndicatorMath.publish(histogram));
       }

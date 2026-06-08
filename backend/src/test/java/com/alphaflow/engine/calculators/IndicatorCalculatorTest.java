@@ -4,8 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.engine.calculators.indicators.*;
 import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.indicators.*;
+import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
 import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.enums.IndicatorType;
@@ -83,10 +84,10 @@ class IndicatorCalculatorTest {
     IndicatorRegistry registry =
         new IndicatorRegistry(
             List.of(
-                new EmaIndicator(),
-                new SmaIndicator(),
-                new RsiIndicator(),
-                new MacdIndicator(),
+                new EMAIndicator(),
+                new SMAIndicator(),
+                new RSIIndicator(),
+                new MACDIndicator(),
                 new StochasticIndicator()));
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
@@ -206,10 +207,10 @@ class IndicatorCalculatorTest {
             tickerRepo,
             new IndicatorRegistry(
                 List.of(
-                    new EmaIndicator(),
-                    new SmaIndicator(),
-                    new RsiIndicator(),
-                    new MacdIndicator(),
+                    new EMAIndicator(),
+                    new SMAIndicator(),
+                    new RSIIndicator(),
+                    new MACDIndicator(),
                     new StochasticIndicator())),
             properties,
             dailyRepo,
@@ -265,7 +266,7 @@ class IndicatorCalculatorTest {
     IndicatorCalculator testCalculator =
         new IndicatorCalculator(
             tickerRepo,
-            new IndicatorRegistry(List.of(new EmaIndicator())),
+            new IndicatorRegistry(List.of(new EMAIndicator())),
             properties,
             dailyRepo,
             weeklyRepo,
@@ -308,7 +309,7 @@ class IndicatorCalculatorTest {
     calculator =
         new IndicatorCalculator(
             tickerRepo,
-            new IndicatorRegistry(List.of(new EmaIndicator())),
+            new IndicatorRegistry(List.of(new EMAIndicator())),
             properties,
             dailyRepo,
             weeklyRepo,

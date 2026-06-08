@@ -2,6 +2,13 @@ package com.alphaflow.engine.calculators.indicators;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.alphaflow.engine.indicators.EMAIndicator;
+import com.alphaflow.engine.indicators.MACDIndicator;
+import com.alphaflow.engine.indicators.RSIIndicator;
+import com.alphaflow.engine.indicators.SMAIndicator;
+import com.alphaflow.engine.indicators.StochasticIndicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -28,7 +35,7 @@ class IndicatorAAPLTest {
   void testAaplSMA() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new SmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
+        new SMAIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
@@ -44,7 +51,7 @@ class IndicatorAAPLTest {
   void testAaplEMA() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new EmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
+        new EMAIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
@@ -60,7 +67,7 @@ class IndicatorAAPLTest {
   void testAaplRSI() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new RsiIndicator().compute(aaplBars, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
+        new RSIIndicator().compute(aaplBars, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
@@ -76,7 +83,7 @@ class IndicatorAAPLTest {
   void testAaplMACD() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new MacdIndicator()
+        new MACDIndicator()
             .compute(
                 aaplBars, IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 

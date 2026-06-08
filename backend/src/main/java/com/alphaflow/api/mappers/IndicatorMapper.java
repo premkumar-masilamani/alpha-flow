@@ -3,7 +3,7 @@ package com.alphaflow.api.mappers;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorPointDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;

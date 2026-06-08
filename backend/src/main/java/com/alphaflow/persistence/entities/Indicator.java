@@ -1,6 +1,6 @@
 package com.alphaflow.persistence.entities;
 
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import jakarta.persistence.*;

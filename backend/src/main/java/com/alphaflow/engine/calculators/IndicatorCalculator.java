@@ -1,10 +1,10 @@
 package com.alphaflow.engine.calculators;
 
-import com.alphaflow.engine.calculators.indicators.Indicator;
-import com.alphaflow.engine.calculators.indicators.IndicatorParams;
-import com.alphaflow.engine.calculators.indicators.IndicatorRegistry;
-import com.alphaflow.engine.calculators.indicators.PriceBar;
 import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.indicators.Indicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
@@ -102,6 +102,10 @@ public class IndicatorCalculator {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
+    log.info("Ticker {}: Starting indicator computation...", ticker.getTickerSymbol());
+    int dailySaved = 0;
+    int weeklySaved = 0;
+
     for (Timeframe timeframe : Timeframe.values()) {
       List<IndicatorDefinition> IndicatorDefinitions = indicatorConfig.forTimeframe(timeframe);
       if (IndicatorDefinitions.isEmpty()) {
@@ -110,7 +114,6 @@ public class IndicatorCalculator {
 
       List<PriceBar> bars =
           (timeframe == Timeframe.DAILY) ? loadDailyBars(ticker) : loadWeeklyBars(ticker);
-
       if (bars.isEmpty()) {
         continue;
       }
@@ -146,6 +149,7 @@ public class IndicatorCalculator {
 
         if (!toInsert.isEmpty()) {
           dailyIndicatorRepository.saveAll(toInsert);
+          dailySaved = toInsert.size();
         }
       } else {
         List<WeeklyIndicator> toInsert = new ArrayList<>();
@@ -178,9 +182,16 @@ public class IndicatorCalculator {
 
         if (!toInsert.isEmpty()) {
           weeklyIndicatorRepository.saveAll(toInsert);
+          weeklySaved = toInsert.size();
         }
       }
     }
+
+    log.info(
+        "Ticker {}: Indicator computation completed. Saved {} daily and {} weekly indicator records.",
+        ticker.getTickerSymbol(),
+        dailySaved,
+        weeklySaved);
   }
 
   private List<PriceBar> loadDailyBars(Ticker ticker) {
