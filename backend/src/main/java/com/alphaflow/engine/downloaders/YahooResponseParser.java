@@ -11,13 +11,18 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
+@Slf4j
 public class YahooResponseParser {
 
   public List<DailyPrice> parse(String jsonString, Ticker ticker) throws IOException {
+    log.debug("Parsing Yahoo Finance JSON response for ticker: {}", ticker.getTickerSymbol());
+
     if (jsonString == null || jsonString.isBlank()) {
+      log.warn("Yahoo Finance response was null or empty for ticker: {}", ticker.getTickerSymbol());
       return List.of();
     }
 
@@ -29,6 +34,9 @@ public class YahooResponseParser {
         || response.chart() == null
         || response.chart().result() == null
         || response.chart().result().isEmpty()) {
+      log.warn(
+          "Yahoo Finance JSON structure chart/result is missing for ticker: {}",
+          ticker.getTickerSymbol());
       return List.of();
     }
 
@@ -37,6 +45,9 @@ public class YahooResponseParser {
         || result.indicators() == null
         || result.indicators().quote() == null
         || result.indicators().quote().isEmpty()) {
+      log.warn(
+          "Yahoo Finance JSON structure timestamp/quote is missing for ticker: {}",
+          ticker.getTickerSymbol());
       return List.of();
     }
 
@@ -46,6 +57,9 @@ public class YahooResponseParser {
         || quote.low() == null
         || quote.close() == null
         || quote.volume() == null) {
+      log.warn(
+          "Yahoo Finance JSON structure quote fields are missing for ticker: {}",
+          ticker.getTickerSymbol());
       return List.of();
     }
 
@@ -66,6 +80,10 @@ public class YahooResponseParser {
       BigDecimal volume = quote.volume().get(i);
 
       if (open == null || high == null || low == null || close == null || volume == null) {
+        log.debug(
+            "Skipped null price bar values for ticker: {} at index: {}",
+            ticker.getTickerSymbol(),
+            i);
         continue;
       }
 
@@ -75,6 +93,14 @@ public class YahooResponseParser {
           || high.compareTo(BigDecimal.ZERO) <= 0
           || low.compareTo(BigDecimal.ZERO) <= 0
           || close.compareTo(BigDecimal.ZERO) <= 0) {
+        log.warn(
+            "Discarded invalid/zero/negative price bar for ticker: {} at index: {} (open={}, high={}, low={}, close={})",
+            ticker.getTickerSymbol(),
+            i,
+            open,
+            high,
+            low,
+            close);
         continue;
       }
 
@@ -92,6 +118,11 @@ public class YahooResponseParser {
               .volume(volume)
               .build());
     }
+
+    log.info(
+        "Successfully parsed {} daily price records for ticker {}",
+        list.size(),
+        ticker.getTickerSymbol());
     return list;
   }
 

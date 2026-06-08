@@ -15,17 +15,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@Slf4j
 public class WeeklyPriceCalculator {
 
-  private static final Logger logger = LoggerFactory.getLogger(WeeklyPriceCalculator.class);
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
 
@@ -38,11 +38,11 @@ public class WeeklyPriceCalculator {
   }
 
   public void computeWeeklyPrices() {
-    logger.info("Starting weekly price computation...");
+    log.info("Starting weekly price computation...");
 
     Map<Ticker, LocalDate> latestDailyDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
-    logger.info("Found {} active tickers to process for weekly prices.", latestDailyDates.size());
+    log.info("Found {} active tickers to process for weekly prices.", latestDailyDates.size());
 
     WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
 
@@ -52,7 +52,7 @@ public class WeeklyPriceCalculator {
       try {
         proxy.processTicker(ticker, latestDailyDate);
       } catch (Exception e) {
-        logger.error(
+        log.error(
             "Failed to compute weekly prices for ticker {}: {}",
             ticker.getTickerSymbol(),
             e.getMessage(),
@@ -60,10 +60,10 @@ public class WeeklyPriceCalculator {
       }
     }
 
-    logger.info("Weekly price computation completed.");
+    log.info("Weekly price computation completed.");
   }
 
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void processTicker(Ticker ticker, LocalDate latestDailyDate) {
     // 1. Determine start date
     Optional<WeeklyPrice> latestWeeklyOpt =
@@ -73,21 +73,26 @@ public class WeeklyPriceCalculator {
     if (latestWeeklyOpt.isPresent()) {
       WeeklyPrice latestWeekly = latestWeeklyOpt.get();
       calculationStartDate = latestWeekly.getPriceDate();
-      logger.debug(
+      log.debug(
           "Ticker {}: Starting weekly price computation from latest Monday to overwrite/update: {}",
           ticker.getTickerSymbol(),
           calculationStartDate);
     } else {
-      if (latestDailyDate == null || latestDailyDate.equals(LocalDate.of(1900, 1, 1))) {
-        logger.warn(
+      Optional<DailyPrice> earliestDailyOpt =
+          dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker);
+      if (earliestDailyOpt.isEmpty()) {
+        log.warn(
             "Ticker {}: No daily prices found! Skipping weekly price computation.",
             ticker.getTickerSymbol());
         return;
       }
       calculationStartDate =
-          latestDailyDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-      logger.debug(
-          "Ticker {}: No weekly prices found. Starting computation from latest daily price date (aligned to Monday): {}",
+          earliestDailyOpt
+              .get()
+              .getPriceDate()
+              .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+      log.debug(
+          "Ticker {}: No weekly prices found. Starting computation from earliest daily price date (aligned to Monday): {}",
           ticker.getTickerSymbol(),
           calculationStartDate);
     }
@@ -98,7 +103,7 @@ public class WeeklyPriceCalculator {
             ticker, calculationStartDate);
 
     if (dailyPrices.isEmpty()) {
-      logger.debug(
+      log.debug(
           "Ticker {}: No new daily prices found since {}.",
           ticker.getTickerSymbol(),
           calculationStartDate);
@@ -159,7 +164,7 @@ public class WeeklyPriceCalculator {
 
     weeklyPriceRepository.saveAll(weeklyPricesToSave);
 
-    logger.info(
+    log.info(
         "Ticker {}: Saved/updated {} weekly prices.",
         ticker.getTickerSymbol(),
         weeklyPricesToSave.size());

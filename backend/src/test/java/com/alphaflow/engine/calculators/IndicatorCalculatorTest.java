@@ -6,17 +6,20 @@ import static org.mockito.Mockito.*;
 
 import com.alphaflow.engine.calculators.indicators.*;
 import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.Timeframe;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
-import com.alphaflow.persistence.repositories.IndicatorRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,7 +38,8 @@ class IndicatorCalculatorTest {
   private TickerRepository tickerRepo;
   private DailyPriceRepository dailyRepo;
   private WeeklyPriceRepository weeklyRepo;
-  private IndicatorRepository valueRepo;
+  private DailyIndicatorRepository dailyIndicatorRepo;
+  private WeeklyIndicatorRepository weeklyIndicatorRepo;
   private IndicatorCalculator calculator;
   private Ticker ticker;
 
@@ -82,7 +86,8 @@ class IndicatorCalculatorTest {
     tickerRepo = mock(TickerRepository.class);
     dailyRepo = mock(DailyPriceRepository.class);
     weeklyRepo = mock(WeeklyPriceRepository.class);
-    valueRepo = mock(IndicatorRepository.class);
+    dailyIndicatorRepo = mock(DailyIndicatorRepository.class);
+    weeklyIndicatorRepo = mock(WeeklyIndicatorRepository.class);
 
     IndicatorRegistry registry =
         new IndicatorRegistry(
@@ -97,7 +102,14 @@ class IndicatorCalculatorTest {
     properties.setCachedDefinitions(Map.of(Timeframe.DAILY, List.of(emaDef(), smaVolumeDef())));
 
     calculator =
-        new IndicatorCalculator(tickerRepo, registry, properties, dailyRepo, weeklyRepo, valueRepo);
+        new IndicatorCalculator(
+            tickerRepo,
+            registry,
+            properties,
+            dailyRepo,
+            weeklyRepo,
+            dailyIndicatorRepo,
+            weeklyIndicatorRepo);
 
     ticker =
         Ticker.builder()
@@ -132,9 +144,9 @@ class IndicatorCalculatorTest {
   void processTickerDeletesAndBackfillsWholeSeries() {
     calculator.processTicker(ticker);
 
-    // Verify deletion of all existing indicator values for the ticker/timeframe by config IDs
-    verify(valueRepo)
-        .deleteByTickerAndIndicatorIds(eq(ticker), anyCollection(), eq(Timeframe.DAILY));
+    // Verify check of last stored indicator date
+    verify(dailyIndicatorRepo, times(2))
+        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
 
     // Verify saving of computed indicators
     List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
@@ -152,8 +164,12 @@ class IndicatorCalculatorTest {
 
     calculator.processTicker(ticker);
 
-    verify(valueRepo, never()).deleteByTickerAndIndicatorIds(any(), any(), any());
-    verify(valueRepo, never()).saveAll(any(), any());
+    verify(dailyIndicatorRepo, never())
+        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(any(), any());
+    verify(weeklyIndicatorRepo, never())
+        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(any(), any());
+    verify(dailyIndicatorRepo, never()).saveAll(any());
+    verify(weeklyIndicatorRepo, never()).saveAll(any());
   }
 
   @Test
@@ -205,12 +221,13 @@ class IndicatorCalculatorTest {
             properties,
             dailyRepo,
             weeklyRepo,
-            valueRepo);
+            dailyIndicatorRepo,
+            weeklyIndicatorRepo);
 
     calculator.processTicker(ticker);
 
-    verify(valueRepo)
-        .deleteByTickerAndIndicatorIds(eq(ticker), anyCollection(), eq(Timeframe.WEEKLY));
+    verify(weeklyIndicatorRepo)
+        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
     List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
     assertEquals(1, emaValues.size()); // EMA period 2 over 2 bars yields 1 value (the second bar)
   }
@@ -259,13 +276,15 @@ class IndicatorCalculatorTest {
             properties,
             dailyRepo,
             weeklyRepo,
-            valueRepo);
+            dailyIndicatorRepo,
+            weeklyIndicatorRepo);
 
     testCalculator.processTicker(testTicker);
 
-    verify(valueRepo)
-        .deleteByTickerAndIndicatorIds(eq(testTicker), anyCollection(), eq(Timeframe.DAILY));
-    verify(valueRepo, never()).saveAll(any(), any());
+    verify(dailyIndicatorRepo)
+        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(testTicker), any());
+    verify(dailyIndicatorRepo, never()).saveAll(any());
+    verify(weeklyIndicatorRepo, never()).saveAll(any());
   }
 
   @Test
@@ -300,13 +319,15 @@ class IndicatorCalculatorTest {
             properties,
             dailyRepo,
             weeklyRepo,
-            valueRepo);
+            dailyIndicatorRepo,
+            weeklyIndicatorRepo);
 
     calculator.processTicker(ticker);
 
-    verify(valueRepo)
-        .deleteByTickerAndIndicatorIds(eq(ticker), anyCollection(), eq(Timeframe.WEEKLY));
-    verify(valueRepo, never()).saveAll(any(), any());
+    verify(weeklyIndicatorRepo)
+        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
+    verify(dailyIndicatorRepo, never()).saveAll(any());
+    verify(weeklyIndicatorRepo, never()).saveAll(any());
   }
 
   @Test
@@ -328,11 +349,16 @@ class IndicatorCalculatorTest {
 
   @SuppressWarnings("unchecked")
   private List<? extends Indicator> capturedValues(IndicatorType type) {
-    ArgumentCaptor<List<? extends Indicator>> captor = ArgumentCaptor.forClass(List.class);
-    verify(valueRepo, atLeast(0)).saveAll(captor.capture(), any());
-    return captor.getAllValues().stream()
-        .flatMap(List::stream)
-        .filter(v -> v.getIndicatorType() == type)
-        .toList();
+    ArgumentCaptor<List<DailyIndicator>> dailyCaptor = ArgumentCaptor.forClass(List.class);
+    verify(dailyIndicatorRepo, atLeast(0)).saveAll(dailyCaptor.capture());
+
+    ArgumentCaptor<List<WeeklyIndicator>> weeklyCaptor = ArgumentCaptor.forClass(List.class);
+    verify(weeklyIndicatorRepo, atLeast(0)).saveAll(weeklyCaptor.capture());
+
+    List<Indicator> allValues = new ArrayList<>();
+    dailyCaptor.getAllValues().forEach(allValues::addAll);
+    weeklyCaptor.getAllValues().forEach(allValues::addAll);
+
+    return allValues.stream().filter(v -> v.getIndicatorType() == type).toList();
   }
 }

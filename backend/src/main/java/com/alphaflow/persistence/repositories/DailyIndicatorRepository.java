@@ -1,33 +1,29 @@
 package com.alphaflow.persistence.repositories;
 
 import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 /** JPA repository for managing DailyIndicator entities. */
 @Repository
-interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, Long> {
+public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, Long> {
 
   /**
-   * Deletes daily indicator values for a ticker and indicator IDs.
+   * Finds the last stored daily indicator entity for a given ticker and definition.
    *
    * @param ticker the ticker
-   * @param indicatorIds the indicator definition IDs
+   * @param indicatorDefinition the indicator definition
+   * @return optional containing the daily indicator entity if found
    */
-  @Modifying
-  @Query(
-      """
-      DELETE FROM DailyIndicator v
-      WHERE v.ticker = :ticker
-        AND v.indicatorDefinition.indicatorId IN :indicatorIds
-      """)
-  void deleteByTickerAndIndicatorIds(Ticker ticker, Collection<Long> indicatorIds);
+  Optional<DailyIndicator> findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(
+      Ticker ticker, IndicatorDefinition indicatorDefinition);
 
   /**
    * Finds daily indicators series from a start date.

@@ -7,17 +7,15 @@ import static org.springframework.http.HttpStatus.valueOf;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.servlet.error.ErrorController;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Slf4j
 public class ApiController implements ErrorController {
-
-  private static final Logger logger = LoggerFactory.getLogger(ApiController.class);
 
   @RequestMapping("/api")
   public Map<String, Object> index() {
@@ -34,7 +32,7 @@ public class ApiController implements ErrorController {
     Throwable exception = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
     String path = (String) request.getAttribute("jakarta.servlet.error.request_uri");
 
-    logger.error(
+    log.error(
         "Handling error status {} for path {}. Exception: {}",
         status,
         path,

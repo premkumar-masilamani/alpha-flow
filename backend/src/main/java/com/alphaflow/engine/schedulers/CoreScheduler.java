@@ -5,8 +5,7 @@ import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -21,9 +20,8 @@ import org.springframework.stereotype.Component;
  * <p>aggregation of weekly price data on a regular basis.
  */
 @Component
+@Slf4j
 public class CoreScheduler {
-
-  private static final Logger logger = LoggerFactory.getLogger(CoreScheduler.class);
 
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
@@ -31,6 +29,14 @@ public class CoreScheduler {
   private final AnalysisService analysisService;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
+  /**
+   * Constructs a CoreScheduler with the required data downloaders and calculators.
+   *
+   * @param yahooFinanceDownloader the Yahoo Finance downloader
+   * @param weeklyPriceCalculator the weekly price calculator
+   * @param indicatorCalculator the indicator calculator
+   * @param analysisService the technical analysis service
+   */
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
@@ -45,7 +51,7 @@ public class CoreScheduler {
   /** Runs the data update pipeline every hour on the hour. */
   @Scheduled(cron = "0 0 * * * *")
   public void runScheduledUpdate() {
-    logger.info("Starting scheduled data update cycle (on the hour)...");
+    log.info("Starting scheduled data update cycle (on the hour)...");
     run();
   }
 
@@ -57,32 +63,32 @@ public class CoreScheduler {
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
-    logger.info("Starting initial data update cycle upon startup...");
+    log.info("Starting initial data update cycle upon startup...");
     run();
   }
 
   private void run() {
     if (!running.compareAndSet(false, true)) {
-      logger.warn("Data update cycle skipped: a previous run is still in progress.");
+      log.warn("Data update cycle skipped: a previous run is still in progress.");
       return;
     }
 
     try {
-      logger.info("Step 1/4: Downloading Yahoo Finance daily data...");
+      log.info("Step 1/4: Downloading Yahoo Finance daily data...");
       yahooFinanceDownloader.downloadDailyPrices();
 
-      logger.info("Step 2/4: Computing weekly candles...");
+      log.info("Step 2/4: Computing weekly candles...");
       weeklyPriceCalculator.computeWeeklyPrices();
 
-      logger.info("Step 3/4: Computing indicators...");
+      log.info("Step 3/4: Computing indicators...");
       indicatorCalculator.computeIndicators();
 
-      logger.info("Step 4/4: Computing technical analysis signals...");
+      log.info("Step 4/4: Computing technical analysis signals...");
       analysisService.computeAnalysis();
 
-      logger.info("Scheduled data update cycle completed successfully.");
+      log.info("Scheduled data update cycle completed successfully.");
     } catch (Exception e) {
-      logger.error("Error occurred during scheduled data update cycle", e);
+      log.error("Error occurred during scheduled data update cycle", e);
     } finally {
       running.set(false);
     }

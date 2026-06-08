@@ -1,33 +1,29 @@
 package com.alphaflow.persistence.repositories;
 
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 /** JPA repository for managing WeeklyIndicator entities. */
 @Repository
-interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator, Long> {
+public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator, Long> {
 
   /**
-   * Deletes weekly indicator values for a ticker and indicator IDs.
+   * Finds the last stored weekly indicator entity for a given ticker and definition.
    *
    * @param ticker the ticker
-   * @param indicatorIds the indicator definition IDs
+   * @param indicatorDefinition the indicator definition
+   * @return optional containing the weekly indicator entity if found
    */
-  @Modifying
-  @Query(
-      """
-      DELETE FROM WeeklyIndicator v
-      WHERE v.ticker = :ticker
-        AND v.indicatorDefinition.indicatorId IN :indicatorIds
-      """)
-  void deleteByTickerAndIndicatorIds(Ticker ticker, Collection<Long> indicatorIds);
+  Optional<WeeklyIndicator> findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(
+      Ticker ticker, IndicatorDefinition indicatorDefinition);
 
   /**
    * Finds weekly indicators series from a start date.

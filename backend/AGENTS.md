@@ -61,6 +61,11 @@ The backend is structured under the `com.alphaflow` package:
 - **Variable Naming**: In all Java classes, member variables should have the same name as their class type with the first character in lower camelCase (e.g. `logger` for type `Logger`, `analysisService` for type `AnalysisService`). All other variables (like local variables, method parameters) must use human-readable names.
 - **Boilerplate Reduction**: Use Lombok annotations (`@Getter`, `@Setter`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Builder`, etc.) on Entities, DTOs, and configs.
 - **Global Error Handling**: Centralized in `@RestControllerAdvice` under `com.alphaflow.api.controllers.generic.GlobalExceptionHandler`.
+- **Logging Guidelines**: Use Lombok `@Slf4j` annotation for logger declaration. Do not manually declare SLF4J `Logger` fields. Use Lombok's default `log` reference for logging:
+  - `info`: For high-level application events (e.g. starting/finishing pipeline steps) and controller-level request entry.
+  - `warn`: For recoverable warnings, skipped executions, or bad requests.
+  - `debug`: For detailed computation logic, parsing loop iterations, and detailed calculations (e.g., within concrete indicators).
+  - Always use parameterized messages (`log.info("Calculating: {}", symbol)`) instead of string concatenation.
 
 ### JPA & Entity Mapping Rules
 
@@ -94,16 +99,16 @@ When defining or modifying JPA Entity classes under `persistence/entities/`, ens
 
 - Extend `JpaRepository<Entity, Long>` and annotate with `@Repository`.
 - Return `Optional<Entity>` for single-result lookups.
-- For technical indicators, use the unified `IndicatorRepository` interface. It routes CRUD operations dynamically to package-private daily/weekly JPA repositories depending on the timeframe.
+- For technical indicators, use the concrete repositories (`DailyIndicatorRepository` and `WeeklyIndicatorRepository`) directly instead of a unified repository interface.
 - JPQL is preferred over native SQL.
 
 ### Indicator Engine (`engine/calculators/indicators/`)
 
-- **`Indicator` interface**: All indicators implement `compute(List<PriceBar> bars, IndicatorParams params, PriceSource source)`. Lookback limits and state resumption logic are removed.
+- **`Indicator` interface**: All indicators implement `compute(List<PriceBar> bars, IndicatorParams params, PriceSource source)`, which returns a `Map<LocalDate, Map<String, BigDecimal>>` containing the calculated indicator values grouped by date. Lookback limits and state resumption logic are removed.
 - **`IndicatorRegistry`**: Factory that maps `IndicatorType` → concrete `Indicator` implementation.
 - **`PriceBar` record**: Lightweight `record(LocalDate date, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, BigDecimal volume)` used as input to all indicators.
 - **MathContext**: Indicator calculations use `new MathContext(18)` for `BigDecimal` arithmetic.
-- **Calculations Workflow**: On each pipeline run, all prior computed indicator values for the ticker, timeframe, and active indicator definitions are completely cleared from the database via `indicatorRepository.deleteByTickerAndIndicatorIds(ticker, ids, timeframe)` and recalculated over the entire historical price list.
+- **Calculations Workflow**: On each pipeline run, the calculator computes the indicator values for the ticker, timeframe, and active indicator definitions. Instead of clearing existing database records, it finds the last stored price date via `findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc` and only persists new records whose dates are strictly after that last stored date.
 - **Multi-output indicators**: All computed outputs (e.g., `macd`, `signal`, `histogram` for MACD, or `k`, `d` for Stochastic) are combined into a single row per date as a key-value mapping (`Map<String, BigDecimal>`) stored in the `values` JSONB column.
 
 ### Indicator Configuration
@@ -221,3 +226,9 @@ The task compiles and scans the code in four parallelizable stages:
 
 ### Stream Aggregators for Extremum Finding
 - Prefer Java Stream API operations (e.g., `stream().max(BigDecimal::compareTo)` and `stream().min(BigDecimal::compareTo)`) over manual `for` loops when finding minimum/maximum values of lists to write clean, declarative Java code.
+
+### Weekly Rollup Initial Start Date
+- When computing rolled-up weekly price data for a ticker for the first time (when no weekly prices exist in the database yet), always start from the **earliest** daily price date (aligned to Monday) using `findTopByTickerOrderByPriceDateAsc` to roll up the entire historical range, rather than starting from the latest daily price date.
+
+### Transaction Demarcation inside Schedulers
+- Do not wrap high-level background scheduling orchestration methods (e.g., methods in `CoreScheduler`) in programmatic transaction blocks (like `TransactionTemplate`). Instead, leverage method-level transactional demarcation (such as `@Transactional(propagation = Propagation.REQUIRES_NEW)`) inside the service or calculator layers on a per-ticker task basis. This keeps scheduler threads clean, prevents lock contention/overlap, and isolates failures.

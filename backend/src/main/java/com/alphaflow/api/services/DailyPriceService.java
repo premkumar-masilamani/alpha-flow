@@ -8,17 +8,15 @@ import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.Comparator;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
+@Slf4j
 public class DailyPriceService {
-
-  private static final Logger logger = LoggerFactory.getLogger(DailyPriceService.class);
 
   private final DailyPriceRepository dailyPriceRepository;
   private final TickerRepository tickerRepository;
@@ -30,11 +28,11 @@ public class DailyPriceService {
   }
 
   public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, int size) {
-    logger.debug(
+    log.debug(
         "Fetching daily candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     // Match the case-insensitive lookup used by findLatestByTickerName below.
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
-      logger.warn("Ticker not found for symbol: {}", tickerName);
+      log.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);
     }
     return dailyPriceRepository
