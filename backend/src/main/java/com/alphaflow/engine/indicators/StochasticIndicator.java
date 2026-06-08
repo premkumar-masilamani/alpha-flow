@@ -16,26 +16,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class StochasticIndicator implements Indicator {
 
-  private static BigDecimal max(Deque<BigDecimal> values) {
-    BigDecimal m = null;
-    for (BigDecimal v : values) {
-      if (m == null || v.compareTo(m) > 0) {
-        m = v;
-      }
-    }
-    return m;
-  }
-
-  private static BigDecimal min(Deque<BigDecimal> values) {
-    BigDecimal m = null;
-    for (BigDecimal v : values) {
-      if (m == null || v.compareTo(m) < 0) {
-        m = v;
-      }
-    }
-    return m;
-  }
-
   @Override
   public IndicatorType type() {
     return IndicatorType.STOCHASTIC;
@@ -88,8 +68,8 @@ public class StochasticIndicator implements Indicator {
       }
 
       // Step 2: Compute Raw %K = ((Close - LL_k) / (HH_k - LL_k)) * 100
-      BigDecimal highestHigh = max(highs);
-      BigDecimal lowestLow = min(lows);
+      BigDecimal highestHigh = IndicatorMath.max(highs);
+      BigDecimal lowestLow = IndicatorMath.min(lows);
       BigDecimal range = highestHigh.subtract(lowestLow);
       BigDecimal rawK =
           range.signum() == 0
