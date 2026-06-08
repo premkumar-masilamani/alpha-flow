@@ -232,3 +232,16 @@ The task compiles and scans the code in four parallelizable stages:
 
 ### Transaction Demarcation inside Schedulers
 - Do not wrap high-level background scheduling orchestration methods (e.g., methods in `CoreScheduler`) in programmatic transaction blocks (like `TransactionTemplate`). Instead, leverage method-level transactional demarcation (such as `@Transactional(propagation = Propagation.REQUIRES_NEW)`) inside the service or calculator layers on a per-ticker task basis. This keeps scheduler threads clean, prevents lock contention/overlap, and isolates failures.
+
+### Yahoo Finance Downloader Retry Logic
+- If a query to a ticker fails, wait for the configured delay milliseconds (`yahooFinanceConfig.getDelayMilliseconds()`) and retry exactly once. If it fails again, log the failure and skip to the next ticker rather than throwing an exception that halts the entire sync process.
+
+### Null-Safety on Ticker Latest Date
+- When querying for active tickers, if a ticker has no historical prices recorded in database or mocked states, its `latestSavedDate` may be returned as `null`. Ensure the downloader safely falls back to a base date (e.g., `1899-12-31` so that the starting sync date resolves to `1900-01-01`) before calling date math operations.
+
+### Execution Timing Logging
+- For scheduler steps (like those in `CoreScheduler`), always measure the start and end time of execution and output the duration in the human-readable format: `"x m y s (z ms)"` (e.g. `0 m 5 s (5123 ms)`) to make logs easily readable.
+
+### Centralizing Mathematical Helpers
+- Reuse mathematical operations like finding the minimum and maximum of a collection of values across hand-rolled technical indicators by centralizing them in `IndicatorMath` (e.g., `IndicatorMath.min(Collection<BigDecimal>)` and `IndicatorMath.max(Collection<BigDecimal>)`). Avoid private helper methods in individual indicator implementations.
+
