@@ -37,16 +37,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class IndicatorCalculator {
 
-  private static final Logger log = LoggerFactory.getLogger(IndicatorCalculator.class);
+  private static final Logger logger = LoggerFactory.getLogger(IndicatorCalculator.class);
 
   private final TickerRepository tickerRepository;
-  private final IndicatorRegistry registry;
-  private final IndicatorConfig properties;
+  private final IndicatorRegistry indicatorRegistry;
+  private final IndicatorConfig indicatorConfig;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final IndicatorRepository indicatorRepository;
 
-  @Autowired @Lazy private IndicatorCalculator self;
+  @Autowired @Lazy private IndicatorCalculator indicatorCalculator;
 
   /**
    * Constructs an IndicatorCalculator.
@@ -66,8 +66,8 @@ public class IndicatorCalculator {
       WeeklyPriceRepository weeklyPriceRepository,
       IndicatorRepository indicatorRepository) {
     this.tickerRepository = tickerRepository;
-    this.registry = registry;
-    this.properties = properties;
+    this.indicatorRegistry = registry;
+    this.indicatorConfig = properties;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.indicatorRepository = indicatorRepository;
@@ -75,18 +75,18 @@ public class IndicatorCalculator {
 
   /** Triggers the computation of indicators across all active tickers. */
   public void computeIndicators() {
-    log.info("Starting indicator computation...");
+    logger.info("Starting indicator computation...");
 
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for indicators.", tickers.size());
+    logger.info("Found {} active tickers to process for indicators.", tickers.size());
 
-    IndicatorCalculator proxy = (self != null) ? self : this;
+    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
 
     for (Ticker ticker : tickers) {
       try {
         proxy.processTicker(ticker);
       } catch (Exception e) {
-        log.error(
+        logger.error(
             "Failed to compute indicators for ticker {}: {}",
             ticker.getTickerSymbol(),
             e.getMessage(),
@@ -94,7 +94,7 @@ public class IndicatorCalculator {
       }
     }
 
-    log.info("Indicator computation completed.");
+    logger.info("Indicator computation completed.");
   }
 
   /**
@@ -105,8 +105,8 @@ public class IndicatorCalculator {
   @Transactional
   public void processTicker(Ticker ticker) {
     for (Timeframe timeframe : Timeframe.values()) {
-      List<IndicatorDefinition> definitions = properties.forTimeframe(timeframe);
-      if (definitions.isEmpty()) {
+      List<IndicatorDefinition> IndicatorDefinitions = indicatorConfig.forTimeframe(timeframe);
+      if (IndicatorDefinitions.isEmpty()) {
         continue;
       }
 
@@ -119,13 +119,13 @@ public class IndicatorCalculator {
 
       // Delete all existing indicators for this ticker and timeframe to perform full overwrite
       List<Long> indicatorIds =
-          definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
+          IndicatorDefinitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
       indicatorRepository.deleteByTickerAndIndicatorIds(ticker, indicatorIds, timeframe);
 
       if (timeframe == Timeframe.DAILY) {
         List<DailyIndicator> toInsert = new ArrayList<>();
-        for (IndicatorDefinition definition : definitions) {
-          Indicator indicator = registry.get(definition.getType());
+        for (IndicatorDefinition definition : IndicatorDefinitions) {
+          Indicator indicator = indicatorRegistry.get(definition.getType());
           IndicatorParams params = IndicatorParams.of(definition.getParams());
 
           List<PlotPoint> computed = indicator.compute(bars, params, definition.getSource());
@@ -153,8 +153,8 @@ public class IndicatorCalculator {
         }
       } else {
         List<WeeklyIndicator> toInsert = new ArrayList<>();
-        for (IndicatorDefinition definition : definitions) {
-          Indicator indicator = registry.get(definition.getType());
+        for (IndicatorDefinition definition : IndicatorDefinitions) {
+          Indicator indicator = indicatorRegistry.get(definition.getType());
           IndicatorParams params = IndicatorParams.of(definition.getParams());
 
           List<PlotPoint> computed = indicator.compute(bars, params, definition.getSource());

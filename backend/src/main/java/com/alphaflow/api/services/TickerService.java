@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class TickerService {
 
-  private static final Logger log = LoggerFactory.getLogger(TickerService.class);
+  private static final Logger logger = LoggerFactory.getLogger(TickerService.class);
   private final TickerRepository tickerRepository;
 
   public TickerService(TickerRepository tickerRepository) {
@@ -23,14 +23,14 @@ public class TickerService {
 
   public TickerDTO getTickerBySymbol(String symbol) {
 
-    log.debug("Fetching ticker for symbol: {}", symbol);
+    logger.debug("Fetching ticker for symbol: {}", symbol);
 
     return tickerRepository
         .findByTickerSymbol(symbol)
         .map(TickerMapper::toDTO)
         .orElseThrow(
             () -> {
-              log.warn("Ticker not found for symbol: {}", symbol);
+              logger.warn("Ticker not found for symbol: {}", symbol);
 
               return new ResourceNotFoundException("Ticker not found: " + symbol);
             });

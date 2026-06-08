@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class AnalysisController {
 
-  private static final Logger log = LoggerFactory.getLogger(AnalysisController.class);
+  private static final Logger logger = LoggerFactory.getLogger(AnalysisController.class);
   private final AnalysisService analysisService;
 
   public AnalysisController(AnalysisService analysisService) {
@@ -22,7 +22,7 @@ public class AnalysisController {
 
   @GetMapping("/tickers/{symbol}/analysis")
   public AnalysisResponseDTO getTechnicalAnalysisForTicker(@PathVariable String symbol) {
-    log.info("Request to get technical analysis for ticker: {}", symbol);
+    logger.info("Request to get technical analysis for ticker: {}", symbol);
     return analysisService.getAnalysis(symbol);
   }
 }

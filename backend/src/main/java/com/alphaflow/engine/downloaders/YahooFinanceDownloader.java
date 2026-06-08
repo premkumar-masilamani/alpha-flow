@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class YahooFinanceDownloader {
 
-  private static final Logger log = LoggerFactory.getLogger(YahooFinanceDownloader.class);
+  private static final Logger logger = LoggerFactory.getLogger(YahooFinanceDownloader.class);
   private static final LocalDate DEFAULT_DATE = LocalDate.of(1900, 1, 1);
 
   private final YahooFinanceConfig yahooFinanceConfig;
@@ -40,12 +40,12 @@ public class YahooFinanceDownloader {
   }
 
   public void downloadDailyPrices() {
-    log.info("Starting Yahoo Finance data download process...");
+    logger.info("Starting Yahoo Finance data download process...");
 
     Map<Ticker, LocalDate> latestSavedDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
 
-    log.info("Found {} active Yahoo Finance tickers to sync.", latestSavedDates.size());
+    logger.info("Found {} active Yahoo Finance tickers to sync.", latestSavedDates.size());
 
     List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
     for (int i = 0; i < tickers.size(); i++) {
@@ -58,7 +58,7 @@ public class YahooFinanceDownloader {
       }
     }
 
-    log.info("All Yahoo Finance downloads completed!");
+    logger.info("All Yahoo Finance downloads completed!");
   }
 
   /**
@@ -77,7 +77,7 @@ public class YahooFinanceDownloader {
       return true;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      log.warn("Download process interrupted during delay.");
+      logger.warn("Download process interrupted during delay.");
       return false;
     }
   }
@@ -89,14 +89,14 @@ public class YahooFinanceDownloader {
     long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
 
     if (startTs >= endTs) {
-      log.info(
+      logger.info(
           "Ticker {} is already up to date (last sync: {}).",
           ticker.getTickerSymbol(),
           startDate.minusDays(1));
       return;
     }
 
-    log.info(
+    logger.info(
         "Syncing Yahoo Finance data for {} from {} (timestamp: {}) to start of today (timestamp: {})",
         ticker.getTickerSymbol(),
         startDate,
@@ -122,18 +122,18 @@ public class YahooFinanceDownloader {
 
         if (!newDailyPriceData.isEmpty()) {
           dailyPriceRepository.saveAll(newDailyPriceData);
-          log.info(
+          logger.info(
               "Successfully synced {} rows for {}",
               newDailyPriceData.size(),
               ticker.getTickerSymbol());
         } else {
-          log.info(
+          logger.info(
               "No new data points to save for ticker {} (all downloaded points already exist).",
               ticker.getTickerSymbol());
         }
       }
     } catch (Exception e) {
-      log.error("Failed to download Yahoo Finance data for {}", ticker.getTickerSymbol(), e);
+      logger.error("Failed to download Yahoo Finance data for {}", ticker.getTickerSymbol(), e);
     }
   }
 

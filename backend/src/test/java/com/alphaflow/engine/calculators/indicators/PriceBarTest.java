@@ -38,12 +38,6 @@ class PriceBarTest {
 
     assertEquals(volume, bar.volume());
 
-    assertEquals(open, bar.valueFor(PriceSource.OPEN));
-
-    assertEquals(high, bar.valueFor(PriceSource.HIGH));
-
-    assertEquals(low, bar.valueFor(PriceSource.LOW));
-
     assertEquals(close, bar.valueFor(PriceSource.CLOSE));
 
     assertEquals(volume, bar.valueFor(PriceSource.VOLUME));

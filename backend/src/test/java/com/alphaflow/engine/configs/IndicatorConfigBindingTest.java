@@ -17,13 +17,13 @@ import org.junit.jupiter.api.Test;
 /** Verifies that IndicatorConfig binds timeframes and resolves cached definitions. */
 class IndicatorConfigBindingTest {
 
-  private IndicatorDefinitionRepository repository;
+  private IndicatorDefinitionRepository indicatorDefinitionRepository;
   private IndicatorConfig indicatorConfig;
 
   @BeforeEach
   void setUp() {
-    repository = mock(IndicatorDefinitionRepository.class);
-    indicatorConfig = new IndicatorConfig(repository);
+    indicatorDefinitionRepository = mock(IndicatorDefinitionRepository.class);
+    indicatorConfig = new IndicatorConfig(indicatorDefinitionRepository);
   }
 
   @Test
@@ -44,7 +44,7 @@ class IndicatorConfigBindingTest {
             .params(Map.of("fast", 12, "slow", 26, "signal", 9))
             .build();
 
-    when(repository.findAll()).thenReturn(List.of(ema, macd));
+    when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(ema, macd));
 
     // Manually simulate properties binding
     indicatorConfig.getTimeframes().put(Timeframe.DAILY, List.of(101L));

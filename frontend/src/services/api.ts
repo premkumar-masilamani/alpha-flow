@@ -96,7 +96,7 @@ export const indicatorKey = (i: {type: string; source: string; params: string}):
 
 export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
     const response = await axios.get(`${API_BASE_URL}/indicators`);
-    return response.data.map((config: any) => {
+    return response.data.map((config: IndicatorConfig) => {
         if (config.type === 'RSI') {
             return {
                 ...config,

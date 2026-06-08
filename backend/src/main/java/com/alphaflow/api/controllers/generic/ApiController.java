@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class ApiController implements ErrorController {
 
-  private static final Logger log = LoggerFactory.getLogger(ApiController.class);
+  private static final Logger logger = LoggerFactory.getLogger(ApiController.class);
 
   @RequestMapping("/api")
   public Map<String, Object> index() {
@@ -34,7 +34,7 @@ public class ApiController implements ErrorController {
     Throwable exception = (Throwable) request.getAttribute("jakarta.servlet.error.exception");
     String path = (String) request.getAttribute("jakarta.servlet.error.request_uri");
 
-    log.error(
+    logger.error(
         "Handling error status {} for path {}. Exception: {}",
         status,
         path,

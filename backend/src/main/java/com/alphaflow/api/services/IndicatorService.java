@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class IndicatorService {
 
-  private static final Logger log = LoggerFactory.getLogger(IndicatorService.class);
+  private static final Logger logger = LoggerFactory.getLogger(IndicatorService.class);
 
   private final IndicatorConfig indicatorConfig;
   private final TickerRepository tickerRepository;
@@ -65,10 +65,10 @@ public class IndicatorService {
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(
       String symbol, Timeframe timeframe, int page, int size) {
-    log.debug(
+    logger.debug(
         "Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
-      log.warn("Ticker not found for symbol: {}", symbol);
+      logger.warn("Ticker not found for symbol: {}", symbol);
       throw new ResourceNotFoundException("Ticker not found: " + symbol);
     }
 

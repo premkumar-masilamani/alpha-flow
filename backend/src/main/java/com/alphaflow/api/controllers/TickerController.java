@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class TickerController {
 
-  private static final Logger log = LoggerFactory.getLogger(TickerController.class);
+  private static final Logger logger = LoggerFactory.getLogger(TickerController.class);
 
   private final TickerService tickerService;
 
@@ -24,13 +24,13 @@ public class TickerController {
 
   @GetMapping("/tickers")
   public List<TickerDTO> getAllTickers() {
-    log.info("Request to get all tickers");
+    logger.info("Request to get all tickers");
     return tickerService.getAllTickers();
   }
 
   @GetMapping("/tickers/{symbol}")
   public TickerDTO getTickerBySymbol(@PathVariable String symbol) {
-    log.info("Request to get ticker by symbol: {}", symbol);
+    logger.info("Request to get ticker by symbol: {}", symbol);
     return tickerService.getTickerBySymbol(symbol);
   }
 }

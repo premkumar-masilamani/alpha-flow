@@ -25,11 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class WeeklyPriceCalculator {
 
-  private static final Logger log = LoggerFactory.getLogger(WeeklyPriceCalculator.class);
+  private static final Logger logger = LoggerFactory.getLogger(WeeklyPriceCalculator.class);
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
 
-  @Autowired @Lazy private WeeklyPriceCalculator self;
+  @Autowired @Lazy private WeeklyPriceCalculator weeklyPriceCalculator;
 
   public WeeklyPriceCalculator(
       DailyPriceRepository dailyPriceRepository, WeeklyPriceRepository weeklyPriceRepository) {
@@ -38,13 +38,13 @@ public class WeeklyPriceCalculator {
   }
 
   public void computeWeeklyPrices() {
-    log.info("Starting weekly price computation...");
+    logger.info("Starting weekly price computation...");
 
     Map<Ticker, LocalDate> latestDailyDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
-    log.info("Found {} active tickers to process for weekly prices.", latestDailyDates.size());
+    logger.info("Found {} active tickers to process for weekly prices.", latestDailyDates.size());
 
-    WeeklyPriceCalculator proxy = (self != null) ? self : this;
+    WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
 
     for (Map.Entry<Ticker, LocalDate> entry : latestDailyDates.entrySet()) {
       Ticker ticker = entry.getKey();
@@ -52,7 +52,7 @@ public class WeeklyPriceCalculator {
       try {
         proxy.processTicker(ticker, latestDailyDate);
       } catch (Exception e) {
-        log.error(
+        logger.error(
             "Failed to compute weekly prices for ticker {}: {}",
             ticker.getTickerSymbol(),
             e.getMessage(),
@@ -60,7 +60,7 @@ public class WeeklyPriceCalculator {
       }
     }
 
-    log.info("Weekly price computation completed.");
+    logger.info("Weekly price computation completed.");
   }
 
   @Transactional
@@ -73,20 +73,20 @@ public class WeeklyPriceCalculator {
     if (latestWeeklyOpt.isPresent()) {
       WeeklyPrice latestWeekly = latestWeeklyOpt.get();
       calculationStartDate = latestWeekly.getPriceDate();
-      log.debug(
+      logger.debug(
           "Ticker {}: Starting weekly price computation from latest Monday to overwrite/update: {}",
           ticker.getTickerSymbol(),
           calculationStartDate);
     } else {
       if (latestDailyDate == null || latestDailyDate.equals(LocalDate.of(1900, 1, 1))) {
-        log.warn(
+        logger.warn(
             "Ticker {}: No daily prices found! Skipping weekly price computation.",
             ticker.getTickerSymbol());
         return;
       }
       calculationStartDate =
           latestDailyDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-      log.debug(
+      logger.debug(
           "Ticker {}: No weekly prices found. Starting computation from latest daily price date (aligned to Monday): {}",
           ticker.getTickerSymbol(),
           calculationStartDate);
@@ -98,7 +98,7 @@ public class WeeklyPriceCalculator {
             ticker, calculationStartDate);
 
     if (dailyPrices.isEmpty()) {
-      log.debug(
+      logger.debug(
           "Ticker {}: No new daily prices found since {}.",
           ticker.getTickerSymbol(),
           calculationStartDate);
@@ -159,7 +159,7 @@ public class WeeklyPriceCalculator {
 
     weeklyPriceRepository.saveAll(weeklyPricesToSave);
 
-    log.info(
+    logger.info(
         "Ticker {}: Saved/updated {} weekly prices.",
         ticker.getTickerSymbol(),
         weeklyPricesToSave.size());

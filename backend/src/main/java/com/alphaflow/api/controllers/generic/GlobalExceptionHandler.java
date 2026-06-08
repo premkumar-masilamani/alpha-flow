@@ -14,19 +14,19 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
   @ExceptionHandler(ResourceNotFoundException.class)
   public ResponseEntity<Map<String, Object>> handleNotFound(
       ResourceNotFoundException ex, HttpServletRequest request) {
-    log.warn("Resource not found for path {}: {}", request.getRequestURI(), ex.getMessage());
+    logger.warn("Resource not found for path {}: {}", request.getRequestURI(), ex.getMessage());
     return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, Object>> handleBadRequest(
       IllegalArgumentException ex, HttpServletRequest request) {
-    log.warn("Bad request for path {}: {}", request.getRequestURI(), ex.getMessage());
+    logger.warn("Bad request for path {}: {}", request.getRequestURI(), ex.getMessage());
     return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
   }
 

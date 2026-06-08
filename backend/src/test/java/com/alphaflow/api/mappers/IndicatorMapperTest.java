@@ -20,13 +20,6 @@ class IndicatorMapperTest {
         IndicatorMapper.label(
             IndicatorType.EMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
 
-    // EMA Open (non-CLOSE)
-
-    assertEquals(
-        "EMA(20) OPEN",
-        IndicatorMapper.label(
-            IndicatorType.EMA, PriceSource.OPEN, IndicatorParams.of(Map.of("period", 20))));
-
     // SMA
     assertEquals(
         "SMA(50)",

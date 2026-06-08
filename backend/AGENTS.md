@@ -57,7 +57,8 @@ The backend is structured under the `com.alphaflow` package:
 
 ### Spring Boot & Java Style
 
-- **Dependency Injection**: Prefer constructor-based injection (manual constructors or Lombok `@RequiredArgsConstructor`) over field-level `@Autowired` (field injection should be avoided unless required for specific self-proxy cyclic resolution like `@Autowired @Lazy private AnalysisService self;`).
+- **Dependency Injection**: Prefer constructor-based injection (manual constructors or Lombok `@RequiredArgsConstructor`) over field-level `@Autowired` (field injection should be avoided unless required for specific self-proxy cyclic resolution like `@Autowired @Lazy private AnalysisService analysisService;`).
+- **Variable Naming**: In all Java classes, member variables should have the same name as their class type with the first character in lower camelCase (e.g. `logger` for type `Logger`, `analysisService` for type `AnalysisService`). All other variables (like local variables, method parameters) must use human-readable names.
 - **Boilerplate Reduction**: Use Lombok annotations (`@Getter`, `@Setter`, `@NoArgsConstructor`, `@AllArgsConstructor`, `@Builder`, etc.) on Entities, DTOs, and configs.
 - **Global Error Handling**: Centralized in `@RestControllerAdvice` under `com.alphaflow.api.controllers.generic.GlobalExceptionHandler`.
 

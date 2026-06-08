@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class DailyPriceService {
 
-  private static final Logger log = LoggerFactory.getLogger(DailyPriceService.class);
+  private static final Logger logger = LoggerFactory.getLogger(DailyPriceService.class);
 
   private final DailyPriceRepository dailyPriceRepository;
   private final TickerRepository tickerRepository;
@@ -30,11 +30,11 @@ public class DailyPriceService {
   }
 
   public List<OhlcvDTO> getDailyPriceByTickerName(String tickerName, int page, int size) {
-    log.debug(
+    logger.debug(
         "Fetching daily candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     // Match the case-insensitive lookup used by findLatestByTickerName below.
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
-      log.warn("Ticker not found for symbol: {}", tickerName);
+      logger.warn("Ticker not found for symbol: {}", tickerName);
       throw new ResourceNotFoundException("Ticker not found: " + tickerName);
     }
     return dailyPriceRepository
