@@ -109,6 +109,7 @@ const evaluateCandlestickPattern = (
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [dailyCandleData, setDailyCandleData] = useState<DailyCandleData[]>([]);
   const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(
     null,
   );
