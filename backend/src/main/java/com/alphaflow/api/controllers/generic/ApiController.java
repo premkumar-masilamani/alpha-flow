@@ -22,8 +22,8 @@ public class ApiController implements ErrorController {
     return Map.of(
         "name", "Alpha Flow Application",
         "version", "0.1.0",
-        "docs", "/swagger-ui/index.html",
-        "openapi", "/v3/api-docs");
+        "docs", "/api/swagger-ui/index.html",
+        "openapi", "/api/v3/api-docs");
   }
 
   @RequestMapping("/error")

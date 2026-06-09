@@ -254,7 +254,7 @@ class ASTAStrategyTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    astaStrategy.doTechnicalAnalysis();
+    astaStrategy.computeTechnicalAnalysis();
 
     // Verify that only T2 was successfully saved
     verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));

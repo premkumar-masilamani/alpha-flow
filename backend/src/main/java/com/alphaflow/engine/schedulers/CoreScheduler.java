@@ -92,7 +92,7 @@ public class CoreScheduler {
 
       log.info("Step 4/4: ASTA technical analysis...");
       start = System.currentTimeMillis();
-      astaStrategy.doTechnicalAnalysis();
+      astaStrategy.computeTechnicalAnalysis();
       log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(

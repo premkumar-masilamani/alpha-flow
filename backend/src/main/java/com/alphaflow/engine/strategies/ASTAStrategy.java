@@ -48,7 +48,7 @@ public class ASTAStrategy {
   }
 
   /** Scheduled update step. Run this after indicator calculation. */
-  public void doTechnicalAnalysis() {
+  public void computeTechnicalAnalysis() {
     log.info("Starting Technical Analysis computation for all active tickers...");
     List<Ticker> activeTickers =
         tickerRepository.findAll().stream().filter(Ticker::isActive).toList();
