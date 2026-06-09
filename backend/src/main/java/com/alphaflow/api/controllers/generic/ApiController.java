@@ -4,6 +4,7 @@ import static java.util.Optional.ofNullable;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.valueOf;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Map;
@@ -15,9 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Slf4j
+@Hidden
 public class ApiController implements ErrorController {
 
-  @RequestMapping("/api")
+  @RequestMapping("/")
   public Map<String, Object> index() {
     return Map.of(
         "name", "Alpha Flow Application",

@@ -3,6 +3,8 @@ package com.alphaflow.engine.indicators;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.enums.IndicatorParamKey;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -25,9 +27,9 @@ public class StochasticIndicator implements Indicator {
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     // 1. Setup and parameter retrieval
-    int k = params.getInt("k");
-    int kSmooth = params.getInt("kSmooth");
-    int dSmooth = params.getInt("dSmooth");
+    int k = params.getInt(IndicatorParamKey.K);
+    int kSmooth = params.getInt(IndicatorParamKey.K_SMOOTH);
+    int dSmooth = params.getInt(IndicatorParamKey.D_SMOOTH);
     if (k < 1) {
       throw new IllegalArgumentException("Stochastic k must be >= 1. Provided: " + k);
     }
@@ -89,7 +91,7 @@ public class StochasticIndicator implements Indicator {
 
       BigDecimal kValue = IndicatorMath.average(new ArrayList<>(rawKWindow));
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
-      barValues.put("k", IndicatorMath.publish(kValue));
+      barValues.put(IndicatorOutputKey.K.getValue(), IndicatorMath.publish(kValue));
 
       // Step 4: Compute Slow %D (Output `d`) using simple averaging of kWindow
       kWindow.addLast(kValue);
@@ -98,7 +100,7 @@ public class StochasticIndicator implements Indicator {
       }
       if (kWindow.size() == dSmooth) {
         BigDecimal dValue = IndicatorMath.average(new ArrayList<>(kWindow));
-        barValues.put("d", IndicatorMath.publish(dValue));
+        barValues.put(IndicatorOutputKey.D.getValue(), IndicatorMath.publish(dValue));
       }
       // Step 5: Save published output mapped to bar date
       values.put(bar.date(), barValues);

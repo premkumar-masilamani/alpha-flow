@@ -68,4 +68,14 @@ class IndicatorParamsTest {
 
     assertEquals(20, params.getInt("nonexistent", 20));
   }
+
+  @Test
+  void testGetIntWithEnum() {
+    IndicatorParams params = IndicatorParams.of(Map.of("period", 14));
+    assertEquals(14, params.getInt(com.alphaflow.persistence.enums.IndicatorParamKey.PERIOD));
+    assertEquals(20, params.getInt(com.alphaflow.persistence.enums.IndicatorParamKey.FAST, 20));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> params.getInt(com.alphaflow.persistence.enums.IndicatorParamKey.SLOW));
+  }
 }

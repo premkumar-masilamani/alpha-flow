@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.AnalysisResponseDTO;
-import com.alphaflow.api.services.AnalysisService;
+import com.alphaflow.engine.strategies.ASTAStrategy;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
@@ -15,7 +15,7 @@ class AnalysisControllerTest {
   @Test
   void testGetTechnicalAnalysisForTicker() {
 
-    AnalysisService service = mock(AnalysisService.class);
+    ASTAStrategy strategy = mock(ASTAStrategy.class);
 
     AnalysisResponseDTO mockResponse =
         AnalysisResponseDTO.builder()
@@ -34,9 +34,9 @@ class AnalysisControllerTest {
             .overallSignal("BUY")
             .build();
 
-    when(service.getAnalysis("AAPL")).thenReturn(mockResponse);
+    when(strategy.getAnalysis("AAPL")).thenReturn(mockResponse);
 
-    AnalysisController controller = new AnalysisController(service);
+    AnalysisController controller = new AnalysisController(strategy);
 
     AnalysisResponseDTO result = controller.getTechnicalAnalysisForTicker("AAPL");
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, Fragment } from "react";
+import axios from "axios";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Chart from "./components/Chart";
@@ -113,6 +114,7 @@ function App() {
   const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(
     null,
   );
+  const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Timeframe and Indicators
@@ -218,6 +220,7 @@ function App() {
       if (selectedTicker) {
         setLoading(true);
         setAnalysisData(null);
+        setAnalysisError(null);
         setDailyCandleData([]);
         
         // Fetch daily candle data independently
@@ -243,6 +246,8 @@ function App() {
           console.error("Failed to fetch technical analysis data:", error);
           if (active) {
             setAnalysisData(null);
+            const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+            setAnalysisError(status === 404 ? "stale" : "server");
           }
         }
         if (active) {
@@ -386,6 +391,38 @@ function App() {
   };
 
   const renderOverview = (sortedDataDesc: DailyCandleData[]) => {
+    if (analysisError === "stale") {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
+          <div className="max-w-md p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-xl space-y-4">
+            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-400">
+              <Info size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-white">Analysis Not Yet Complete</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Technical analysis has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>. The daily and weekly scheduled update pipelines must run first to complete this.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (analysisError === "server") {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
+          <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
+            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-rose-500/10 text-rose-400">
+              <Info size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-white">Service Unavailable</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Could not reach the analysis service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>. Please check that the backend is running and try again.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     if (sortedDataDesc.length === 0 || !analysisData) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
