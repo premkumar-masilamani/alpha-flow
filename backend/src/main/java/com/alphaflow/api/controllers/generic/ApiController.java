@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 public class ApiController implements ErrorController {
 
-  @RequestMapping("/api")
+  @RequestMapping("/")
   public Map<String, Object> index() {
     return Map.of(
         "name", "Alpha Flow Application",
         "version", "0.1.0",
-        "docs", "/api/swagger-ui/index.html",
-        "openapi", "/api/v3/api-docs");
+        "docs", "/swagger-ui/index.html",
+        "openapi", "/v3/api-docs");
   }
 
   @RequestMapping("/error")
