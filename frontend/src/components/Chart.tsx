@@ -5,7 +5,8 @@ import type {
     ISeriesPrimitive,
     IPrimitivePaneView,
     IPrimitivePaneRenderer,
-    LogicalRange
+    LogicalRange,
+    Logical
 } from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
 import { INDICATOR_COLORS } from '../config/indicatorColors';
@@ -392,8 +393,8 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             const addedCount = sortedData.length - prevDataLengthRef.current;
             if (addedCount > 0) {
                 visibleLogicalRangeRef.current = {
-                    from: visibleLogicalRangeRef.current.from + addedCount,
-                    to: visibleLogicalRangeRef.current.to + addedCount,
+                    from: (visibleLogicalRangeRef.current.from + addedCount) as Logical,
+                    to: (visibleLogicalRangeRef.current.to + addedCount) as Logical,
                 };
             }
         }
@@ -455,8 +456,8 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
         const targetRange = {
-            from: sortedData.length - 250,
-            to: sortedData.length - 1 + 10,
+            from: (sortedData.length - 250) as Logical,
+            to: (sortedData.length - 1 + 10) as Logical,
         };
         requestAnimationFrame(() => {
             chartRef.current?.timeScale().setVisibleLogicalRange(targetRange);
