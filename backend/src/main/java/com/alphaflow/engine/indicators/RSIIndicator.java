@@ -3,6 +3,8 @@ package com.alphaflow.engine.indicators;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.enums.IndicatorParamKey;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -27,7 +29,7 @@ public class RSIIndicator implements Indicator {
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     // 1. Setup and parameter retrieval
-    int period = params.getInt("period");
+    int period = params.getInt(IndicatorParamKey.PERIOD);
     if (period < 1) {
       throw new IllegalArgumentException("RSI period must be >= 1. Provided: " + period);
     }
@@ -66,13 +68,14 @@ public class RSIIndicator implements Indicator {
           avgGain = IndicatorMath.average(seedGains);
           avgLoss = IndicatorMath.average(seedLosses);
           seeded = true;
-          values.put(bar.date(), Map.of("value", rsi(avgGain, avgLoss)));
+          values.put(
+              bar.date(), Map.of(IndicatorOutputKey.VALUE.getValue(), rsi(avgGain, avgLoss)));
         }
       } else {
         // 4. Wilder's smoothing stage: apply exponential smoothing to subsequent deltas
         avgGain = wilder(avgGain, gain, periodBd);
         avgLoss = wilder(avgLoss, loss, periodBd);
-        values.put(bar.date(), Map.of("value", rsi(avgGain, avgLoss)));
+        values.put(bar.date(), Map.of(IndicatorOutputKey.VALUE.getValue(), rsi(avgGain, avgLoss)));
       }
       prevValue = value;
     }

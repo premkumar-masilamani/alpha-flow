@@ -4,6 +4,8 @@ import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.EMAAccumulator;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.enums.IndicatorParamKey;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -29,9 +31,9 @@ public class MACDIndicator implements Indicator {
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     // 1. Setup and parameter retrieval
-    int fastPeriod = params.getInt("fast");
-    int slowPeriod = params.getInt("slow");
-    int signalPeriod = params.getInt("signal", 9);
+    int fastPeriod = params.getInt(IndicatorParamKey.FAST);
+    int slowPeriod = params.getInt(IndicatorParamKey.SLOW);
+    int signalPeriod = params.getInt(IndicatorParamKey.SIGNAL, 9);
 
     log.debug(
         "Computing MACD indicator for {} bars, fast={}, slow={}, signal={}, source={}",
@@ -63,7 +65,7 @@ public class MACDIndicator implements Indicator {
       // 3. Calculate MACD Line = Fast EMA - Slow EMA (calculated at 12 decimals internal scale)
       BigDecimal macd = IndicatorMath.internal(fast.current().subtract(slow.current()));
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
-      barValues.put("macd", IndicatorMath.publish(macd));
+      barValues.put(IndicatorOutputKey.MACD.getValue(), IndicatorMath.publish(macd));
 
       // Feed MACD line value into the signal EMA accumulator
       Optional<BigDecimal> signalEma = signal.next(macd);
@@ -71,11 +73,11 @@ public class MACDIndicator implements Indicator {
       // 4. Seeding stage for signal EMA: wait until signal EMA is seeded
       if (signalEma.isPresent()) {
         BigDecimal signalVal = signalEma.get();
-        barValues.put("signal", IndicatorMath.publish(signalVal));
+        barValues.put(IndicatorOutputKey.SIGNAL.getValue(), IndicatorMath.publish(signalVal));
 
         // Calculate Histogram = MACD Line - Signal Line
         BigDecimal histogram = IndicatorMath.internal(macd.subtract(signalVal));
-        barValues.put("histogram", IndicatorMath.publish(histogram));
+        barValues.put(IndicatorOutputKey.HISTOGRAM.getValue(), IndicatorMath.publish(histogram));
       }
       values.put(bar.date(), barValues);
     }

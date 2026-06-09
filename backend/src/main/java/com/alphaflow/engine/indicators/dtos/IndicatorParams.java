@@ -1,5 +1,6 @@
 package com.alphaflow.engine.indicators.dtos;
 
+import com.alphaflow.persistence.enums.IndicatorParamKey;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.Getter;
@@ -60,9 +61,19 @@ public final class IndicatorParams {
     return v;
   }
 
+  /** Required integer param by enum key; throws if absent. */
+  public int getInt(IndicatorParamKey key) {
+    return getInt(key.getValue());
+  }
+
   /** Optional integer param with a fallback default. */
   public int getInt(String name, int defaultValue) {
     return values.getOrDefault(name, defaultValue);
+  }
+
+  /** Optional integer param by enum key with a fallback default. */
+  public int getInt(IndicatorParamKey key, int defaultValue) {
+    return getInt(key.getValue(), defaultValue);
   }
 
   /** The stable canonical string used for storage and as part of the natural key. */

@@ -8,6 +8,7 @@ import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.api.services.IndicatorService;
 import com.alphaflow.persistence.entities.AnalysisResult;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.IndicatorOutputKey;
 import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.AnalysisResultRepository;
@@ -62,52 +63,6 @@ public class ASTAStrategy {
       }
     }
     log.info("Technical Analysis computation finished.");
-  }
-
-  @Transactional(readOnly = true)
-  public AnalysisResponseDTO getAnalysis(String symbol) {
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbolIgnoreCase(symbol)
-            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
-
-    List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
-    if (latestCandles.isEmpty()) {
-      throw new ResourceNotFoundException("No daily price data found for symbol: " + symbol);
-    }
-    LocalDate latestPriceDate = latestCandles.getFirst().priceDate();
-
-    AnalysisResult res =
-        analysisResultRepository
-            .findByTicker(ticker)
-            .orElseThrow(
-                () ->
-                    new ResourceNotFoundException(
-                        "Analysis result not found or stale for symbol: " + symbol));
-
-    if (res.getPriceDate().isBefore(latestPriceDate)) {
-      throw new ResourceNotFoundException("Analysis result is stale for symbol: " + symbol);
-    }
-
-    return toDTO(res, symbol);
-  }
-
-  private AnalysisResponseDTO toDTO(AnalysisResult res, String symbol) {
-    return AnalysisResponseDTO.builder()
-        .symbol(symbol)
-        .priceDate(res.getPriceDate())
-        .emaSignal(res.getEmaSignal())
-        .emaValue(res.getEmaValue())
-        .macdSignal(res.getMacdSignal())
-        .macdValue(res.getMacdValue())
-        .stochasticSignal(res.getStochasticSignal())
-        .stochasticValue(res.getStochasticValue())
-        .rsiSignal(res.getRsiSignal())
-        .rsiValue(res.getRsiValue())
-        .volumeSignal(res.getVolumeSignal())
-        .volumeValue(res.getVolumeValue())
-        .overallSignal(res.getOverallSignal())
-        .build();
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -191,10 +146,10 @@ public class ASTAStrategy {
     IndicatorPointDTO latest = points.getLast();
     IndicatorPointDTO prev = points.get(points.size() - 2);
 
-    BigDecimal macd0 = latest.values().get("macd");
-    BigDecimal sig0 = latest.values().get("signal");
-    BigDecimal macd1 = prev.values().get("macd");
-    BigDecimal sig1 = prev.values().get("signal");
+    BigDecimal macd0 = latest.getValue(IndicatorOutputKey.MACD);
+    BigDecimal sig0 = latest.getValue(IndicatorOutputKey.SIGNAL);
+    BigDecimal macd1 = prev.getValue(IndicatorOutputKey.MACD);
+    BigDecimal sig1 = prev.getValue(IndicatorOutputKey.SIGNAL);
 
     if (macd0 == null || sig0 == null || macd1 == null || sig1 == null) {
       return new CalculatedSignal("HOLD", "Missing MACD/Signal values");
@@ -234,10 +189,10 @@ public class ASTAStrategy {
     IndicatorPointDTO latest = points.getLast();
     IndicatorPointDTO prev = points.get(points.size() - 2);
 
-    BigDecimal k0 = latest.values().get("k");
-    BigDecimal d0 = latest.values().get("d");
-    BigDecimal k1 = prev.values().get("k");
-    BigDecimal d1 = prev.values().get("d");
+    BigDecimal k0 = latest.getValue(IndicatorOutputKey.K);
+    BigDecimal d0 = latest.getValue(IndicatorOutputKey.D);
+    BigDecimal k1 = prev.getValue(IndicatorOutputKey.K);
+    BigDecimal d1 = prev.getValue(IndicatorOutputKey.D);
 
     if (k0 == null || d0 == null || k1 == null || d1 == null) {
       return new CalculatedSignal("HOLD", "Missing Stoch K/D values");
@@ -271,8 +226,8 @@ public class ASTAStrategy {
     IndicatorPointDTO latest = points.getLast();
     IndicatorPointDTO prev = points.get(points.size() - 2);
 
-    BigDecimal rsi0 = latest.values().get("value");
-    BigDecimal rsi1 = prev.values().get("value");
+    BigDecimal rsi0 = latest.getValue(IndicatorOutputKey.VALUE);
+    BigDecimal rsi1 = prev.getValue(IndicatorOutputKey.VALUE);
 
     if (rsi0 == null || rsi1 == null) {
       return new CalculatedSignal("HOLD", "Missing RSI values");
@@ -309,7 +264,7 @@ public class ASTAStrategy {
 
     List<IndicatorPointDTO> smaPoints = volSmaOpt.get().points();
     IndicatorPointDTO latestSma = smaPoints.getLast();
-    BigDecimal volSmaValue = latestSma.values().get("value");
+    BigDecimal volSmaValue = latestSma.getValue(IndicatorOutputKey.VALUE);
 
     if (volSmaValue == null) {
       return new CalculatedSignal("HOLD", "Missing volume SMA value");
@@ -364,14 +319,14 @@ public class ASTAStrategy {
     List<IndicatorPointDTO> points13 = ema13Opt.get().points();
     List<IndicatorPointDTO> points26 = ema26Opt.get().points();
 
-    BigDecimal e5_0 = points5.getLast().values().get("value");
-    BigDecimal e5_1 = points5.get(points5.size() - 2).values().get("value");
+    BigDecimal e5_0 = points5.getLast().getValue(IndicatorOutputKey.VALUE);
+    BigDecimal e5_1 = points5.get(points5.size() - 2).getValue(IndicatorOutputKey.VALUE);
 
-    BigDecimal e13_0 = points13.getLast().values().get("value");
-    BigDecimal e13_1 = points13.get(points13.size() - 2).values().get("value");
+    BigDecimal e13_0 = points13.getLast().getValue(IndicatorOutputKey.VALUE);
+    BigDecimal e13_1 = points13.get(points13.size() - 2).getValue(IndicatorOutputKey.VALUE);
 
-    BigDecimal e26_0 = points26.getLast().values().get("value");
-    BigDecimal e26_1 = points26.get(points26.size() - 2).values().get("value");
+    BigDecimal e26_0 = points26.getLast().getValue(IndicatorOutputKey.VALUE);
+    BigDecimal e26_1 = points26.get(points26.size() - 2).getValue(IndicatorOutputKey.VALUE);
 
     if (e5_0 == null
         || e5_1 == null
@@ -410,6 +365,52 @@ public class ASTAStrategy {
     } else {
       return new CalculatedSignal("HOLD", "Mixed EMAs");
     }
+  }
+
+  @Transactional(readOnly = true)
+  public AnalysisResponseDTO getAnalysis(String symbol) {
+    Ticker ticker =
+        tickerRepository
+            .findByTickerSymbolIgnoreCase(symbol)
+            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+
+    List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
+    if (latestCandles.isEmpty()) {
+      throw new ResourceNotFoundException("No daily price data found for symbol: " + symbol);
+    }
+    LocalDate latestPriceDate = latestCandles.getFirst().priceDate();
+
+    AnalysisResult res =
+        analysisResultRepository
+            .findByTicker(ticker)
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "Analysis result not found or stale for symbol: " + symbol));
+
+    if (res.getPriceDate().isBefore(latestPriceDate)) {
+      throw new ResourceNotFoundException("Analysis result is stale for symbol: " + symbol);
+    }
+
+    return toDTO(res, symbol);
+  }
+
+  private AnalysisResponseDTO toDTO(AnalysisResult res, String symbol) {
+    return AnalysisResponseDTO.builder()
+        .symbol(symbol)
+        .priceDate(res.getPriceDate())
+        .emaSignal(res.getEmaSignal())
+        .emaValue(res.getEmaValue())
+        .macdSignal(res.getMacdSignal())
+        .macdValue(res.getMacdValue())
+        .stochasticSignal(res.getStochasticSignal())
+        .stochasticValue(res.getStochasticValue())
+        .rsiSignal(res.getRsiSignal())
+        .rsiValue(res.getRsiValue())
+        .volumeSignal(res.getVolumeSignal())
+        .volumeValue(res.getVolumeValue())
+        .overallSignal(res.getOverallSignal())
+        .build();
   }
 
   private record CalculatedSignal(String signal, String value) {}
