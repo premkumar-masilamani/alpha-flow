@@ -6,8 +6,8 @@ import com.alphaflow.api.mappers.IndicatorMapper;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
+import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Timeframe;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -62,19 +62,25 @@ public class IndicatorService {
   }
 
   public List<IndicatorSeriesDTO> getIndicatorSeries(
-      String symbol, Timeframe timeframe, int page, int size) {
+      Ticker ticker, Timeframe timeframe, int page, int size) {
+    return getIndicatorSeries(ticker, timeframe, LocalDate.now(), page, size);
+  }
+
+  public List<IndicatorSeriesDTO> getIndicatorSeries(
+      Ticker ticker, Timeframe timeframe, LocalDate endDate, int page, int size) {
     log.debug(
-        "Fetching {} indicators for ticker: {} (page={}, size={})", timeframe, symbol, page, size);
-    if (!tickerRepository.existsByTickerSymbolIgnoreCase(symbol)) {
-      log.warn("Ticker not found for symbol: {}", symbol);
-      throw new ResourceNotFoundException("Ticker not found: " + symbol);
-    }
+        "Fetching {} indicators for ticker: {} up to {} (page={}, size={})",
+        timeframe,
+        ticker.getTickerSymbol(),
+        endDate,
+        page,
+        size);
 
     PageRequest pageRequest = PageRequest.of(page, size);
     List<LocalDate> pageDates =
         timeframe == Timeframe.WEEKLY
-            ? weeklyPriceRepository.findRecentPriceDates(symbol, pageRequest)
-            : dailyPriceRepository.findRecentPriceDates(symbol, pageRequest);
+            ? weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest)
+            : dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
 
     if (pageDates.isEmpty()) {
       return List.of();
@@ -94,8 +100,8 @@ public class IndicatorService {
 
     List<? extends Indicator> rows =
         timeframe == Timeframe.DAILY
-            ? dailyIndicatorRepository.findSeriesBetween(symbol, indicatorIds, start, end)
-            : weeklyIndicatorRepository.findSeriesBetween(symbol, indicatorIds, start, end);
+            ? dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end)
+            : weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
     return IndicatorMapper.toSeries(rows);
   }
 }

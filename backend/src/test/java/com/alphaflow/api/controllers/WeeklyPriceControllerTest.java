@@ -35,6 +35,6 @@ class WeeklyPriceControllerTest {
 
     assertEquals(1, res.size());
 
-    assertEquals(LocalDate.of(2026, 5, 29), res.get(0).priceDate());
+    assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
   }
 }

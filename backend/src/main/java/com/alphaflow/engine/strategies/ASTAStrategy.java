@@ -1,23 +1,37 @@
 package com.alphaflow.engine.strategies;
 
-import com.alphaflow.api.dtos.AnalysisResponseDTO;
-import com.alphaflow.api.dtos.IndicatorPointDTO;
+import com.alphaflow.api.dtos.ASTAResponseDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.dtos.OhlcvDTO;
-import com.alphaflow.api.services.DailyPriceService;
-import com.alphaflow.api.services.IndicatorService;
-import com.alphaflow.persistence.entities.AnalysisResult;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext;
+import com.alphaflow.engine.strategies.evaluators.CalculatedSignal;
+import com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator;
+import com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator;
+import com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator;
+import com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator;
+import com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator;
+import com.alphaflow.persistence.entities.ASTAResults;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.enums.Timeframe;
+import com.alphaflow.persistence.enums.TradeAction;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.AnalysisResultRepository;
+import com.alphaflow.persistence.repositories.ASTAResultsRepository;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -29,34 +43,68 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class ASTAStrategy {
 
-  private final DailyPriceService dailyPriceService;
-  private final IndicatorService indicatorService;
+  private static final int HISTORY_WINDOW = 5;
+
   private final TickerRepository tickerRepository;
-  private final AnalysisResultRepository analysisResultRepository;
+  private final ASTAResultsRepository astaResultsRepository;
+  private final DailyPriceRepository dailyPriceRepository;
+  private final DailyIndicatorRepository dailyIndicatorRepository;
+  private final WeeklyIndicatorRepository weeklyIndicatorRepository;
+  private final IndicatorConfig indicatorConfig;
+
+  private final WeeklyMacdEvaluator weeklyMacdEvaluator;
+  private final DailyStochasticEvaluator dailyStochasticEvaluator;
+  private final DailyRsiEvaluator dailyRsiEvaluator;
+  private final DailyVolumeEvaluator dailyVolumeEvaluator;
+  private final DailyEmaEvaluator dailyEmaEvaluator;
 
   @Autowired @Lazy private ASTAStrategy astaStrategy;
 
   public ASTAStrategy(
-      DailyPriceService dailyPriceService,
-      IndicatorService indicatorService,
       TickerRepository tickerRepository,
-      AnalysisResultRepository analysisResultRepository) {
-    this.dailyPriceService = dailyPriceService;
-    this.indicatorService = indicatorService;
+      ASTAResultsRepository astaResultsRepository,
+      DailyPriceRepository dailyPriceRepository,
+      DailyIndicatorRepository dailyIndicatorRepository,
+      WeeklyIndicatorRepository weeklyIndicatorRepository,
+      IndicatorConfig indicatorConfig,
+      WeeklyMacdEvaluator weeklyMacdEvaluator,
+      DailyStochasticEvaluator dailyStochasticEvaluator,
+      DailyRsiEvaluator dailyRsiEvaluator,
+      DailyVolumeEvaluator dailyVolumeEvaluator,
+      DailyEmaEvaluator dailyEmaEvaluator) {
     this.tickerRepository = tickerRepository;
-    this.analysisResultRepository = analysisResultRepository;
+    this.astaResultsRepository = astaResultsRepository;
+    this.dailyPriceRepository = dailyPriceRepository;
+    this.dailyIndicatorRepository = dailyIndicatorRepository;
+    this.weeklyIndicatorRepository = weeklyIndicatorRepository;
+    this.indicatorConfig = indicatorConfig;
+    this.weeklyMacdEvaluator = weeklyMacdEvaluator;
+    this.dailyStochasticEvaluator = dailyStochasticEvaluator;
+    this.dailyRsiEvaluator = dailyRsiEvaluator;
+    this.dailyVolumeEvaluator = dailyVolumeEvaluator;
+    this.dailyEmaEvaluator = dailyEmaEvaluator;
   }
 
   /** Scheduled update step. Run this after indicator calculation. */
   public void computeTechnicalAnalysis() {
     log.info("Starting Technical Analysis computation for all active tickers...");
-    List<Ticker> activeTickers =
-        tickerRepository.findAll().stream().filter(Ticker::isActive).toList();
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
 
     ASTAStrategy proxy = (astaStrategy != null) ? astaStrategy : this;
     for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeAndPersist(ticker);
+        Optional<LocalDate> earliestMissingDateOpt =
+            dailyPriceRepository.findEarliestDateMissingAnalysis(ticker);
+        if (earliestMissingDateOpt.isPresent()) {
+          LocalDate earliestMissingDate = earliestMissingDateOpt.get();
+          log.info(
+              "Ticker {} earliest missing analysis date: {}",
+              ticker.getTickerSymbol(),
+              earliestMissingDate);
+          proxy.processTicker(ticker, earliestMissingDate);
+        } else {
+          log.info("Ticker {} has no missing analysis dates.", ticker.getTickerSymbol());
+        }
       } catch (Exception e) {
         log.error(
             "Failed to compute technical analysis for ticker: {}", ticker.getTickerSymbol(), e);
@@ -66,323 +114,177 @@ public class ASTAStrategy {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public AnalysisResult computeAndPersist(Ticker ticker) {
-    String symbol = ticker.getTickerSymbol();
+  public List<ASTAResults> processTicker(Ticker ticker, LocalDate earliestMissingDate) {
+    LocalDate startDate = earliestMissingDate.minusDays(HISTORY_WINDOW);
 
-    // Fetch Daily candles (OhlcvDTOs are ordered oldest to newest)
-    List<OhlcvDTO> dailyCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 50);
-
-    // Fetch Indicators
-    List<IndicatorSeriesDTO> dailyIndicators =
-        indicatorService.getIndicatorSeries(symbol, Timeframe.DAILY, 0, 50);
-    List<IndicatorSeriesDTO> weeklyIndicators =
-        indicatorService.getIndicatorSeries(symbol, Timeframe.WEEKLY, 0, 10);
-
-    // Date reference for this analysis
-    LocalDate priceDate =
-        dailyCandles.isEmpty() ? LocalDate.now() : dailyCandles.getLast().priceDate();
-
-    // 1. MACD (12, 26) @ TIDE (Weekly)
-    CalculatedSignal macd = evaluateWeeklyMacd(weeklyIndicators);
-
-    // 2. Stochastic (14, 3, 3) @ WAVE (Daily)
-    CalculatedSignal stoch = evaluateDailyStochastic(dailyIndicators);
-
-    // 3. RSI (14) @ WAVE (Daily)
-    CalculatedSignal rsi = evaluateDailyRsi(dailyIndicators);
-
-    // 4. Volume (Daily)
-    CalculatedSignal volume = evaluateVolume(dailyCandles, dailyIndicators);
-
-    // 5. Moving Average EMA (Daily)
-    CalculatedSignal ema = evaluateEma(dailyIndicators);
-
-    // Overall consensus
-    boolean doubleScreenBuy =
-        "BUY".equals(macd.signal) && "BUY".equals(stoch.signal) && "BUY".equals(rsi.signal);
-    boolean doubleScreenSell =
-        "SELL".equals(macd.signal) && "SELL".equals(stoch.signal) && "SELL".equals(rsi.signal);
-
-    boolean checklistBuy = "BUY".equals(volume.signal) && "BUY".equals(ema.signal);
-    boolean checklistSell = "SELL".equals(volume.signal) && "SELL".equals(ema.signal);
-
-    String overallSignal = "HOLD";
-    if (doubleScreenBuy && checklistBuy) {
-      overallSignal = "BUY";
-    } else if (doubleScreenSell && checklistSell) {
-      overallSignal = "SELL";
+    // 1. Fetch Daily Prices
+    List<DailyPrice> allDailyPrices =
+        dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+            ticker, startDate);
+    if (allDailyPrices.isEmpty()) {
+      return List.of();
     }
 
-    AnalysisResult result =
-        analysisResultRepository
-            .findByTicker(ticker)
-            .orElseGet(() -> AnalysisResult.builder().ticker(ticker).build());
+    // Filter to get the list of dates we actually want to compute analysis results for (dates >=
+    // earliestMissingDate)
+    List<LocalDate> missingDates =
+        allDailyPrices.stream()
+            .map(DailyPrice::getPriceDate)
+            .filter(d -> !d.isBefore(earliestMissingDate))
+            .toList();
 
-    result.setPriceDate(priceDate);
-    result.setEmaSignal(ema.signal);
-    result.setEmaValue(ema.value);
-    result.setMacdSignal(macd.signal);
-    result.setMacdValue(macd.value);
-    result.setStochasticSignal(stoch.signal);
-    result.setStochasticValue(stoch.value);
-    result.setRsiSignal(rsi.signal);
-    result.setRsiValue(rsi.value);
-    result.setVolumeSignal(volume.signal);
-    result.setVolumeValue(volume.value);
-    result.setOverallSignal(overallSignal);
-
-    return analysisResultRepository.save(result);
-  }
-
-  private CalculatedSignal evaluateWeeklyMacd(List<IndicatorSeriesDTO> weeklyIndicators) {
-    Optional<IndicatorSeriesDTO> macdSeriesOpt =
-        weeklyIndicators.stream().filter(s -> "MACD".equalsIgnoreCase(s.type())).findFirst();
-
-    if (macdSeriesOpt.isEmpty() || macdSeriesOpt.get().points().size() < 2) {
-      return new CalculatedSignal("HOLD", "Insufficient weekly MACD data");
+    if (missingDates.isEmpty()) {
+      return List.of();
     }
 
-    List<IndicatorPointDTO> points = macdSeriesOpt.get().points();
-    IndicatorPointDTO latest = points.getLast();
-    IndicatorPointDTO prev = points.get(points.size() - 2);
+    // 2. Fetch Daily Indicators
+    List<IndicatorDefinition> dailyDefs = indicatorConfig.forTimeframe(Timeframe.DAILY);
+    List<Long> dailyIds = dailyDefs.stream().map(IndicatorDefinition::getIndicatorId).toList();
+    List<DailyIndicator> allDailyIndicators =
+        dailyIndicatorRepository.findSeriesFrom(ticker, dailyIds, startDate);
 
-    BigDecimal macd0 = latest.getValue(IndicatorOutputKey.MACD);
-    BigDecimal sig0 = latest.getValue(IndicatorOutputKey.SIGNAL);
-    BigDecimal macd1 = prev.getValue(IndicatorOutputKey.MACD);
-    BigDecimal sig1 = prev.getValue(IndicatorOutputKey.SIGNAL);
+    // 3. Fetch Weekly Indicators
+    List<IndicatorDefinition> weeklyDefs = indicatorConfig.forTimeframe(Timeframe.WEEKLY);
+    List<Long> weeklyIds = weeklyDefs.stream().map(IndicatorDefinition::getIndicatorId).toList();
+    List<WeeklyIndicator> allWeeklyIndicators =
+        weeklyIndicatorRepository.findSeriesFrom(ticker, weeklyIds, startDate);
 
-    if (macd0 == null || sig0 == null || macd1 == null || sig1 == null) {
-      return new CalculatedSignal("HOLD", "Missing MACD/Signal values");
-    }
+    // Fetch existing ASTAResults to avoid individual DB queries
+    List<ASTAResults> existingResultsList =
+        astaResultsRepository.findByTickerAndPriceDateGreaterThanEqual(ticker, earliestMissingDate);
+    Map<LocalDate, ASTAResults> existingResultsMap =
+        existingResultsList.stream()
+            .collect(Collectors.toMap(ASTAResults::getPriceDate, Function.identity(), (a, b) -> a));
 
-    boolean crossoverBuy = macd0.compareTo(sig0) > 0 && macd1.compareTo(sig1) <= 0;
-    boolean crossoverSell = macd0.compareTo(sig0) < 0 && macd1.compareTo(sig1) >= 0;
+    List<ASTAResults> resultsToSave = new ArrayList<>();
 
-    if (crossoverBuy) {
-      return new CalculatedSignal("BUY", "Positive Crossover");
-    } else if (crossoverSell) {
-      return new CalculatedSignal("SELL", "Negative Crossover");
-    } else if (macd0.compareTo(sig0) > 0) {
-      BigDecimal hist0 = macd0.subtract(sig0);
-      BigDecimal hist1 = macd1.subtract(sig1);
-      String value = hist0.compareTo(hist1) > 0 ? "Uptick" : "Flat after down (rare)";
-      return new CalculatedSignal("BUY", value);
-    } else if (macd0.compareTo(sig0) < 0) {
-      BigDecimal hist0 = macd0.subtract(sig0);
-      BigDecimal hist1 = macd1.subtract(sig1);
-      String value = hist0.compareTo(hist1) < 0 ? "Downtick" : "Flat after up (rare)";
-      return new CalculatedSignal("SELL", value);
-    } else {
-      return new CalculatedSignal("HOLD", "MACD = Signal");
-    }
-  }
-
-  private CalculatedSignal evaluateDailyStochastic(List<IndicatorSeriesDTO> dailyIndicators) {
-    Optional<IndicatorSeriesDTO> stochSeriesOpt =
-        dailyIndicators.stream().filter(s -> "STOCHASTIC".equalsIgnoreCase(s.type())).findFirst();
-
-    if (stochSeriesOpt.isEmpty() || stochSeriesOpt.get().points().size() < 2) {
-      return new CalculatedSignal("HOLD", "Insufficient stochastic data");
-    }
-
-    List<IndicatorPointDTO> points = stochSeriesOpt.get().points();
-    IndicatorPointDTO latest = points.getLast();
-    IndicatorPointDTO prev = points.get(points.size() - 2);
-
-    BigDecimal k0 = latest.getValue(IndicatorOutputKey.K);
-    BigDecimal d0 = latest.getValue(IndicatorOutputKey.D);
-    BigDecimal k1 = prev.getValue(IndicatorOutputKey.K);
-    BigDecimal d1 = prev.getValue(IndicatorOutputKey.D);
-
-    if (k0 == null || d0 == null || k1 == null || d1 == null) {
-      return new CalculatedSignal("HOLD", "Missing Stoch K/D values");
-    }
-
-    boolean crossoverBuy = k0.compareTo(d0) > 0 && k1.compareTo(d1) <= 0;
-    boolean crossoverSell = k0.compareTo(d0) < 0 && k1.compareTo(d1) >= 0;
-
-    if (crossoverBuy) {
-      return new CalculatedSignal("BUY", "Positive Crossover");
-    } else if (crossoverSell) {
-      return new CalculatedSignal("SELL", "Negative Crossover");
-    } else if (k0.compareTo(d0) > 0) {
-      return new CalculatedSignal("BUY", "K > D");
-    } else if (k0.compareTo(d0) < 0) {
-      return new CalculatedSignal("SELL", "K < D");
-    } else {
-      return new CalculatedSignal("HOLD", "K = D");
-    }
-  }
-
-  private CalculatedSignal evaluateDailyRsi(List<IndicatorSeriesDTO> dailyIndicators) {
-    Optional<IndicatorSeriesDTO> rsiSeriesOpt =
-        dailyIndicators.stream().filter(s -> "RSI".equalsIgnoreCase(s.type())).findFirst();
-
-    if (rsiSeriesOpt.isEmpty() || rsiSeriesOpt.get().points().size() < 2) {
-      return new CalculatedSignal("HOLD", "Insufficient RSI data");
-    }
-
-    List<IndicatorPointDTO> points = rsiSeriesOpt.get().points();
-    IndicatorPointDTO latest = points.getLast();
-    IndicatorPointDTO prev = points.get(points.size() - 2);
-
-    BigDecimal rsi0 = latest.getValue(IndicatorOutputKey.VALUE);
-    BigDecimal rsi1 = prev.getValue(IndicatorOutputKey.VALUE);
-
-    if (rsi0 == null || rsi1 == null) {
-      return new CalculatedSignal("HOLD", "Missing RSI values");
-    }
-
-    if (rsi0.compareTo(rsi1) > 0) {
-      return new CalculatedSignal(
-          "BUY", "Uptick (RSI: " + rsi0.setScale(1, RoundingMode.HALF_UP) + ")");
-    } else if (rsi0.compareTo(rsi1) < 0) {
-      return new CalculatedSignal(
-          "SELL", "Downtick (RSI: " + rsi0.setScale(1, RoundingMode.HALF_UP) + ")");
-    } else {
-      return new CalculatedSignal(
-          "HOLD", "Flat (RSI: " + rsi0.setScale(1, RoundingMode.HALF_UP) + ")");
-    }
-  }
-
-  private CalculatedSignal evaluateVolume(
-      List<OhlcvDTO> dailyCandles, List<IndicatorSeriesDTO> dailyIndicators) {
-    if (dailyCandles.size() < 2) {
-      return new CalculatedSignal("HOLD", "Insufficient price data");
-    }
-
-    OhlcvDTO latestCandle = dailyCandles.getLast();
-
-    Optional<IndicatorSeriesDTO> volSmaOpt =
-        dailyIndicators.stream()
-            .filter(s -> "SMA".equalsIgnoreCase(s.type()) && "VOLUME".equalsIgnoreCase(s.source()))
-            .findFirst();
-
-    if (volSmaOpt.isEmpty() || volSmaOpt.get().points().isEmpty()) {
-      return new CalculatedSignal("HOLD", "Insufficient volume SMA data");
-    }
-
-    List<IndicatorPointDTO> smaPoints = volSmaOpt.get().points();
-    IndicatorPointDTO latestSma = smaPoints.getLast();
-    BigDecimal volSmaValue = latestSma.getValue(IndicatorOutputKey.VALUE);
-
-    if (volSmaValue == null) {
-      return new CalculatedSignal("HOLD", "Missing volume SMA value");
-    }
-
-    BigDecimal volume = latestCandle.volume();
-    boolean isHeavyVolume = volume.compareTo(volSmaValue) > 0;
-    boolean isGreen = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) > 0;
-    boolean isRed = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) < 0;
-
-    if (isHeavyVolume) {
-      if (isGreen) {
-        return new CalculatedSignal("BUY", "Green Candle with Heavy Volume");
-      } else if (isRed) {
-        return new CalculatedSignal("SELL", "Red Candle with Heavy Volume");
-      } else {
-        return new CalculatedSignal("HOLD", "Doji with Heavy Volume");
+    for (LocalDate priceDate : missingDates) {
+      // Slice daily prices: latest HISTORY_WINDOW daily prices up to priceDate
+      List<DailyPrice> dailyPricesUpToDate =
+          allDailyPrices.stream().filter(dp -> !dp.getPriceDate().isAfter(priceDate)).toList();
+      if (dailyPricesUpToDate.isEmpty()) {
+        continue;
       }
-    } else {
-      String val =
-          isGreen
-              ? "Green Candle with Normal Volume"
-              : (isRed ? "Red Candle with Normal Volume" : "Doji with Normal Volume");
-      return new CalculatedSignal("HOLD", val);
+
+      List<DailyPrice> slicedDailyPrices =
+          dailyPricesUpToDate.size() > HISTORY_WINDOW
+              ? dailyPricesUpToDate.subList(
+                  dailyPricesUpToDate.size() - HISTORY_WINDOW, dailyPricesUpToDate.size())
+              : dailyPricesUpToDate;
+      List<OhlcvDTO> dailyCandles =
+          slicedDailyPrices.stream().map(com.alphaflow.api.mappers.OhlcvMapper::toDTO).toList();
+
+      // Slice daily indicators based on the start and end of slicedDailyPrices
+      LocalDate dailyStart = slicedDailyPrices.getFirst().getPriceDate();
+      LocalDate dailyEnd = slicedDailyPrices.getLast().getPriceDate();
+      List<DailyIndicator> slicedDailyIndicators =
+          allDailyIndicators.stream()
+              .filter(
+                  di ->
+                      !di.getPriceDate().isBefore(dailyStart)
+                          && !di.getPriceDate().isAfter(dailyEnd))
+              .toList();
+      List<IndicatorSeriesDTO> dailyIndicatorSeries =
+          com.alphaflow.api.mappers.IndicatorMapper.toSeries(slicedDailyIndicators);
+
+      // Slice weekly indicators directly: latest HISTORY_WINDOW weekly indicators up to priceDate
+      List<WeeklyIndicator> weeklyIndicatorsUpToDate =
+          allWeeklyIndicators.stream().filter(wi -> !wi.getPriceDate().isAfter(priceDate)).toList();
+      Map<Long, List<WeeklyIndicator>> byDef =
+          weeklyIndicatorsUpToDate.stream()
+              .collect(Collectors.groupingBy(wi -> wi.getIndicatorDefinition().getIndicatorId()));
+      List<WeeklyIndicator> slicedWeeklyIndicators = new ArrayList<>();
+      for (List<WeeklyIndicator> list : byDef.values()) {
+        if (list.size() > HISTORY_WINDOW) {
+          slicedWeeklyIndicators.addAll(list.subList(list.size() - HISTORY_WINDOW, list.size()));
+        } else {
+          slicedWeeklyIndicators.addAll(list);
+        }
+      }
+      List<IndicatorSeriesDTO> weeklyIndicatorSeries =
+          com.alphaflow.api.mappers.IndicatorMapper.toSeries(slicedWeeklyIndicators);
+
+      ASTAEvaluationContext context =
+          new ASTAEvaluationContext(dailyCandles, dailyIndicatorSeries, weeklyIndicatorSeries);
+
+      // 1. MACD (12, 26) @ TIDE (Weekly)
+      CalculatedSignal macd = weeklyMacdEvaluator.evaluate(context);
+
+      // 2. Stochastic (14, 3, 3) @ WAVE (Daily)
+      CalculatedSignal stoch = dailyStochasticEvaluator.evaluate(context);
+
+      // 3. RSI (14) @ WAVE (Daily)
+      CalculatedSignal rsi = dailyRsiEvaluator.evaluate(context);
+
+      // 4. Volume (Daily)
+      CalculatedSignal volume = dailyVolumeEvaluator.evaluate(context);
+
+      // 5. Moving Average EMA (Daily)
+      CalculatedSignal ema = dailyEmaEvaluator.evaluate(context);
+
+      // Overall consensus
+      boolean doubleScreenBuy =
+          TradeAction.BUY == macd.signal()
+              && TradeAction.BUY == stoch.signal()
+              && TradeAction.BUY == rsi.signal();
+      boolean doubleScreenSell =
+          TradeAction.SELL == macd.signal()
+              && TradeAction.SELL == stoch.signal()
+              && TradeAction.SELL == rsi.signal();
+
+      boolean checklistBuy = TradeAction.BUY == volume.signal() && TradeAction.BUY == ema.signal();
+      boolean checklistSell =
+          TradeAction.SELL == volume.signal() && TradeAction.SELL == ema.signal();
+
+      TradeAction overallSignal = TradeAction.HOLD;
+      if (doubleScreenBuy && checklistBuy) {
+        overallSignal = TradeAction.BUY;
+      } else if (doubleScreenSell && checklistSell) {
+        overallSignal = TradeAction.SELL;
+      }
+
+      ASTAResults result = existingResultsMap.get(priceDate);
+      if (result == null) {
+        result = ASTAResults.builder().ticker(ticker).priceDate(priceDate).build();
+      }
+
+      result.setEmaSignal(ema.signal());
+      result.setEmaValue(ema.value());
+      result.setMacdSignal(macd.signal());
+      result.setMacdValue(macd.value());
+      result.setStochasticSignal(stoch.signal());
+      result.setStochasticValue(stoch.value());
+      result.setRsiSignal(rsi.signal());
+      result.setRsiValue(rsi.value());
+      result.setVolumeSignal(volume.signal());
+      result.setVolumeValue(volume.value());
+      result.setOverallSignal(overallSignal);
+
+      resultsToSave.add(result);
     }
-  }
 
-  private CalculatedSignal evaluateEma(List<IndicatorSeriesDTO> dailyIndicators) {
-    Optional<IndicatorSeriesDTO> ema5Opt =
-        dailyIndicators.stream()
-            .filter(s -> "EMA".equalsIgnoreCase(s.type()) && s.params().contains("period=5"))
-            .findFirst();
-    Optional<IndicatorSeriesDTO> ema13Opt =
-        dailyIndicators.stream()
-            .filter(s -> "EMA".equalsIgnoreCase(s.type()) && s.params().contains("period=13"))
-            .findFirst();
-    Optional<IndicatorSeriesDTO> ema26Opt =
-        dailyIndicators.stream()
-            .filter(s -> "EMA".equalsIgnoreCase(s.type()) && s.params().contains("period=26"))
-            .findFirst();
-
-    if (ema5Opt.isEmpty()
-        || ema13Opt.isEmpty()
-        || ema26Opt.isEmpty()
-        || ema5Opt.get().points().size() < 2
-        || ema13Opt.get().points().size() < 2
-        || ema26Opt.get().points().size() < 2) {
-      return new CalculatedSignal("HOLD", "Insufficient EMA data");
-    }
-
-    List<IndicatorPointDTO> points5 = ema5Opt.get().points();
-    List<IndicatorPointDTO> points13 = ema13Opt.get().points();
-    List<IndicatorPointDTO> points26 = ema26Opt.get().points();
-
-    BigDecimal e5_0 = points5.getLast().getValue(IndicatorOutputKey.VALUE);
-    BigDecimal e5_1 = points5.get(points5.size() - 2).getValue(IndicatorOutputKey.VALUE);
-
-    BigDecimal e13_0 = points13.getLast().getValue(IndicatorOutputKey.VALUE);
-    BigDecimal e13_1 = points13.get(points13.size() - 2).getValue(IndicatorOutputKey.VALUE);
-
-    BigDecimal e26_0 = points26.getLast().getValue(IndicatorOutputKey.VALUE);
-    BigDecimal e26_1 = points26.get(points26.size() - 2).getValue(IndicatorOutputKey.VALUE);
-
-    if (e5_0 == null
-        || e5_1 == null
-        || e13_0 == null
-        || e13_1 == null
-        || e26_0 == null
-        || e26_1 == null) {
-      return new CalculatedSignal("HOLD", "Missing EMA values");
-    }
-
-    boolean pco13 = e5_0.compareTo(e13_0) > 0 && e5_1.compareTo(e13_1) <= 0;
-    boolean pco26 = e5_0.compareTo(e26_0) > 0 && e5_1.compareTo(e26_1) <= 0;
-    boolean nco13 = e5_0.compareTo(e13_0) < 0 && e5_1.compareTo(e13_1) >= 0;
-    boolean nco26 = e5_0.compareTo(e26_0) < 0 && e5_1.compareTo(e26_1) >= 0;
-
-    if (pco13 || pco26) {
-      String value =
-          pco13 && pco26
-              ? "5 EMA Positive Crossover with 13 & 26 EMA"
-              : (pco13
-                  ? "5 EMA Positive Crossover with 13 EMA"
-                  : "5 EMA Positive Crossover with 26 EMA");
-      return new CalculatedSignal("BUY", value);
-    } else if (nco13 || nco26) {
-      String value =
-          nco13 && nco26
-              ? "5 EMA Negative Crossover with 13 & 26 EMA"
-              : (nco13
-                  ? "5 EMA Negative Crossover with 13 EMA"
-                  : "5 EMA Negative Crossover with 26 EMA");
-      return new CalculatedSignal("SELL", value);
-    } else if (e5_0.compareTo(e13_0) > 0 && e5_0.compareTo(e26_0) > 0) {
-      return new CalculatedSignal("BUY", "EMA 5 > 13 & 26 (Bullish Alignment)");
-    } else if (e5_0.compareTo(e13_0) < 0 && e5_0.compareTo(e26_0) < 0) {
-      return new CalculatedSignal("SELL", "EMA 5 < 13 & 26 (Bearish Alignment)");
-    } else {
-      return new CalculatedSignal("HOLD", "Mixed EMAs");
-    }
+    return astaResultsRepository.saveAll(resultsToSave);
   }
 
   @Transactional(readOnly = true)
-  public AnalysisResponseDTO getAnalysis(String symbol) {
+  public ASTAResponseDTO getAnalysis(String symbol) {
     Ticker ticker =
         tickerRepository
             .findByTickerSymbolIgnoreCase(symbol)
             .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
-    List<OhlcvDTO> latestCandles = dailyPriceService.getDailyPriceByTickerName(symbol, 0, 1);
-    if (latestCandles.isEmpty()) {
-      throw new ResourceNotFoundException("No daily price data found for symbol: " + symbol);
-    }
-    LocalDate latestPriceDate = latestCandles.getFirst().priceDate();
+    com.alphaflow.persistence.entities.DailyPrice latestPrice =
+        dailyPriceRepository
+            .findTopByTickerOrderByPriceDateDesc(ticker)
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "No daily price data found for symbol: " + symbol));
+    LocalDate latestPriceDate = latestPrice.getPriceDate();
 
-    AnalysisResult res =
-        analysisResultRepository
-            .findByTicker(ticker)
+    ASTAResults res =
+        astaResultsRepository
+            .findTopByTickerOrderByPriceDateDesc(ticker)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException(
@@ -395,8 +297,8 @@ public class ASTAStrategy {
     return toDTO(res, symbol);
   }
 
-  private AnalysisResponseDTO toDTO(AnalysisResult res, String symbol) {
-    return AnalysisResponseDTO.builder()
+  private ASTAResponseDTO toDTO(ASTAResults res, String symbol) {
+    return ASTAResponseDTO.builder()
         .symbol(symbol)
         .priceDate(res.getPriceDate())
         .emaSignal(res.getEmaSignal())
@@ -412,6 +314,4 @@ public class ASTAStrategy {
         .overallSignal(res.getOverallSignal())
         .build();
   }
-
-  private record CalculatedSignal(String signal, String value) {}
 }

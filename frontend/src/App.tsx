@@ -222,7 +222,7 @@ function App() {
         setAnalysisData(null);
         setAnalysisError(null);
         setDailyCandleData([]);
-        
+
         // Fetch daily candle data independently
         try {
           const candles = await getCandleData(selectedTicker);
@@ -729,10 +729,7 @@ function App() {
         {/* Table Checklist */}
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
           <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-bold text-white">SMM Checklist</h2>
-            <span className="text-xs text-slate-400">
-              Automatic evaluation of daily and weekly indicators
-            </span>
+            <h2 className="text-base font-bold text-white">ASTA Strategy</h2>
           </div>
 
           <div className="overflow-x-auto">
@@ -838,14 +835,6 @@ function App() {
                 ))}
               </tbody>
             </table>
-          </div>
-
-          <div className="p-4 bg-slate-950/80 border-t border-slate-800 text-[11px] text-slate-500 flex gap-2 items-center">
-            <Info size={14} className="text-blue-500 flex-shrink-0" />
-            <span>
-              <strong>IMPORTANT:</strong> If MACD & Oscillators (Double Screen)
-              give mixed signals, DO NOT proceed !!!
-            </span>
           </div>
         </div>
       </div>

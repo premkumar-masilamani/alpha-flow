@@ -40,7 +40,7 @@ public class YahooResponseParser {
       return List.of();
     }
 
-    YahooResult result = response.chart().result().get(0);
+    YahooResult result = response.chart().result().getFirst();
     if (result.timestamp() == null
         || result.indicators() == null
         || result.indicators().quote() == null
@@ -51,7 +51,7 @@ public class YahooResponseParser {
       return List.of();
     }
 
-    YahooQuote quote = result.indicators().quote().get(0);
+    YahooQuote quote = result.indicators().quote().getFirst();
     if (quote.open() == null
         || quote.high() == null
         || quote.low() == null

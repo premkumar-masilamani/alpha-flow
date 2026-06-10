@@ -5,8 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.AnalysisResponseDTO;
+import com.alphaflow.api.dtos.ASTAResponseDTO;
 import com.alphaflow.engine.strategies.ASTAStrategy;
+import com.alphaflow.persistence.enums.TradeAction;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
@@ -17,33 +18,33 @@ class AnalysisControllerTest {
 
     ASTAStrategy strategy = mock(ASTAStrategy.class);
 
-    AnalysisResponseDTO mockResponse =
-        AnalysisResponseDTO.builder()
+    ASTAResponseDTO mockResponse =
+        ASTAResponseDTO.builder()
             .symbol("AAPL")
             .priceDate(LocalDate.of(2026, 5, 30))
-            .emaSignal("BUY")
+            .emaSignal(TradeAction.BUY)
             .emaValue("Bullish")
-            .macdSignal("BUY")
+            .macdSignal(TradeAction.BUY)
             .macdValue("Positive Crossover")
-            .stochasticSignal("BUY")
+            .stochasticSignal(TradeAction.BUY)
             .stochasticValue("Positive Crossover")
-            .rsiSignal("BUY")
+            .rsiSignal(TradeAction.BUY)
             .rsiValue("Uptick")
-            .volumeSignal("BUY")
+            .volumeSignal(TradeAction.BUY)
             .volumeValue("Heavy")
-            .overallSignal("BUY")
+            .overallSignal(TradeAction.BUY)
             .build();
 
     when(strategy.getAnalysis("AAPL")).thenReturn(mockResponse);
 
     AnalysisController controller = new AnalysisController(strategy);
 
-    AnalysisResponseDTO result = controller.getTechnicalAnalysisForTicker("AAPL");
+    ASTAResponseDTO result = controller.getTechnicalAnalysisForTicker("AAPL");
 
     assertNotNull(result);
 
     assertEquals("AAPL", result.symbol());
 
-    assertEquals("BUY", result.overallSignal());
+    assertEquals(TradeAction.BUY, result.overallSignal());
   }
 }

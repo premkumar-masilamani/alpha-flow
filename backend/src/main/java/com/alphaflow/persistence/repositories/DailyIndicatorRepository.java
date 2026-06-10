@@ -37,13 +37,23 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
   @Query(
       """
             SELECT iv FROM DailyIndicator iv
-            JOIN iv.ticker tk
-            WHERE LOWER(tk.tickerSymbol) = LOWER(:symbol)
+            WHERE iv.ticker = :ticker
               AND iv.indicatorDefinition.indicatorId IN :indicatorIds
               AND iv.priceDate >= :from
               AND iv.priceDate <= :to
             ORDER BY iv.priceDate ASC
             """)
   List<DailyIndicator> findSeriesBetween(
-      String symbol, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
+      Ticker ticker, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
+
+  @Query(
+      """
+            SELECT iv FROM DailyIndicator iv
+            WHERE iv.ticker = :ticker
+              AND iv.indicatorDefinition.indicatorId IN :indicatorIds
+              AND iv.priceDate >= :startDate
+            ORDER BY iv.priceDate ASC
+            """)
+  List<DailyIndicator> findSeriesFrom(
+      Ticker ticker, Collection<Long> indicatorIds, LocalDate startDate);
 }

@@ -5,10 +5,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDTO;
-import com.alphaflow.api.services.DailyPriceService;
+import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class DailyPriceControllerTest {
@@ -16,7 +19,10 @@ class DailyPriceControllerTest {
   @Test
   void testGetDailyPriceDataForTicker() {
 
-    DailyPriceService service = mock(DailyPriceService.class);
+    DailyPriceRepository dailyPriceRepository = mock(DailyPriceRepository.class);
+    TickerRepository tickerRepository = mock(TickerRepository.class);
+
+    Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
     OhlcvDTO dto =
         new OhlcvDTO(
@@ -27,14 +33,16 @@ class DailyPriceControllerTest {
             new BigDecimal("102.00"),
             new BigDecimal("1000.00"));
 
-    when(service.getDailyPriceByTickerName("AAPL", 0, 250)).thenReturn(List.of(dto));
+    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(dailyPriceRepository.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
 
-    DailyPriceController controller = new DailyPriceController(service);
+    DailyPriceController controller =
+        new DailyPriceController(dailyPriceRepository, tickerRepository);
 
     List<OhlcvDTO> res = controller.getDailyPriceDataForTicker("AAPL", 0, 250);
 
     assertEquals(1, res.size());
 
-    assertEquals(LocalDate.of(2026, 5, 29), res.get(0).priceDate());
+    assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
   }
 }

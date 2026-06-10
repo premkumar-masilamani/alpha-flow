@@ -29,7 +29,7 @@ class YahooResponseParserTest {
     assertFalse(result.isEmpty());
 
     // Verify properties of parsed elements
-    DailyPrice first = result.get(0);
+    DailyPrice first = result.getFirst();
     assertEquals(ticker, first.getTicker());
     assertNotNull(first.getPriceDate());
     assertNotNull(first.getPriceOpen());

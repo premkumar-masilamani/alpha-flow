@@ -1,5 +1,7 @@
 package com.alphaflow.persistence.repositories;
 
+import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
@@ -8,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,12 +22,14 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
       """
                 SELECT dp FROM DailyPrice dp
                 JOIN FETCH dp.ticker tk
-                WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
+                WHERE dp.ticker = :ticker
                 ORDER BY dp.priceDate DESC
             """)
-  List<DailyPrice> findLatestByTickerName(String tickerName, Pageable pageable);
+  List<DailyPrice> findLatestByTicker(Ticker ticker, Pageable pageable);
 
   Optional<DailyPrice> findTopByTickerOrderByPriceDateAsc(Ticker ticker);
+
+  Optional<DailyPrice> findTopByTickerOrderByPriceDateDesc(Ticker ticker);
 
   @Query(
       """
@@ -54,8 +59,50 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
   @Query(
       """
                 SELECT dp.priceDate FROM DailyPrice dp
-                WHERE LOWER(dp.ticker.tickerSymbol) = LOWER(:symbol)
+                WHERE dp.ticker = :ticker
                 ORDER BY dp.priceDate DESC
             """)
-  List<LocalDate> findRecentPriceDates(String symbol, Pageable pageable);
+  List<LocalDate> findRecentPriceDates(Ticker ticker, Pageable pageable);
+
+  @Query(
+      """
+                SELECT dp FROM DailyPrice dp
+                JOIN FETCH dp.ticker tk
+                WHERE dp.ticker = :ticker
+                  AND dp.priceDate <= :endDate
+                ORDER BY dp.priceDate DESC
+            """)
+  List<DailyPrice> findLatestByTickerAndEndDate(
+      Ticker ticker, LocalDate endDate, Pageable pageable);
+
+  @Query(
+      """
+                SELECT dp.priceDate FROM DailyPrice dp
+                WHERE dp.ticker = :ticker
+                  AND dp.priceDate <= :endDate
+                ORDER BY dp.priceDate DESC
+            """)
+  List<LocalDate> findRecentPriceDatesUpTo(Ticker ticker, LocalDate endDate, Pageable pageable);
+
+  @Query(
+      """
+      SELECT MIN(dp.priceDate) FROM DailyPrice dp
+      WHERE dp.ticker = :ticker
+        AND NOT EXISTS (
+            SELECT 1 FROM ASTAResults ar
+            WHERE ar.ticker = :ticker AND ar.priceDate = dp.priceDate
+        )
+  """)
+  Optional<LocalDate> findEarliestDateMissingAnalysis(Ticker ticker);
+
+  default List<OhlcvDTO> getDailyPrice(Ticker ticker, int page, int size) {
+    return getDailyPrice(ticker, LocalDate.now(), page, size);
+  }
+
+  default List<OhlcvDTO> getDailyPrice(Ticker ticker, LocalDate endDate, int page, int size) {
+    return findLatestByTickerAndEndDate(ticker, endDate, PageRequest.of(page, size)).stream()
+        .sorted(java.util.Comparator.comparing(DailyPrice::getPriceDate))
+        .map(OhlcvMapper::toDTO)
+        .toList();
+  }
 }
