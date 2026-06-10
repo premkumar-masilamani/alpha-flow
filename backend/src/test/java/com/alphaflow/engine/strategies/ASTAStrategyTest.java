@@ -4,21 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.dtos.AnalysisResponseDTO;
-import com.alphaflow.api.dtos.IndicatorPointDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.api.dtos.OhlcvDTO;
-import com.alphaflow.api.services.DailyPriceService;
-import com.alphaflow.api.services.IndicatorService;
-import com.alphaflow.persistence.entities.AnalysisResult;
-import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.enums.Timeframe;
+import com.alphaflow.api.dtos.ASTAResponseDTO;
+import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator;
+import com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator;
+import com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator;
+import com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator;
+import com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator;
+import com.alphaflow.persistence.entities.*;
+import com.alphaflow.persistence.enums.*;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.AnalysisResultRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,29 +30,95 @@ import org.junit.jupiter.api.Test;
 class ASTAStrategyTest {
 
   private static final String SYMBOL = "TEST";
+  private static final int HISTORY_WINDOW = 5;
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 30);
   private static final LocalDate YESTERDAY = LocalDate.of(2026, 5, 29);
   private static final LocalDate TWO_DAYS_AGO = LocalDate.of(2026, 5, 28);
-  private DailyPriceService dailyPriceService;
-  private IndicatorService indicatorService;
   private TickerRepository tickerRepository;
-  private AnalysisResultRepository analysisResultRepository;
+  private ASTAResultsRepository astaResultsRepository;
+  private DailyPriceRepository dailyPriceRepository;
+  private DailyIndicatorRepository dailyIndicatorRepository;
+  private WeeklyIndicatorRepository weeklyIndicatorRepository;
+  private IndicatorConfig indicatorConfig;
   private ASTAStrategy astaStrategy;
 
   @BeforeEach
   void setUp() {
-    dailyPriceService = mock(DailyPriceService.class);
-    indicatorService = mock(IndicatorService.class);
     tickerRepository = mock(TickerRepository.class);
-    analysisResultRepository = mock(AnalysisResultRepository.class);
+    astaResultsRepository = mock(ASTAResultsRepository.class);
+    dailyPriceRepository = mock(DailyPriceRepository.class);
+    dailyIndicatorRepository = mock(DailyIndicatorRepository.class);
+    weeklyIndicatorRepository = mock(WeeklyIndicatorRepository.class);
+    indicatorConfig = mock(IndicatorConfig.class);
+
+    // Setup active indicators
+    when(indicatorConfig.forTimeframe(Timeframe.DAILY))
+        .thenReturn(
+            List.of(
+                IndicatorDefinition.builder()
+                    .indicatorId(1L)
+                    .indicatorType(IndicatorType.EMA)
+                    .params(Map.of("period", 5))
+                    .source(PriceSource.CLOSE)
+                    .build(),
+                IndicatorDefinition.builder()
+                    .indicatorId(2L)
+                    .indicatorType(IndicatorType.EMA)
+                    .params(Map.of("period", 13))
+                    .source(PriceSource.CLOSE)
+                    .build(),
+                IndicatorDefinition.builder()
+                    .indicatorId(3L)
+                    .indicatorType(IndicatorType.EMA)
+                    .params(Map.of("period", 26))
+                    .source(PriceSource.CLOSE)
+                    .build(),
+                IndicatorDefinition.builder()
+                    .indicatorId(4L)
+                    .indicatorType(IndicatorType.RSI)
+                    .params(Map.of("period", 14))
+                    .source(PriceSource.CLOSE)
+                    .build(),
+                IndicatorDefinition.builder()
+                    .indicatorId(5L)
+                    .indicatorType(IndicatorType.SMA)
+                    .params(Map.of("period", 20))
+                    .source(PriceSource.VOLUME)
+                    .build(),
+                IndicatorDefinition.builder()
+                    .indicatorId(6L)
+                    .indicatorType(IndicatorType.STOCHASTIC)
+                    .params(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))
+                    .source(PriceSource.CLOSE)
+                    .build()));
+    when(indicatorConfig.forTimeframe(Timeframe.WEEKLY))
+        .thenReturn(
+            List.of(
+                IndicatorDefinition.builder()
+                    .indicatorId(7L)
+                    .indicatorType(IndicatorType.MACD)
+                    .params(Map.of("fast", 12, "slow", 26, "signal", 9))
+                    .source(PriceSource.CLOSE)
+                    .build()));
+
     astaStrategy =
         new ASTAStrategy(
-            dailyPriceService, indicatorService, tickerRepository, analysisResultRepository);
+            tickerRepository,
+            astaResultsRepository,
+            dailyPriceRepository,
+            dailyIndicatorRepository,
+            weeklyIndicatorRepository,
+            indicatorConfig,
+            new WeeklyMacdEvaluator(),
+            new DailyStochasticEvaluator(),
+            new DailyRsiEvaluator(),
+            new DailyVolumeEvaluator(),
+            new DailyEmaEvaluator());
   }
 
-  private OhlcvDTO candle(
+  private DailyPrice dPrice(
       LocalDate date, double open, double high, double low, double close, double volume) {
-    return OhlcvDTO.builder()
+    return DailyPrice.builder()
         .priceDate(date)
         .priceOpen(BigDecimal.valueOf(open))
         .priceHigh(BigDecimal.valueOf(high))
@@ -62,61 +128,65 @@ class ASTAStrategyTest {
         .build();
   }
 
-  private IndicatorSeriesDTO series(
-      String type, String source, String params, List<IndicatorPointDTO> points) {
-    return IndicatorSeriesDTO.builder()
-        .type(type)
-        .source(source)
-        .params(params)
-        .label(type)
-        .points(points)
-        .build();
-  }
-
-  private IndicatorPointDTO point(LocalDate date, Map<String, BigDecimal> values) {
-    return IndicatorPointDTO.builder().date(date).values(values).build();
+  private void mockRangeQueries(
+      Ticker ticker,
+      List<DailyPrice> dailyPrices,
+      List<DailyIndicator> dailyIndicators,
+      List<WeeklyIndicator> weeklyIndicators) {
+    LocalDate start = TODAY.minusDays(HISTORY_WINDOW);
+    when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+            ticker, start))
+        .thenReturn(dailyPrices);
+    when(dailyIndicatorRepository.findSeriesFrom(eq(ticker), any(), eq(start)))
+        .thenReturn(dailyIndicators);
+    when(weeklyIndicatorRepository.findSeriesFrom(eq(ticker), any(), eq(start)))
+        .thenReturn(weeklyIndicators);
+    when(astaResultsRepository.findByTickerAndPriceDateGreaterThanEqual(ticker, TODAY))
+        .thenReturn(List.of());
   }
 
   @Test
   void testGetAnalysisPullsPersistedResult() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 1))
-        .thenReturn(List.of(candle(TODAY, 100, 105, 95, 102, 1000)));
+    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
 
-    AnalysisResult result =
-        AnalysisResult.builder()
+    ASTAResults result =
+        ASTAResults.builder()
             .ticker(ticker)
             .priceDate(TODAY)
-            .emaSignal("BUY")
+            .emaSignal(TradeAction.BUY)
             .emaValue("EMA 5 > 13 & 26 (Bullish Alignment)")
-            .macdSignal("BUY")
+            .macdSignal(TradeAction.BUY)
             .macdValue("Positive Crossover")
-            .stochasticSignal("BUY")
+            .stochasticSignal(TradeAction.BUY)
             .stochasticValue("Positive Crossover")
-            .rsiSignal("BUY")
+            .rsiSignal(TradeAction.BUY)
             .rsiValue("Uptick (RSI: 55.0)")
-            .volumeSignal("BUY")
+            .volumeSignal(TradeAction.BUY)
             .volumeValue("Green Candle with Heavy Volume")
-            .overallSignal("BUY")
+            .overallSignal(TradeAction.BUY)
             .build();
-    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.of(result));
+    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(result));
 
-    AnalysisResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
+    ASTAResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
 
     assertNotNull(response);
-    assertEquals("BUY", response.overallSignal());
+    assertEquals(TradeAction.BUY, response.overallSignal());
     assertEquals("Positive Crossover", response.macdValue());
-    verify(analysisResultRepository, never()).save(any());
+    verify(astaResultsRepository, never()).save(any());
   }
 
   @Test
   void testGetAnalysisThrowsNotFoundWhenMissing() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 1))
-        .thenReturn(List.of(candle(TODAY, 100, 105, 95, 102, 1000)));
-    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
+    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
+    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.empty());
 
     assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
   }
@@ -127,13 +197,18 @@ class ASTAStrategyTest {
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
 
     // Latest price date is TODAY
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 1))
-        .thenReturn(List.of(candle(TODAY, 100, 105, 95, 102, 1000)));
+    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
 
     // Persisted analysis is older (YESTERDAY)
-    AnalysisResult result =
-        AnalysisResult.builder().ticker(ticker).priceDate(YESTERDAY).overallSignal("BUY").build();
-    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.of(result));
+    ASTAResults result =
+        ASTAResults.builder()
+            .ticker(ticker)
+            .priceDate(YESTERDAY)
+            .overallSignal(TradeAction.BUY)
+            .build();
+    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(result));
 
     assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
   }
@@ -142,161 +217,265 @@ class ASTAStrategyTest {
   void testComputeAndPersistCalculatesSignalsCorrectly() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
 
-    // Setup daily candles
-    List<OhlcvDTO> candles =
+    // Setup range query data
+    List<DailyPrice> dailyPrices =
         List.of(
-            candle(TWO_DAYS_AGO, 100, 105, 95, 102, 1000),
-            candle(YESTERDAY, 102, 106, 101, 105, 1200),
-            candle(TODAY, 105, 110, 104, 109, 1500));
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50)).thenReturn(candles);
+            dPrice(TWO_DAYS_AGO, 100, 105, 95, 102, 1000),
+            dPrice(YESTERDAY, 102, 106, 101, 105, 1200),
+            dPrice(TODAY, 105, 110, 104, 109, 1500));
 
-    // Setup weekly MACD (Positive Crossover)
-    List<IndicatorPointDTO> macdPoints =
+    IndicatorDefinition stochDef =
+        IndicatorDefinition.builder()
+            .indicatorId(6L)
+            .indicatorType(IndicatorType.STOCHASTIC)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))
+            .build();
+    IndicatorDefinition rsiDef =
+        IndicatorDefinition.builder()
+            .indicatorId(4L)
+            .indicatorType(IndicatorType.RSI)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 14))
+            .build();
+    IndicatorDefinition volSmaDef =
+        IndicatorDefinition.builder()
+            .indicatorId(5L)
+            .indicatorType(IndicatorType.SMA)
+            .source(PriceSource.VOLUME)
+            .params(Map.of("period", 20))
+            .build();
+    IndicatorDefinition ema5Def =
+        IndicatorDefinition.builder()
+            .indicatorId(1L)
+            .indicatorType(IndicatorType.EMA)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 5))
+            .build();
+    IndicatorDefinition ema13Def =
+        IndicatorDefinition.builder()
+            .indicatorId(2L)
+            .indicatorType(IndicatorType.EMA)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 13))
+            .build();
+    IndicatorDefinition ema26Def =
+        IndicatorDefinition.builder()
+            .indicatorId(3L)
+            .indicatorType(IndicatorType.EMA)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 26))
+            .build();
+    IndicatorDefinition macdDef =
+        IndicatorDefinition.builder()
+            .indicatorId(7L)
+            .indicatorType(IndicatorType.MACD)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("fast", 12, "slow", 26, "signal", 9))
+            .build();
+
+    List<DailyIndicator> dailyIndicators =
         List.of(
-            point(
-                YESTERDAY,
-                Map.of("macd", BigDecimal.valueOf(1.0), "signal", BigDecimal.valueOf(1.2))),
-            point(
-                TODAY, Map.of("macd", BigDecimal.valueOf(1.5), "signal", BigDecimal.valueOf(1.3))));
-    IndicatorSeriesDTO macdSeries = series("MACD", "CLOSE", "fast=12,slow=26,signal=9", macdPoints);
-    when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.WEEKLY, 0, 10))
-        .thenReturn(List.of(macdSeries));
+            // Stochastic
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(stochDef)
+                .priceDate(YESTERDAY)
+                .values(Map.of("k", BigDecimal.valueOf(70), "d", BigDecimal.valueOf(75)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(stochDef)
+                .priceDate(TODAY)
+                .values(Map.of("k", BigDecimal.valueOf(82), "d", BigDecimal.valueOf(80)))
+                .build(),
+            // RSI
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(rsiDef)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(45.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(rsiDef)
+                .priceDate(TODAY)
+                .values(Map.of("value", BigDecimal.valueOf(52.0)))
+                .build(),
+            // Vol SMA
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(volSmaDef)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(1100.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(volSmaDef)
+                .priceDate(TODAY)
+                .values(Map.of("value", BigDecimal.valueOf(1100.0)))
+                .build(),
+            // EMA 5
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema5Def)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(101.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema5Def)
+                .priceDate(TODAY)
+                .values(Map.of("value", BigDecimal.valueOf(104.0)))
+                .build(),
+            // EMA 13
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema13Def)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(100.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema13Def)
+                .priceDate(TODAY)
+                .values(Map.of("value", BigDecimal.valueOf(102.0)))
+                .build(),
+            // EMA 26
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema26Def)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(99.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema26Def)
+                .priceDate(TODAY)
+                .values(Map.of("value", BigDecimal.valueOf(101.0)))
+                .build());
 
-    // Setup daily Stochastic (K > D)
-    List<IndicatorPointDTO> stochPoints =
+    List<WeeklyIndicator> weeklyIndicators =
         List.of(
-            point(YESTERDAY, Map.of("k", BigDecimal.valueOf(70), "d", BigDecimal.valueOf(75))),
-            point(TODAY, Map.of("k", BigDecimal.valueOf(82), "d", BigDecimal.valueOf(80))));
-    IndicatorSeriesDTO stochSeries =
-        series("STOCHASTIC", "CLOSE", "k=14,kSmooth=3,dSmooth=3", stochPoints);
+            WeeklyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(macdDef)
+                .priceDate(YESTERDAY)
+                .values(Map.of("macd", BigDecimal.valueOf(1.0), "signal", BigDecimal.valueOf(1.2)))
+                .build(),
+            WeeklyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(macdDef)
+                .priceDate(TODAY)
+                .values(Map.of("macd", BigDecimal.valueOf(1.5), "signal", BigDecimal.valueOf(1.3)))
+                .build());
 
-    // Setup daily RSI (Uptick)
-    List<IndicatorPointDTO> rsiPoints =
-        List.of(
-            point(YESTERDAY, Map.of("value", BigDecimal.valueOf(45.0))),
-            point(TODAY, Map.of("value", BigDecimal.valueOf(52.0))));
-    IndicatorSeriesDTO rsiSeries = series("RSI", "CLOSE", "period=14", rsiPoints);
+    mockRangeQueries(ticker, dailyPrices, dailyIndicators, weeklyIndicators);
 
-    // Setup Volume SMA(20)
-    List<IndicatorPointDTO> volSmaPoints =
-        List.of(
-            point(YESTERDAY, Map.of("value", BigDecimal.valueOf(1100.0))),
-            point(TODAY, Map.of("value", BigDecimal.valueOf(1100.0))));
-    IndicatorSeriesDTO volSmaSeries = series("SMA", "VOLUME", "period=20", volSmaPoints);
-
-    // Setup EMAs (Bullish Alignment)
-    IndicatorSeriesDTO ema5 =
-        series(
-            "EMA",
-            "CLOSE",
-            "period=5",
-            List.of(
-                point(YESTERDAY, Map.of("value", BigDecimal.valueOf(101.0))),
-                point(TODAY, Map.of("value", BigDecimal.valueOf(104.0)))));
-    IndicatorSeriesDTO ema13 =
-        series(
-            "EMA",
-            "CLOSE",
-            "period=13",
-            List.of(
-                point(YESTERDAY, Map.of("value", BigDecimal.valueOf(100.0))),
-                point(TODAY, Map.of("value", BigDecimal.valueOf(102.0)))));
-    IndicatorSeriesDTO ema26 =
-        series(
-            "EMA",
-            "CLOSE",
-            "period=26",
-            List.of(
-                point(YESTERDAY, Map.of("value", BigDecimal.valueOf(99.0))),
-                point(TODAY, Map.of("value", BigDecimal.valueOf(101.0)))));
-
-    when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.DAILY, 0, 50))
-        .thenReturn(List.of(stochSeries, rsiSeries, volSmaSeries, ema5, ema13, ema26));
-
-    when(analysisResultRepository.save(any(AnalysisResult.class)))
+    when(astaResultsRepository.saveAll(anyList()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResult response = astaStrategy.computeAndPersist(ticker);
+    ASTAResults response = astaStrategy.processTicker(ticker, TODAY).getFirst();
 
     assertNotNull(response);
-    assertEquals("BUY", response.getOverallSignal());
+    assertEquals(TradeAction.BUY, response.getOverallSignal());
     assertEquals("Positive Crossover", response.getMacdValue());
-    assertEquals("BUY", response.getMacdSignal());
+    assertEquals(TradeAction.BUY, response.getMacdSignal());
     assertEquals("Positive Crossover", response.getStochasticValue());
-    assertEquals("BUY", response.getStochasticSignal());
-    assertEquals("BUY", response.getRsiSignal());
-    assertEquals("BUY", response.getVolumeSignal());
-    assertEquals("BUY", response.getEmaSignal());
+    assertEquals(TradeAction.BUY, response.getStochasticSignal());
+    assertEquals(TradeAction.BUY, response.getRsiSignal());
+    assertEquals(TradeAction.BUY, response.getVolumeSignal());
+    assertEquals(TradeAction.BUY, response.getEmaSignal());
 
-    verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
+    verify(astaResultsRepository, times(1)).saveAll(anyList());
   }
 
   @Test
   void testComputeAnalysisContinuesOnTickerFailure() {
     Ticker ticker1 = Ticker.builder().tickerSymbol("T1").isActive(true).build();
     Ticker ticker2 = Ticker.builder().tickerSymbol("T2").isActive(true).build();
-    when(tickerRepository.findAll()).thenReturn(List.of(ticker1, ticker2));
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker1, ticker2));
+
+    // Stub missing dates
+    when(dailyPriceRepository.findEarliestDateMissingAnalysis(ticker1))
+        .thenReturn(Optional.of(TODAY));
+    when(dailyPriceRepository.findEarliestDateMissingAnalysis(ticker2))
+        .thenReturn(Optional.of(TODAY));
 
     // Let T1 throw an exception during daily price fetch
-    when(dailyPriceService.getDailyPriceByTickerName("T1", 0, 50))
+    LocalDate start = TODAY.minusDays(HISTORY_WINDOW);
+    when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+            eq(ticker1), eq(start)))
         .thenThrow(new RuntimeException("Injected data fetch error"));
 
     // Setup successful mocks for T2
-    List<OhlcvDTO> candles2 = List.of(candle(TODAY, 100, 105, 95, 100, 1000));
-    when(dailyPriceService.getDailyPriceByTickerName("T2", 0, 50)).thenReturn(candles2);
-    when(indicatorService.getIndicatorSeries("T2", Timeframe.WEEKLY, 0, 10)).thenReturn(List.of());
-    when(indicatorService.getIndicatorSeries("T2", Timeframe.DAILY, 0, 50)).thenReturn(List.of());
-    when(analysisResultRepository.findByTicker(ticker2)).thenReturn(Optional.empty());
-    when(analysisResultRepository.save(any(AnalysisResult.class)))
+    List<DailyPrice> dailyPrices2 = List.of(dPrice(TODAY, 100, 105, 95, 100, 1000));
+    when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+            eq(ticker2), eq(start)))
+        .thenReturn(dailyPrices2);
+    when(dailyIndicatorRepository.findSeriesFrom(eq(ticker2), any(), eq(start)))
+        .thenReturn(List.of());
+    when(weeklyIndicatorRepository.findSeriesFrom(eq(ticker2), any(), eq(start)))
+        .thenReturn(List.of());
+    when(astaResultsRepository.findByTickerAndPriceDateGreaterThanEqual(ticker2, TODAY))
+        .thenReturn(List.of());
+
+    when(astaResultsRepository.saveAll(anyList()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
     astaStrategy.computeTechnicalAnalysis();
 
     // Verify that only T2 was successfully saved
-    verify(analysisResultRepository, times(1)).save(any(AnalysisResult.class));
-    verify(analysisResultRepository)
-        .save(argThat(res -> "T2".equals(res.getTicker().getTickerSymbol())));
+    verify(astaResultsRepository, times(1)).saveAll(anyList());
   }
 
   @Test
   void testEvaluateDailyStochasticFlatReturnsHold() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
 
     // Setup daily candles
-    List<OhlcvDTO> candles =
+    List<DailyPrice> dailyPrices =
         List.of(
-            candle(YESTERDAY, 102, 106, 101, 105, 1200), candle(TODAY, 105, 110, 104, 109, 1500));
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50)).thenReturn(candles);
-
-    // Setup weekly indicators empty (defaults MACD to HOLD)
-    when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.WEEKLY, 0, 10))
-        .thenReturn(List.of());
+            dPrice(YESTERDAY, 102, 106, 101, 105, 1200), dPrice(TODAY, 105, 110, 104, 109, 1500));
 
     // Setup daily Stochastic where latest %K == %D (both 80)
-    List<IndicatorPointDTO> stochPoints =
+    IndicatorDefinition stochDef =
+        IndicatorDefinition.builder()
+            .indicatorId(6L)
+            .indicatorType(IndicatorType.STOCHASTIC)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))
+            .build();
+    List<DailyIndicator> dailyIndicators =
         List.of(
-            point(YESTERDAY, Map.of("k", BigDecimal.valueOf(70), "d", BigDecimal.valueOf(75))),
-            point(TODAY, Map.of("k", BigDecimal.valueOf(80), "d", BigDecimal.valueOf(80))));
-    IndicatorSeriesDTO stochSeries =
-        series("STOCHASTIC", "CLOSE", "k=14,kSmooth=3,dSmooth=3", stochPoints);
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(stochDef)
+                .priceDate(YESTERDAY)
+                .values(Map.of("k", BigDecimal.valueOf(70), "d", BigDecimal.valueOf(75)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(stochDef)
+                .priceDate(TODAY)
+                .values(Map.of("k", BigDecimal.valueOf(80), "d", BigDecimal.valueOf(80)))
+                .build());
 
-    when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.DAILY, 0, 50))
-        .thenReturn(List.of(stochSeries));
-    when(analysisResultRepository.save(any(AnalysisResult.class)))
+    mockRangeQueries(ticker, dailyPrices, dailyIndicators, List.of());
+
+    when(astaResultsRepository.saveAll(anyList()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResult response = astaStrategy.computeAndPersist(ticker);
+    ASTAResults response = astaStrategy.processTicker(ticker, TODAY).getFirst();
 
     // Verify stochastic signal is HOLD and value is "K = D"
     assertNotNull(response);
-    assertEquals("HOLD", response.getStochasticSignal());
+    assertEquals(TradeAction.HOLD, response.getStochasticSignal());
     assertEquals("K = D", response.getStochasticValue());
   }
 
@@ -304,37 +483,46 @@ class ASTAStrategyTest {
   void testEvaluateWeeklyMacdFlatReturnsHold() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(analysisResultRepository.findByTicker(ticker)).thenReturn(Optional.empty());
 
     // Setup daily candles
-    List<OhlcvDTO> candles =
+    List<DailyPrice> dailyPrices =
         List.of(
-            candle(YESTERDAY, 102, 106, 101, 105, 1200), candle(TODAY, 105, 110, 104, 109, 1500));
-    when(dailyPriceService.getDailyPriceByTickerName(SYMBOL, 0, 50)).thenReturn(candles);
+            dPrice(YESTERDAY, 102, 106, 101, 105, 1200), dPrice(TODAY, 105, 110, 104, 109, 1500));
 
     // Setup weekly MACD where latest macd == signal (both 1.5)
-    List<IndicatorPointDTO> macdPoints =
+    IndicatorDefinition macdDef =
+        IndicatorDefinition.builder()
+            .indicatorId(7L)
+            .indicatorType(IndicatorType.MACD)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("fast", 12, "slow", 26, "signal", 9))
+            .build();
+    List<WeeklyIndicator> weeklyIndicators =
         List.of(
-            point(
-                YESTERDAY,
-                Map.of("macd", BigDecimal.valueOf(1.0), "signal", BigDecimal.valueOf(1.2))),
-            point(
-                TODAY, Map.of("macd", BigDecimal.valueOf(1.5), "signal", BigDecimal.valueOf(1.5))));
-    IndicatorSeriesDTO macdSeries = series("MACD", "CLOSE", "fast=12,slow=26,signal=9", macdPoints);
-    when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.WEEKLY, 0, 10))
-        .thenReturn(List.of(macdSeries));
+            WeeklyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(macdDef)
+                .priceDate(YESTERDAY)
+                .values(Map.of("macd", BigDecimal.valueOf(1.0), "signal", BigDecimal.valueOf(1.2)))
+                .build(),
+            WeeklyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(macdDef)
+                .priceDate(TODAY)
+                .values(Map.of("macd", BigDecimal.valueOf(1.5), "signal", BigDecimal.valueOf(1.5)))
+                .build());
 
-    // Setup empty daily indicators
-    when(indicatorService.getIndicatorSeries(SYMBOL, Timeframe.DAILY, 0, 50)).thenReturn(List.of());
-    when(analysisResultRepository.save(any(AnalysisResult.class)))
+    mockRangeQueries(ticker, dailyPrices, List.of(), weeklyIndicators);
+
+    when(astaResultsRepository.saveAll(anyList()))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Run
-    AnalysisResult response = astaStrategy.computeAndPersist(ticker);
+    ASTAResults response = astaStrategy.processTicker(ticker, TODAY).getFirst();
 
     // Verify MACD signal is HOLD and value is "MACD = Signal"
     assertNotNull(response);
-    assertEquals("HOLD", response.getMacdSignal());
+    assertEquals(TradeAction.HOLD, response.getMacdSignal());
     assertEquals("MACD = Signal", response.getMacdValue());
   }
 }

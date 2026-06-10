@@ -8,8 +8,11 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.services.IndicatorService;
+import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Timeframe;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class IndicatorControllerTest {
@@ -18,39 +21,44 @@ class IndicatorControllerTest {
   void testGetConfiguredIndicators() {
 
     IndicatorService service = mock(IndicatorService.class);
+    TickerRepository tickerRepository = mock(TickerRepository.class);
 
     IndicatorConfigDTO configDto =
         new IndicatorConfigDTO("DAILY", "EMA", "CLOSE", "period=14", "EMA (14)");
 
     when(service.getConfiguredIndicators()).thenReturn(List.of(configDto));
 
-    IndicatorController controller = new IndicatorController(service);
+    IndicatorController controller = new IndicatorController(service, tickerRepository);
 
     List<IndicatorConfigDTO> res = controller.getConfiguredIndicators();
 
     assertEquals(1, res.size());
 
-    assertEquals("EMA", res.get(0).type());
+    assertEquals("EMA", res.getFirst().type());
   }
 
   @Test
   void testGetIndicatorSeriesValid() {
 
     IndicatorService service = mock(IndicatorService.class);
+    TickerRepository tickerRepository = mock(TickerRepository.class);
+
+    Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
     IndicatorSeriesDTO seriesDto =
         new IndicatorSeriesDTO("EMA", "CLOSE", "period=14", "EMA (14)", List.of());
 
-    when(service.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, 250))
+    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(service.getIndicatorSeries(ticker, Timeframe.DAILY, 0, 250))
         .thenReturn(List.of(seriesDto));
 
-    IndicatorController controller = new IndicatorController(service);
+    IndicatorController controller = new IndicatorController(service, tickerRepository);
 
     List<IndicatorSeriesDTO> res = controller.getIndicatorSeries("AAPL", "DAILY", 0, 250);
 
     assertEquals(1, res.size());
 
-    assertEquals("EMA", res.get(0).type());
+    assertEquals("EMA", res.getFirst().type());
 
     List<IndicatorSeriesDTO> resLowercase =
         controller.getIndicatorSeries("AAPL", "  daily ", 0, 250);
@@ -62,8 +70,12 @@ class IndicatorControllerTest {
   void testGetIndicatorSeriesInvalidTimeframe() {
 
     IndicatorService service = mock(IndicatorService.class);
+    TickerRepository tickerRepository = mock(TickerRepository.class);
 
-    IndicatorController controller = new IndicatorController(service);
+    Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
+    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+
+    IndicatorController controller = new IndicatorController(service, tickerRepository);
 
     assertThrows(
         IllegalArgumentException.class,

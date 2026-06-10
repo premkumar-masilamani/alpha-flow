@@ -26,7 +26,7 @@ class TickerControllerTest {
 
     assertEquals(1, res.size());
 
-    assertEquals("AAPL", res.get(0).tickerSymbol());
+    assertEquals("AAPL", res.getFirst().tickerSymbol());
   }
 
   @Test

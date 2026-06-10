@@ -76,6 +76,6 @@ class TickerServiceTest {
 
     assertEquals(1, list.size());
 
-    assertEquals("AAPL", list.get(0).tickerSymbol());
+    assertEquals("AAPL", list.getFirst().tickerSymbol());
   }
 }

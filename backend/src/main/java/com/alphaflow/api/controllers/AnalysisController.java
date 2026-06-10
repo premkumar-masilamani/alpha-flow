@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.AnalysisResponseDTO;
+import com.alphaflow.api.dtos.ASTAResponseDTO;
 import com.alphaflow.engine.strategies.ASTAStrategy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +20,7 @@ public class AnalysisController {
   }
 
   @GetMapping("/tickers/{symbol}/analysis")
-  public AnalysisResponseDTO getTechnicalAnalysisForTicker(@PathVariable String symbol) {
+  public ASTAResponseDTO getTechnicalAnalysisForTicker(@PathVariable String symbol) {
     log.info("Request to get technical analysis for ticker: {}", symbol);
     return astaStrategy.getAnalysis(symbol);
   }

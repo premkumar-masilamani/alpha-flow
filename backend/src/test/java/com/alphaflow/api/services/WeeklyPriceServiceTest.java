@@ -55,7 +55,8 @@ class WeeklyPriceServiceTest {
 
     assertEquals(2, result.size());
 
-    assertEquals(LocalDate.of(2026, 5, 22), result.get(0).priceDate()); // Sorted ascending by date
+    assertEquals(
+        LocalDate.of(2026, 5, 22), result.getFirst().priceDate()); // Sorted ascending by date
 
     assertEquals(LocalDate.of(2026, 5, 29), result.get(1).priceDate());
   }
@@ -101,6 +102,6 @@ class WeeklyPriceServiceTest {
 
     assertEquals(1, result.size());
 
-    assertEquals(LocalDate.of(2026, 5, 29), result.get(0).priceDate());
+    assertEquals(LocalDate.of(2026, 5, 29), result.getFirst().priceDate());
   }
 }
