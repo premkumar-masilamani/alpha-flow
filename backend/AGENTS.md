@@ -245,3 +245,12 @@ The task compiles and scans the code in four parallelizable stages:
 ### Centralizing Mathematical Helpers
 - Reuse mathematical operations like finding the minimum and maximum of a collection of values across hand-rolled technical indicators by centralizing them in `IndicatorMath` (e.g., `IndicatorMath.min(Collection<BigDecimal>)` and `IndicatorMath.max(Collection<BigDecimal>)`). Avoid private helper methods in individual indicator implementations.
 
+### Repository Default Methods
+- For simple entity-fetching operations and DTO mappings that are called directly from controllers or other packages, consider writing them as `default` methods in Repository interfaces. This helps eliminate thin, redundant API service classes and decouples the API service package from the strategy engine.
+
+### Java 21 Sequenced Collections
+- Always prefer calling `.getFirst()` and `.getLast()` instead of `.get(0)` and `.get(list.size() - 1)` respectively for all `List` or sequenced collection retrievals to maintain code clarity and use modern Java API features.
+
+### Range-Fetching and In-Memory Slicing
+- For chronological historical analysis, replace loop-based database queries with a single range fetch. Iterate chronologically in memory and slice the history using `HISTORY_WINDOW` up to each target date to avoid look-ahead bias and N+1 database queries. Use `HISTORY_WINDOW` consistently to parameterize offset calculations in both production and test cases.
+
