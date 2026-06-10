@@ -2,13 +2,11 @@ package com.alphaflow.engine.strategies;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.dtos.ASTAResponseDTO;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator;
 import com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator;
@@ -17,7 +15,6 @@ import com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator;
 import com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator;
 import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.enums.*;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -143,74 +140,6 @@ class ASTAStrategyTest {
         .thenReturn(weeklyIndicators);
     when(astaResultsRepository.findByTickerAndPriceDateGreaterThanEqual(ticker, TODAY))
         .thenReturn(List.of());
-  }
-
-  @Test
-  void testGetAnalysisPullsPersistedResult() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
-
-    ASTAResults result =
-        ASTAResults.builder()
-            .ticker(ticker)
-            .priceDate(TODAY)
-            .emaSignal(TradeAction.BUY)
-            .emaValue("EMA 5 > 13 & 26 (Bullish Alignment)")
-            .macdSignal(TradeAction.BUY)
-            .macdValue("Positive Crossover")
-            .stochasticSignal(TradeAction.BUY)
-            .stochasticValue("Positive Crossover")
-            .rsiSignal(TradeAction.BUY)
-            .rsiValue("Uptick (RSI: 55.0)")
-            .volumeSignal(TradeAction.BUY)
-            .volumeValue("Green Candle with Heavy Volume")
-            .overallSignal(TradeAction.BUY)
-            .build();
-    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(result));
-
-    ASTAResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
-
-    assertNotNull(response);
-    assertEquals(TradeAction.BUY, response.overallSignal());
-    assertEquals("Positive Crossover", response.macdValue());
-    verify(astaResultsRepository, never()).save(any());
-  }
-
-  @Test
-  void testGetAnalysisThrowsNotFoundWhenMissing() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
-    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.empty());
-
-    assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
-  }
-
-  @Test
-  void testGetAnalysisThrowsNotFoundWhenStale() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-
-    // Latest price date is TODAY
-    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
-
-    // Persisted analysis is older (YESTERDAY)
-    ASTAResults result =
-        ASTAResults.builder()
-            .ticker(ticker)
-            .priceDate(YESTERDAY)
-            .overallSignal(TradeAction.BUY)
-            .build();
-    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(result));
-
-    assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
   }
 
   @Test

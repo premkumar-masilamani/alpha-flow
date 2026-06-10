@@ -90,7 +90,10 @@ com.alphaflow
   - `engine` can depend on `persistence` but must **never** reference classes/DTOs in the `api` package.
   - `persistence` must remain completely self-contained and **never** import classes from `engine` or `api`.
 - Run validation checks via `make check_separation` to prevent package boundary erosion over time.
-- Note on DTO Mapping Tradeoffs: Placing DTO mapping default methods directly inside repositories (while permitted by repository guidelines) couples the `persistence` package to `api` DTOs, creating a boundary violation. If strict isolation is required, perform mapping exclusively in the `api` services layer.
+- **DTO Mapping Tradeoffs & Decoupling**: 
+  - Placing DTO mapping default methods directly inside repositories couples the `persistence` package to `api` DTOs, creating a boundary violation. Perform DTO mapping exclusively in the `api` services layer (e.g., creating dedicated service classes like `DailyPriceService` and `AnalysisService` to map queries).
+  - Business logic/strategy execution classes (e.g., `ASTAStrategy`) must not return or handle API DTOs. Strategy engines should expose database entity results directly and delegate DTO transformation to the `api` services layer.
+- **Entity Self-Containment**: Database entities in the `persistence` layer must never import business logic utility classes (e.g., classes in the `engine` layer like `IndicatorParams`). Instead, serialize or format parameter configurations natively using basic Java standard constructs (such as `TreeMap` and `StringJoiner`) inside the entity methods.
 
 ### Visualizer Rendering (Cytoscape.js)
 - When generating interactive canvas graphs (like `index.html` via Cytoscape), always specify raw hex colors instead of CSS variables (`var(...)`), as the canvas rendering context does not resolve CSS custom properties.

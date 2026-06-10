@@ -5,8 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,7 +19,7 @@ class DailyPriceControllerTest {
   @Test
   void testGetDailyPriceDataForTicker() {
 
-    DailyPriceRepository dailyPriceRepository = mock(DailyPriceRepository.class);
+    DailyPriceService dailyPriceService = mock(DailyPriceService.class);
     TickerRepository tickerRepository = mock(TickerRepository.class);
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
@@ -34,10 +34,9 @@ class DailyPriceControllerTest {
             new BigDecimal("1000.00"));
 
     when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
-    when(dailyPriceRepository.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
+    when(dailyPriceService.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
 
-    DailyPriceController controller =
-        new DailyPriceController(dailyPriceRepository, tickerRepository);
+    DailyPriceController controller = new DailyPriceController(dailyPriceService, tickerRepository);
 
     List<OhlcvDTO> res = controller.getDailyPriceDataForTicker("AAPL", 0, 250);
 

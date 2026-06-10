@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.entities;
 
-import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import jakarta.persistence.*;
@@ -69,6 +68,15 @@ public abstract class Indicator {
    * @return canonical parameter string
    */
   public String getParams() {
-    return IndicatorParams.of(indicatorDefinition.getParams()).canonical();
+    if (indicatorDefinition == null || indicatorDefinition.getParams() == null) {
+      return "";
+    }
+    java.util.Map<String, Integer> sortedParams =
+        new java.util.TreeMap<>(indicatorDefinition.getParams());
+    java.util.StringJoiner joiner = new java.util.StringJoiner(",");
+    for (java.util.Map.Entry<String, Integer> entry : sortedParams.entrySet()) {
+      joiner.add(entry.getKey() + "=" + entry.getValue());
+    }
+    return joiner.toString();
   }
 }
