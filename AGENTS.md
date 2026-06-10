@@ -83,3 +83,16 @@ com.alphaflow
 
 ### Range-Fetching and In-Memory Slicing
 - For chronological historical analysis, replace loop-based database queries with a single range fetch. Iterate chronologically in memory and slice the history using `HISTORY_WINDOW` up to each target date to avoid look-ahead bias and N+1 database queries. Use `HISTORY_WINDOW` consistently to parameterize offset calculations in both production and test cases.
+
+### Package Separation Boundaries & Layering
+- Always enforce the strict layered hierarchy:
+  - `api` can import/depend on `engine` and `persistence`.
+  - `engine` can depend on `persistence` but must **never** reference classes/DTOs in the `api` package.
+  - `persistence` must remain completely self-contained and **never** import classes from `engine` or `api`.
+- Run validation checks via `make check_separation` to prevent package boundary erosion over time.
+- Note on DTO Mapping Tradeoffs: Placing DTO mapping default methods directly inside repositories (while permitted by repository guidelines) couples the `persistence` package to `api` DTOs, creating a boundary violation. If strict isolation is required, perform mapping exclusively in the `api` services layer.
+
+### Visualizer Rendering (Cytoscape.js)
+- When generating interactive canvas graphs (like `index.html` via Cytoscape), always specify raw hex colors instead of CSS variables (`var(...)`), as the canvas rendering context does not resolve CSS custom properties.
+- Use hierarchical layouts (e.g. Dagre ranking top-to-bottom) for layered architectures instead of force-directed spring layouts (e.g. Cose), which result in unreadable node clusters and overlapping parent boundaries.
+

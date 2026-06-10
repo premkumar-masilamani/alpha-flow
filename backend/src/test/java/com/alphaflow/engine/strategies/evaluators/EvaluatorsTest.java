@@ -2,9 +2,14 @@ package com.alphaflow.engine.strategies.evaluators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.alphaflow.api.dtos.IndicatorPointDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
+import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklyIndicator;
+import com.alphaflow.persistence.enums.EvaluatorMessage;
+import com.alphaflow.persistence.enums.IndicatorType;
+import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.TradeAction;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,141 +21,291 @@ class EvaluatorsTest {
 
   private static final LocalDate TODAY = LocalDate.of(2026, 5, 30);
   private static final LocalDate YESTERDAY = LocalDate.of(2026, 5, 29);
+  private static final Ticker TICKER =
+      Ticker.builder().tickerSymbol("AAPL").tickerName("Apple Inc.").build();
 
-  private OhlcvDTO candle(LocalDate date, double open, double close, double volume) {
-    return OhlcvDTO.builder()
+  private DailyPrice candle(LocalDate date, double open, double close, double volume) {
+    return DailyPrice.builder()
         .priceDate(date)
         .priceOpen(BigDecimal.valueOf(open))
         .priceClose(BigDecimal.valueOf(close))
         .volume(BigDecimal.valueOf(volume))
+        .ticker(TICKER)
         .build();
   }
 
-  private IndicatorSeriesDTO series(
-      String type, String source, String params, List<IndicatorPointDTO> points) {
-    return IndicatorSeriesDTO.builder()
-        .type(type)
+  private IndicatorDefinition definition(IndicatorType type, PriceSource source, String params) {
+    Map<String, Integer> paramMap = new java.util.HashMap<>();
+    if (params != null && !params.isEmpty()) {
+      for (String pair : params.split(",")) {
+        String[] parts = pair.split("=");
+        if (parts.length == 2) {
+          try {
+            paramMap.put(parts[0], Integer.parseInt(parts[1]));
+          } catch (NumberFormatException ignored) {
+            // Ignore non-integers since our tests only use integer parameters
+          }
+        }
+      }
+    }
+    return IndicatorDefinition.builder()
+        .indicatorType(type)
         .source(source)
-        .params(params)
-        .points(points)
+        .params(paramMap)
         .build();
   }
 
-  private IndicatorPointDTO point(LocalDate date, Map<String, BigDecimal> values) {
-    return IndicatorPointDTO.builder().date(date).values(values).build();
+  private DailyIndicator dailyPoint(
+      IndicatorType type,
+      PriceSource source,
+      String params,
+      LocalDate date,
+      Map<String, Double> values) {
+    Map<String, BigDecimal> valMap = new java.util.HashMap<>();
+    values.forEach((k, v) -> valMap.put(k, BigDecimal.valueOf(v)));
+    return DailyIndicator.builder()
+        .ticker(TICKER)
+        .indicatorDefinition(definition(type, source, params))
+        .priceDate(date)
+        .values(valMap)
+        .build();
+  }
+
+  private WeeklyIndicator weeklyPoint(
+      IndicatorType type,
+      PriceSource source,
+      String params,
+      LocalDate date,
+      Map<String, Double> values) {
+    Map<String, BigDecimal> valMap = new java.util.HashMap<>();
+    values.forEach((k, v) -> valMap.put(k, BigDecimal.valueOf(v)));
+    return WeeklyIndicator.builder()
+        .ticker(TICKER)
+        .indicatorDefinition(definition(type, source, params))
+        .priceDate(date)
+        .values(valMap)
+        .build();
   }
 
   @Test
   void testWeeklyMacdEvaluatorPositiveCrossover() {
     WeeklyMacdEvaluator evaluator = new WeeklyMacdEvaluator();
 
-    List<IndicatorPointDTO> points =
+    List<WeeklyIndicator> points =
         List.of(
-            point(
+            weeklyPoint(
+                IndicatorType.MACD,
+                PriceSource.CLOSE,
+                "fast=12,slow=26,signal=9",
                 YESTERDAY,
-                Map.of("macd", BigDecimal.valueOf(1.0), "signal", BigDecimal.valueOf(1.2))),
-            point(
-                TODAY, Map.of("macd", BigDecimal.valueOf(1.5), "signal", BigDecimal.valueOf(1.3))));
-    IndicatorSeriesDTO macdSeries = series("MACD", "CLOSE", "fast=12,slow=26,signal=9", points);
-    ASTAEvaluationContext context =
-        new ASTAEvaluationContext(List.of(), List.of(), List.of(macdSeries));
+                Map.of("macd", 1.0, "signal", 1.2)),
+            weeklyPoint(
+                IndicatorType.MACD,
+                PriceSource.CLOSE,
+                "fast=12,slow=26,signal=9",
+                TODAY,
+                Map.of("macd", 1.5, "signal", 1.3)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), List.of(), points);
 
-    CalculatedSignal signal = evaluator.evaluate(context);
-    assertEquals(TradeAction.BUY, signal.signal());
-    assertEquals("Positive Crossover", signal.value());
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.BUY, signal.tradeAction());
+    assertEquals(EvaluatorMessage.POSITIVE_CROSSOVER.getValue(), signal.reason());
   }
 
   @Test
   void testDailyStochasticEvaluatorKGreaterThanD() {
     DailyStochasticEvaluator evaluator = new DailyStochasticEvaluator();
 
-    List<IndicatorPointDTO> points =
+    List<DailyIndicator> points =
         List.of(
-            point(YESTERDAY, Map.of("k", BigDecimal.valueOf(71), "d", BigDecimal.valueOf(70))),
-            point(TODAY, Map.of("k", BigDecimal.valueOf(82), "d", BigDecimal.valueOf(80))));
-    IndicatorSeriesDTO stochSeries =
-        series("STOCHASTIC", "CLOSE", "k=14,kSmooth=3,dSmooth=3", points);
-    ASTAEvaluationContext context =
-        new ASTAEvaluationContext(List.of(), List.of(stochSeries), List.of());
+            dailyPoint(
+                IndicatorType.STOCHASTIC,
+                PriceSource.CLOSE,
+                "k=14,kSmooth=3,dSmooth=3",
+                YESTERDAY,
+                Map.of("k", 71.0, "d", 70.0)),
+            dailyPoint(
+                IndicatorType.STOCHASTIC,
+                PriceSource.CLOSE,
+                "k=14,kSmooth=3,dSmooth=3",
+                TODAY,
+                Map.of("k", 82.0, "d", 80.0)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), points, List.of());
 
-    CalculatedSignal signal = evaluator.evaluate(context);
-    assertEquals(TradeAction.BUY, signal.signal());
-    assertEquals("K > D", signal.value());
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.BUY, signal.tradeAction());
+    assertEquals(EvaluatorMessage.K_ABOVE_D.getValue(), signal.reason());
   }
 
   @Test
   void testDailyRsiEvaluatorUptick() {
     DailyRsiEvaluator evaluator = new DailyRsiEvaluator();
 
-    List<IndicatorPointDTO> points =
+    List<DailyIndicator> points =
         List.of(
-            point(YESTERDAY, Map.of("value", BigDecimal.valueOf(45.0))),
-            point(TODAY, Map.of("value", BigDecimal.valueOf(50.0))));
-    IndicatorSeriesDTO rsiSeries = series("RSI", "CLOSE", "period=14", points);
-    ASTAEvaluationContext context =
-        new ASTAEvaluationContext(List.of(), List.of(rsiSeries), List.of());
+            dailyPoint(
+                IndicatorType.RSI,
+                PriceSource.CLOSE,
+                "period=14",
+                YESTERDAY,
+                Map.of("value", 45.0)),
+            dailyPoint(
+                IndicatorType.RSI, PriceSource.CLOSE, "period=14", TODAY, Map.of("value", 50.0)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), points, List.of());
 
-    CalculatedSignal signal = evaluator.evaluate(context);
-    assertEquals(TradeAction.BUY, signal.signal());
-    assertEquals("Uptick (RSI: 50.0)", signal.value());
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.BUY, signal.tradeAction());
+    assertEquals(EvaluatorMessage.UPTICK.getValue(), signal.reason());
   }
 
   @Test
   void testDailyVolumeEvaluatorHeavyVolumeGreen() {
     DailyVolumeEvaluator evaluator = new DailyVolumeEvaluator();
 
-    List<OhlcvDTO> candles =
+    List<DailyPrice> candles =
         List.of(
             candle(YESTERDAY, 100, 101, 1000), candle(TODAY, 102, 105, 1500) // Green, heavy volume
             );
 
-    List<IndicatorPointDTO> smaPoints =
+    List<DailyIndicator> volSmaSeries =
         List.of(
-            point(TODAY, Map.of("value", BigDecimal.valueOf(1100.0))) // Volume SMA
-            );
-    IndicatorSeriesDTO volSmaSeries = series("SMA", "VOLUME", "period=20", smaPoints);
-    ASTAEvaluationContext context =
-        new ASTAEvaluationContext(candles, List.of(volSmaSeries), List.of());
+            dailyPoint(
+                IndicatorType.SMA,
+                PriceSource.VOLUME,
+                "period=20",
+                TODAY,
+                Map.of("value", 1100.0)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(candles, volSmaSeries, List.of());
 
-    CalculatedSignal signal = evaluator.evaluate(context);
-    assertEquals(TradeAction.BUY, signal.signal());
-    assertEquals("Green Candle with Heavy Volume", signal.value());
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.BUY, signal.tradeAction());
+    assertEquals(EvaluatorMessage.GREEN_CANDLE_HEAVY_VOLUME.getValue(), signal.reason());
   }
 
   @Test
-  void testDailyEmaEvaluatorBullishAlignment() {
+  void testDailyEmaEvaluatorStrongBuy() {
     DailyEmaEvaluator evaluator = new DailyEmaEvaluator();
 
-    IndicatorSeriesDTO ema5 =
-        series(
-            "EMA",
-            "CLOSE",
-            "period=5",
-            List.of(
-                point(YESTERDAY, Map.of("value", BigDecimal.valueOf(101.0))),
-                point(TODAY, Map.of("value", BigDecimal.valueOf(104.0)))));
-    IndicatorSeriesDTO ema13 =
-        series(
-            "EMA",
-            "CLOSE",
-            "period=13",
-            List.of(
-                point(YESTERDAY, Map.of("value", BigDecimal.valueOf(100.0))),
-                point(TODAY, Map.of("value", BigDecimal.valueOf(102.0)))));
-    IndicatorSeriesDTO ema26 =
-        series(
-            "EMA",
-            "CLOSE",
-            "period=26",
-            List.of(
-                point(YESTERDAY, Map.of("value", BigDecimal.valueOf(99.0))),
-                point(TODAY, Map.of("value", BigDecimal.valueOf(101.0)))));
+    LocalDate d3 = TODAY.minusDays(3);
+    LocalDate d2 = TODAY.minusDays(2);
 
-    ASTAEvaluationContext context =
-        new ASTAEvaluationContext(List.of(), List.of(ema5, ema13, ema26), List.of());
+    List<DailyIndicator> points =
+        List.of(
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=5", d3, Map.of("value", 101.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=5", d2, Map.of("value", 102.0)),
+            dailyPoint(
+                IndicatorType.EMA,
+                PriceSource.CLOSE,
+                "period=5",
+                YESTERDAY,
+                Map.of("value", 103.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=5", TODAY, Map.of("value", 105.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=13", d3, Map.of("value", 100.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=13", d2, Map.of("value", 101.0)),
+            dailyPoint(
+                IndicatorType.EMA,
+                PriceSource.CLOSE,
+                "period=13",
+                YESTERDAY,
+                Map.of("value", 102.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=13", TODAY, Map.of("value", 103.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=26", d3, Map.of("value", 99.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=26", d2, Map.of("value", 100.0)),
+            dailyPoint(
+                IndicatorType.EMA,
+                PriceSource.CLOSE,
+                "period=26",
+                YESTERDAY,
+                Map.of("value", 101.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=26", TODAY, Map.of("value", 102.0)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), points, List.of());
 
-    CalculatedSignal signal = evaluator.evaluate(context);
-    assertEquals(TradeAction.BUY, signal.signal());
-    assertEquals("EMA 5 > 13 & 26 (Bullish Alignment)", signal.value());
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.STRONG_BUY, signal.tradeAction());
+    assertEquals(EvaluatorMessage.EMA_STRONG_BUY.getValue(), signal.reason());
+  }
+
+  @Test
+  void testDailyEmaEvaluatorCrossoverBuy() {
+    DailyEmaEvaluator evaluator = new DailyEmaEvaluator();
+
+    List<DailyIndicator> points =
+        List.of(
+            dailyPoint(
+                IndicatorType.EMA,
+                PriceSource.CLOSE,
+                "period=5",
+                YESTERDAY,
+                Map.of("value", 100.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=5", TODAY, Map.of("value", 103.0)),
+            dailyPoint(
+                IndicatorType.EMA,
+                PriceSource.CLOSE,
+                "period=13",
+                YESTERDAY,
+                Map.of("value", 101.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=13", TODAY, Map.of("value", 101.5)),
+            dailyPoint(
+                IndicatorType.EMA,
+                PriceSource.CLOSE,
+                "period=26",
+                YESTERDAY,
+                Map.of("value", 102.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=26", TODAY, Map.of("value", 102.5)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), points, List.of());
+
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.BUY, signal.tradeAction());
+    assertEquals(EvaluatorMessage.EMA_5_POS_CROSS_13_26.getValue(), signal.reason());
+  }
+
+  @Test
+  void testDailyEmaEvaluatorStrongSell() {
+    DailyEmaEvaluator evaluator = new DailyEmaEvaluator();
+
+    List<DailyIndicator> points =
+        List.of(
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=5", TODAY, Map.of("value", 95.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=13", TODAY, Map.of("value", 98.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=26", TODAY, Map.of("value", 100.0)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), points, List.of());
+
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.STRONG_SELL, signal.tradeAction());
+    assertEquals(EvaluatorMessage.EMA_STRONG_SELL.getValue(), signal.reason());
+  }
+
+  @Test
+  void testDailyEmaEvaluatorSell() {
+    DailyEmaEvaluator evaluator = new DailyEmaEvaluator();
+
+    List<DailyIndicator> points =
+        List.of(
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=5", TODAY, Map.of("value", 95.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=13", TODAY, Map.of("value", 100.0)),
+            dailyPoint(
+                IndicatorType.EMA, PriceSource.CLOSE, "period=26", TODAY, Map.of("value", 98.0)));
+    ASTAEvaluationContext context = new ASTAEvaluationContext(List.of(), points, List.of());
+
+    TradeSignal signal = evaluator.evaluate(context);
+    assertEquals(TradeAction.SELL, signal.tradeAction());
+    assertEquals(EvaluatorMessage.EMA_5_NEG_CROSS_13_26.getValue(), signal.reason());
   }
 }

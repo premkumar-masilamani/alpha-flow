@@ -1,15 +1,13 @@
 package com.alphaflow.engine.strategies;
 
 import com.alphaflow.api.dtos.ASTAResponseDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext;
-import com.alphaflow.engine.strategies.evaluators.CalculatedSignal;
 import com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator;
 import com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator;
 import com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator;
 import com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator;
+import com.alphaflow.engine.strategies.evaluators.TradeSignal;
 import com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator;
 import com.alphaflow.persistence.entities.ASTAResults;
 import com.alphaflow.persistence.entities.DailyIndicator;
@@ -171,9 +169,6 @@ public class ASTAStrategy {
               ? dailyPricesUpToDate.subList(
                   dailyPricesUpToDate.size() - HISTORY_WINDOW, dailyPricesUpToDate.size())
               : dailyPricesUpToDate;
-      List<OhlcvDTO> dailyCandles =
-          slicedDailyPrices.stream().map(com.alphaflow.api.mappers.OhlcvMapper::toDTO).toList();
-
       // Slice daily indicators based on the start and end of slicedDailyPrices
       LocalDate dailyStart = slicedDailyPrices.getFirst().getPriceDate();
       LocalDate dailyEnd = slicedDailyPrices.getLast().getPriceDate();
@@ -184,8 +179,6 @@ public class ASTAStrategy {
                       !di.getPriceDate().isBefore(dailyStart)
                           && !di.getPriceDate().isAfter(dailyEnd))
               .toList();
-      List<IndicatorSeriesDTO> dailyIndicatorSeries =
-          com.alphaflow.api.mappers.IndicatorMapper.toSeries(slicedDailyIndicators);
 
       // Slice weekly indicators directly: latest HISTORY_WINDOW weekly indicators up to priceDate
       List<WeeklyIndicator> weeklyIndicatorsUpToDate =
@@ -201,40 +194,50 @@ public class ASTAStrategy {
           slicedWeeklyIndicators.addAll(list);
         }
       }
-      List<IndicatorSeriesDTO> weeklyIndicatorSeries =
-          com.alphaflow.api.mappers.IndicatorMapper.toSeries(slicedWeeklyIndicators);
 
       ASTAEvaluationContext context =
-          new ASTAEvaluationContext(dailyCandles, dailyIndicatorSeries, weeklyIndicatorSeries);
+          new ASTAEvaluationContext(
+              slicedDailyPrices, slicedDailyIndicators, slicedWeeklyIndicators);
 
       // 1. MACD (12, 26) @ TIDE (Weekly)
-      CalculatedSignal macd = weeklyMacdEvaluator.evaluate(context);
+      TradeSignal macd = weeklyMacdEvaluator.evaluate(context);
 
       // 2. Stochastic (14, 3, 3) @ WAVE (Daily)
-      CalculatedSignal stoch = dailyStochasticEvaluator.evaluate(context);
+      TradeSignal stoch = dailyStochasticEvaluator.evaluate(context);
 
       // 3. RSI (14) @ WAVE (Daily)
-      CalculatedSignal rsi = dailyRsiEvaluator.evaluate(context);
+      TradeSignal rsi = dailyRsiEvaluator.evaluate(context);
 
       // 4. Volume (Daily)
-      CalculatedSignal volume = dailyVolumeEvaluator.evaluate(context);
+      TradeSignal volume = dailyVolumeEvaluator.evaluate(context);
 
       // 5. Moving Average EMA (Daily)
-      CalculatedSignal ema = dailyEmaEvaluator.evaluate(context);
+      TradeSignal ema = dailyEmaEvaluator.evaluate(context);
 
       // Overall consensus
       boolean doubleScreenBuy =
-          TradeAction.BUY == macd.signal()
-              && TradeAction.BUY == stoch.signal()
-              && TradeAction.BUY == rsi.signal();
+          (TradeAction.BUY == macd.tradeAction() || TradeAction.STRONG_BUY == macd.tradeAction())
+              && (TradeAction.BUY == stoch.tradeAction()
+                  || TradeAction.STRONG_BUY == stoch.tradeAction())
+              && (TradeAction.BUY == rsi.tradeAction()
+                  || TradeAction.STRONG_BUY == rsi.tradeAction());
       boolean doubleScreenSell =
-          TradeAction.SELL == macd.signal()
-              && TradeAction.SELL == stoch.signal()
-              && TradeAction.SELL == rsi.signal();
+          (TradeAction.SELL == macd.tradeAction() || TradeAction.STRONG_SELL == macd.tradeAction())
+              && (TradeAction.SELL == stoch.tradeAction()
+                  || TradeAction.STRONG_SELL == stoch.tradeAction())
+              && (TradeAction.SELL == rsi.tradeAction()
+                  || TradeAction.STRONG_SELL == rsi.tradeAction());
 
-      boolean checklistBuy = TradeAction.BUY == volume.signal() && TradeAction.BUY == ema.signal();
+      boolean checklistBuy =
+          (TradeAction.BUY == volume.tradeAction()
+                  || TradeAction.STRONG_BUY == volume.tradeAction())
+              && (TradeAction.BUY == ema.tradeAction()
+                  || TradeAction.STRONG_BUY == ema.tradeAction());
       boolean checklistSell =
-          TradeAction.SELL == volume.signal() && TradeAction.SELL == ema.signal();
+          (TradeAction.SELL == volume.tradeAction()
+                  || TradeAction.STRONG_SELL == volume.tradeAction())
+              && (TradeAction.SELL == ema.tradeAction()
+                  || TradeAction.STRONG_SELL == ema.tradeAction());
 
       TradeAction overallSignal = TradeAction.HOLD;
       if (doubleScreenBuy && checklistBuy) {
@@ -248,16 +251,16 @@ public class ASTAStrategy {
         result = ASTAResults.builder().ticker(ticker).priceDate(priceDate).build();
       }
 
-      result.setEmaSignal(ema.signal());
-      result.setEmaValue(ema.value());
-      result.setMacdSignal(macd.signal());
-      result.setMacdValue(macd.value());
-      result.setStochasticSignal(stoch.signal());
-      result.setStochasticValue(stoch.value());
-      result.setRsiSignal(rsi.signal());
-      result.setRsiValue(rsi.value());
-      result.setVolumeSignal(volume.signal());
-      result.setVolumeValue(volume.value());
+      result.setEmaSignal(ema.tradeAction());
+      result.setEmaValue(ema.reason());
+      result.setMacdSignal(macd.tradeAction());
+      result.setMacdValue(macd.reason());
+      result.setStochasticSignal(stoch.tradeAction());
+      result.setStochasticValue(stoch.reason());
+      result.setRsiSignal(rsi.tradeAction());
+      result.setRsiValue(rsi.reason());
+      result.setVolumeSignal(volume.tradeAction());
+      result.setVolumeValue(volume.reason());
       result.setOverallSignal(overallSignal);
 
       resultsToSave.add(result);

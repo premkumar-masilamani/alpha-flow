@@ -219,8 +219,10 @@ class ASTAStrategyTest {
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
 
     // Setup range query data
+    LocalDate THREE_DAYS_AGO = LocalDate.of(2026, 5, 27);
     List<DailyPrice> dailyPrices =
         List.of(
+            dPrice(THREE_DAYS_AGO, 98, 102, 97, 100, 800),
             dPrice(TWO_DAYS_AGO, 100, 105, 95, 102, 1000),
             dPrice(YESTERDAY, 102, 106, 101, 105, 1200),
             dPrice(TODAY, 105, 110, 104, 109, 1500));
@@ -320,8 +322,20 @@ class ASTAStrategyTest {
             DailyIndicator.builder()
                 .ticker(ticker)
                 .indicatorDefinition(ema5Def)
-                .priceDate(YESTERDAY)
+                .priceDate(THREE_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(100.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema5Def)
+                .priceDate(TWO_DAYS_AGO)
                 .values(Map.of("value", BigDecimal.valueOf(101.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema5Def)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(102.0)))
                 .build(),
             DailyIndicator.builder()
                 .ticker(ticker)
@@ -330,6 +344,18 @@ class ASTAStrategyTest {
                 .values(Map.of("value", BigDecimal.valueOf(104.0)))
                 .build(),
             // EMA 13
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema13Def)
+                .priceDate(THREE_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(98.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema13Def)
+                .priceDate(TWO_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(99.0)))
+                .build(),
             DailyIndicator.builder()
                 .ticker(ticker)
                 .indicatorDefinition(ema13Def)
@@ -343,6 +369,18 @@ class ASTAStrategyTest {
                 .values(Map.of("value", BigDecimal.valueOf(102.0)))
                 .build(),
             // EMA 26
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema26Def)
+                .priceDate(THREE_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(96.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema26Def)
+                .priceDate(TWO_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(97.0)))
+                .build(),
             DailyIndicator.builder()
                 .ticker(ticker)
                 .indicatorDefinition(ema26Def)
@@ -387,7 +425,7 @@ class ASTAStrategyTest {
     assertEquals(TradeAction.BUY, response.getStochasticSignal());
     assertEquals(TradeAction.BUY, response.getRsiSignal());
     assertEquals(TradeAction.BUY, response.getVolumeSignal());
-    assertEquals(TradeAction.BUY, response.getEmaSignal());
+    assertEquals(TradeAction.STRONG_BUY, response.getEmaSignal());
 
     verify(astaResultsRepository, times(1)).saveAll(anyList());
   }

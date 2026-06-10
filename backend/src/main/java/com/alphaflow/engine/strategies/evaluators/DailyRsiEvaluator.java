@@ -1,49 +1,44 @@
 package com.alphaflow.engine.strategies.evaluators;
 
-import com.alphaflow.api.dtos.IndicatorPointDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.enums.EvaluatorMessage;
 import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.TradeAction;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DailyRsiEvaluator implements ASTAEvaluator {
 
   @Override
-  public CalculatedSignal evaluate(ASTAEvaluationContext context) {
-    Optional<IndicatorSeriesDTO> rsiSeriesOpt =
+  public TradeSignal evaluate(ASTAEvaluationContext context) {
+    List<DailyIndicator> rsiPoints =
         context.dailyIndicators().stream()
-            .filter(s -> "RSI".equalsIgnoreCase(s.type()))
-            .findFirst();
+            .filter(s -> s.getIndicatorType() == IndicatorType.RSI)
+            .toList();
 
-    if (rsiSeriesOpt.isEmpty() || rsiSeriesOpt.get().points().size() < 2) {
-      return new CalculatedSignal(TradeAction.HOLD, "Insufficient RSI data");
+    if (rsiPoints.size() < 2) {
+      return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.INSUFFICIENT_RSI_DATA.getValue());
     }
 
-    List<IndicatorPointDTO> points = rsiSeriesOpt.get().points();
-    IndicatorPointDTO latest = points.getLast();
-    IndicatorPointDTO prev = points.get(points.size() - 2);
+    DailyIndicator latest = rsiPoints.getLast();
+    DailyIndicator prev = rsiPoints.get(rsiPoints.size() - 2);
 
-    BigDecimal rsi0 = latest.getValue(IndicatorOutputKey.VALUE);
-    BigDecimal rsi1 = prev.getValue(IndicatorOutputKey.VALUE);
+    BigDecimal rsi0 = latest.getValues().get(IndicatorOutputKey.VALUE.getValue());
+    BigDecimal rsi1 = prev.getValues().get(IndicatorOutputKey.VALUE.getValue());
 
     if (rsi0 == null || rsi1 == null) {
-      return new CalculatedSignal(TradeAction.HOLD, "Missing RSI values");
+      return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.MISSING_RSI_VALUES.getValue());
     }
 
     if (rsi0.compareTo(rsi1) > 0) {
-      return new CalculatedSignal(
-          TradeAction.BUY, "Uptick (RSI: " + rsi0.setScale(1, RoundingMode.HALF_UP) + ")");
+      return new TradeSignal(TradeAction.BUY, EvaluatorMessage.UPTICK.getValue());
     } else if (rsi0.compareTo(rsi1) < 0) {
-      return new CalculatedSignal(
-          TradeAction.SELL, "Downtick (RSI: " + rsi0.setScale(1, RoundingMode.HALF_UP) + ")");
+      return new TradeSignal(TradeAction.SELL, EvaluatorMessage.DOWNTICK.getValue());
     } else {
-      return new CalculatedSignal(
-          TradeAction.HOLD, "Flat (RSI: " + rsi0.setScale(1, RoundingMode.HALF_UP) + ")");
+      return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.FLAT.getValue());
     }
   }
 }
