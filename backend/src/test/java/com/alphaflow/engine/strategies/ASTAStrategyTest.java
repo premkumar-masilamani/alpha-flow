@@ -2,13 +2,11 @@ package com.alphaflow.engine.strategies;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.api.dtos.ASTAResponseDTO;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator;
 import com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator;
@@ -17,7 +15,6 @@ import com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator;
 import com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator;
 import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.enums.*;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -146,81 +143,15 @@ class ASTAStrategyTest {
   }
 
   @Test
-  void testGetAnalysisPullsPersistedResult() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
-
-    ASTAResults result =
-        ASTAResults.builder()
-            .ticker(ticker)
-            .priceDate(TODAY)
-            .emaSignal(TradeAction.BUY)
-            .emaValue("EMA 5 > 13 & 26 (Bullish Alignment)")
-            .macdSignal(TradeAction.BUY)
-            .macdValue("Positive Crossover")
-            .stochasticSignal(TradeAction.BUY)
-            .stochasticValue("Positive Crossover")
-            .rsiSignal(TradeAction.BUY)
-            .rsiValue("Uptick (RSI: 55.0)")
-            .volumeSignal(TradeAction.BUY)
-            .volumeValue("Green Candle with Heavy Volume")
-            .overallSignal(TradeAction.BUY)
-            .build();
-    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(result));
-
-    ASTAResponseDTO response = astaStrategy.getAnalysis(SYMBOL);
-
-    assertNotNull(response);
-    assertEquals(TradeAction.BUY, response.overallSignal());
-    assertEquals("Positive Crossover", response.macdValue());
-    verify(astaResultsRepository, never()).save(any());
-  }
-
-  @Test
-  void testGetAnalysisThrowsNotFoundWhenMissing() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
-    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.empty());
-
-    assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
-  }
-
-  @Test
-  void testGetAnalysisThrowsNotFoundWhenStale() {
-    Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
-
-    // Latest price date is TODAY
-    when(dailyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dPrice(TODAY, 100, 105, 95, 102, 1000)));
-
-    // Persisted analysis is older (YESTERDAY)
-    ASTAResults result =
-        ASTAResults.builder()
-            .ticker(ticker)
-            .priceDate(YESTERDAY)
-            .overallSignal(TradeAction.BUY)
-            .build();
-    when(astaResultsRepository.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(result));
-
-    assertThrows(ResourceNotFoundException.class, () -> astaStrategy.getAnalysis(SYMBOL));
-  }
-
-  @Test
   void testComputeAndPersistCalculatesSignalsCorrectly() {
     Ticker ticker = Ticker.builder().tickerSymbol(SYMBOL).build();
     when(tickerRepository.findByTickerSymbolIgnoreCase(SYMBOL)).thenReturn(Optional.of(ticker));
 
     // Setup range query data
+    LocalDate THREE_DAYS_AGO = LocalDate.of(2026, 5, 27);
     List<DailyPrice> dailyPrices =
         List.of(
+            dPrice(THREE_DAYS_AGO, 98, 102, 97, 100, 800),
             dPrice(TWO_DAYS_AGO, 100, 105, 95, 102, 1000),
             dPrice(YESTERDAY, 102, 106, 101, 105, 1200),
             dPrice(TODAY, 105, 110, 104, 109, 1500));
@@ -320,8 +251,20 @@ class ASTAStrategyTest {
             DailyIndicator.builder()
                 .ticker(ticker)
                 .indicatorDefinition(ema5Def)
-                .priceDate(YESTERDAY)
+                .priceDate(THREE_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(100.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema5Def)
+                .priceDate(TWO_DAYS_AGO)
                 .values(Map.of("value", BigDecimal.valueOf(101.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema5Def)
+                .priceDate(YESTERDAY)
+                .values(Map.of("value", BigDecimal.valueOf(102.0)))
                 .build(),
             DailyIndicator.builder()
                 .ticker(ticker)
@@ -330,6 +273,18 @@ class ASTAStrategyTest {
                 .values(Map.of("value", BigDecimal.valueOf(104.0)))
                 .build(),
             // EMA 13
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema13Def)
+                .priceDate(THREE_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(98.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema13Def)
+                .priceDate(TWO_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(99.0)))
+                .build(),
             DailyIndicator.builder()
                 .ticker(ticker)
                 .indicatorDefinition(ema13Def)
@@ -343,6 +298,18 @@ class ASTAStrategyTest {
                 .values(Map.of("value", BigDecimal.valueOf(102.0)))
                 .build(),
             // EMA 26
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema26Def)
+                .priceDate(THREE_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(96.0)))
+                .build(),
+            DailyIndicator.builder()
+                .ticker(ticker)
+                .indicatorDefinition(ema26Def)
+                .priceDate(TWO_DAYS_AGO)
+                .values(Map.of("value", BigDecimal.valueOf(97.0)))
+                .build(),
             DailyIndicator.builder()
                 .ticker(ticker)
                 .indicatorDefinition(ema26Def)
@@ -387,7 +354,7 @@ class ASTAStrategyTest {
     assertEquals(TradeAction.BUY, response.getStochasticSignal());
     assertEquals(TradeAction.BUY, response.getRsiSignal());
     assertEquals(TradeAction.BUY, response.getVolumeSignal());
-    assertEquals(TradeAction.BUY, response.getEmaSignal());
+    assertEquals(TradeAction.STRONG_BUY, response.getEmaSignal());
 
     verify(astaResultsRepository, times(1)).saveAll(anyList());
   }

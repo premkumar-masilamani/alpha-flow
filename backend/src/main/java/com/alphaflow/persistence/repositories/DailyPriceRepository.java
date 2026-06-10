@@ -1,7 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
-import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
@@ -10,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -94,15 +91,4 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
         )
   """)
   Optional<LocalDate> findEarliestDateMissingAnalysis(Ticker ticker);
-
-  default List<OhlcvDTO> getDailyPrice(Ticker ticker, int page, int size) {
-    return getDailyPrice(ticker, LocalDate.now(), page, size);
-  }
-
-  default List<OhlcvDTO> getDailyPrice(Ticker ticker, LocalDate endDate, int page, int size) {
-    return findLatestByTickerAndEndDate(ticker, endDate, PageRequest.of(page, size)).stream()
-        .sorted(java.util.Comparator.comparing(DailyPrice::getPriceDate))
-        .map(OhlcvMapper::toDTO)
-        .toList();
-  }
 }

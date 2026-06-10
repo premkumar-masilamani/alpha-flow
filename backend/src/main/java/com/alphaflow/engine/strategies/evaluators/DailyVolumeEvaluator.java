@@ -1,62 +1,71 @@
 package com.alphaflow.engine.strategies.evaluators;
 
-import com.alphaflow.api.dtos.IndicatorPointDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.DailyPrice;
+import com.alphaflow.persistence.enums.EvaluatorMessage;
 import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.enums.IndicatorType;
+import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.enums.TradeAction;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DailyVolumeEvaluator implements ASTAEvaluator {
 
   @Override
-  public CalculatedSignal evaluate(ASTAEvaluationContext context) {
+  public TradeSignal evaluate(ASTAEvaluationContext context) {
     if (context.dailyCandles().size() < 2) {
-      return new CalculatedSignal(TradeAction.HOLD, "Insufficient price data");
+      return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.INSUFFICIENT_PRICE_DATA.getValue());
     }
 
-    OhlcvDTO latestCandle = context.dailyCandles().getLast();
+    DailyPrice latestCandle = context.dailyCandles().getLast();
 
-    Optional<IndicatorSeriesDTO> volSmaOpt =
+    List<DailyIndicator> volSmaPoints =
         context.dailyIndicators().stream()
-            .filter(s -> "SMA".equalsIgnoreCase(s.type()) && "VOLUME".equalsIgnoreCase(s.source()))
-            .findFirst();
+            .filter(
+                s ->
+                    s.getIndicatorType() == IndicatorType.SMA
+                        && s.getSource() == PriceSource.VOLUME)
+            .toList();
 
-    if (volSmaOpt.isEmpty() || volSmaOpt.get().points().isEmpty()) {
-      return new CalculatedSignal(TradeAction.HOLD, "Insufficient volume SMA data");
+    if (volSmaPoints.isEmpty()) {
+      return new TradeSignal(
+          TradeAction.HOLD, EvaluatorMessage.INSUFFICIENT_VOLUME_SMA_DATA.getValue());
     }
 
-    List<IndicatorPointDTO> smaPoints = volSmaOpt.get().points();
-    IndicatorPointDTO latestSma = smaPoints.getLast();
-    BigDecimal volSmaValue = latestSma.getValue(IndicatorOutputKey.VALUE);
+    BigDecimal volSmaValue =
+        volSmaPoints.getLast().getValues().get(IndicatorOutputKey.VALUE.getValue());
 
     if (volSmaValue == null) {
-      return new CalculatedSignal(TradeAction.HOLD, "Missing volume SMA value");
+      return new TradeSignal(
+          TradeAction.HOLD, EvaluatorMessage.MISSING_VOLUME_SMA_VALUE.getValue());
     }
 
-    BigDecimal volume = latestCandle.volume();
+    BigDecimal volume = latestCandle.getVolume();
     boolean isHeavyVolume = volume.compareTo(volSmaValue) > 0;
-    boolean isGreen = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) > 0;
-    boolean isRed = latestCandle.priceClose().compareTo(latestCandle.priceOpen()) < 0;
+    boolean isGreen = latestCandle.getPriceClose().compareTo(latestCandle.getPriceOpen()) > 0;
+    boolean isRed = latestCandle.getPriceClose().compareTo(latestCandle.getPriceOpen()) < 0;
 
     if (isHeavyVolume) {
       if (isGreen) {
-        return new CalculatedSignal(TradeAction.BUY, "Green Candle with Heavy Volume");
+        return new TradeSignal(
+            TradeAction.BUY, EvaluatorMessage.GREEN_CANDLE_HEAVY_VOLUME.getValue());
       } else if (isRed) {
-        return new CalculatedSignal(TradeAction.SELL, "Red Candle with Heavy Volume");
+        return new TradeSignal(
+            TradeAction.SELL, EvaluatorMessage.RED_CANDLE_HEAVY_VOLUME.getValue());
       } else {
-        return new CalculatedSignal(TradeAction.HOLD, "Doji with Heavy Volume");
+        return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.DOJI_HEAVY_VOLUME.getValue());
       }
     } else {
-      String val =
+      EvaluatorMessage message =
           isGreen
-              ? "Green Candle with Normal Volume"
-              : (isRed ? "Red Candle with Normal Volume" : "Doji with Normal Volume");
-      return new CalculatedSignal(TradeAction.HOLD, val);
+              ? EvaluatorMessage.GREEN_CANDLE_NORMAL_VOLUME
+              : (isRed
+                  ? EvaluatorMessage.RED_CANDLE_NORMAL_VOLUME
+                  : EvaluatorMessage.DOJI_NORMAL_VOLUME);
+      return new TradeSignal(TradeAction.HOLD, message.getValue());
     }
   }
 }

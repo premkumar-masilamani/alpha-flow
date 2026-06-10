@@ -1,9 +1,9 @@
 package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -14,12 +14,12 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class DailyPriceController {
 
-  private final DailyPriceRepository dailyPriceRepository;
+  private final DailyPriceService dailyPriceService;
   private final TickerRepository tickerRepository;
 
   public DailyPriceController(
-      DailyPriceRepository dailyPriceRepository, TickerRepository tickerRepository) {
-    this.dailyPriceRepository = dailyPriceRepository;
+      DailyPriceService dailyPriceService, TickerRepository tickerRepository) {
+    this.dailyPriceService = dailyPriceService;
     this.tickerRepository = tickerRepository;
   }
 
@@ -38,6 +38,6 @@ public class DailyPriceController {
             .findByTickerSymbolIgnoreCase(symbol)
             .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
-    return dailyPriceRepository.getDailyPrice(ticker, page, finalSize);
+    return dailyPriceService.getDailyPrice(ticker, page, finalSize);
   }
 }

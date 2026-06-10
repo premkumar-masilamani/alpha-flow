@@ -1,90 +1,74 @@
 package com.alphaflow.engine.strategies.evaluators;
 
-import com.alphaflow.api.dtos.IndicatorPointDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.enums.EvaluatorMessage;
 import com.alphaflow.persistence.enums.IndicatorOutputKey;
+import com.alphaflow.persistence.enums.IndicatorParamKey;
+import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.TradeAction;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DailyEmaEvaluator implements ASTAEvaluator {
 
   @Override
-  public CalculatedSignal evaluate(ASTAEvaluationContext context) {
-    Optional<IndicatorSeriesDTO> ema5Opt =
+  public TradeSignal evaluate(ASTAEvaluationContext context) {
+    List<DailyIndicator> ema5Points =
         context.dailyIndicators().stream()
-            .filter(s -> "EMA".equalsIgnoreCase(s.type()) && s.params().contains("period=5"))
-            .findFirst();
-    Optional<IndicatorSeriesDTO> ema13Opt =
+            .filter(
+                s ->
+                    s.getIndicatorType() == IndicatorType.EMA
+                        && s.getParams().contains(IndicatorParamKey.PERIOD.getValue() + "=5"))
+            .toList();
+    List<DailyIndicator> ema13Points =
         context.dailyIndicators().stream()
-            .filter(s -> "EMA".equalsIgnoreCase(s.type()) && s.params().contains("period=13"))
-            .findFirst();
-    Optional<IndicatorSeriesDTO> ema26Opt =
+            .filter(
+                s ->
+                    s.getIndicatorType() == IndicatorType.EMA
+                        && s.getParams().contains(IndicatorParamKey.PERIOD.getValue() + "=13"))
+            .toList();
+    List<DailyIndicator> ema26Points =
         context.dailyIndicators().stream()
-            .filter(s -> "EMA".equalsIgnoreCase(s.type()) && s.params().contains("period=26"))
-            .findFirst();
+            .filter(
+                s ->
+                    s.getIndicatorType() == IndicatorType.EMA
+                        && s.getParams().contains(IndicatorParamKey.PERIOD.getValue() + "=26"))
+            .toList();
 
-    if (ema5Opt.isEmpty()
-        || ema13Opt.isEmpty()
-        || ema26Opt.isEmpty()
-        || ema5Opt.get().points().size() < 2
-        || ema13Opt.get().points().size() < 2
-        || ema26Opt.get().points().size() < 2) {
-      return new CalculatedSignal(TradeAction.HOLD, "Insufficient EMA data");
+    if (ema5Points.isEmpty() || ema13Points.isEmpty() || ema26Points.isEmpty()) {
+      return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.INSUFFICIENT_EMA_DATA.getValue());
     }
 
-    List<IndicatorPointDTO> points5 = ema5Opt.get().points();
-    List<IndicatorPointDTO> points13 = ema13Opt.get().points();
-    List<IndicatorPointDTO> points26 = ema26Opt.get().points();
+    BigDecimal e5_0 = ema5Points.getLast().getValues().get(IndicatorOutputKey.VALUE.getValue());
+    BigDecimal e13_0 = ema13Points.getLast().getValues().get(IndicatorOutputKey.VALUE.getValue());
+    BigDecimal e26_0 = ema26Points.getLast().getValues().get(IndicatorOutputKey.VALUE.getValue());
 
-    BigDecimal e5_0 = points5.getLast().getValue(IndicatorOutputKey.VALUE);
-    BigDecimal e5_1 = points5.get(points5.size() - 2).getValue(IndicatorOutputKey.VALUE);
-
-    BigDecimal e13_0 = points13.getLast().getValue(IndicatorOutputKey.VALUE);
-    BigDecimal e13_1 = points13.get(points13.size() - 2).getValue(IndicatorOutputKey.VALUE);
-
-    BigDecimal e26_0 = points26.getLast().getValue(IndicatorOutputKey.VALUE);
-    BigDecimal e26_1 = points26.get(points26.size() - 2).getValue(IndicatorOutputKey.VALUE);
-
-    if (e5_0 == null
-        || e5_1 == null
-        || e13_0 == null
-        || e13_1 == null
-        || e26_0 == null
-        || e26_1 == null) {
-      return new CalculatedSignal(TradeAction.HOLD, "Missing EMA values");
+    if (e5_0 == null || e13_0 == null || e26_0 == null) {
+      return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.MISSING_EMA_VALUES.getValue());
     }
 
-    boolean pco13 = e5_0.compareTo(e13_0) > 0 && e5_1.compareTo(e13_1) <= 0;
-    boolean pco26 = e5_0.compareTo(e26_0) > 0 && e5_1.compareTo(e26_1) <= 0;
-    boolean nco13 = e5_0.compareTo(e13_0) < 0 && e5_1.compareTo(e13_1) >= 0;
-    boolean nco26 = e5_0.compareTo(e26_0) < 0 && e5_1.compareTo(e26_1) >= 0;
-
-    if (pco13 || pco26) {
-      String value =
-          pco13 && pco26
-              ? "5 EMA Positive Crossover with 13 & 26 EMA"
-              : (pco13
-                  ? "5 EMA Positive Crossover with 13 EMA"
-                  : "5 EMA Positive Crossover with 26 EMA");
-      return new CalculatedSignal(TradeAction.BUY, value);
-    } else if (nco13 || nco26) {
-      String value =
-          nco13 && nco26
-              ? "5 EMA Negative Crossover with 13 & 26 EMA"
-              : (nco13
-                  ? "5 EMA Negative Crossover with 13 EMA"
-                  : "5 EMA Negative Crossover with 26 EMA");
-      return new CalculatedSignal(TradeAction.SELL, value);
-    } else if (e5_0.compareTo(e13_0) > 0 && e5_0.compareTo(e26_0) > 0) {
-      return new CalculatedSignal(TradeAction.BUY, "EMA 5 > 13 & 26 (Bullish Alignment)");
-    } else if (e5_0.compareTo(e13_0) < 0 && e5_0.compareTo(e26_0) < 0) {
-      return new CalculatedSignal(TradeAction.SELL, "EMA 5 < 13 & 26 (Bearish Alignment)");
-    } else {
-      return new CalculatedSignal(TradeAction.HOLD, "Mixed EMAs");
+    // Check Strong Buy first
+    if (e5_0.compareTo(e13_0) > 0 && e13_0.compareTo(e26_0) > 0) {
+      return new TradeSignal(TradeAction.STRONG_BUY, EvaluatorMessage.EMA_STRONG_BUY.getValue());
     }
+
+    // Check Buy: 5 > 13 and 5 > 26 (but not Strong Buy)
+    if (e5_0.compareTo(e13_0) > 0 && e5_0.compareTo(e26_0) > 0) {
+      return new TradeSignal(TradeAction.BUY, EvaluatorMessage.EMA_5_POS_CROSS_13_26.getValue());
+    }
+
+    // Check Strong Sell
+    if (e5_0.compareTo(e13_0) < 0 && e13_0.compareTo(e26_0) < 0) {
+      return new TradeSignal(TradeAction.STRONG_SELL, EvaluatorMessage.EMA_STRONG_SELL.getValue());
+    }
+
+    // Check Sell: 5 < 13 and 5 < 26 (but not Strong Sell)
+    if (e5_0.compareTo(e13_0) < 0 && e5_0.compareTo(e26_0) < 0) {
+      return new TradeSignal(TradeAction.SELL, EvaluatorMessage.EMA_5_NEG_CROSS_13_26.getValue());
+    }
+
+    return new TradeSignal(TradeAction.HOLD, EvaluatorMessage.MIXED_EMAS.getValue());
   }
 }
