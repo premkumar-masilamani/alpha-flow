@@ -57,8 +57,7 @@ The frontend is a lightweight Single Page App (SPA) structured under `frontend/s
 ### Ask First
 - Modifying core chart plotting defaults or color schemes.
 
-### Never Do
-- Do not commit secrets, private API keys, or `.env` files.
+
 
 ## Formatting & Linting Instructions
 
