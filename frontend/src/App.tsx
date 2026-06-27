@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  AlertCircle,
 } from "lucide-react";
 
 // Percentage change relative to a base price. Returns 0 when the base is zero or
@@ -38,7 +39,7 @@ function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
-  const [snapshotError, setSnapshotError] = useState<"stale" | "server" | null>(null);
+  const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Timeframe and Indicators
@@ -137,26 +138,26 @@ function App() {
     }
   }, [timeframe, indicatorConfigs]);
 
-  // Fetch snapshot data when selectedTicker changes
+  // Fetch technical analysis data when selectedTicker changes
   useEffect(() => {
     let active = true;
     const fetchData = async () => {
       if (selectedTicker) {
         setLoading(true);
         setAnalysisData(null);
-        setSnapshotError(null);
+        setAnalysisError(null);
 
         try {
-          const snapshot = await getTechnicalAnalysis(selectedTicker);
+          const analysis = await getTechnicalAnalysis(selectedTicker);
           if (active) {
-            setAnalysisData(snapshot);
+            setAnalysisData(analysis);
           }
         } catch (error) {
-          console.error("Failed to fetch snapshot data:", error);
+          console.error("Failed to fetch technical analysis data:", error);
           if (active) {
             setAnalysisData(null);
             const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-            setSnapshotError(status === 404 ? "stale" : "server");
+            setAnalysisError(status === 404 ? "stale" : "server");
           }
         } finally {
           if (active) {
@@ -301,23 +302,21 @@ function App() {
   };
 
   const renderOverview = () => {
-    if (snapshotError === "stale") {
+    if (analysisError === "stale") {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
-          <div className="max-w-md p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-xl space-y-4">
-            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-400">
-              <Info size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-white">Snapshot Not Yet Complete</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Snapshot data has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
+        <div className="flex-1 flex flex-col items-center justify-center p-8">
+          <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+            <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+            <h3 className="text-lg font-bold text-white">Technical Analysis Not Yet Complete</h3>
+            <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+              Technical analysis data has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
             </p>
           </div>
         </div>
       );
     }
 
-    if (snapshotError === "server") {
+    if (analysisError === "server") {
       return (
         <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
           <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
@@ -338,7 +337,7 @@ function App() {
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
           <Loader2 className="animate-spin text-blue-500" size={32} />
           <p className="text-sm font-semibold text-slate-400">
-            Fetching today's snapshot...
+            Fetching technical analysis...
           </p>
         </div>
       );
@@ -412,7 +411,7 @@ function App() {
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur">
           <div className="flex justify-between items-center mb-6">
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-              OHLCV Snapshot
+              OHLCV Technical Analysis
             </div>
             <div className="text-xs px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 font-semibold text-slate-300 font-mono">
               {candle.date}
@@ -551,7 +550,7 @@ function App() {
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500">
               {loading
-                ? "Loading snapshot..."
+                ? "Loading technical analysis..."
                 : "No data available for this ticker"}
             </div>
           )
