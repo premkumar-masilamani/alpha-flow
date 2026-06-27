@@ -5,7 +5,7 @@ import {
     getCandleData,
     getIndicatorConfigs,
     getIndicatorSeries,
-    getTodaySnapshot,
+    getTechnicalAnalysis,
     indicatorKey,
     type Ticker,
     type DailyCandleData,
@@ -122,7 +122,7 @@ describe('API Service Layer Tests', () => {
         });
     });
 
-    describe('getTodaySnapshot', () => {
+    describe('getTechnicalAnalysis', () => {
         it('should fetch today snapshot aggregating candles and indicators', async () => {
             const mockCandles = [{ date: '2026-06-01', open: 100, high: 110, low: 90, close: 105, vol: 5000 }];
             const mockDaily = [{ type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI', points: [{ date: '2026-06-01', values: { value: 50 } }] }];
@@ -138,7 +138,7 @@ describe('API Service Layer Tests', () => {
                 return Promise.resolve({ data: [] });
             });
 
-            const result = await getTodaySnapshot('AAPL');
+            const result = await getTechnicalAnalysis('AAPL');
             expect(result).toEqual({
                 symbol: 'AAPL',
                 candle: mockCandles[0],

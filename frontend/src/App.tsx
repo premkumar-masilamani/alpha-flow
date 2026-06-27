@@ -12,11 +12,11 @@ import {
   getTickers,
   type IndicatorConfig,
   type IndicatorSeries,
+  getTechnicalAnalysis,
   indicatorKey,
   type Ticker,
   type Timeframe,
-  type SnapshotData,
-  getTodaySnapshot,
+  type AnalysisResponse,
 } from "./services/api";
 import {
   Loader2,
@@ -37,7 +37,7 @@ const pctChange = (change: number, base: number): number => {
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [snapshotData, setSnapshotData] = useState<SnapshotData | null>(null);
+  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
   const [snapshotError, setSnapshotError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -143,18 +143,18 @@ function App() {
     const fetchData = async () => {
       if (selectedTicker) {
         setLoading(true);
-        setSnapshotData(null);
+        setAnalysisData(null);
         setSnapshotError(null);
 
         try {
-          const snapshot = await getTodaySnapshot(selectedTicker);
+          const snapshot = await getTechnicalAnalysis(selectedTicker);
           if (active) {
-            setSnapshotData(snapshot);
+            setAnalysisData(snapshot);
           }
         } catch (error) {
           console.error("Failed to fetch snapshot data:", error);
           if (active) {
-            setSnapshotData(null);
+            setAnalysisData(null);
             const status = axios.isAxiosError(error) ? error.response?.status : undefined;
             setSnapshotError(status === 404 ? "stale" : "server");
           }
@@ -333,7 +333,7 @@ function App() {
       );
     }
 
-    if (!snapshotData || !snapshotData.candle) {
+    if (!analysisData || !analysisData.candle) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
           <Loader2 className="animate-spin text-blue-500" size={32} />
@@ -344,7 +344,7 @@ function App() {
       );
     }
 
-    const { candle, dailyIndicators, weeklyIndicators } = snapshotData;
+    const { candle, dailyIndicators, weeklyIndicators } = analysisData;
     const priceChange = candle.close - candle.open;
     const priceChangePct = pctChange(priceChange, candle.open);
 
@@ -546,7 +546,7 @@ function App() {
 
         {/* Dashboard Tab Content */}
         {activeTab === "overview" ? (
-          snapshotData ? (
+          analysisData ? (
             renderOverview()
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500">
