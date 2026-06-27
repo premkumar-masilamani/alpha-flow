@@ -301,6 +301,10 @@ function App() {
     }
   };
 
+  const formatLabel = (label: string): string => {
+    return label.replace(/^([A-Za-z]+)\((.*)\)$/, '$1 ($2)');
+  };
+
   const renderOverview = () => {
     if (analysisError === "stale") {
       return (
@@ -374,7 +378,7 @@ function App() {
                   return (
                     <tr key={`${ind.type}-${ind.params}-${idx}`} className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors">
                       <td className="p-4 font-bold text-slate-300">
-                        {ind.label || `${ind.type} (${ind.params})`}
+                        {formatLabel(ind.label || `${ind.type} (${ind.params})`)}
                       </td>
                       <td className="p-4 text-slate-400 font-mono">
                         {pt ? (
