@@ -147,14 +147,14 @@ export const getIndicatorSeries = async (
     return response.data;
 };
 
-export interface AnalysisResponse {
+export interface TechnicalAnalysisData {
     symbol: string;
     candle: DailyCandleData | null;
     dailyIndicators: IndicatorSeries[];
     weeklyIndicators: IndicatorSeries[];
 }
 
-export const getTechnicalAnalysis = async (symbol: string): Promise<AnalysisResponse> => {
+export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAnalysisData> => {
     const [candles, dailyInds, weeklyInds] = await Promise.all([
         getCandleData(symbol, 'DAILY', 0, 1),
         getIndicatorSeries(symbol, 'DAILY', 0, 1),

@@ -16,7 +16,7 @@ import {
   indicatorKey,
   type Ticker,
   type Timeframe,
-  type AnalysisResponse,
+  type TechnicalAnalysisData,
 } from "./services/api";
 import {
   Loader2,
@@ -38,7 +38,7 @@ const pctChange = (change: number, base: number): number => {
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(null);
+  const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
 
