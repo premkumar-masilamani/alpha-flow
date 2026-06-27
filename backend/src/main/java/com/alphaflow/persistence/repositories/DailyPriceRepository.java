@@ -80,15 +80,4 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
                 ORDER BY dp.priceDate DESC
             """)
   List<LocalDate> findRecentPriceDatesUpTo(Ticker ticker, LocalDate endDate, Pageable pageable);
-
-  @Query(
-      """
-      SELECT MIN(dp.priceDate) FROM DailyPrice dp
-      WHERE dp.ticker = :ticker
-        AND NOT EXISTS (
-            SELECT 1 FROM ASTAResults ar
-            WHERE ar.ticker = :ticker AND ar.priceDate = dp.priceDate
-        )
-  """)
-  Optional<LocalDate> findEarliestDateMissingAnalysis(Ticker ticker);
 }

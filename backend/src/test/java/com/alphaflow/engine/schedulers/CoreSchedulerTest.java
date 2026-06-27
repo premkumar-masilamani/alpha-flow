@@ -5,7 +5,6 @@ import static org.mockito.Mockito.*;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
-import com.alphaflow.engine.strategies.ASTAStrategy;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
@@ -20,10 +19,7 @@ class CoreSchedulerTest {
 
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
 
-    ASTAStrategy astaStrategy = mock(ASTAStrategy.class);
-
-    CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, astaStrategy);
+    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator);
 
     scheduler.runScheduledUpdate();
 
@@ -32,8 +28,6 @@ class CoreSchedulerTest {
     verify(weeklyCalculator, times(1)).computeWeeklyPrices();
 
     verify(indicatorCalculator, times(1)).computeIndicators();
-
-    verify(astaStrategy, times(1)).computeTechnicalAnalysis();
   }
 
   @Test
@@ -44,12 +38,9 @@ class CoreSchedulerTest {
 
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
 
-    ASTAStrategy astaStrategy = mock(ASTAStrategy.class);
-
     doThrow(new RuntimeException("Injected download error")).when(downloader).downloadDailyPrices();
 
-    CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, astaStrategy);
+    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator);
 
     scheduler.runOnStartup();
 
@@ -60,8 +51,6 @@ class CoreSchedulerTest {
     verify(weeklyCalculator, never()).computeWeeklyPrices();
 
     verify(indicatorCalculator, never()).computeIndicators();
-
-    verify(astaStrategy, never()).computeTechnicalAnalysis();
   }
 
   @Test
@@ -71,8 +60,6 @@ class CoreSchedulerTest {
     WeeklyPriceCalculator weeklyCalculator = mock(WeeklyPriceCalculator.class);
 
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
-
-    ASTAStrategy astaStrategy = mock(ASTAStrategy.class);
 
     CountDownLatch startLatch = new CountDownLatch(1);
 
@@ -91,8 +78,7 @@ class CoreSchedulerTest {
         .when(downloader)
         .downloadDailyPrices();
 
-    CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator, astaStrategy);
+    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyCalculator, indicatorCalculator);
 
     // Start thread for first invocation
 
@@ -121,7 +107,5 @@ class CoreSchedulerTest {
     verify(weeklyCalculator, times(1)).computeWeeklyPrices();
 
     verify(indicatorCalculator, times(1)).computeIndicators();
-
-    verify(astaStrategy, times(1)).computeTechnicalAnalysis();
   }
 }

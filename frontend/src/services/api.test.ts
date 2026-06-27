@@ -10,8 +10,7 @@ import {
     type Ticker,
     type DailyCandleData,
     type IndicatorConfig,
-    type IndicatorSeries,
-    type AnalysisResponse
+    type IndicatorSeries
 } from './api';
 
 // Mock axios completely
@@ -124,28 +123,29 @@ describe('API Service Layer Tests', () => {
     });
 
     describe('getTechnicalAnalysis', () => {
-        it('should fetch automated technical signals and metrics', async () => {
-            const mockAnalysis: AnalysisResponse = {
-                symbol: 'AAPL',
-                priceDate: '2026-06-01',
-                emaSignal: 'BUY',
-                emaValue: '180.50',
-                macdSignal: 'HOLD',
-                macdValue: '0.25',
-                stochasticSignal: 'SELL',
-                stochasticValue: '85.40',
-                rsiSignal: 'BUY',
-                rsiValue: '35.60',
-                volumeSignal: 'BUY',
-                volumeValue: 'High Volume',
-                overallSignal: 'BUY'
-            };
-
-            mockedAxios.get.mockResolvedValueOnce({ data: mockAnalysis });
+        it('should fetch today snapshot aggregating candles and indicators', async () => {
+            const mockCandles = [{ date: '2026-06-01', open: 100, high: 110, low: 90, close: 105, vol: 5000 }];
+            const mockDaily = [{ type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI', points: [{ date: '2026-06-01', values: { value: 50 } }] }];
+            const mockWeekly = [{ type: 'MACD', source: 'CLOSE', params: 'fast=12', label: 'MACD', points: [{ date: '2026-05-31', values: { value: 1 } }] }];
+            
+            // Promise.all calls getCandleData, getIndicatorSeries(DAILY), getIndicatorSeries(WEEKLY)
+            // But getCandleData and getIndicatorSeries are mocked? No, we are testing the API service which CALLS axios.
+            // Let's mock the axios responses in order or by URL.
+            mockedAxios.get.mockImplementation((url) => {
+                if (url.includes('/data')) return Promise.resolve({ data: mockCandles });
+                if (url.includes('/indicators') && url.includes('timeframe=DAILY')) return Promise.resolve({ data: mockDaily });
+                if (url.includes('/indicators') && url.includes('timeframe=WEEKLY')) return Promise.resolve({ data: mockWeekly });
+                return Promise.resolve({ data: [] });
+            });
 
             const result = await getTechnicalAnalysis('AAPL');
-            expect(result).toEqual(mockAnalysis);
-            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/tickers/AAPL/analysis'));
+            expect(result).toEqual({
+                symbol: 'AAPL',
+                candle: mockCandles[0],
+                dailyIndicators: mockDaily,
+                weeklyIndicators: mockWeekly
+            });
+            expect(mockedAxios.get).toHaveBeenCalledTimes(3);
         });
     });
 

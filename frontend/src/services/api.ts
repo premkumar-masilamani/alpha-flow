@@ -147,24 +147,24 @@ export const getIndicatorSeries = async (
     return response.data;
 };
 
-export interface AnalysisResponse {
+export interface TechnicalAnalysisData {
     symbol: string;
-    priceDate: string;
-    emaSignal: 'BUY' | 'SELL' | 'HOLD';
-    emaValue: string;
-    macdSignal: 'BUY' | 'SELL' | 'HOLD';
-    macdValue: string;
-    stochasticSignal: 'BUY' | 'SELL' | 'HOLD';
-    stochasticValue: string;
-    rsiSignal: 'BUY' | 'SELL' | 'HOLD';
-    rsiValue: string;
-    volumeSignal: 'BUY' | 'SELL' | 'HOLD';
-    volumeValue: string;
-    overallSignal: 'BUY' | 'SELL' | 'HOLD';
+    candle: DailyCandleData | null;
+    dailyIndicators: IndicatorSeries[];
+    weeklyIndicators: IndicatorSeries[];
 }
 
-export const getTechnicalAnalysis = async (symbol: string): Promise<AnalysisResponse> => {
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/analysis`);
-    return response.data;
-};
+export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAnalysisData> => {
+    const [candles, dailyInds, weeklyInds] = await Promise.all([
+        getCandleData(symbol, 'DAILY', 0, 1),
+        getIndicatorSeries(symbol, 'DAILY', 0, 1),
+        getIndicatorSeries(symbol, 'WEEKLY', 0, 1)
+    ]);
 
+    return {
+        symbol,
+        candle: candles.length > 0 ? candles[0] : null,
+        dailyIndicators: dailyInds,
+        weeklyIndicators: weeklyInds
+    };
+};
