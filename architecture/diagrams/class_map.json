@@ -10,15 +10,6 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.persistence.enums.EvaluatorMessage",
-      "name": "EvaluatorMessage",
-      "package": "com.alphaflow.persistence.enums",
-      "component": "persistence",
-      "type": "enum",
-      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/EvaluatorMessage.java",
-      "violation": false
-    },
-    {
       "id": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "name": "IndicatorOutputKey",
       "package": "com.alphaflow.persistence.enums",
@@ -64,15 +55,6 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.persistence.enums.TradeAction",
-      "name": "TradeAction",
-      "package": "com.alphaflow.persistence.enums",
-      "component": "persistence",
-      "type": "enum",
-      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/TradeAction.java",
-      "violation": false
-    },
-    {
       "id": "com.alphaflow.persistence.repositories.TickerRepository",
       "name": "TickerRepository",
       "package": "com.alphaflow.persistence.repositories",
@@ -88,15 +70,6 @@
       "component": "persistence",
       "type": "interface",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/WeeklyPriceRepository.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.persistence.repositories.ASTAResultsRepository",
-      "name": "ASTAResultsRepository",
-      "package": "com.alphaflow.persistence.repositories",
-      "component": "persistence",
-      "type": "interface",
-      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/ASTAResultsRepository.java",
       "violation": false
     },
     {
@@ -133,7 +106,7 @@
       "component": "persistence",
       "type": "interface",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/DailyPriceRepository.java",
-      "violation": true
+      "violation": false
     },
     {
       "id": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
@@ -172,15 +145,6 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.persistence.entities.ASTAResults",
-      "name": "ASTAResults",
-      "package": "com.alphaflow.persistence.entities",
-      "component": "persistence",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/ASTAResults.java",
-      "violation": false
-    },
-    {
       "id": "com.alphaflow.persistence.entities.DailyPrice",
       "name": "DailyPrice",
       "package": "com.alphaflow.persistence.entities",
@@ -196,7 +160,7 @@
       "component": "persistence",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/Indicator.java",
-      "violation": true
+      "violation": false
     },
     {
       "id": "com.alphaflow.persistence.entities.WeeklyPrice",
@@ -226,22 +190,13 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.dtos.ASTAResponseDTO",
-      "name": "ASTAResponseDTO",
-      "package": "com.alphaflow.api.dtos",
-      "component": "api",
-      "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/ASTAResponseDTO.java",
-      "violation": true
-    },
-    {
       "id": "com.alphaflow.api.dtos.OhlcvDTO",
       "name": "OhlcvDTO",
       "package": "com.alphaflow.api.dtos",
       "component": "api",
       "type": "record",
       "filepath": "backend/src/main/java/com/alphaflow/api/dtos/OhlcvDTO.java",
-      "violation": true
+      "violation": false
     },
     {
       "id": "com.alphaflow.api.dtos.TickerDTO",
@@ -304,7 +259,7 @@
       "component": "api",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/api/mappers/OhlcvMapper.java",
-      "violation": true
+      "violation": false
     },
     {
       "id": "com.alphaflow.api.mappers.TickerMapper",
@@ -352,15 +307,6 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.controllers.AnalysisController",
-      "name": "AnalysisController",
-      "package": "com.alphaflow.api.controllers",
-      "component": "api",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/AnalysisController.java",
-      "violation": false
-    },
-    {
       "id": "com.alphaflow.api.controllers.generic.GlobalExceptionHandler",
       "name": "GlobalExceptionHandler",
       "package": "com.alphaflow.api.controllers.generic",
@@ -376,6 +322,15 @@
       "component": "api",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/api/controllers/generic/ApiController.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.services.DailyPriceService",
+      "name": "DailyPriceService",
+      "package": "com.alphaflow.api.services",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/DailyPriceService.java",
       "violation": false
     },
     {
@@ -403,87 +358,6 @@
       "component": "api",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/api/services/IndicatorService.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "name": "ASTAStrategy",
-      "package": "com.alphaflow.engine.strategies",
-      "component": "engine",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/ASTAStrategy.java",
-      "violation": true
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "name": "DailyRsiEvaluator",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/DailyRsiEvaluator.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "name": "DailyStochasticEvaluator",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/DailyStochasticEvaluator.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "name": "DailyVolumeEvaluator",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/DailyVolumeEvaluator.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "name": "ASTAEvaluationContext",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/ASTAEvaluationContext.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "name": "TradeSignal",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/TradeSignal.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "name": "WeeklyMacdEvaluator",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/WeeklyMacdEvaluator.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "name": "DailyEmaEvaluator",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/DailyEmaEvaluator.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "name": "ASTAEvaluator",
-      "package": "com.alphaflow.engine.strategies.evaluators",
-      "component": "engine",
-      "type": "interface",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/strategies/evaluators/ASTAEvaluator.java",
       "violation": false
     },
     {
@@ -574,7 +448,7 @@
       "component": "engine",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/dtos/IndicatorParams.java",
-      "violation": true
+      "violation": false
     },
     {
       "id": "com.alphaflow.engine.indicators.dtos.PriceBar",
@@ -651,20 +525,14 @@
   ],
   "edges": [
     {
-      "source": "com.alphaflow.api.controllers.AnalysisController",
-      "target": "com.alphaflow.api.dtos.ASTAResponseDTO",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.controllers.AnalysisController",
-      "target": "com.alphaflow.engine.strategies.ASTAStrategy",
+      "source": "com.alphaflow.api.controllers.DailyPriceController",
+      "target": "com.alphaflow.api.dtos.OhlcvDTO",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "target": "com.alphaflow.api.services.DailyPriceService",
       "violation": false,
       "reason": ""
     },
@@ -677,12 +545,6 @@
     {
       "source": "com.alphaflow.api.controllers.DailyPriceController",
       "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
       "violation": false,
       "reason": ""
     },
@@ -761,12 +623,6 @@
     {
       "source": "com.alphaflow.api.controllers.generic.GlobalExceptionHandler",
       "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.dtos.ASTAResponseDTO",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
       "violation": false,
       "reason": ""
     },
@@ -867,6 +723,36 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.api.services.DailyPriceService",
+      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.DailyPriceService",
+      "target": "com.alphaflow.api.mappers.OhlcvMapper",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.DailyPriceService",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.DailyPriceService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.DailyPriceService",
+      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.api.dtos.IndicatorConfigDTO",
       "violation": false,
@@ -911,12 +797,6 @@
     {
       "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.persistence.enums.Timeframe",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.IndicatorService",
-      "target": "com.alphaflow.persistence.repositories.ASTAResultsRepository",
       "violation": false,
       "reason": ""
     },
@@ -1079,12 +959,6 @@
     {
       "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "target": "com.alphaflow.persistence.enums.Timeframe",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
-      "target": "com.alphaflow.persistence.repositories.ASTAResultsRepository",
       "violation": false,
       "reason": ""
     },
@@ -1563,456 +1437,6 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.schedulers.CoreScheduler",
-      "target": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.api.dtos.ASTAResponseDTO",
-      "violation": true,
-      "reason": "Engine component cannot depend on API layer DTOs or Controllers"
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.configs.IndicatorConfig",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.entities.ASTAResults",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.entities.DailyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.entities.IndicatorDefinition",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.entities.Ticker",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.entities.WeeklyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.enums.Timeframe",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.repositories.ASTAResultsRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.repositories.DailyIndicatorRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.repositories.TickerRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.persistence.repositories.WeeklyIndicatorRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "target": "com.alphaflow.persistence.entities.DailyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "target": "com.alphaflow.persistence.entities.WeeklyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.persistence.entities.DailyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.persistence.enums.EvaluatorMessage",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorParamKey",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorType",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyEmaEvaluator",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.persistence.entities.DailyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.persistence.enums.EvaluatorMessage",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorType",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyRsiEvaluator",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.persistence.entities.DailyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.persistence.enums.EvaluatorMessage",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorType",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyStochasticEvaluator",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.entities.DailyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.enums.EvaluatorMessage",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorType",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.enums.PriceSource",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.DailyVolumeEvaluator",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluationContext",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.ASTAEvaluator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.engine.strategies.evaluators.TradeSignal",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.persistence.entities.WeeklyIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.persistence.enums.EvaluatorMessage",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.persistence.enums.IndicatorType",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.strategies.evaluators.WeeklyMacdEvaluator",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.persistence.entities.ASTAResults",
-      "target": "com.alphaflow.persistence.entities.Ticker",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.persistence.entities.ASTAResults",
-      "target": "com.alphaflow.persistence.enums.TradeAction",
-      "violation": false,
-      "reason": ""
-    },
-    {
       "source": "com.alphaflow.persistence.entities.DailyIndicator",
       "target": "com.alphaflow.persistence.entities.Indicator",
       "violation": false,
@@ -2035,12 +1459,6 @@
       "target": "com.alphaflow.persistence.entities.Ticker",
       "violation": false,
       "reason": ""
-    },
-    {
-      "source": "com.alphaflow.persistence.entities.Indicator",
-      "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
-      "violation": true,
-      "reason": "Persistence database entities and repositories cannot depend on Business Logic (Engine)"
     },
     {
       "source": "com.alphaflow.persistence.entities.Indicator",
@@ -2103,18 +1521,6 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.persistence.repositories.ASTAResultsRepository",
-      "target": "com.alphaflow.persistence.entities.ASTAResults",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.persistence.repositories.ASTAResultsRepository",
-      "target": "com.alphaflow.persistence.entities.Ticker",
-      "violation": false,
-      "reason": ""
-    },
-    {
       "source": "com.alphaflow.persistence.repositories.DailyIndicatorRepository",
       "target": "com.alphaflow.persistence.entities.DailyIndicator",
       "violation": false,
@@ -2131,18 +1537,6 @@
       "target": "com.alphaflow.persistence.entities.Ticker",
       "violation": false,
       "reason": ""
-    },
-    {
-      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
-      "violation": true,
-      "reason": "Persistence component cannot depend on API layer DTOs or Controllers"
-    },
-    {
-      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "target": "com.alphaflow.api.mappers.OhlcvMapper",
-      "violation": true,
-      "reason": "Persistence component cannot depend on API layer DTOs or Controllers"
     },
     {
       "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
@@ -2199,34 +1593,5 @@
       "reason": ""
     }
   ],
-  "violations": [
-    {
-      "source": "com.alphaflow.engine.strategies.ASTAStrategy",
-      "target": "com.alphaflow.api.dtos.ASTAResponseDTO",
-      "reason": "Engine component cannot depend on API layer DTOs or Controllers",
-      "source_file": "backend/src/main/java/com/alphaflow/engine/strategies/ASTAStrategy.java",
-      "target_file": "backend/src/main/java/com/alphaflow/api/dtos/ASTAResponseDTO.java"
-    },
-    {
-      "source": "com.alphaflow.persistence.entities.Indicator",
-      "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
-      "reason": "Persistence database entities and repositories cannot depend on Business Logic (Engine)",
-      "source_file": "backend/src/main/java/com/alphaflow/persistence/entities/Indicator.java",
-      "target_file": "backend/src/main/java/com/alphaflow/engine/indicators/dtos/IndicatorParams.java"
-    },
-    {
-      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
-      "reason": "Persistence component cannot depend on API layer DTOs or Controllers",
-      "source_file": "backend/src/main/java/com/alphaflow/persistence/repositories/DailyPriceRepository.java",
-      "target_file": "backend/src/main/java/com/alphaflow/api/dtos/OhlcvDTO.java"
-    },
-    {
-      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "target": "com.alphaflow.api.mappers.OhlcvMapper",
-      "reason": "Persistence component cannot depend on API layer DTOs or Controllers",
-      "source_file": "backend/src/main/java/com/alphaflow/persistence/repositories/DailyPriceRepository.java",
-      "target_file": "backend/src/main/java/com/alphaflow/api/mappers/OhlcvMapper.java"
-    }
-  ]
+  "violations": []
 }

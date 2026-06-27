@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, Fragment } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -15,15 +15,13 @@ import {
   indicatorKey,
   type Ticker,
   type Timeframe,
-  type AnalysisResponse,
-  getTechnicalAnalysis,
+  type SnapshotData,
+  getTodaySnapshot,
 } from "./services/api";
 import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
-  TrendingDown,
   Info,
 } from "lucide-react";
 
@@ -34,87 +32,13 @@ const pctChange = (change: number, base: number): number => {
   return (change / base) * 100;
 };
 
-interface PatternResult {
-  signal: "BUY" | "SELL" | "HOLD";
-  value: string;
-}
 
-const evaluateCandlestickPattern = (
-  candles: DailyCandleData[],
-): PatternResult => {
-  if (candles.length < 3)
-    return { signal: "HOLD", value: "Insufficient price data" };
-
-  const c0 = candles[0]; // Latest (candles are sorted desc in sortedDailyDesc)
-  const c1 = candles[1]; // Previous
-  const c2 = candles[2]; // 2-bars ago
-
-  const body0 = Math.abs(c0.close - c0.open);
-  const range0 = c0.high - c0.low;
-  const isGreen0 = c0.close > c0.open;
-  const isRed0 = c0.close < c0.open;
-
-  const body1 = Math.abs(c1.close - c1.open);
-  const range1 = c1.high - c1.low;
-  const isGreen1 = c1.close > c1.open;
-  const isRed1 = c1.close < c1.open;
-
-  const lowerShadow0 = Math.min(c0.open, c0.close) - c0.low;
-  const upperShadow0 = c0.high - Math.max(c0.open, c0.close);
-
-  const isHammer =
-    lowerShadow0 > body0 * 2 && upperShadow0 < range0 * 0.15 && range0 > 0;
-  const isInvertedHammer =
-    upperShadow0 > body0 * 2 && lowerShadow0 < range0 * 0.15 && range0 > 0;
-
-  const isBullishEngulf =
-    isRed1 && isGreen0 && c0.open <= c1.close && c0.close >= c1.open;
-  const isBearishEngulf =
-    isGreen1 && isRed0 && c0.open >= c1.close && c0.close <= c1.open;
-
-  const isBullishMarubozu = isGreen0 && range0 > 0 && body0 >= range0 * 0.95;
-  const isBearishMarubozu = isRed0 && range0 > 0 && body0 >= range0 * 0.95;
-
-  const c2Median = (c2.low + c2.high) / 2;
-  const isMorningStar =
-    c2.close < c2.open &&
-    range1 > 0 &&
-    body1 <= range1 * 0.3 &&
-    isGreen0 &&
-    c0.close > c2Median;
-  const isEveningStar =
-    c2.close > c2.open &&
-    range1 > 0 &&
-    body1 <= range1 * 0.3 &&
-    isRed0 &&
-    c0.close < c2Median;
-
-  if (isMorningStar) return { signal: "BUY", value: "Morning Star" };
-  if (isEveningStar) return { signal: "SELL", value: "Evening Star" };
-  if (isBullishEngulf) return { signal: "BUY", value: "Bullish Engulfing" };
-  if (isBearishEngulf) return { signal: "SELL", value: "Bearish Engulfing" };
-  if (isHammer)
-    return { signal: "BUY", value: "Hammer (Strong Buy at Bottom)" };
-  if (isInvertedHammer)
-    return { signal: "SELL", value: "Inverted Hammer (Strong Sell at Top)" };
-  if (isBullishMarubozu)
-    return { signal: "BUY", value: "Bullish Marubozu (Full Green)" };
-  if (isBearishMarubozu)
-    return { signal: "SELL", value: "Bearish Marubozu (Full Red)" };
-  if (isGreen0) return { signal: "BUY", value: "Bullish Green Candle" };
-  if (isRed0) return { signal: "SELL", value: "Bearish Red Candle" };
-
-  return { signal: "HOLD", value: "Neutral" };
-};
 
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [dailyCandleData, setDailyCandleData] = useState<DailyCandleData[]>([]);
-  const [analysisData, setAnalysisData] = useState<AnalysisResponse | null>(
-    null,
-  );
-  const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
+  const [snapshotData, setSnapshotData] = useState<SnapshotData | null>(null);
+  const [snapshotError, setSnapshotError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Timeframe and Indicators
@@ -213,45 +137,31 @@ function App() {
     }
   }, [timeframe, indicatorConfigs]);
 
-  // Fetch daily candle data and technical analysis when selectedTicker changes
+  // Fetch snapshot data when selectedTicker changes
   useEffect(() => {
     let active = true;
     const fetchData = async () => {
       if (selectedTicker) {
         setLoading(true);
-        setAnalysisData(null);
-        setAnalysisError(null);
-        setDailyCandleData([]);
+        setSnapshotData(null);
+        setSnapshotError(null);
 
-        // Fetch daily candle data independently
         try {
-          const candles = await getCandleData(selectedTicker);
+          const snapshot = await getTodaySnapshot(selectedTicker);
           if (active) {
-            setDailyCandleData(candles);
+            setSnapshotData(snapshot);
           }
         } catch (error) {
-          console.error("Failed to fetch daily candles:", error);
+          console.error("Failed to fetch snapshot data:", error);
           if (active) {
-            setDailyCandleData([]);
-          }
-        }
-
-        // Fetch technical analysis independently
-        try {
-          const analysis = await getTechnicalAnalysis(selectedTicker);
-          if (active) {
-            setAnalysisData(analysis);
-          }
-        } catch (error) {
-          console.error("Failed to fetch technical analysis data:", error);
-          if (active) {
-            setAnalysisData(null);
+            setSnapshotData(null);
             const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-            setAnalysisError(status === 404 ? "stale" : "server");
+            setSnapshotError(status === 404 ? "stale" : "server");
           }
-        }
-        if (active) {
-          setLoading(false);
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
         }
       }
     };
@@ -390,24 +300,24 @@ function App() {
     }
   };
 
-  const renderOverview = (sortedDataDesc: DailyCandleData[]) => {
-    if (analysisError === "stale") {
+  const renderOverview = () => {
+    if (snapshotError === "stale") {
       return (
         <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
           <div className="max-w-md p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-xl space-y-4">
             <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-400">
               <Info size={24} />
             </div>
-            <h3 className="text-lg font-bold text-white">Analysis Not Yet Complete</h3>
+            <h3 className="text-lg font-bold text-white">Snapshot Not Yet Complete</h3>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Technical analysis has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>. The daily and weekly scheduled update pipelines must run first to complete this.
+              Snapshot data has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
             </p>
           </div>
         </div>
       );
     }
 
-    if (analysisError === "server") {
+    if (snapshotError === "server") {
       return (
         <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
           <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
@@ -416,427 +326,153 @@ function App() {
             </div>
             <h3 className="text-lg font-bold text-white">Service Unavailable</h3>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Could not reach the analysis service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>. Please check that the backend is running and try again.
+              Could not reach the backend service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
             </p>
           </div>
         </div>
       );
     }
 
-    if (sortedDataDesc.length === 0 || !analysisData) {
+    if (!snapshotData || !snapshotData.candle) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
           <Loader2 className="animate-spin text-blue-500" size={32} />
           <p className="text-sm font-semibold text-slate-400">
-            Computing technical analysis checklist...
+            Fetching today's snapshot...
           </p>
         </div>
       );
     }
 
-    const latest = sortedDataDesc[0];
-    const priceChange = latest.close - latest.open;
-    const priceChangePct = pctChange(priceChange, latest.open);
+    const { candle, dailyIndicators, weeklyIndicators } = snapshotData;
+    const priceChange = candle.close - candle.open;
+    const priceChangePct = pctChange(priceChange, candle.open);
 
-    const candlestick = evaluateCandlestickPattern(sortedDataDesc);
-
-    const sections = [
-      {
-        name: "1. Setup",
-        action: "HOLD",
-        rows: [
-          {
-            slNo: 1,
-            criteria: "Plot Support & Resistances",
-            condition: "- Horizontal & Angular\n- Monthly to Wave",
-            action: "MANDATORY",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-          {
-            slNo: 2,
-            criteria: "Wait for the Weapon Candle",
-            condition:
-              "- Bullish Candle closes above Resistance\n- Bearish Candle closes below Support",
-            action: "MANDATORY",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-        ],
-      },
-      {
-        name: "2. Double Screen",
-        action: (() => {
-          const buy =
-            analysisData.macdSignal === "BUY" &&
-            analysisData.stochasticSignal === "BUY" &&
-            analysisData.rsiSignal === "BUY";
-          const sell =
-            analysisData.macdSignal === "SELL" &&
-            analysisData.stochasticSignal === "SELL" &&
-            analysisData.rsiSignal === "SELL";
-          return buy ? "BUY" : sell ? "SELL" : "HOLD";
-        })(),
-        rows: [
-          {
-            slNo: 1,
-            criteria: "MACD (12, 26) @ TIDE",
-            condition: analysisData.macdValue,
-            action: analysisData.macdSignal,
-            automationStatus: "DONE" as const,
-          },
-          {
-            slNo: 2,
-            criteria: "Stochastic (14,3,3) @ WAVE\nUpper - 80 / Lower - 20",
-            condition: analysisData.stochasticValue,
-            action: analysisData.stochasticSignal,
-            automationStatus: "DONE" as const,
-          },
-          {
-            slNo: 3,
-            criteria: "RSI (14) @ WAVE\nUpper - 70 / Lower - 30",
-            condition: analysisData.rsiValue,
-            action: analysisData.rsiSignal,
-            automationStatus: "DONE" as const,
-          },
-        ],
-      },
-      {
-        name: "3. Combined Checklist",
-        action: (() => {
-          const buy =
-            candlestick.signal === "BUY" &&
-            analysisData.volumeSignal === "BUY" &&
-            analysisData.emaSignal === "BUY";
-          const sell =
-            candlestick.signal === "SELL" &&
-            analysisData.volumeSignal === "SELL" &&
-            analysisData.emaSignal === "SELL";
-          return buy ? "BUY" : sell ? "SELL" : "HOLD";
-        })(),
-        rows: [
-          {
-            slNo: 1,
-            criteria: "Candlestick Patterns",
-            condition: candlestick.value,
-            action: candlestick.signal,
-            automationStatus: "IN_PROGRESS" as const,
-          },
-          {
-            slNo: 2,
-            criteria: "Volume",
-            condition: analysisData.volumeValue,
-            action: analysisData.volumeSignal,
-            automationStatus: "DONE" as const,
-          },
-          {
-            slNo: 3,
-            criteria: "Moving Average (EMA)",
-            condition: analysisData.emaValue,
-            action: analysisData.emaSignal,
-            automationStatus: "DONE" as const,
-          },
-          {
-            slNo: 4,
-            criteria: "Chart Pattern",
-            condition:
-              "Inverted Head & Shoulders / Double Bottom (Buy) or Head & Shoulders / Double Top (Sell)",
-            action: "HOLD",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-          {
-            slNo: 5,
-            criteria: "Fibonacci Retracement",
-            condition: "Up to 50% Retracement (Healthy) or 61.8%+ (Caution)",
-            action: "HOLD",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-          {
-            slNo: 6,
-            criteria: "Divergence in Oscillators",
-            condition:
-              "Bullish Divergence (Buy) or Bearish Divergence (Sell/Caution)",
-            action: "HOLD",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-          {
-            slNo: 7,
-            criteria: "Immediate Support/Resistance (Stop Loss)",
-            condition:
-              "Low of Weapon Candle (Buy Stop Loss) or High of Weapon Candle (Sell Stop Loss)",
-            action: "HOLD",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-          {
-            slNo: 8,
-            criteria: "Major Resistance/Support (Target)",
-            condition:
-              "Based on Chart Patterns / Trend Lines from previous tops or bottoms",
-            action: "HOLD",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-        ],
-      },
-      {
-        name: "4. Risk / Reward Ratio",
-        action: "HOLD",
-        rows: [
-          {
-            slNo: 1,
-            criteria: "Risk / Reward Ratio",
-            condition:
-              "1:3 or more (Proceed) / 1:2.5 or more (Reduce Quantity)",
-            action: "HOLD",
-            automationStatus: "TO_BE_IMPLEMENTED" as const,
-          },
-        ],
-      },
-    ];
-
-    const doubleScreenAction = sections[1].action;
-    const checklistAction = sections[2].action;
-    const verdict =
-      doubleScreenAction === "BUY" && checklistAction === "BUY"
-        ? "BUY"
-        : doubleScreenAction === "SELL" && checklistAction === "SELL"
-          ? "SELL"
-          : "HOLD";
-
-    return (
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
-        {/* Top Section: Overall Verdict & Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Overall Verdict Card */}
-          <div
-            className={`col-span-1 lg:col-span-2 rounded-xl border p-6 flex items-center justify-between shadow-xl backdrop-blur relative overflow-hidden transition-all duration-300 ${
-              verdict === "BUY"
-                ? "bg-emerald-950/20 border-emerald-500/30 text-emerald-100"
-                : verdict === "SELL"
-                  ? "bg-rose-950/20 border-rose-500/30 text-rose-100"
-                  : "bg-slate-900/60 border-slate-800 text-slate-100"
-            }`}
-          >
-            <div className="space-y-2 z-10">
-              <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-                Technical Analysis Verdict
-              </span>
-              <div className="flex items-center gap-3">
-                <h1
-                  className={`text-5xl font-black uppercase tracking-tight ${
-                    verdict === "BUY"
-                      ? "text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]"
-                      : verdict === "SELL"
-                        ? "text-rose-400 drop-shadow-[0_0_15px_rgba(251,113,133,0.3)]"
-                        : "text-amber-400"
-                  }`}
-                >
-                  {verdict}
-                </h1>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 font-semibold text-slate-300">
-                  Consensus Signal
-                </span>
-              </div>
-              <p className="text-slate-400 text-sm max-w-lg mt-2 leading-relaxed">
-                {verdict === "BUY" &&
-                  "All primary automated checks align to a strong BUY recommendation. Consider entering a long position."}
-                {verdict === "SELL" &&
-                  "All primary automated checks align to a strong SELL recommendation. Consider reducing exposure or shorting."}
-                {verdict === "HOLD" &&
-                  "Oscillators or trend indicators show mixed signals. Avoid trading until setup is clean."}
-              </p>
-            </div>
-            <div
-              className={`hidden sm:flex p-4 rounded-full z-10 ${
-                verdict === "BUY"
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : verdict === "SELL"
-                    ? "bg-rose-500/10 text-rose-400"
-                    : "bg-slate-800 text-amber-400"
-              }`}
-            >
-              {verdict === "BUY" ? (
-                <TrendingUp size={48} />
-              ) : verdict === "SELL" ? (
-                <TrendingDown size={48} />
-              ) : (
-                <Loader2 size={48} className="animate-pulse text-amber-500" />
-              )}
-            </div>
-            {/* Decorative glow */}
-            <div
-              className={`absolute -right-24 -bottom-24 w-64 h-64 rounded-full blur-3xl opacity-10 ${
-                verdict === "BUY"
-                  ? "bg-emerald-500"
-                  : verdict === "SELL"
-                    ? "bg-rose-500"
-                    : "bg-amber-500"
-              }`}
-            />
-          </div>
-
-          {/* Quick Stats Card */}
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur flex flex-col justify-between">
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-                Market Status
-              </div>
-              <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-3xl font-extrabold text-white">
-                  {Number(latest.close).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 4,
-                  })}
-                </span>
-                <span
-                  className={`text-xs font-bold flex items-center px-2 py-0.5 rounded-full ${
-                    priceChange >= 0
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-rose-500/10 text-rose-400"
-                  }`}
-                >
-                  {priceChange >= 0 ? "+" : ""}
-                  {priceChangePct.toFixed(2)}%
-                </span>
-              </div>
-            </div>
-            <div className="mt-6 border-t border-slate-800/80 pt-4 grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-slate-500 block">24h High</span>
-                <span className="text-slate-300 font-bold">
-                  {Number(latest.high).toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">24h Low</span>
-                <span className="text-slate-300 font-bold">
-                  {Number(latest.low).toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">24h Volume</span>
-                <span className="text-slate-300 font-bold">
-                  {Number(latest.vol).toLocaleString()}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Ticker</span>
-                <span className="text-slate-300 font-bold font-mono">
-                  {selectedTicker}
-                </span>
-              </div>
-            </div>
-          </div>
+    const renderIndicatorTable = (title: string, date: string, indicators: IndicatorSeries[]) => (
+      <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
+        <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+          <h2 className="text-base font-bold text-white">{title}</h2>
+          <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+            {date || 'N/A'}
+          </span>
         </div>
-
-        {/* Table Checklist */}
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-bold text-white">ASTA Strategy</h2>
-          </div>
-
-          <div className="overflow-x-auto">
+        <div className="overflow-x-auto">
+          {indicators.length === 0 ? (
+            <div className="p-6 text-center text-slate-500 text-sm italic">
+              No indicators available for this timeframe.
+            </div>
+          ) : (
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                  <th className="p-4 w-16 text-center">Sl.No.</th>
-                  <th className="p-4 w-1/4">Criteria</th>
-                  <th className="p-4 w-5/12">Condition</th>
-                  <th className="p-4 w-1/6 text-center">Action</th>
-                  <th className="p-4 w-1/6 text-center">Automation Status</th>
+                  <th className="p-4 w-1/3">Indicator</th>
+                  <th className="p-4 w-2/3">Values</th>
                 </tr>
               </thead>
               <tbody>
-                {sections.map((section) => (
-                  <Fragment key={section.name}>
-                    {/* Section Header Row */}
-                    <tr className="bg-slate-900/70 border-y border-slate-800/80">
-                      <td colSpan={5} className="px-6 py-3.5">
-                        <div className="flex justify-between items-center">
-                          <span className="font-extrabold text-blue-400 uppercase tracking-wider text-xs">
-                            {section.name}
-                          </span>
-                          <span
-                            className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold border uppercase ${
-                              section.action === "BUY"
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                : section.action === "SELL"
-                                  ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                  : section.action === "HOLD"
-                                    ? "bg-slate-800 text-slate-400 border-slate-700"
-                                    : "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                            }`}
-                          >
-                            Section Verdict: {section.action}
-                          </span>
-                        </div>
+                {indicators.map((ind, idx) => {
+                  const pt = ind.points.length > 0 ? ind.points[0] : null;
+                  return (
+                    <tr key={`${ind.type}-${ind.params}-${idx}`} className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors">
+                      <td className="p-4 font-bold text-slate-300">
+                        {ind.label || `${ind.type} (${ind.params})`}
+                      </td>
+                      <td className="p-4 text-slate-400 font-mono">
+                        {pt ? (
+                          <div className="flex flex-wrap gap-4">
+                            {Object.entries(pt.values).map(([k, v]) => (
+                              <div key={k} className="flex gap-2 items-center">
+                                <span className="text-[10px] text-slate-500 uppercase tracking-wider">{k}:</span>
+                                <span className="text-slate-200">
+                                  {Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-600 italic">No data</span>
+                        )}
                       </td>
                     </tr>
-
-                    {/* Rows under this section */}
-                    {section.rows.map((row, rowIdx) => {
-                      const actionVal = row.action;
-                      const isBuy =
-                        actionVal === "BUY" ||
-                        actionVal === "PROCEED" ||
-                        actionVal === "HEALTHY";
-                      const isSell =
-                        actionVal === "SELL" ||
-                        actionVal === "CAUTION" ||
-                        actionVal === "REDUCE_QUANTITY";
-                      const isHold =
-                        actionVal === "HOLD" || actionVal === "MANDATORY";
-
-                      return (
-                        <tr
-                          key={row.criteria}
-                          className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors"
-                        >
-                          <td className="p-4 text-center text-slate-500 font-semibold font-mono">
-                            {row.slNo || rowIdx + 1}
-                          </td>
-                          <td className="p-4 font-bold text-slate-300 whitespace-pre-line">
-                            {row.criteria}
-                          </td>
-                          <td className="p-4 text-slate-400 whitespace-pre-line leading-relaxed">
-                            {row.condition}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${
-                                isBuy
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                                  : isSell
-                                    ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                                    : isHold
-                                      ? "bg-slate-800/40 text-slate-400 border-slate-700/50"
-                                      : "bg-slate-900 text-slate-500 border-slate-800"
-                              }`}
-                            >
-                              {actionVal || "—"}
-                            </span>
-                          </td>
-                          <td className="p-4 text-center">
-                            <span
-                              className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wide ${
-                                row.automationStatus === "DONE"
-                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
-                                  : row.automationStatus === "IN_PROGRESS"
-                                    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                                    : "bg-slate-950 text-slate-600 border-slate-800"
-                              }`}
-                            >
-                              {row.automationStatus === "TO_BE_IMPLEMENTED"
-                                ? "Manual Check"
-                                : row.automationStatus}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </Fragment>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
+          )}
+        </div>
+      </div>
+    );
+
+    const dailyDate = dailyIndicators[0]?.points[0]?.date || candle.date;
+    const weeklyDate = weeklyIndicators[0]?.points[0]?.date || '';
+
+    return (
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
+        {/* Quick Stats Card */}
+        <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur">
+          <div className="flex justify-between items-center mb-6">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+              OHLCV Snapshot
+            </div>
+            <div className="text-xs px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 font-semibold text-slate-300 font-mono">
+              {candle.date}
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mb-6">
+            <span className="text-4xl font-extrabold text-white">
+              {Number(candle.close).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+              })}
+            </span>
+            <span
+              className={`text-sm font-bold flex items-center px-2 py-0.5 rounded-full ${
+                priceChange >= 0
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-rose-500/10 text-rose-400"
+              }`}
+            >
+              {priceChange >= 0 ? "+" : ""}
+              {priceChangePct.toFixed(2)}%
+            </span>
+          </div>
+          <div className="border-t border-slate-800/80 pt-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div>
+              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Open</span>
+              <span className="text-slate-300 font-bold font-mono">
+                {Number(candle.open).toFixed(2)}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">High</span>
+              <span className="text-slate-300 font-bold font-mono">
+                {Number(candle.high).toFixed(2)}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Low</span>
+              <span className="text-slate-300 font-bold font-mono">
+                {Number(candle.low).toFixed(2)}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Close</span>
+              <span className="text-slate-300 font-bold font-mono">
+                {Number(candle.close).toFixed(2)}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Volume</span>
+              <span className="text-slate-300 font-bold font-mono">
+                {Number(candle.vol).toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
+
+        {/* Indicators Tables */}
+        {renderIndicatorTable("Daily Indicators", dailyDate, dailyIndicators)}
+        {renderIndicatorTable("Weekly Indicators", weeklyDate, weeklyIndicators)}
       </div>
     );
   };
@@ -849,11 +485,6 @@ function App() {
         </div>
       );
     }
-
-    const hasDailyData = dailyCandleData.length > 0;
-    const sortedDailyDesc = [...dailyCandleData].sort((a, b) =>
-      b.date.localeCompare(a.date),
-    );
 
     return (
       <>
@@ -915,12 +546,12 @@ function App() {
 
         {/* Dashboard Tab Content */}
         {activeTab === "overview" ? (
-          hasDailyData ? (
-            renderOverview(sortedDailyDesc)
+          snapshotData ? (
+            renderOverview()
           ) : (
             <div className="flex-1 flex items-center justify-center text-slate-500">
               {loading
-                ? "Loading data..."
+                ? "Loading snapshot..."
                 : "No data available for this ticker"}
             </div>
           )

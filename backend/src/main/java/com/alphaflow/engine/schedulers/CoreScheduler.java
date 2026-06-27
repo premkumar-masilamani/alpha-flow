@@ -3,7 +3,6 @@ package com.alphaflow.engine.schedulers;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
-import com.alphaflow.engine.strategies.ASTAStrategy;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -26,7 +25,6 @@ public class CoreScheduler {
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
   private final IndicatorCalculator indicatorCalculator;
-  private final ASTAStrategy astaStrategy;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   /**
@@ -35,17 +33,14 @@ public class CoreScheduler {
    * @param yahooFinanceDownloader the Yahoo Finance downloader
    * @param weeklyPriceCalculator the weekly price calculator
    * @param indicatorCalculator the indicator calculator
-   * @param astaStrategy the technical analysis strategy
    */
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
-      IndicatorCalculator indicatorCalculator,
-      ASTAStrategy astaStrategy) {
+      IndicatorCalculator indicatorCalculator) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.indicatorCalculator = indicatorCalculator;
-    this.astaStrategy = astaStrategy;
   }
 
   /** Runs the data update pipeline every hour on the hour. */
@@ -75,25 +70,20 @@ public class CoreScheduler {
 
     long cycleStart = System.currentTimeMillis();
     try {
-      log.info("Step 1/4: Downloading Yahoo Finance daily data...");
+      log.info("Step 1/3: Downloading Yahoo Finance daily data...");
       long start = System.currentTimeMillis();
       yahooFinanceDownloader.downloadDailyPrices();
-      log.info("Step 1/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 1/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 2/4: Computing weekly candles...");
+      log.info("Step 2/3: Computing weekly candles...");
       start = System.currentTimeMillis();
       weeklyPriceCalculator.computeWeeklyPrices();
-      log.info("Step 2/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 2/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 3/4: Computing indicators...");
+      log.info("Step 3/3: Computing indicators...");
       start = System.currentTimeMillis();
       indicatorCalculator.computeIndicators();
-      log.info("Step 3/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 4/4: ASTA technical analysis...");
-      start = System.currentTimeMillis();
-      astaStrategy.computeTechnicalAnalysis();
-      log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 3/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(
           "Scheduled data update cycle completed successfully in {}.",
