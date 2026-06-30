@@ -78,3 +78,11 @@ public void execute() {
 - **Coverage threshold**: 100% line/branch coverage for non-DTO packages.
 - **Mocking**: Use `@MockBean` / Mockito. Ensure no live database connections in unit tests.
 - **Determinism**: Use `HISTORY_WINDOW` to parameterize offset calculations and avoid N+1 queries.
+
+## API Design & Naming
+- **Enum URL Parameters**: Use full lowercase words (e.g., `?timeframe=daily`) for readability.
+- **Spring Boot Converters**: Register custom `Converter<String, EnumType>` (like `TimeframeConverter`) to cleanly map parameters to uppercase Java Enums.
+- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`).
+
+## Backend Architecture & Package Structure
+- **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
