@@ -1,6 +1,7 @@
 package com.alphaflow.engine.schedulers;
 
 import com.alphaflow.engine.calculators.IndicatorCalculator;
+import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -25,6 +26,7 @@ public class CoreScheduler {
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
   private final IndicatorCalculator indicatorCalculator;
+  private final SupportResistanceCalculator supportResistanceCalculator;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   /**
@@ -37,10 +39,12 @@ public class CoreScheduler {
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
-      IndicatorCalculator indicatorCalculator) {
+      IndicatorCalculator indicatorCalculator,
+      SupportResistanceCalculator supportResistanceCalculator) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.indicatorCalculator = indicatorCalculator;
+    this.supportResistanceCalculator = supportResistanceCalculator;
   }
 
   /** Runs the data update pipeline every hour on the hour. */
@@ -80,10 +84,15 @@ public class CoreScheduler {
       weeklyPriceCalculator.computeWeeklyPrices();
       log.info("Step 2/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 3/3: Computing indicators...");
+      log.info("Step 3/4: Computing indicators...");
       start = System.currentTimeMillis();
       indicatorCalculator.computeIndicators();
-      log.info("Step 3/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 3/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+      log.info("Step 4/4: Computing support and resistance lines...");
+      start = System.currentTimeMillis();
+      supportResistanceCalculator.computeAll();
+      log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(
           "Scheduled data update cycle completed successfully in {}.",

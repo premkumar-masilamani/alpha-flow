@@ -29,6 +29,7 @@ make lint
 
 ### Never do
 - Commit secrets, private API keys, or `.env` files.
+- Use DB migrations for DML operations. Migrations are strictly for DDL (schema changes).
 
 ## Project Structure
 ```text

@@ -6,8 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface WeeklySupportResistanceRepository extends JpaRepository<WeeklySupportResistance, Long> {
-  List<WeeklySupportResistance> findByTicker_TickerSymbol(String tickerSymbol);
-  
+public interface WeeklySupportResistanceRepository
+    extends JpaRepository<WeeklySupportResistance, Long> {
+  List<WeeklySupportResistance> findByTicker_TickerSymbolAndFilterReasonIsNull(String tickerSymbol);
+
   void deleteByTicker_TickerSymbol(String tickerSymbol);
 }

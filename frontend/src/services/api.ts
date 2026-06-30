@@ -90,6 +90,18 @@ export interface IndicatorSeries {
     points: IndicatorPoint[];
 }
 
+export interface SRTouchPoint {
+    date: string;
+    price: number;
+}
+
+export interface SupportResistanceLine {
+    currentType: 'SUPPORT' | 'RESISTANCE';
+    importance: number;
+    touchPoints: {date: string; price: number}[];
+    timeframe?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+}
+
 // Stable key identifying a combo across the config and series endpoints.
 export const indicatorKey = (i: {type: string; source: string; params: string}): string =>
     `${i.type}|${i.source}|${i.params}`;
@@ -144,6 +156,16 @@ export const getIndicatorSeries = async (
         indicatorCache.delete(oldestKey);
     }
 
+    return response.data;
+};
+
+export const getSupportResistance = async (
+    symbol: string,
+    timeframe: Timeframe
+): Promise<SupportResistanceLine[]> => {
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`, {
+        params: { timeframe: timeframe.toLowerCase() }
+    });
     return response.data;
 };
 

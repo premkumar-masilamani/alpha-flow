@@ -17,6 +17,8 @@ import {
   type Ticker,
   type Timeframe,
   type TechnicalAnalysisData,
+  getSupportResistance,
+  type SupportResistanceLine,
 } from "./services/api";
 import {
   Loader2,
@@ -48,6 +50,9 @@ function App() {
     [],
   );
   const [chartIndicators, setChartIndicators] = useState<IndicatorSeries[]>([]);
+  const [chartSrLines, setChartSrLines] = useState<SupportResistanceLine[]>([]);
+  const [showDailySR, setShowDailySR] = useState(true);
+  const [showWeeklySR, setShowWeeklySR] = useState(false);
   const [enabledIndicators, setEnabledIndicators] = useState<Set<string>>(
     new Set(),
   );
@@ -185,18 +190,38 @@ function App() {
       setLoading(true);
       setChartCandleData([]);
       setChartIndicators([]);
+      setChartSrLines([]);
       setLoadedSymbol(null);
       setPage(0);
       setHasMore(true);
       setLoadingOlder(false);
       try {
-        const [candles, indicators] = await Promise.all([
-          getCandleData(selectedTicker, timeframe, 0),
-          getIndicatorSeries(selectedTicker, timeframe, 0),
-        ]);
+        let candles, indicators, srLines = [];
+        if (timeframe === "DAILY") {
+            const res = await Promise.all([
+              getCandleData(selectedTicker, timeframe, 0),
+              getIndicatorSeries(selectedTicker, timeframe, 0),
+              getSupportResistance(selectedTicker, "DAILY"),
+              getSupportResistance(selectedTicker, "WEEKLY")
+            ]);
+            candles = res[0]; indicators = res[1];
+            const dSr = res[2].map(sr => ({...sr, timeframe: "DAILY" as const}));
+            const wSr = res[3].map(sr => ({...sr, timeframe: "WEEKLY" as const}));
+            srLines = [...dSr, ...wSr];
+        } else {
+            const res = await Promise.all([
+              getCandleData(selectedTicker, timeframe, 0),
+              getIndicatorSeries(selectedTicker, timeframe, 0),
+              getSupportResistance(selectedTicker, "WEEKLY")
+            ]);
+            candles = res[0]; indicators = res[1];
+            srLines = res[2].map(sr => ({...sr, timeframe: "WEEKLY" as const}));
+        }
+
         if (active) {
           setChartCandleData(candles);
           setChartIndicators(indicators);
+          setChartSrLines(srLines);
           setLoadedSymbol(selectedTicker);
           setLoadedTimeframe(timeframe);
         }
@@ -208,6 +233,7 @@ function App() {
         if (active) {
           setChartCandleData([]);
           setChartIndicators([]);
+          setChartSrLines([]);
         }
       } finally {
         if (active) {
@@ -561,31 +587,58 @@ function App() {
         ) : (
           <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
             {selectedTicker && (
-              <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                <IndicatorControls
-                  configs={indicatorConfigs.filter(
-                    (c) => c.timeframe === timeframe,
+              <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <IndicatorControls
+                    configs={indicatorConfigs.filter(
+                      (c) => c.timeframe === timeframe,
+                    )}
+                    enabled={enabledIndicators}
+                    onToggle={toggleIndicator}
+                  />
+                  <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
+                    <button
+                      onClick={() => setTimeframe("DAILY")}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                        timeframe === "DAILY"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      onClick={() => setTimeframe("WEEKLY")}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                        timeframe === "WEEKLY"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Weekly
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mr-1">S/R Lines</span>
+                  {timeframe === "DAILY" && (
+                      <button
+                        onClick={() => setShowDailySR(!showDailySR)}
+                        className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
+                          showDailySR
+                            ? "bg-blue-600 border-blue-500 text-white"
+                            : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
+                        }`}
+                      >
+                        Daily
+                      </button>
                   )}
-                  enabled={enabledIndicators}
-                  onToggle={toggleIndicator}
-                />
-                <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                   <button
-                    onClick={() => setTimeframe("DAILY")}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                      timeframe === "DAILY"
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    Daily
-                  </button>
-                  <button
-                    onClick={() => setTimeframe("WEEKLY")}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                      timeframe === "WEEKLY"
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
+                    onClick={() => setShowWeeklySR(!showWeeklySR)}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
+                      showWeeklySR
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
                     }`}
                   >
                     Weekly
@@ -600,6 +653,15 @@ function App() {
                   indicators={chartIndicators}
                   enabled={enabledIndicators}
                   configs={indicatorConfigs}
+                  srLines={chartSrLines.filter(sr => {
+                    if (loadedTimeframe === 'WEEKLY') return sr.timeframe === 'WEEKLY' && showWeeklySR;
+                    if (loadedTimeframe === 'DAILY') {
+                        if (sr.timeframe === 'DAILY' && showDailySR) return true;
+                        if (sr.timeframe === 'WEEKLY' && showWeeklySR) return true;
+                    }
+                    return false;
+                  })}
+                  showSR={true}
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
                   onLoadOlderData={handleLoadOlderData}

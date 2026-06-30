@@ -289,14 +289,14 @@ public class SupportResistanceCalculator {
         if (line.type == SRCurrentType.RESISTANCE && close.compareTo(expectedPrice) > 0) {
           line.breakCount++;
           if (line.breakCount > 2) {
-            line.filterReason = SRFilterReason.TOO_MANY_BREAKS;
+            line.filterReason = SRFilterReason.BREAKS_GT_2;
           } else {
             line.type = SRCurrentType.SUPPORT; // Flip polarity
           }
         } else if (line.type == SRCurrentType.SUPPORT && close.compareTo(expectedPrice) < 0) {
           line.breakCount++;
           if (line.breakCount > 2) {
-            line.filterReason = SRFilterReason.TOO_MANY_BREAKS;
+            line.filterReason = SRFilterReason.BREAKS_GT_2;
           } else {
             line.type = SRCurrentType.RESISTANCE; // Flip polarity
           }
@@ -306,9 +306,14 @@ public class SupportResistanceCalculator {
 
     for (ActiveLine al : activeLines) {
         if (al.filterReason == null) {
-            boolean hasEnoughTouches = al.slope.compareTo(BigDecimal.ZERO) == 0 ? al.touchPoints.size() >= 3 : al.touchPoints.size() >= 4;
-            if (!hasEnoughTouches) {
-                al.filterReason = SRFilterReason.INSUFFICIENT_TOUCHES;
+            if (al.slope.compareTo(BigDecimal.ZERO) == 0) {
+                if (al.touchPoints.size() < 3) {
+                    al.filterReason = SRFilterReason.TOUCHES_LT_3;
+                }
+            } else {
+                if (al.touchPoints.size() < 4) {
+                    al.filterReason = SRFilterReason.TOUCHES_LT_4;
+                }
             }
         }
     }
@@ -347,7 +352,7 @@ public class SupportResistanceCalculator {
             }
         }
         if (drop) {
-            line.filterReason = SRFilterReason.PROXIMITY_CULLING;
+            line.filterReason = SRFilterReason.PROXIMITY_1_PCT;
         } else {
             merged.add(line);
         }

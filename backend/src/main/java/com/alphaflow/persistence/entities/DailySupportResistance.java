@@ -37,8 +37,14 @@ public class DailySupportResistance {
   private BigDecimal intercept;
 
   @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
   @Column(name = "current_type", nullable = false)
   private SRCurrentType currentType;
+
+  @Enumerated(EnumType.STRING)
+  @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+  @Column(name = "filter_reason")
+  private com.alphaflow.persistence.enums.SRFilterReason filterReason;
 
   @Column(name = "break_count", nullable = false)
   @Builder.Default
