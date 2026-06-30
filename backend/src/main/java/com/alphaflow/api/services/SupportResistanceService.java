@@ -1,7 +1,7 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.SupportResistanceDTO;
 import com.alphaflow.api.dtos.SRTouchPointDTO;
+import com.alphaflow.api.dtos.SupportResistanceDTO;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.util.List;
@@ -23,29 +23,45 @@ public class SupportResistanceService {
   }
 
   public List<SupportResistanceDTO> getDailySr(String tickerSymbol) {
-    return dailySrRepo.findByTicker_TickerSymbolAndFilterReasonIsNull(tickerSymbol.toUpperCase()).stream()
+    return dailySrRepo
+        .findByTicker_TickerSymbolAndFilterReasonIsNull(tickerSymbol.toUpperCase())
+        .stream()
         .map(
             sr ->
                 SupportResistanceDTO.builder()
                     .currentType(sr.getCurrentType().name())
                     .importance(sr.getImportance())
-                    .touchPoints(sr.getTouchPoints().stream()
-                        .map(tp -> SRTouchPointDTO.builder().date(tp.getDate()).price(tp.getPrice()).build())
-                        .collect(Collectors.toList()))
+                    .touchPoints(
+                        sr.getTouchPoints().stream()
+                            .map(
+                                tp ->
+                                    SRTouchPointDTO.builder()
+                                        .date(tp.getDate())
+                                        .price(tp.getPrice())
+                                        .build())
+                            .collect(Collectors.toList()))
                     .build())
         .collect(Collectors.toList());
   }
 
   public List<SupportResistanceDTO> getWeeklySr(String tickerSymbol) {
-    return weeklySrRepo.findByTicker_TickerSymbolAndFilterReasonIsNull(tickerSymbol.toUpperCase()).stream()
+    return weeklySrRepo
+        .findByTicker_TickerSymbolAndFilterReasonIsNull(tickerSymbol.toUpperCase())
+        .stream()
         .map(
             sr ->
                 SupportResistanceDTO.builder()
                     .currentType(sr.getCurrentType().name())
                     .importance(sr.getImportance())
-                    .touchPoints(sr.getTouchPoints().stream()
-                        .map(tp -> SRTouchPointDTO.builder().date(tp.getDate()).price(tp.getPrice()).build())
-                        .collect(Collectors.toList()))
+                    .touchPoints(
+                        sr.getTouchPoints().stream()
+                            .map(
+                                tp ->
+                                    SRTouchPointDTO.builder()
+                                        .date(tp.getDate())
+                                        .price(tp.getPrice())
+                                        .build())
+                            .collect(Collectors.toList()))
                     .build())
         .collect(Collectors.toList());
   }

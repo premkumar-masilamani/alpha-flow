@@ -46,11 +46,9 @@ export const getCandleData = async (
         return cached.data;
     }
 
-    // Only cache on success; a failed request propagates without evicting/poisoning the cache.
-    const url = timeframe === 'WEEKLY'
-        ? `${API_BASE_URL}/tickers/${symbol}/weekly-data`
-        : `${API_BASE_URL}/tickers/${symbol}/data`;
-    const response = await axios.get(url, { params: { page, size } });
+    const paramTimeframe = timeframe === 'WEEKLY' ? 'w' : (timeframe === 'MONTHLY' ? 'm' : 'd');
+    const url = `${API_BASE_URL}/tickers/${symbol}/data`;
+    const response = await axios.get(url, { params: { timeframe: paramTimeframe, page, size } });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
     // Evict the least-recently-used entries if we exceed the cap.
@@ -63,7 +61,7 @@ export const getCandleData = async (
     return response.data;
 };
 
-export type Timeframe = 'DAILY' | 'WEEKLY';
+export type Timeframe = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
 // One configured (indicator, source, params) combo from the discovery endpoint.
 export interface IndicatorConfig {
@@ -145,8 +143,9 @@ export const getIndicatorSeries = async (
         return cached.data;
     }
 
+    const paramTimeframe = timeframe === 'WEEKLY' ? 'w' : (timeframe === 'MONTHLY' ? 'm' : 'd');
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/indicators`, {
-        params: { timeframe, page, size }
+        params: { timeframe: paramTimeframe, page, size }
     });
     indicatorCache.set(cacheKey, {data: response.data, timestamp: now});
 
@@ -163,8 +162,9 @@ export const getSupportResistance = async (
     symbol: string,
     timeframe: Timeframe
 ): Promise<SupportResistanceLine[]> => {
+    const paramTimeframe = timeframe === 'WEEKLY' ? 'w' : (timeframe === 'MONTHLY' ? 'm' : 'd');
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`, {
-        params: { timeframe: timeframe.toLowerCase() }
+        params: { timeframe: paramTimeframe }
     });
     return response.data;
 };

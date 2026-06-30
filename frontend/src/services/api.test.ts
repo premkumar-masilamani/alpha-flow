@@ -62,8 +62,8 @@ describe('API Service Layer Tests', () => {
 
             await getCandleData('BTC-USD', 'WEEKLY', 0);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/BTC-USD/weekly-data'),
-                expect.anything()
+                expect.stringContaining('/tickers/BTC-USD/data'),
+                expect.objectContaining({ params: expect.objectContaining({ timeframe: 'w' }) })
             );
         });
     });
@@ -133,8 +133,8 @@ describe('API Service Layer Tests', () => {
             // Let's mock the axios responses in order or by URL.
             mockedAxios.get.mockImplementation((url, config) => {
                 if (url.includes('/data')) return Promise.resolve({ data: mockCandles });
-                if (url.includes('/indicators') && config?.params?.timeframe === 'DAILY') return Promise.resolve({ data: mockDaily });
-                if (url.includes('/indicators') && config?.params?.timeframe === 'WEEKLY') return Promise.resolve({ data: mockWeekly });
+                if (url.includes('/indicators') && config?.params?.timeframe === 'd') return Promise.resolve({ data: mockDaily });
+                if (url.includes('/indicators') && config?.params?.timeframe === 'w') return Promise.resolve({ data: mockWeekly });
                 return Promise.resolve({ data: [] });
             });
 

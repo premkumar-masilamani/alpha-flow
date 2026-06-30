@@ -1,6 +1,5 @@
 package com.alphaflow.api.dtos;
 
-import java.math.BigDecimal;
 import java.util.List;
 import lombok.Builder;
 import lombok.Data;

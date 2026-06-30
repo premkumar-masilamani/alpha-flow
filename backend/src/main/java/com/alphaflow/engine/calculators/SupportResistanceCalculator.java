@@ -33,10 +33,8 @@ public class SupportResistanceCalculator {
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailySupportResistanceRepository dailySrRepo;
   private final WeeklySupportResistanceRepository weeklySrRepo;
-  
-  @Autowired
-  @org.springframework.context.annotation.Lazy
-  private SupportResistanceCalculator self;
+
+  @Autowired @org.springframework.context.annotation.Lazy private SupportResistanceCalculator self;
 
   @Autowired
   public SupportResistanceCalculator(
@@ -139,7 +137,11 @@ public class SupportResistanceCalculator {
     BigDecimal intercept;
     SRFilterReason filterReason;
 
-    ActiveLine(List<SRTouchPoint> touchPoints, SRCurrentType type, BigDecimal slope, BigDecimal intercept) {
+    ActiveLine(
+        List<SRTouchPoint> touchPoints,
+        SRCurrentType type,
+        BigDecimal slope,
+        BigDecimal intercept) {
       this.touchPoints = touchPoints;
       this.type = type;
       this.breakCount = 0;
@@ -160,10 +162,10 @@ public class SupportResistanceCalculator {
     LocalDate twoYearsAgo = bars.get(bars.size() - 1).date().minusYears(2);
     int startIndex = window;
     for (int i = bars.size() - 1; i >= 0; i--) {
-        if (bars.get(i).date().isBefore(twoYearsAgo)) {
-            startIndex = Math.max(window, i);
-            break;
-        }
+      if (bars.get(i).date().isBefore(twoYearsAgo)) {
+        startIndex = Math.max(window, i);
+        break;
+      }
     }
 
     for (int i = startIndex; i < bars.size() - window; i++) {
@@ -180,38 +182,40 @@ public class SupportResistanceCalculator {
 
       if (isHigh) {
         Pivot currentPivot = new Pivot(i, currentHigh, bars.get(i).date());
-        
+
         // 1. Horizontal logic
         boolean addedToExisting = false;
         for (ActiveLine line : activeLines) {
-            if (line.slope.compareTo(BigDecimal.ZERO) == 0 && line.type == SRCurrentType.RESISTANCE) {
-                BigDecimal avgPrice = line.intercept;
-                BigDecimal diff = currentHigh.subtract(avgPrice).abs();
-                BigDecimal thresh = avgPrice.multiply(tolerance);
-                if (diff.compareTo(thresh) <= 0) {
-                    line.touchPoints.add(new SRTouchPoint(currentPivot.date, avgPrice));
-                    line.importance = line.touchPoints.size();
-                    addedToExisting = true;
-                    break;
-                }
+          if (line.slope.compareTo(BigDecimal.ZERO) == 0 && line.type == SRCurrentType.RESISTANCE) {
+            BigDecimal avgPrice = line.intercept;
+            BigDecimal diff = currentHigh.subtract(avgPrice).abs();
+            BigDecimal thresh = avgPrice.multiply(tolerance);
+            if (diff.compareTo(thresh) <= 0) {
+              line.touchPoints.add(new SRTouchPoint(currentPivot.date, avgPrice));
+              line.importance = line.touchPoints.size();
+              addedToExisting = true;
+              break;
             }
+          }
         }
-        
+
         if (!addedToExisting) {
-            for (Pivot past : pivotHighs) {
-              BigDecimal diff = currentHigh.subtract(past.price).abs();
-              BigDecimal thresh = past.price.multiply(tolerance);
-              if (diff.compareTo(thresh) <= 0) {
-                BigDecimal avgPrice = currentHigh.add(past.price).divide(new BigDecimal("2"), 4, RoundingMode.HALF_UP);
-                List<SRTouchPoint> pts = new ArrayList<>();
-                pts.add(new SRTouchPoint(past.date, avgPrice));
-                pts.add(new SRTouchPoint(currentPivot.date, avgPrice));
-                activeLines.add(new ActiveLine(pts, SRCurrentType.RESISTANCE, BigDecimal.ZERO, avgPrice));
-                break;
-              }
+          for (Pivot past : pivotHighs) {
+            BigDecimal diff = currentHigh.subtract(past.price).abs();
+            BigDecimal thresh = past.price.multiply(tolerance);
+            if (diff.compareTo(thresh) <= 0) {
+              BigDecimal avgPrice =
+                  currentHigh.add(past.price).divide(new BigDecimal("2"), 4, RoundingMode.HALF_UP);
+              List<SRTouchPoint> pts = new ArrayList<>();
+              pts.add(new SRTouchPoint(past.date, avgPrice));
+              pts.add(new SRTouchPoint(currentPivot.date, avgPrice));
+              activeLines.add(
+                  new ActiveLine(pts, SRCurrentType.RESISTANCE, BigDecimal.ZERO, avgPrice));
+              break;
             }
+          }
         }
-        
+
         // 2. Angular logic
         pivotHighs.add(currentPivot);
         if (pivotHighs.size() >= 4) {
@@ -225,38 +229,40 @@ public class SupportResistanceCalculator {
 
       if (isLow) {
         Pivot currentPivot = new Pivot(i, currentLow, bars.get(i).date());
-        
+
         // 1. Horizontal logic
         boolean addedToExisting = false;
         for (ActiveLine line : activeLines) {
-            if (line.slope.compareTo(BigDecimal.ZERO) == 0 && line.type == SRCurrentType.SUPPORT) {
-                BigDecimal avgPrice = line.intercept;
-                BigDecimal diff = currentLow.subtract(avgPrice).abs();
-                BigDecimal thresh = avgPrice.multiply(tolerance);
-                if (diff.compareTo(thresh) <= 0) {
-                    line.touchPoints.add(new SRTouchPoint(currentPivot.date, avgPrice));
-                    line.importance = line.touchPoints.size();
-                    addedToExisting = true;
-                    break;
-                }
+          if (line.slope.compareTo(BigDecimal.ZERO) == 0 && line.type == SRCurrentType.SUPPORT) {
+            BigDecimal avgPrice = line.intercept;
+            BigDecimal diff = currentLow.subtract(avgPrice).abs();
+            BigDecimal thresh = avgPrice.multiply(tolerance);
+            if (diff.compareTo(thresh) <= 0) {
+              line.touchPoints.add(new SRTouchPoint(currentPivot.date, avgPrice));
+              line.importance = line.touchPoints.size();
+              addedToExisting = true;
+              break;
             }
+          }
         }
-        
+
         if (!addedToExisting) {
-            for (Pivot past : pivotLows) {
-              BigDecimal diff = currentLow.subtract(past.price).abs();
-              BigDecimal thresh = past.price.multiply(tolerance);
-              if (diff.compareTo(thresh) <= 0) {
-                BigDecimal avgPrice = currentLow.add(past.price).divide(new BigDecimal("2"), 4, RoundingMode.HALF_UP);
-                List<SRTouchPoint> pts = new ArrayList<>();
-                pts.add(new SRTouchPoint(past.date, avgPrice));
-                pts.add(new SRTouchPoint(currentPivot.date, avgPrice));
-                activeLines.add(new ActiveLine(pts, SRCurrentType.SUPPORT, BigDecimal.ZERO, avgPrice));
-                break;
-              }
+          for (Pivot past : pivotLows) {
+            BigDecimal diff = currentLow.subtract(past.price).abs();
+            BigDecimal thresh = past.price.multiply(tolerance);
+            if (diff.compareTo(thresh) <= 0) {
+              BigDecimal avgPrice =
+                  currentLow.add(past.price).divide(new BigDecimal("2"), 4, RoundingMode.HALF_UP);
+              List<SRTouchPoint> pts = new ArrayList<>();
+              pts.add(new SRTouchPoint(past.date, avgPrice));
+              pts.add(new SRTouchPoint(currentPivot.date, avgPrice));
+              activeLines.add(
+                  new ActiveLine(pts, SRCurrentType.SUPPORT, BigDecimal.ZERO, avgPrice));
+              break;
             }
+          }
         }
-        
+
         // 2. Angular logic
         pivotLows.add(currentPivot);
         if (pivotLows.size() >= 4) {
@@ -273,14 +279,15 @@ public class SupportResistanceCalculator {
       Iterator<ActiveLine> it = activeLines.iterator();
       while (it.hasNext()) {
         ActiveLine line = it.next();
-        
+
         // Check if the line was formed in the future relative to current bar
         boolean isFuture = false;
         for (SRTouchPoint tp : line.touchPoints) {
-            if (tp.getDate().isAfter(bars.get(i).date()) || tp.getDate().isEqual(bars.get(i).date())) {
-                isFuture = true;
-                break;
-            }
+          if (tp.getDate().isAfter(bars.get(i).date())
+              || tp.getDate().isEqual(bars.get(i).date())) {
+            isFuture = true;
+            break;
+          }
         }
         if (isFuture) continue;
 
@@ -305,23 +312,24 @@ public class SupportResistanceCalculator {
     }
 
     for (ActiveLine al : activeLines) {
-        if (al.filterReason == null) {
-            if (al.slope.compareTo(BigDecimal.ZERO) == 0) {
-                if (al.touchPoints.size() < 3) {
-                    al.filterReason = SRFilterReason.TOUCHES_LT_3;
-                }
-            } else {
-                if (al.touchPoints.size() < 4) {
-                    al.filterReason = SRFilterReason.TOUCHES_LT_4;
-                }
-            }
+      if (al.filterReason == null) {
+        if (al.slope.compareTo(BigDecimal.ZERO) == 0) {
+          if (al.touchPoints.size() < 3) {
+            al.filterReason = SRFilterReason.TOUCHES_LT_3;
+          }
+        } else {
+          if (al.touchPoints.size() < 4) {
+            al.filterReason = SRFilterReason.TOUCHES_LT_4;
+          }
         }
+      }
     }
 
-    List<ActiveLine> validForProximity = activeLines.stream()
-        .filter(al -> al.filterReason == null)
-        .sorted((a, b) -> Integer.compare(b.importance, a.importance))
-        .collect(Collectors.toList());
+    List<ActiveLine> validForProximity =
+        activeLines.stream()
+            .filter(al -> al.filterReason == null)
+            .sorted((a, b) -> Integer.compare(b.importance, a.importance))
+            .collect(Collectors.toList());
 
     List<ActiveLine> merged = new ArrayList<>();
     BigDecimal proximityThresh = new BigDecimal("0.01"); // 1%
@@ -329,76 +337,82 @@ public class SupportResistanceCalculator {
     BigDecimal currentClose = bars.get(currentIndex).close();
 
     for (ActiveLine line : validForProximity) {
-        BigDecimal lineCurrentExpected = line.slope.multiply(new BigDecimal(currentIndex)).add(line.intercept);
-        
-        // 1. Circuit Breaker
-        BigDecimal upperLimit = currentClose.multiply(new BigDecimal("1.2"));
-        BigDecimal lowerLimit = currentClose.multiply(new BigDecimal("0.8"));
-        if (lineCurrentExpected.compareTo(upperLimit) > 0 || lineCurrentExpected.compareTo(lowerLimit) < 0) {
-            line.filterReason = SRFilterReason.CIRCUIT_BREAKER_20_PCT;
-            continue;
-        }
+      BigDecimal lineCurrentExpected =
+          line.slope.multiply(new BigDecimal(currentIndex)).add(line.intercept);
 
-        // 2. Proximity check
-        boolean drop = false;
-        for (ActiveLine stronger : merged) {
-            BigDecimal strongerCurrentExpected = stronger.slope.multiply(new BigDecimal(currentIndex)).add(stronger.intercept);
-            BigDecimal diff = lineCurrentExpected.subtract(strongerCurrentExpected).abs();
-            BigDecimal allowedDiff = strongerCurrentExpected.multiply(proximityThresh);
+      // 1. Circuit Breaker
+      BigDecimal upperLimit = currentClose.multiply(new BigDecimal("1.2"));
+      BigDecimal lowerLimit = currentClose.multiply(new BigDecimal("0.8"));
+      if (lineCurrentExpected.compareTo(upperLimit) > 0
+          || lineCurrentExpected.compareTo(lowerLimit) < 0) {
+        line.filterReason = SRFilterReason.CIRCUIT_BREAKER_20_PCT;
+        continue;
+      }
 
-            if (diff.compareTo(allowedDiff) <= 0) {
-                drop = true;
-                break;
-            }
+      // 2. Proximity check
+      boolean drop = false;
+      for (ActiveLine stronger : merged) {
+        BigDecimal strongerCurrentExpected =
+            stronger.slope.multiply(new BigDecimal(currentIndex)).add(stronger.intercept);
+        BigDecimal diff = lineCurrentExpected.subtract(strongerCurrentExpected).abs();
+        BigDecimal allowedDiff = strongerCurrentExpected.multiply(proximityThresh);
+
+        if (diff.compareTo(allowedDiff) <= 0) {
+          drop = true;
+          break;
         }
-        if (drop) {
-            line.filterReason = SRFilterReason.PROXIMITY_1_PCT;
-        } else {
-            merged.add(line);
-        }
+      }
+      if (drop) {
+        line.filterReason = SRFilterReason.PROXIMITY_1_PCT;
+      } else {
+        merged.add(line);
+      }
     }
-    
+
     // Explicitly set polarity based on relation to current price
     for (ActiveLine line : activeLines) {
-        BigDecimal lineCurrentExpected = line.slope.multiply(new BigDecimal(currentIndex)).add(line.intercept);
-        if (lineCurrentExpected.compareTo(currentClose) > 0) {
-            line.type = SRCurrentType.RESISTANCE;
-        } else {
-            line.type = SRCurrentType.SUPPORT;
-        }
+      BigDecimal lineCurrentExpected =
+          line.slope.multiply(new BigDecimal(currentIndex)).add(line.intercept);
+      if (lineCurrentExpected.compareTo(currentClose) > 0) {
+        line.type = SRCurrentType.RESISTANCE;
+      } else {
+        line.type = SRCurrentType.SUPPORT;
+      }
     }
-    
+
     return activeLines;
   }
 
   private ActiveLine createRegressionLine(List<Pivot> pivots, SRCurrentType type) {
     if (pivots.size() < 3) return null;
-    double sumX = 0, sumY = 0;
+    double sumX = 0;
+    double sumY = 0;
     for (Pivot p : pivots) {
-        sumX += p.index;
-        sumY += p.price.doubleValue();
+      sumX += p.index;
+      sumY += p.price.doubleValue();
     }
     double meanX = sumX / pivots.size();
     double meanY = sumY / pivots.size();
-    
-    double num = 0, den = 0;
+
+    double num = 0;
+    double den = 0;
     for (Pivot p : pivots) {
-        num += (p.index - meanX) * (p.price.doubleValue() - meanY);
-        den += (p.index - meanX) * (p.index - meanX);
+      num += (p.index - meanX) * (p.price.doubleValue() - meanY);
+      den += (p.index - meanX) * (p.index - meanX);
     }
     if (den == 0) return null;
-    
+
     double m = num / den;
     double b = meanY - m * meanX;
-    
+
     BigDecimal slope = new BigDecimal(String.valueOf(m)).setScale(4, RoundingMode.HALF_UP);
     BigDecimal intercept = new BigDecimal(String.valueOf(b)).setScale(4, RoundingMode.HALF_UP);
-    
+
     List<SRTouchPoint> touchPoints = new ArrayList<>();
     for (Pivot p : pivots) {
-        touchPoints.add(new SRTouchPoint(p.date, p.price));
+      touchPoints.add(new SRTouchPoint(p.date, p.price));
     }
-    
+
     return new ActiveLine(touchPoints, type, slope, intercept);
   }
 

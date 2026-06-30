@@ -17,10 +17,12 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
-    SupportResistanceCalculator supportResistanceCalculator = mock(SupportResistanceCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyPriceCalculator, indicatorCalculator, supportResistanceCalculator);
+        new CoreScheduler(
+            downloader, weeklyPriceCalculator, indicatorCalculator, supportResistanceCalculator);
 
     scheduler.runScheduledUpdate();
 
@@ -35,14 +37,14 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
-    SupportResistanceCalculator supportResistanceCalculator = mock(SupportResistanceCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
 
-    doThrow(new RuntimeException("Simulated Failure"))
-        .when(downloader)
-        .downloadDailyPrices();
+    doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadDailyPrices();
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyPriceCalculator, indicatorCalculator, supportResistanceCalculator);
+        new CoreScheduler(
+            downloader, weeklyPriceCalculator, indicatorCalculator, supportResistanceCalculator);
 
     scheduler.runOnStartup();
 
@@ -58,7 +60,8 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
-    SupportResistanceCalculator supportResistanceCalculator = mock(SupportResistanceCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
 
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
@@ -73,7 +76,9 @@ class CoreSchedulerTest {
         .when(downloader)
         .downloadDailyPrices();
 
-    CoreScheduler scheduler = new CoreScheduler(downloader, weeklyPriceCalculator, indicatorCalculator, supportResistanceCalculator);
+    CoreScheduler scheduler =
+        new CoreScheduler(
+            downloader, weeklyPriceCalculator, indicatorCalculator, supportResistanceCalculator);
 
     // Start thread for first invocation
     Thread t = new Thread(scheduler::runScheduledUpdate);
