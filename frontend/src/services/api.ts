@@ -46,9 +46,8 @@ export const getCandleData = async (
         return cached.data;
     }
 
-    const paramTimeframe = timeframe === 'WEEKLY' ? 'w' : (timeframe === 'MONTHLY' ? 'm' : 'd');
     const url = `${API_BASE_URL}/tickers/${symbol}/data`;
-    const response = await axios.get(url, { params: { timeframe: paramTimeframe, page, size } });
+    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
     // Evict the least-recently-used entries if we exceed the cap.
@@ -143,9 +142,8 @@ export const getIndicatorSeries = async (
         return cached.data;
     }
 
-    const paramTimeframe = timeframe === 'WEEKLY' ? 'w' : (timeframe === 'MONTHLY' ? 'm' : 'd');
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/indicators`, {
-        params: { timeframe: paramTimeframe, page, size }
+        params: { timeframe: timeframe.toLowerCase(), page, size }
     });
     indicatorCache.set(cacheKey, {data: response.data, timestamp: now});
 
@@ -162,9 +160,8 @@ export const getSupportResistance = async (
     symbol: string,
     timeframe: Timeframe
 ): Promise<SupportResistanceLine[]> => {
-    const paramTimeframe = timeframe === 'WEEKLY' ? 'w' : (timeframe === 'MONTHLY' ? 'm' : 'd');
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`, {
-        params: { timeframe: paramTimeframe }
+        params: { timeframe: timeframe.toLowerCase() }
     });
     return response.data;
 };

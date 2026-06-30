@@ -1,7 +1,7 @@
 package com.alphaflow.engine.configs;
 
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
 import jakarta.annotation.PostConstruct;
 import java.util.*;

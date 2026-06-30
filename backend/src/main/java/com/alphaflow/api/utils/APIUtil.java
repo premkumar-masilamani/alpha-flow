@@ -1,6 +1,6 @@
 package com.alphaflow.api.utils;
 
-import com.alphaflow.persistence.enums.Timeframe;
+import com.alphaflow.common.enums.Timeframe;
 
 public class APIUtil {
 

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.indicators.*;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
@@ -11,7 +12,6 @@ import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;

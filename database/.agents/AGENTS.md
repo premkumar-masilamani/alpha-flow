@@ -18,6 +18,7 @@ make connect_database
 - Use append-only SQL migration pairs in `database/migrations/`.
 - Ensure down scripts are exact reversals (`DROP TABLE IF EXISTS ... CASCADE`).
 - Use `IF EXISTS` / `IF NOT EXISTS` guards for idempotency.
+- Use DB migrations strictly for DDL only (schema changes).
 
 ### Ask first
 - Any structural schema changes to historical price tables or indicator structures.

@@ -29,7 +29,6 @@ make lint
 
 ### Never do
 - Commit secrets, private API keys, or `.env` files.
-- Use DB migrations strictly for DDL only (schema changes).
 
 ## Project Structure
 ```text

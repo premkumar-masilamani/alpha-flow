@@ -2,6 +2,7 @@ package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.SupportResistanceDTO;
 import com.alphaflow.api.services.SupportResistanceService;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -26,11 +27,16 @@ public class SupportResistanceController {
   }
 
   @GetMapping("/{symbol}/sr")
-  public List<SupportResistanceDTO> getSupportResistance(
+  public List<SupportResistanceDTO> getSupportResistanceLines(
       @PathVariable String symbol,
-      @RequestParam(name = "timeframe", defaultValue = "d") String timeframe) {
+      @RequestParam(name = "timeframe", defaultValue = "DAILY") Timeframe timeframe) {
     log.info("Request to get SR lines for ticker: {}, timeframe: {}", symbol, timeframe);
-    if ("w".equalsIgnoreCase(timeframe) || "weekly".equalsIgnoreCase(timeframe)) {
+
+    if (timeframe == Timeframe.MONTHLY) {
+      throw new UnsupportedOperationException("Monthly timeframe not yet supported");
+    }
+
+    if (timeframe == Timeframe.WEEKLY) {
       return srService.getWeeklySr(symbol);
     }
     return srService.getDailySr(symbol);

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.api.dtos.OhlcvDTO;
 import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.api.services.WeeklyPriceService;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.math.BigDecimal;
@@ -41,13 +42,13 @@ class PriceControllerTest {
     PriceController controller =
         new PriceController(dailyPriceService, weeklyPriceService, tickerRepository);
 
-    List<OhlcvDTO> res = controller.getPriceDataForTicker("AAPL", "d", 0, 250);
+    List<OhlcvDTO> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
     assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
 
     when(weeklyPriceService.getWeeklyPriceByTickerName("AAPL", 0, 250)).thenReturn(List.of(dto));
-    List<OhlcvDTO> weeklyRes = controller.getPriceDataForTicker("AAPL", "w", 0, 250);
+    List<OhlcvDTO> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
   }
 }
