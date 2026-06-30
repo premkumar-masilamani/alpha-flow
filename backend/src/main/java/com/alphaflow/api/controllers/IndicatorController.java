@@ -24,7 +24,7 @@ public class IndicatorController {
     this.tickerRepository = tickerRepository;
   }
 
-  @GetMapping("/indicators")
+  @GetMapping("/indicator-definitions")
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
     log.info("Request to get configured indicators");
     return indicatorService.getConfiguredIndicators();

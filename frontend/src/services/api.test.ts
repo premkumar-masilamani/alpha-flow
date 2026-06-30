@@ -78,7 +78,7 @@ describe('API Service Layer Tests', () => {
 
             const result = await getIndicatorConfigs();
             expect(result).toEqual(mockConfigs);
-            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/indicators'));
+            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/indicator-definitions'));
         });
 
         it('should enrich RSI and STOCHASTIC indicator configs with bounds', async () => {
