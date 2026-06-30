@@ -1,11 +1,9 @@
-CREATE TYPE sr_current_type AS ENUM ('SUPPORT', 'RESISTANCE');
-
 CREATE TABLE daily_sr (
     id BIGINT NOT NULL,
     ticker_id BIGINT NOT NULL REFERENCES tickers(ticker_id) ON DELETE CASCADE,
     slope NUMERIC NOT NULL,
     intercept NUMERIC NOT NULL,
-    current_type sr_current_type NOT NULL,
+    current_type VARCHAR(50) NOT NULL,
     break_count INTEGER NOT NULL DEFAULT 0,
     touch_points JSONB NOT NULL DEFAULT '[]'::jsonb,
     importance INTEGER NOT NULL DEFAULT 0,
@@ -22,7 +20,7 @@ CREATE TABLE weekly_sr (
     ticker_id BIGINT NOT NULL REFERENCES tickers(ticker_id) ON DELETE CASCADE,
     slope NUMERIC NOT NULL,
     intercept NUMERIC NOT NULL,
-    current_type sr_current_type NOT NULL,
+    current_type VARCHAR(50) NOT NULL,
     break_count INTEGER NOT NULL DEFAULT 0,
     touch_points JSONB NOT NULL DEFAULT '[]'::jsonb,
     importance INTEGER NOT NULL DEFAULT 0,
