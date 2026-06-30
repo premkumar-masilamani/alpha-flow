@@ -4,10 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
 import java.util.List;
 import java.util.Map;

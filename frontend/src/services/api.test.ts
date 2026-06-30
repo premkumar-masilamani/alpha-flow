@@ -62,8 +62,8 @@ describe('API Service Layer Tests', () => {
 
             await getCandleData('BTC-USD', 'WEEKLY', 0);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/BTC-USD/weekly-data'),
-                expect.anything()
+                expect.stringContaining('/tickers/BTC-USD/data'),
+                expect.objectContaining({ params: expect.objectContaining({ timeframe: 'weekly' }) })
             );
         });
     });
@@ -78,7 +78,7 @@ describe('API Service Layer Tests', () => {
 
             const result = await getIndicatorConfigs();
             expect(result).toEqual(mockConfigs);
-            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/indicators'));
+            expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/indicator-definitions'));
         });
 
         it('should enrich RSI and STOCHASTIC indicator configs with bounds', async () => {
@@ -131,10 +131,10 @@ describe('API Service Layer Tests', () => {
             // Promise.all calls getCandleData, getIndicatorSeries(DAILY), getIndicatorSeries(WEEKLY)
             // But getCandleData and getIndicatorSeries are mocked? No, we are testing the API service which CALLS axios.
             // Let's mock the axios responses in order or by URL.
-            mockedAxios.get.mockImplementation((url) => {
+            mockedAxios.get.mockImplementation((url, config) => {
                 if (url.includes('/data')) return Promise.resolve({ data: mockCandles });
-                if (url.includes('/indicators') && url.includes('timeframe=DAILY')) return Promise.resolve({ data: mockDaily });
-                if (url.includes('/indicators') && url.includes('timeframe=WEEKLY')) return Promise.resolve({ data: mockWeekly });
+                if (url.includes('/indicators') && config?.params?.timeframe === 'daily') return Promise.resolve({ data: mockDaily });
+                if (url.includes('/indicators') && config?.params?.timeframe === 'weekly') return Promise.resolve({ data: mockWeekly });
                 return Promise.resolve({ data: [] });
             });
 

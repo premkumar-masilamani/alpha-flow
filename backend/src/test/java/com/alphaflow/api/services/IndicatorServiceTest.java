@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.entities.DailyIndicator;
@@ -15,7 +16,6 @@ import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
@@ -111,13 +111,13 @@ class IndicatorServiceTest {
 
     assertEquals("DAILY", ema.timeframe());
     assertEquals("period=5", ema.params());
-    assertEquals("EMA(5)", ema.label());
+    assertEquals("EMA (5)", ema.label());
 
     IndicatorConfigDTO macd =
         configs.stream().filter(c -> c.type().equals("MACD")).findFirst().orElseThrow();
 
     assertEquals("WEEKLY", macd.timeframe());
-    assertEquals("MACD(12,26,9)", macd.label());
+    assertEquals("MACD (12,26,9)", macd.label());
   }
 
   @Test
@@ -159,7 +159,7 @@ class IndicatorServiceTest {
     IndicatorSeriesDTO macd =
         series.stream().filter(s -> s.type().equals("MACD")).findFirst().orElseThrow();
 
-    assertEquals("MACD(12,26,9)", macd.label());
+    assertEquals("MACD (12,26,9)", macd.label());
     assertEquals(2, macd.points().size());
 
     Map<String, BigDecimal> firstBar = macd.points().getFirst().values();

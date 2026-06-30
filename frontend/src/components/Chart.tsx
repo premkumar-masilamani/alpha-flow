@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type SupportResistanceLine} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -125,6 +125,8 @@ interface ChartProps {
     indicators: IndicatorSeries[];
     enabled: Set<string>;
     configs: IndicatorConfig[];
+    srLines?: SupportResistanceLine[];
+    showSR?: boolean;
     symbol: string;
     timeframe: string;
     onLoadOlderData: () => void;
@@ -197,7 +199,7 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
     }
 };
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, srLines = [], showSR = false, symbol, timeframe, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -444,12 +446,69 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             }
         });
 
+        // Add Support/Resistance lines if enabled
+        if (showSR && srLines.length > 0) {
+                        for (const sr of srLines) {
+                if (!sr.touchPoints || sr.touchPoints.length < 2) continue;
+                
+                const pts = [...sr.touchPoints].sort((a, b) => a.date.localeCompare(b.date));
+                const firstPt = pts[0];
+                const lastPt = pts[pts.length - 1];
+                
+                const firstIdx = sortedData.findIndex(d => d.date === firstPt.date);
+                const lastIdx = sortedData.findIndex(d => d.date === lastPt.date);
+                
+                // If we don't have the data loaded for these points, we can't accurately draw the line yet.
+                if (firstIdx === -1 || lastIdx === -1 || firstIdx === lastIdx) continue;
+                
+                const slopePerBar = (lastPt.price - firstPt.price) / (lastIdx - firstIdx);
+                const isHorizontal = Math.abs(slopePerBar) < 0.0001;
+                
+                const isDaily = sr.timeframe === 'DAILY' || !sr.timeframe;
+                let color = '';
+                if (isDaily) {
+                    color = sr.currentType === 'SUPPORT' ? '#f87171' : '#4ade80';
+                } else {
+                    color = sr.currentType === 'SUPPORT' ? '#dc2626' : '#10b981';
+                }
+                const actualLineWidth = 1;
+                
+                if (isHorizontal) {
+                    candlestickSeries.createPriceLine({
+                        price: firstPt.price,
+                        color,
+                        lineWidth: actualLineWidth,
+                        lineStyle: LineStyle.Solid,
+                        axisLabelVisible: false,
+                        title: '',
+                    });
+                } else {
+                    const linePoints = [];
+                    for (let i = firstIdx; i < sortedData.length; i++) {
+                        linePoints.push({
+                            time: sortedData[i].date as Time,
+                            value: firstPt.price + slopePerBar * (i - firstIdx)
+                        });
+                    }
+                    const line = chart.addSeries(LineSeries, {
+                        color,
+                        lineWidth: actualLineWidth,
+                        autoscaleInfoProvider: () => null,
+                        priceLineVisible: false,
+                        lastValueVisible: false,
+                        crosshairMarkerVisible: false,
+                    }, 0);
+                    line.setData(linePoints);
+                }
+            }
+        }
+
         return () => {
             resizeObserver.disconnect();
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, srLines, showSR, symbol, timeframe, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

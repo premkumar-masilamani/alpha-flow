@@ -46,11 +46,8 @@ export const getCandleData = async (
         return cached.data;
     }
 
-    // Only cache on success; a failed request propagates without evicting/poisoning the cache.
-    const url = timeframe === 'WEEKLY'
-        ? `${API_BASE_URL}/tickers/${symbol}/weekly-data`
-        : `${API_BASE_URL}/tickers/${symbol}/data`;
-    const response = await axios.get(url, { params: { page, size } });
+    const url = `${API_BASE_URL}/tickers/${symbol}/data`;
+    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
     // Evict the least-recently-used entries if we exceed the cap.
@@ -63,7 +60,7 @@ export const getCandleData = async (
     return response.data;
 };
 
-export type Timeframe = 'DAILY' | 'WEEKLY';
+export type Timeframe = 'DAILY' | 'WEEKLY' | 'MONTHLY';
 
 // One configured (indicator, source, params) combo from the discovery endpoint.
 export interface IndicatorConfig {
@@ -90,12 +87,24 @@ export interface IndicatorSeries {
     points: IndicatorPoint[];
 }
 
+export interface SRTouchPoint {
+    date: string;
+    price: number;
+}
+
+export interface SupportResistanceLine {
+    currentType: 'SUPPORT' | 'RESISTANCE';
+    importance: number;
+    touchPoints: {date: string; price: number}[];
+    timeframe?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+}
+
 // Stable key identifying a combo across the config and series endpoints.
 export const indicatorKey = (i: {type: string; source: string; params: string}): string =>
     `${i.type}|${i.source}|${i.params}`;
 
 export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
-    const response = await axios.get(`${API_BASE_URL}/indicators`);
+    const response = await axios.get(`${API_BASE_URL}/indicator-definitions`);
     return response.data.map((config: IndicatorConfig) => {
         if (config.type === 'RSI') {
             return {
@@ -134,7 +143,7 @@ export const getIndicatorSeries = async (
     }
 
     const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/indicators`, {
-        params: { timeframe, page, size }
+        params: { timeframe: timeframe.toLowerCase(), page, size }
     });
     indicatorCache.set(cacheKey, {data: response.data, timestamp: now});
 
@@ -144,6 +153,16 @@ export const getIndicatorSeries = async (
         indicatorCache.delete(oldestKey);
     }
 
+    return response.data;
+};
+
+export const getSupportResistance = async (
+    symbol: string,
+    timeframe: Timeframe
+): Promise<SupportResistanceLine[]> => {
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`, {
+        params: { timeframe: timeframe.toLowerCase() }
+    });
     return response.data;
 };
 

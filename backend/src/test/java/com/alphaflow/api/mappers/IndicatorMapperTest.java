@@ -16,13 +16,13 @@ class IndicatorMapperTest {
     // EMA Close
 
     assertEquals(
-        "EMA(20)",
+        "EMA (20)",
         IndicatorMapper.label(
             IndicatorType.EMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
 
     // SMA
     assertEquals(
-        "SMA(50)",
+        "SMA (50)",
         IndicatorMapper.label(
             IndicatorType.SMA, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 50))));
 
@@ -35,14 +35,14 @@ class IndicatorMapperTest {
     // RSI
 
     assertEquals(
-        "RSI(14)",
+        "RSI (14)",
         IndicatorMapper.label(
             IndicatorType.RSI, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 14))));
 
     // MACD (with default signal)
 
     assertEquals(
-        "MACD(12,26,9)",
+        "MACD (12,26,9)",
         IndicatorMapper.label(
             IndicatorType.MACD,
             PriceSource.CLOSE,
@@ -51,7 +51,7 @@ class IndicatorMapperTest {
     // MACD (with custom signal)
 
     assertEquals(
-        "MACD(12,26,8)",
+        "MACD (12,26,8)",
         IndicatorMapper.label(
             IndicatorType.MACD,
             PriceSource.CLOSE,
@@ -60,7 +60,7 @@ class IndicatorMapperTest {
     // Stochastic
 
     assertEquals(
-        "Stoch(14,3,3)",
+        "Stoch (14,3,3)",
         IndicatorMapper.label(
             IndicatorType.STOCHASTIC,
             PriceSource.CLOSE,

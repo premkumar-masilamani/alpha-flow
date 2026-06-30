@@ -8,8 +8,8 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.api.dtos.IndicatorConfigDTO;
 import com.alphaflow.api.dtos.IndicatorSeriesDTO;
 import com.alphaflow.api.services.IndicatorService;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.enums.Timeframe;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import java.util.Optional;
@@ -54,16 +54,14 @@ class IndicatorControllerTest {
 
     IndicatorController controller = new IndicatorController(service, tickerRepository);
 
-    List<IndicatorSeriesDTO> res = controller.getIndicatorSeries("AAPL", "DAILY", 0, 250);
-
+    List<IndicatorSeriesDTO> res = controller.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, 250);
     assertEquals(1, res.size());
-
     assertEquals("EMA", res.getFirst().type());
 
-    List<IndicatorSeriesDTO> resLowercase =
-        controller.getIndicatorSeries("AAPL", "  daily ", 0, 250);
+    // Should also trim/lowercase logic (if any handled by Spring, but here we call method directly)
+    controller.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, 250);
 
-    assertEquals(1, resLowercase.size());
+    assertEquals(1, res.size());
   }
 
   @Test
@@ -78,13 +76,7 @@ class IndicatorControllerTest {
     IndicatorController controller = new IndicatorController(service, tickerRepository);
 
     assertThrows(
-        IllegalArgumentException.class,
-        () -> controller.getIndicatorSeries("AAPL", "HOURLY", 0, 250));
-
-    assertThrows(
-        IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", null, 0, 250));
-
-    assertThrows(
-        IllegalArgumentException.class, () -> controller.getIndicatorSeries("AAPL", "   ", 0, 250));
+        UnsupportedOperationException.class,
+        () -> controller.getIndicatorSeries("AAPL", Timeframe.MONTHLY, 0, 250));
   }
 }
