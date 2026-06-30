@@ -72,25 +72,25 @@ public class IndicatorMapper {
   }
 
   static String label(IndicatorType type, PriceSource source, IndicatorParams params) {
-    if (type == IndicatorType.SMA
-        && source == PriceSource.VOLUME
-        && params.getInt("period") == 20) {
-      return "Vol (20)";
-    }
-
     String base =
         switch (type) {
-          case EMA -> "EMA(" + params.getInt("period") + ")";
-          case SMA -> "SMA(" + params.getInt("period") + ")";
-          case RSI -> "RSI(" + params.getInt("period") + ")";
-          case MACD -> "MACD("
+          case EMA -> "EMA (" + params.getInt("period") + ")";
+          case SMA -> {
+            if (source == PriceSource.VOLUME) {
+              yield "Vol (" + params.getInt("period") + ")";
+            } else {
+              yield "SMA (" + params.getInt("period") + ")";
+            }
+          }
+          case RSI -> "RSI (" + params.getInt("period") + ")";
+          case MACD -> "MACD ("
               + params.getInt("fast")
               + ","
               + params.getInt("slow")
               + ","
               + params.getInt("signal", 9)
               + ")";
-          case STOCHASTIC -> "Stoch("
+          case STOCHASTIC -> "Stoch ("
               + params.getInt("k")
               + ","
               + params.getInt("kSmooth")
@@ -99,7 +99,10 @@ public class IndicatorMapper {
               + ")";
         };
 
-    return source == PriceSource.CLOSE ? base : base + " " + source.name();
+    return source == PriceSource.CLOSE
+            || (type == IndicatorType.SMA && source == PriceSource.VOLUME)
+        ? base
+        : base + " " + source.name();
   }
 
   private static String comboKey(Indicator row) {
