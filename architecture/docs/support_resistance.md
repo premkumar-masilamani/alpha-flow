@@ -4,15 +4,15 @@ This document details the mathematical formulas, constraints, and algorithmic fl
 
 ## 1. Overview and Core Engine Loop
 
-The `SupportResistanceCalculator` computes S&R lines for each ticker using a lookback/lookahead `window` logic (defaulting to 10 for daily bars, 5 for weekly bars). The analysis is restricted to a rolling 2-year window from the latest price date.
+The `SupportResistanceCalculator` computes S&R lines for each ticker using a lookback/lookahead `window` logic (hardcoded to 10 for both daily and weekly bars). The engine analyzes the entire available historical price data for the ticker to ensure long-term macro levels are captured.
 
 The core algorithm operates as follows:
 1. Identify all `Pivot High` and `Pivot Low` points.
 2. Form **Horizontal Lines** by matching new pivots with past pivots within a 1% price tolerance.
-3. Form **Angular (Trend) Lines** via linear regression on the most recent 4 pivots.
-4. Scan forward through subsequent price action to detect line **Breaks**.
+3. Form **Angular (Trend) Lines** via linear regression on the most recent 4 pivots, ensuring strict slope direction.
+4. Scan forward through subsequent price action to detect line **Crossings (Breaks)**.
 5. Apply multiple rounds of **Filtering** (e.g. minimum touches, proximity, circuit breakers).
-6. Save valid lines to the database with explicit **Polarity** relative to the current closing price.
+6. Save valid lines to the database with explicit **Polarity** strictly relative to the current closing price.
 
 ---
 
@@ -41,6 +41,9 @@ Horizontal lines represent price zones where the market has repeatedly bounced.
 Angular lines represent diagonal support/resistance channels.
 
 - **Trigger**: Every new pivot triggers a linear regression calculation on the last 4 pivots of the same type.
+- **Directional Constraint**: 
+  - A **Resistance** trendline (drawn across pivot highs) is only valid if its slope is positive ($m > 0$), representing a sequence of Higher-Highs.
+  - A **Support** trendline (drawn across pivot lows) is only valid if its slope is negative ($m < 0$), representing a sequence of Lower-Lows.
 - **Math**: Simple linear regression ($y = mx + b$) where $x$ is the bar index and $y$ is the pivot price.
   $$m = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}$$
   $$b = \bar{y} - m\bar{x}$$
@@ -48,7 +51,7 @@ Angular lines represent diagonal support/resistance channels.
 
 ---
 
-## 4. Break Detection & Polarity Flipping
+## 4. Break Detection & Polarity
 
 To avoid lookahead bias, a line is only subjected to break checks against a bar if the line was fully formed *before* that bar (i.e., all of its touchpoints are strictly in the past relative to the bar's date).
 
@@ -56,15 +59,10 @@ To avoid lookahead bias, a line is only subjected to break checks against a bar 
 At any given index $i$, a line's expected price level is:
 $$\text{Expected} = \text{Slope} \times i + \text{Intercept}$$
 
-### 4.2. Break Rules
-- A **Resistance** line is broken if the bar's `Close > Expected`.
-- A **Support** line is broken if the bar's `Close < Expected`.
-
-### 4.3. Polarity Flipping
-When a line is broken:
+### 4.2. Crossing (Break) Rules
+Whenever the price crosses the expected price level of a line (e.g., price closes above a resistance line, or below a support line), the crossing is recorded.
 - The `breakCount` is incremented.
-- If `breakCount <= 2`, the polarity flips (Support becomes Resistance, or vice versa).
-- If `breakCount > 2`, the line is permanently deactivated with `filterReason = BREAKS_GT_2`.
+- If `breakCount > 2`, the line is permanently deactivated with `filterReason = BREAKS_GT_2`, as it indicates the market is chopping through the level without respect for it.
 
 ---
 

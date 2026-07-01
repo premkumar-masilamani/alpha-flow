@@ -91,7 +91,7 @@ public class SupportResistanceCalculator {
       dailySrRepo.saveAll(dailySr);
     }
 
-    List<ActiveLine> weeklyActiveLines = compute(weeklyBars, 5);
+    List<ActiveLine> weeklyActiveLines = compute(weeklyBars, 10);
     List<WeeklySupportResistance> weeklySr = new ArrayList<>();
     for (ActiveLine al : weeklyActiveLines) {
       WeeklySupportResistance wsr = new WeeklySupportResistance();
@@ -162,14 +162,7 @@ public class SupportResistanceCalculator {
     List<Pivot> pivotLows = new ArrayList<>();
     BigDecimal tolerance = new BigDecimal("0.01"); // 1%
 
-    LocalDate twoYearsAgo = bars.get(bars.size() - 1).date().minusYears(2);
     int startIndex = window;
-    for (int i = bars.size() - 1; i >= 0; i--) {
-      if (bars.get(i).date().isBefore(twoYearsAgo)) {
-        startIndex = Math.max(window, i);
-        break;
-      }
-    }
 
     for (int i = startIndex; i < bars.size() - window; i++) {
       boolean isHigh = true;
@@ -224,7 +217,7 @@ public class SupportResistanceCalculator {
         if (pivotHighs.size() >= 4) {
           List<Pivot> last4 = pivotHighs.subList(pivotHighs.size() - 4, pivotHighs.size());
           ActiveLine angularLine = createRegressionLine(last4, SRCurrentType.RESISTANCE);
-          if (angularLine != null) {
+          if (angularLine != null && angularLine.slope.compareTo(BigDecimal.ZERO) > 0) {
             activeLines.add(angularLine);
           }
         }
@@ -271,7 +264,7 @@ public class SupportResistanceCalculator {
         if (pivotLows.size() >= 4) {
           List<Pivot> last4 = pivotLows.subList(pivotLows.size() - 4, pivotLows.size());
           ActiveLine angularLine = createRegressionLine(last4, SRCurrentType.SUPPORT);
-          if (angularLine != null) {
+          if (angularLine != null && angularLine.slope.compareTo(BigDecimal.ZERO) < 0) {
             activeLines.add(angularLine);
           }
         }
