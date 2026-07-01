@@ -136,18 +136,21 @@ public class SupportResistanceCalculator {
     BigDecimal slope;
     BigDecimal intercept;
     SRFilterReason filterReason;
+    boolean isHorizontal;
 
     ActiveLine(
         List<SRTouchPoint> touchPoints,
         SRCurrentType type,
         BigDecimal slope,
-        BigDecimal intercept) {
+        BigDecimal intercept,
+        boolean isHorizontal) {
       this.touchPoints = touchPoints;
       this.type = type;
       this.breakCount = 0;
       this.importance = touchPoints.size();
       this.slope = slope;
       this.intercept = intercept;
+      this.isHorizontal = isHorizontal;
     }
   }
 
@@ -186,7 +189,7 @@ public class SupportResistanceCalculator {
         // 1. Horizontal logic
         boolean addedToExisting = false;
         for (ActiveLine line : activeLines) {
-          if (line.slope.compareTo(BigDecimal.ZERO) == 0 && line.type == SRCurrentType.RESISTANCE) {
+          if (line.filterReason == null && line.isHorizontal && line.type == SRCurrentType.RESISTANCE) {
             BigDecimal avgPrice = line.intercept;
             BigDecimal diff = currentHigh.subtract(avgPrice).abs();
             BigDecimal thresh = avgPrice.multiply(tolerance);
@@ -210,7 +213,7 @@ public class SupportResistanceCalculator {
               pts.add(new SRTouchPoint(past.date, avgPrice));
               pts.add(new SRTouchPoint(currentPivot.date, avgPrice));
               activeLines.add(
-                  new ActiveLine(pts, SRCurrentType.RESISTANCE, BigDecimal.ZERO, avgPrice));
+                  new ActiveLine(pts, SRCurrentType.RESISTANCE, BigDecimal.ZERO, avgPrice, true));
               break;
             }
           }
@@ -233,7 +236,7 @@ public class SupportResistanceCalculator {
         // 1. Horizontal logic
         boolean addedToExisting = false;
         for (ActiveLine line : activeLines) {
-          if (line.slope.compareTo(BigDecimal.ZERO) == 0 && line.type == SRCurrentType.SUPPORT) {
+          if (line.filterReason == null && line.isHorizontal && line.type == SRCurrentType.SUPPORT) {
             BigDecimal avgPrice = line.intercept;
             BigDecimal diff = currentLow.subtract(avgPrice).abs();
             BigDecimal thresh = avgPrice.multiply(tolerance);
@@ -257,7 +260,7 @@ public class SupportResistanceCalculator {
               pts.add(new SRTouchPoint(past.date, avgPrice));
               pts.add(new SRTouchPoint(currentPivot.date, avgPrice));
               activeLines.add(
-                  new ActiveLine(pts, SRCurrentType.SUPPORT, BigDecimal.ZERO, avgPrice));
+                  new ActiveLine(pts, SRCurrentType.SUPPORT, BigDecimal.ZERO, avgPrice, true));
               break;
             }
           }
@@ -275,45 +278,17 @@ public class SupportResistanceCalculator {
       }
 
       // Check breaks
-      BigDecimal close = bars.get(i).close();
-      Iterator<ActiveLine> it = activeLines.iterator();
-      while (it.hasNext()) {
-        ActiveLine line = it.next();
+      checkBreaks(i, bars.get(i), activeLines);
+    }
 
-        // Check if the line was formed in the future relative to current bar
-        boolean isFuture = false;
-        for (SRTouchPoint tp : line.touchPoints) {
-          if (tp.getDate().isAfter(bars.get(i).date())
-              || tp.getDate().isEqual(bars.get(i).date())) {
-            isFuture = true;
-            break;
-          }
-        }
-        if (isFuture) continue;
-
-        BigDecimal expectedPrice = line.slope.multiply(new BigDecimal(i)).add(line.intercept);
-
-        if (line.type == SRCurrentType.RESISTANCE && close.compareTo(expectedPrice) > 0) {
-          line.breakCount++;
-          if (line.breakCount > 2) {
-            line.filterReason = SRFilterReason.BREAKS_GT_2;
-          } else {
-            line.type = SRCurrentType.SUPPORT; // Flip polarity
-          }
-        } else if (line.type == SRCurrentType.SUPPORT && close.compareTo(expectedPrice) < 0) {
-          line.breakCount++;
-          if (line.breakCount > 2) {
-            line.filterReason = SRFilterReason.BREAKS_GT_2;
-          } else {
-            line.type = SRCurrentType.RESISTANCE; // Flip polarity
-          }
-        }
-      }
+    // Check breaks for the remaining bars that weren't checked for pivots
+    for (int i = Math.max(startIndex, bars.size() - window); i < bars.size(); i++) {
+      checkBreaks(i, bars.get(i), activeLines);
     }
 
     for (ActiveLine al : activeLines) {
       if (al.filterReason == null) {
-        if (al.slope.compareTo(BigDecimal.ZERO) == 0) {
+        if (al.isHorizontal) {
           if (al.touchPoints.size() < 3) {
             al.filterReason = SRFilterReason.TOUCHES_LT_3;
           }
@@ -383,6 +358,39 @@ public class SupportResistanceCalculator {
     return activeLines;
   }
 
+  private void checkBreaks(int index, PriceBar bar, List<ActiveLine> activeLines) {
+    BigDecimal close = bar.close();
+    for (ActiveLine line : activeLines) {
+      // Check if the line was formed in the future relative to current bar
+      boolean isFuture = false;
+      for (SRTouchPoint tp : line.touchPoints) {
+        if (tp.getDate().isAfter(bar.date()) || tp.getDate().isEqual(bar.date())) {
+          isFuture = true;
+          break;
+        }
+      }
+      if (isFuture) continue;
+
+      BigDecimal expectedPrice = line.slope.multiply(new BigDecimal(index)).add(line.intercept);
+
+      if (line.type == SRCurrentType.RESISTANCE && close.compareTo(expectedPrice) > 0) {
+        line.breakCount++;
+        if (line.breakCount > 2) {
+          line.filterReason = SRFilterReason.BREAKS_GT_2;
+        } else {
+          line.type = SRCurrentType.SUPPORT; // Flip polarity
+        }
+      } else if (line.type == SRCurrentType.SUPPORT && close.compareTo(expectedPrice) < 0) {
+        line.breakCount++;
+        if (line.breakCount > 2) {
+          line.filterReason = SRFilterReason.BREAKS_GT_2;
+        } else {
+          line.type = SRCurrentType.RESISTANCE; // Flip polarity
+        }
+      }
+    }
+  }
+
   private ActiveLine createRegressionLine(List<Pivot> pivots, SRCurrentType type) {
     if (pivots.size() < 3) return null;
     double sumX = 0;
@@ -413,7 +421,7 @@ public class SupportResistanceCalculator {
       touchPoints.add(new SRTouchPoint(p.date, p.price));
     }
 
-    return new ActiveLine(touchPoints, type, slope, intercept);
+    return new ActiveLine(touchPoints, type, slope, intercept, false);
   }
 
   private List<PriceBar> loadDailyBars(Ticker ticker) {
