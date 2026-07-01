@@ -86,9 +86,3 @@ public void execute() {
 
 ## Backend Architecture & Package Structure
 - **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
-
-## Indicator & Algorithmic Development
-- **Lookahead Bias vs Break Checks**: When calculating trailing technicals (like Pivots), remember that the most recent `window` bars cannot form pivots. You must write secondary loops to check line crossings (breaks) against these final bars, otherwise recent market events are lost.
-- **Polarity (Role Reversal)**: Avoid tracking the historical state of Support/Resistance polarity during runtime calculations. Track crossings (`breakCount`), cull heavily chopped lines, and assign the final polarity (Support or Resistance) statically at the very end based strictly on the expected line price vs current close price.
-- **Historical Analysis limits**: When parsing all-time historical S&R data, use dynamic distance filters (like a 20% circuit breaker from the current price) to cull irrelevant historical levels and prevent database bloat, rather than arbitrary time-based cutoffs.
-- **Mocking BigDecimals**: Always use `new BigDecimal("value")` instead of `valueOf` or long literals when mocking Entity accessors (like `getVolume()`) in Mockito to prevent class cast errors.
