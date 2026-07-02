@@ -464,12 +464,8 @@ public class SupportResistanceCalculator {
               entity.setSlope(al.slope);
               entity.setIntercept(al.intercept);
 
-              if (al.isHorizontal) {
-                entity.setCurrentPrice(al.intercept);
-              } else {
-                entity.setCurrentPrice(
-                    al.slope.multiply(BigDecimal.valueOf(latestBarIndex)).add(al.intercept));
-              }
+              entity.setCurrentPrice(
+                  al.slope.multiply(BigDecimal.valueOf(latestBarIndex)).add(al.intercept));
 
               entity.setCurrentType(al.type);
               entity.setImportance(al.importance);
