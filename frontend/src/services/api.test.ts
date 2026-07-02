@@ -143,9 +143,10 @@ describe('API Service Layer Tests', () => {
                 symbol: 'AAPL',
                 candle: mockCandles[0],
                 dailyIndicators: mockDaily,
-                weeklyIndicators: mockWeekly
+                weeklyIndicators: mockWeekly,
+                srLines: []
             });
-            expect(mockedAxios.get).toHaveBeenCalledTimes(3);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(4);
         });
     });
 

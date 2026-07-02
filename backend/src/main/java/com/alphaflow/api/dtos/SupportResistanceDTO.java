@@ -7,6 +7,7 @@ import lombok.Data;
 @Data
 @Builder
 public class SupportResistanceDTO {
+  private String timeframe;
   private String currentType;
   private Integer importance;
   private List<SRTouchPointDTO> touchPoints;

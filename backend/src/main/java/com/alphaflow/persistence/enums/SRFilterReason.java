@@ -1,9 +1,8 @@
 package com.alphaflow.persistence.enums;
 
 public enum SRFilterReason {
-  BREAKS_GT_2,
-  TOUCHES_LT_3,
-  TOUCHES_LT_4,
-  PROXIMITY_1_PCT,
-  CIRCUIT_BREAKER_20_PCT
+  TOO_MANY_BREAKS,
+  NOT_ENOUGH_TOUCHES,
+  PROXIMITY,
+  CIRCUIT_BREAKER
 }

@@ -1,6 +1,8 @@
 package com.alphaflow.persistence.entities;
 
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.enums.SRCurrentType;
+import com.alphaflow.persistence.enums.SRFilterReason;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -11,7 +13,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
-@Table(name = "daily_sr")
+@Table(name = "support_resistances")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,7 +21,7 @@ import org.hibernate.type.SqlTypes;
 @Builder
 @ToString(exclude = "ticker")
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class DailySupportResistance {
+public class SupportResistance {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +31,10 @@ public class DailySupportResistance {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "ticker_id", nullable = false)
   private Ticker ticker;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "timeframe", nullable = false, length = 20)
+  private Timeframe timeframe;
 
   @Column(nullable = false, precision = 18, scale = 4)
   private BigDecimal slope;
@@ -42,7 +48,7 @@ public class DailySupportResistance {
 
   @Enumerated(EnumType.STRING)
   @Column(name = "filter_reason")
-  private com.alphaflow.persistence.enums.SRFilterReason filterReason;
+  private SRFilterReason filterReason;
 
   @Column(name = "break_count", nullable = false)
   @Builder.Default
