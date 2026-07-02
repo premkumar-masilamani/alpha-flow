@@ -1,6 +1,7 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.entities.SRTouchPoint;
 import com.alphaflow.persistence.entities.SupportResistance;
@@ -19,7 +20,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,53 +32,7 @@ public class SupportResistanceCalculator {
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final SupportResistanceRepository srRepo;
 
-  @Value("${alphaflow.sr.daily.window:10}")
-  private int dailyWindow;
-
-  @Value("${alphaflow.sr.daily.horizontal-min-touches:3}")
-  private int dailyHorizontalMinTouches;
-
-  @Value("${alphaflow.sr.daily.max-breaks:2}")
-  private int dailyMaxBreaks;
-
-  @Value("${alphaflow.sr.weekly.window:5}")
-  private int weeklyWindow;
-
-  @Value("${alphaflow.sr.weekly.horizontal-min-touches:2}")
-  private int weeklyHorizontalMinTouches;
-
-  @Value("${alphaflow.sr.weekly.max-breaks:4}")
-  private int weeklyMaxBreaks;
-
-  @Value("${alphaflow.sr.daily.cb-horizontal-pct:20}")
-  private int dailyCbHorizontalPct;
-
-  @Value("${alphaflow.sr.daily.cb-angular-pct:35}")
-  private int dailyCbAngularPct;
-
-  @Value("${alphaflow.sr.weekly.cb-horizontal-pct:50}")
-  private int weeklyCbHorizontalPct;
-
-  @Value("${alphaflow.sr.weekly.cb-angular-pct:75}")
-  private int weeklyCbAngularPct;
-
-  @Value("${alphaflow.sr.daily.tolerance-pct:1.0}")
-  private double dailyTolerancePct;
-
-  @Value("${alphaflow.sr.daily.proximity-pct:1.0}")
-  private double dailyProximityPct;
-
-  @Value("${alphaflow.sr.daily.angular-min-touches:4}")
-  private int dailyAngularMinTouches;
-
-  @Value("${alphaflow.sr.weekly.tolerance-pct:1.0}")
-  private double weeklyTolerancePct;
-
-  @Value("${alphaflow.sr.weekly.proximity-pct:1.0}")
-  private double weeklyProximityPct;
-
-  @Value("${alphaflow.sr.weekly.angular-min-touches:4}")
-  private int weeklyAngularMinTouches;
+  private final SupportResistanceConfig config;
 
   @Autowired @org.springframework.context.annotation.Lazy private SupportResistanceCalculator self;
 
@@ -87,11 +41,13 @@ public class SupportResistanceCalculator {
       TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
-      SupportResistanceRepository srRepo) {
+      SupportResistanceRepository srRepo,
+      SupportResistanceConfig config) {
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.srRepo = srRepo;
+    this.config = config;
   }
 
   public void computeAll() {
@@ -119,14 +75,14 @@ public class SupportResistanceCalculator {
     List<ActiveLine> dailyActiveLines =
         compute(
             dailyBars,
-            dailyWindow,
-            dailyHorizontalMinTouches,
-            dailyMaxBreaks,
-            dailyCbHorizontalPct,
-            dailyCbAngularPct,
-            dailyTolerancePct,
-            dailyProximityPct,
-            dailyAngularMinTouches);
+            config.getDailyWindow(),
+            config.getDailyHorizontalMinTouches(),
+            config.getDailyMaxBreaks(),
+            config.getDailyCbHorizontalPct(),
+            config.getDailyCbAngularPct(),
+            config.getDailyTolerancePct(),
+            config.getDailyProximityPct(),
+            config.getDailyAngularMinTouches());
     List<SupportResistance> dailySr = mapToEntities(dailyActiveLines, ticker, Timeframe.DAILY);
     if (!dailySr.isEmpty()) {
       srRepo.saveAll(dailySr);
@@ -135,14 +91,14 @@ public class SupportResistanceCalculator {
     List<ActiveLine> weeklyActiveLines =
         compute(
             weeklyBars,
-            weeklyWindow,
-            weeklyHorizontalMinTouches,
-            weeklyMaxBreaks,
-            weeklyCbHorizontalPct,
-            weeklyCbAngularPct,
-            weeklyTolerancePct,
-            weeklyProximityPct,
-            weeklyAngularMinTouches);
+            config.getWeeklyWindow(),
+            config.getWeeklyHorizontalMinTouches(),
+            config.getWeeklyMaxBreaks(),
+            config.getWeeklyCbHorizontalPct(),
+            config.getWeeklyCbAngularPct(),
+            config.getWeeklyTolerancePct(),
+            config.getWeeklyProximityPct(),
+            config.getWeeklyAngularMinTouches());
     List<SupportResistance> weeklySr = mapToEntities(weeklyActiveLines, ticker, Timeframe.WEEKLY);
     if (!weeklySr.isEmpty()) {
       srRepo.saveAll(weeklySr);
@@ -366,14 +322,11 @@ public class SupportResistanceCalculator {
       if (al.filterReason == null) {
         if (al.isHorizontal) {
           if (al.touchPoints.size() < horizontalMinTouches) {
-            al.filterReason =
-                horizontalMinTouches == 2
-                    ? SRFilterReason.HZ_TOUCHES_LT_2
-                    : SRFilterReason.HZ_TOUCHES_LT_3;
+            al.filterReason = SRFilterReason.NOT_ENOUGH_TOUCHES;
           }
         } else {
           if (al.touchPoints.size() < angularMinTouches) {
-            al.filterReason = SRFilterReason.ANG_TOUCHES_LT_4;
+            al.filterReason = SRFilterReason.NOT_ENOUGH_TOUCHES;
           }
         }
       }
@@ -406,12 +359,7 @@ public class SupportResistanceCalculator {
 
       if (lineCurrentExpected.compareTo(upperLimit) > 0
           || lineCurrentExpected.compareTo(lowerLimit) < 0) {
-        // Just use the existing enums to signify circuit breaker hit,
-        // regardless of the exact percentage in the enum name.
-        line.filterReason =
-            line.isHorizontal
-                ? SRFilterReason.HZ_CIRCUIT_BREAKER_20_PCT
-                : SRFilterReason.ANG_CIRCUIT_BREAKER_35_PCT;
+        line.filterReason = SRFilterReason.CIRCUIT_BREAKER;
         continue;
       }
 
@@ -429,10 +377,7 @@ public class SupportResistanceCalculator {
         }
       }
       if (drop) {
-        line.filterReason =
-            line.isHorizontal
-                ? SRFilterReason.HZ_PROXIMITY_1_PCT
-                : SRFilterReason.ANG_PROXIMITY_1_PCT;
+        line.filterReason = SRFilterReason.PROXIMITY;
       } else {
         merged.add(line);
       }
@@ -454,24 +399,14 @@ public class SupportResistanceCalculator {
       if (line.type == SRCurrentType.RESISTANCE && close.compareTo(expectedPrice) > 0) {
         line.breakCount++;
         if (line.breakCount > maxBreaks) {
-          line.filterReason =
-              line.isHorizontal
-                  ? (maxBreaks == 4 ? SRFilterReason.HZ_BREAKS_GT_4 : SRFilterReason.HZ_BREAKS_GT_2)
-                  : (maxBreaks == 4
-                      ? SRFilterReason.ANG_BREAKS_GT_4
-                      : SRFilterReason.ANG_BREAKS_GT_2);
+          line.filterReason = SRFilterReason.TOO_MANY_BREAKS;
         } else {
           line.type = SRCurrentType.SUPPORT; // Flip polarity
         }
       } else if (line.type == SRCurrentType.SUPPORT && close.compareTo(expectedPrice) < 0) {
         line.breakCount++;
         if (line.breakCount > maxBreaks) {
-          line.filterReason =
-              line.isHorizontal
-                  ? (maxBreaks == 4 ? SRFilterReason.HZ_BREAKS_GT_4 : SRFilterReason.HZ_BREAKS_GT_2)
-                  : (maxBreaks == 4
-                      ? SRFilterReason.ANG_BREAKS_GT_4
-                      : SRFilterReason.ANG_BREAKS_GT_2);
+          line.filterReason = SRFilterReason.TOO_MANY_BREAKS;
         } else {
           line.type = SRCurrentType.RESISTANCE; // Flip polarity
         }

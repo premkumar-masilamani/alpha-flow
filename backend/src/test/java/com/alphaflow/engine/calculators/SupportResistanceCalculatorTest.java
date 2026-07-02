@@ -3,6 +3,7 @@ package com.alphaflow.engine.calculators;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.enums.*;
 import com.alphaflow.persistence.repositories.*;
@@ -30,26 +31,27 @@ class SupportResistanceCalculatorTest {
     weeklyPriceRepository = mock(WeeklyPriceRepository.class);
     srRepo = mock(SupportResistanceRepository.class);
 
+    SupportResistanceConfig config = new SupportResistanceConfig();
+    ReflectionTestUtils.setField(config, "dailyWindow", 10);
+    ReflectionTestUtils.setField(config, "dailyHorizontalMinTouches", 3);
+    ReflectionTestUtils.setField(config, "dailyMaxBreaks", 2);
+    ReflectionTestUtils.setField(config, "weeklyWindow", 5);
+    ReflectionTestUtils.setField(config, "weeklyHorizontalMinTouches", 2);
+    ReflectionTestUtils.setField(config, "weeklyMaxBreaks", 4);
+    ReflectionTestUtils.setField(config, "dailyCbHorizontalPct", 20);
+    ReflectionTestUtils.setField(config, "dailyCbAngularPct", 35);
+    ReflectionTestUtils.setField(config, "weeklyCbHorizontalPct", 50);
+    ReflectionTestUtils.setField(config, "weeklyCbAngularPct", 75);
+    ReflectionTestUtils.setField(config, "dailyTolerancePct", 1.0);
+    ReflectionTestUtils.setField(config, "dailyProximityPct", 1.0);
+    ReflectionTestUtils.setField(config, "dailyAngularMinTouches", 4);
+    ReflectionTestUtils.setField(config, "weeklyTolerancePct", 1.0);
+    ReflectionTestUtils.setField(config, "weeklyProximityPct", 1.0);
+    ReflectionTestUtils.setField(config, "weeklyAngularMinTouches", 4);
+
     calculator =
         new SupportResistanceCalculator(
-            tickerRepository, dailyPriceRepository, weeklyPriceRepository, srRepo);
-
-    ReflectionTestUtils.setField(calculator, "dailyWindow", 10);
-    ReflectionTestUtils.setField(calculator, "dailyHorizontalMinTouches", 3);
-    ReflectionTestUtils.setField(calculator, "dailyMaxBreaks", 2);
-    ReflectionTestUtils.setField(calculator, "weeklyWindow", 5);
-    ReflectionTestUtils.setField(calculator, "weeklyHorizontalMinTouches", 2);
-    ReflectionTestUtils.setField(calculator, "weeklyMaxBreaks", 4);
-    ReflectionTestUtils.setField(calculator, "dailyCbHorizontalPct", 20);
-    ReflectionTestUtils.setField(calculator, "dailyCbAngularPct", 35);
-    ReflectionTestUtils.setField(calculator, "weeklyCbHorizontalPct", 50);
-    ReflectionTestUtils.setField(calculator, "weeklyCbAngularPct", 75);
-    ReflectionTestUtils.setField(calculator, "dailyTolerancePct", 1.0);
-    ReflectionTestUtils.setField(calculator, "dailyProximityPct", 1.0);
-    ReflectionTestUtils.setField(calculator, "dailyAngularMinTouches", 4);
-    ReflectionTestUtils.setField(calculator, "weeklyTolerancePct", 1.0);
-    ReflectionTestUtils.setField(calculator, "weeklyProximityPct", 1.0);
-    ReflectionTestUtils.setField(calculator, "weeklyAngularMinTouches", 4);
+            tickerRepository, dailyPriceRepository, weeklyPriceRepository, srRepo, config);
   }
 
   private DailyPrice mockPrice(LocalDate date, double high, double low, double close) {
