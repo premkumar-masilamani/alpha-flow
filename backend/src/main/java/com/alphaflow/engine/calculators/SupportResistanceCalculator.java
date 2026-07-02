@@ -368,14 +368,12 @@ public class SupportResistanceCalculator {
           if (al.touchPoints.size() < horizontalMinTouches) {
             al.filterReason =
                 horizontalMinTouches == 2
-                    ? SRFilterReason.TOUCHES_LT_2
-                    : SRFilterReason.TOUCHES_LT_3;
+                    ? SRFilterReason.HZ_TOUCHES_LT_2
+                    : SRFilterReason.HZ_TOUCHES_LT_3;
           }
         } else {
           if (al.touchPoints.size() < angularMinTouches) {
-            al.filterReason =
-                SRFilterReason
-                    .TOUCHES_LT_4; // Keep enum same or create dynamic logic later if needed
+            al.filterReason = SRFilterReason.ANG_TOUCHES_LT_4;
           }
         }
       }
@@ -412,8 +410,8 @@ public class SupportResistanceCalculator {
         // regardless of the exact percentage in the enum name.
         line.filterReason =
             line.isHorizontal
-                ? SRFilterReason.CIRCUIT_BREAKER_20_PCT
-                : SRFilterReason.CIRCUIT_BREAKER_35_PCT;
+                ? SRFilterReason.HZ_CIRCUIT_BREAKER_20_PCT
+                : SRFilterReason.ANG_CIRCUIT_BREAKER_35_PCT;
         continue;
       }
 
@@ -431,7 +429,10 @@ public class SupportResistanceCalculator {
         }
       }
       if (drop) {
-        line.filterReason = SRFilterReason.PROXIMITY_1_PCT;
+        line.filterReason =
+            line.isHorizontal
+                ? SRFilterReason.HZ_PROXIMITY_1_PCT
+                : SRFilterReason.ANG_PROXIMITY_1_PCT;
       } else {
         merged.add(line);
       }
@@ -454,7 +455,11 @@ public class SupportResistanceCalculator {
         line.breakCount++;
         if (line.breakCount > maxBreaks) {
           line.filterReason =
-              maxBreaks == 4 ? SRFilterReason.BREAKS_GT_4 : SRFilterReason.BREAKS_GT_2;
+              line.isHorizontal
+                  ? (maxBreaks == 4 ? SRFilterReason.HZ_BREAKS_GT_4 : SRFilterReason.HZ_BREAKS_GT_2)
+                  : (maxBreaks == 4
+                      ? SRFilterReason.ANG_BREAKS_GT_4
+                      : SRFilterReason.ANG_BREAKS_GT_2);
         } else {
           line.type = SRCurrentType.SUPPORT; // Flip polarity
         }
@@ -462,7 +467,11 @@ public class SupportResistanceCalculator {
         line.breakCount++;
         if (line.breakCount > maxBreaks) {
           line.filterReason =
-              maxBreaks == 4 ? SRFilterReason.BREAKS_GT_4 : SRFilterReason.BREAKS_GT_2;
+              line.isHorizontal
+                  ? (maxBreaks == 4 ? SRFilterReason.HZ_BREAKS_GT_4 : SRFilterReason.HZ_BREAKS_GT_2)
+                  : (maxBreaks == 4
+                      ? SRFilterReason.ANG_BREAKS_GT_4
+                      : SRFilterReason.ANG_BREAKS_GT_2);
         } else {
           line.type = SRCurrentType.RESISTANCE; // Flip polarity
         }
