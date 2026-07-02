@@ -125,12 +125,21 @@ class SupportResistanceCalculatorTest {
           && sr.getCurrentType() == SRCurrentType.RESISTANCE) {
         if (sr.getImportance() >= 3) {
           foundResistance = true;
+          assertEquals(
+              sr.getIntercept().stripTrailingZeros(),
+              sr.getCurrentPrice().stripTrailingZeros(),
+              "For horizontal lines, currentPrice must equal intercept");
         }
       }
     }
     assertTrue(
         foundResistance,
         "Should have identified at least 1 valid horizontal resistance line with 3 touches");
+
+    for (SupportResistance sr : savedLines) {
+      BigDecimal expectedCurrentPrice = sr.getSlope().multiply(BigDecimal.valueOf(prices.size() - 1)).add(sr.getIntercept());
+      assertEquals(0, expectedCurrentPrice.compareTo(sr.getCurrentPrice()), "currentPrice must be slope*latestIndex + intercept");
+    }
   }
 
   @Test
@@ -201,5 +210,10 @@ class SupportResistanceCalculatorTest {
     assertTrue(
         foundFlippedSupport,
         "The resistance line should have flipped to support due to the break in the last window");
+
+    for (SupportResistance sr : savedLines) {
+      BigDecimal expectedCurrentPrice = sr.getSlope().multiply(BigDecimal.valueOf(prices.size() - 1)).add(sr.getIntercept());
+      assertEquals(0, expectedCurrentPrice.compareTo(sr.getCurrentPrice()), "currentPrice must be slope*latestIndex + intercept");
+    }
   }
 }

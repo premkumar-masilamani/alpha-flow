@@ -83,7 +83,9 @@ public class SupportResistanceCalculator {
             config.getDailyTolerancePct(),
             config.getDailyProximityPct(),
             config.getDailyAngularMinTouches());
-    List<SupportResistance> dailySr = mapToEntities(dailyActiveLines, ticker, Timeframe.DAILY);
+    int dailyLatestIndex = dailyBars.isEmpty() ? 0 : dailyBars.size() - 1;
+    List<SupportResistance> dailySr =
+        mapToEntities(dailyActiveLines, ticker, Timeframe.DAILY, dailyLatestIndex);
     if (!dailySr.isEmpty()) {
       srRepo.saveAll(dailySr);
     }
@@ -99,7 +101,9 @@ public class SupportResistanceCalculator {
             config.getWeeklyTolerancePct(),
             config.getWeeklyProximityPct(),
             config.getWeeklyAngularMinTouches());
-    List<SupportResistance> weeklySr = mapToEntities(weeklyActiveLines, ticker, Timeframe.WEEKLY);
+    int weeklyLatestIndex = weeklyBars.isEmpty() ? 0 : weeklyBars.size() - 1;
+    List<SupportResistance> weeklySr =
+        mapToEntities(weeklyActiveLines, ticker, Timeframe.WEEKLY, weeklyLatestIndex);
     if (!weeklySr.isEmpty()) {
       srRepo.saveAll(weeklySr);
     }
@@ -450,7 +454,7 @@ public class SupportResistanceCalculator {
   }
 
   private List<SupportResistance> mapToEntities(
-      List<ActiveLine> lines, Ticker ticker, Timeframe timeframe) {
+      List<ActiveLine> lines, Ticker ticker, Timeframe timeframe, int latestBarIndex) {
     return lines.stream()
         .map(
             al -> {
@@ -459,6 +463,10 @@ public class SupportResistanceCalculator {
               entity.setTimeframe(timeframe);
               entity.setSlope(al.slope);
               entity.setIntercept(al.intercept);
+
+              entity.setCurrentPrice(
+                  al.slope.multiply(BigDecimal.valueOf(latestBarIndex)).add(al.intercept));
+
               entity.setCurrentType(al.type);
               entity.setImportance(al.importance);
               entity.setTouchPoints(al.touchPoints);

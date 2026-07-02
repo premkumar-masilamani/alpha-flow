@@ -97,6 +97,7 @@ export interface SupportResistanceLine {
     importance: number;
     touchPoints: {date: string; price: number}[];
     timeframe?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+    currentPrice: number;
 }
 
 // Stable key identifying a combo across the config and series endpoints.

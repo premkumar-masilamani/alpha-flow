@@ -443,31 +443,81 @@ function App() {
 
     const renderSRTable = () => {
       if (!srLines || srLines.length === 0) return null;
+
+      const closePrice = candle.close;
+
+      const valid = [...srLines].filter(sr => sr.currentPrice !== undefined && sr.currentPrice !== null);
+
+      // 3 closest lines strictly above close price (sorted ascending by distance = price desc)
+      const above = valid
+          .filter(sr => sr.currentPrice > closePrice)
+          .sort((a, b) => a.currentPrice - b.currentPrice)  // closest first = lowest price first
+          .slice(0, 3)
+          .sort((a, b) => b.currentPrice - a.currentPrice); // display: highest on top
+
+      // 3 closest lines strictly below close price (sorted ascending by distance = price desc)
+      const below = valid
+          .filter(sr => sr.currentPrice < closePrice)
+          .sort((a, b) => b.currentPrice - a.currentPrice)  // closest first = highest price first
+          .slice(0, 3);
+
+      if (above.length === 0 && below.length === 0) return null;
+
+      // Build rows: above rows, then close price sentinel, then below rows
+      type SRRow = { kind: 'sr'; sr: typeof valid[0] } | { kind: 'close' };
+      const rows: SRRow[] = [
+          ...above.map(sr => ({ kind: 'sr' as const, sr })),
+          { kind: 'close' as const },
+          ...below.map(sr => ({ kind: 'sr' as const, sr })),
+      ];
+
+
       return (
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
           <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-bold text-white">Support & Resistance</h2>
+            <h2 className="text-base font-bold text-white">Support &amp; Resistance</h2>
+            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+              {candle.date}
+            </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
                   <th className="p-4 w-1/4">Type</th>
+                  <th className="p-4 w-1/4">Current Price</th>
+                  <th className="p-4 w-1/4">% Away</th>
                   <th className="p-4 w-1/4">Timeframe</th>
-                  <th className="p-4 w-1/4">Importance</th>
-                  <th className="p-4 w-1/4">Price (Last Touch)</th>
                 </tr>
               </thead>
-              <tbody>
-                {srLines.map((sr, idx) => {
-                  const lastTouch = sr.touchPoints && sr.touchPoints.length > 0
-                    ? sr.touchPoints[sr.touchPoints.length - 1].price
-                    : null;
+              <tbody className="divide-y divide-slate-800">
+                {rows.map((row, idx) => {
+                  if (row.kind === 'close') {
+                    return (
+                      <tr key="close-price" className="bg-slate-800/60 border-y border-slate-600">
+                        <td className="p-4 font-bold text-slate-300 text-xs uppercase tracking-widest">Close Price</td>
+                        <td className="p-4 text-white font-mono font-bold">{closePrice.toFixed(2)}</td>
+                        <td className="p-4 font-mono text-slate-500">0.00%</td>
+                        <td className="p-4"></td>
+                      </tr>
+                    );
+                  }
+                  const { sr } = row;
+                  const pctAway = ((sr.currentPrice - closePrice) / closePrice) * 100;
+                  const isAbove = pctAway >= 0;
                   return (
                     <tr key={`sr-${idx}`} className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors">
                       <td className="p-4 font-bold">
                         <span className={sr.currentType === 'SUPPORT' ? 'text-emerald-400' : 'text-rose-400'}>
                           {sr.currentType}
+                        </span>
+                      </td>
+                      <td className="p-4 text-slate-300 font-mono">
+                        {sr.currentPrice.toFixed(2)}
+                      </td>
+                      <td className="p-4 font-mono font-semibold">
+                        <span className={isAbove ? 'text-emerald-400' : 'text-rose-400'}>
+                          {isAbove ? '+' : ''}{pctAway.toFixed(2)}%
                         </span>
                       </td>
                       <td className="p-4">
@@ -476,12 +526,6 @@ function App() {
                         }`}>
                           {sr.timeframe}
                         </span>
-                      </td>
-                      <td className="p-4 text-slate-300">
-                        {sr.importance}
-                      </td>
-                      <td className="p-4 text-slate-300 font-mono">
-                        {lastTouch !== null ? lastTouch.toFixed(2) : 'N/A'}
                       </td>
                     </tr>
                   );
@@ -492,6 +536,7 @@ function App() {
         </div>
       );
     };
+
 
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
