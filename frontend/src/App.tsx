@@ -446,11 +446,18 @@ function App() {
 
       const closePrice = candle.close;
 
-      // Sort all SR lines by absolute distance from close price, take closest 3
+      // Take 3 closest SR lines to close price, then sort by price descending for display
       const closest = [...srLines]
           .filter(sr => sr.currentPrice !== undefined && sr.currentPrice !== null)
           .sort((a, b) => Math.abs(a.currentPrice - closePrice) - Math.abs(b.currentPrice - closePrice))
-          .slice(0, 3);
+          .slice(0, 3)
+          .sort((a, b) => b.currentPrice - a.currentPrice);
+
+      // Build rows: SR lines + close price sentinel, inserted at the right price position
+      type SRRow = { kind: 'sr'; sr: typeof closest[0] } | { kind: 'close' };
+      const rows: SRRow[] = closest.map(sr => ({ kind: 'sr' as const, sr }));
+      const insertAt = closest.findIndex(sr => sr.currentPrice < closePrice);
+      rows.splice(insertAt === -1 ? rows.length : insertAt, 0, { kind: 'close' as const });
 
       if (closest.length === 0) return null;
 
@@ -458,12 +465,6 @@ function App() {
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
           <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Support &amp; Resistance</h2>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Close</span>
-              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                {closePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-              </span>
-            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
@@ -475,7 +476,17 @@ function App() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {closest.map((sr, idx) => {
+                {rows.map((row, idx) => {
+                  if (row.kind === 'close') {
+                    return (
+                      <tr key="close-price" className="bg-slate-800/60 border-y border-slate-600">
+                        <td className="p-4 font-bold text-slate-300 text-xs uppercase tracking-widest">Close Price</td>
+                        <td className="p-4 text-white font-mono font-bold">{closePrice.toFixed(2)}</td>
+                        <td className="p-4 font-mono text-slate-500">0.00%</td>
+                      </tr>
+                    );
+                  }
+                  const { sr } = row;
                   const pctAway = ((sr.currentPrice - closePrice) / closePrice) * 100;
                   const isAbove = pctAway >= 0;
                   return (
