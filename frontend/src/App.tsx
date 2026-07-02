@@ -443,23 +443,41 @@ function App() {
 
     const renderSRTable = () => {
       if (!srLines || srLines.length === 0) return null;
+
+      const closePrice = candle.close;
+
+      // Sort all SR lines by absolute distance from close price, take closest 3
+      const closest = [...srLines]
+          .filter(sr => sr.currentPrice !== undefined && sr.currentPrice !== null)
+          .sort((a, b) => Math.abs(a.currentPrice - closePrice) - Math.abs(b.currentPrice - closePrice))
+          .slice(0, 3);
+
+      if (closest.length === 0) return null;
+
       return (
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
           <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-bold text-white">Support & Resistance</h2>
+            <h2 className="text-base font-bold text-white">Support &amp; Resistance</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">Close</span>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                {closePrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+              </span>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                  <th className="p-4 w-1/4">Type</th>
-                  <th className="p-4 w-1/4">Timeframe</th>
-                  <th className="p-4 w-1/4">Importance</th>
-                  <th className="p-4 w-1/4">Current Price</th>
+                  <th className="p-4 w-1/3">Type</th>
+                  <th className="p-4 w-1/3">Current Price</th>
+                  <th className="p-4 w-1/3">% Away</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {srLines.map((sr, idx) => {
+                {closest.map((sr, idx) => {
+                  const pctAway = ((sr.currentPrice - closePrice) / closePrice) * 100;
+                  const isAbove = pctAway >= 0;
                   return (
                     <tr key={`sr-${idx}`} className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors">
                       <td className="p-4 font-bold">
@@ -467,18 +485,13 @@ function App() {
                           {sr.currentType}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <span className={`text-xs px-2 py-1 rounded font-bold tracking-wider ${
-                          sr.timeframe === 'DAILY' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                        }`}>
-                          {sr.timeframe}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-300">
-                        {sr.importance}
-                      </td>
                       <td className="p-4 text-slate-300 font-mono">
-                        {sr.currentPrice !== undefined && sr.currentPrice !== null ? sr.currentPrice.toFixed(2) : 'N/A'}
+                        {sr.currentPrice.toFixed(2)}
+                      </td>
+                      <td className="p-4 font-mono font-semibold">
+                        <span className={isAbove ? 'text-emerald-400' : 'text-rose-400'}>
+                          {isAbove ? '+' : ''}{pctAway.toFixed(2)}%
+                        </span>
                       </td>
                     </tr>
                   );
@@ -489,6 +502,7 @@ function App() {
         </div>
       );
     };
+
 
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
