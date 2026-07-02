@@ -446,20 +446,31 @@ function App() {
 
       const closePrice = candle.close;
 
-      // Take 3 closest SR lines to close price, then sort by price descending for display
-      const closest = [...srLines]
-          .filter(sr => sr.currentPrice !== undefined && sr.currentPrice !== null)
-          .sort((a, b) => Math.abs(a.currentPrice - closePrice) - Math.abs(b.currentPrice - closePrice))
+      const valid = [...srLines].filter(sr => sr.currentPrice !== undefined && sr.currentPrice !== null);
+
+      // 3 closest lines strictly above close price (sorted ascending by distance = price desc)
+      const above = valid
+          .filter(sr => sr.currentPrice > closePrice)
+          .sort((a, b) => a.currentPrice - b.currentPrice)  // closest first = lowest price first
           .slice(0, 3)
-          .sort((a, b) => b.currentPrice - a.currentPrice);
+          .sort((a, b) => b.currentPrice - a.currentPrice); // display: highest on top
 
-      // Build rows: SR lines + close price sentinel, inserted at the right price position
-      type SRRow = { kind: 'sr'; sr: typeof closest[0] } | { kind: 'close' };
-      const rows: SRRow[] = closest.map(sr => ({ kind: 'sr' as const, sr }));
-      const insertAt = closest.findIndex(sr => sr.currentPrice < closePrice);
-      rows.splice(insertAt === -1 ? rows.length : insertAt, 0, { kind: 'close' as const });
+      // 3 closest lines strictly below close price (sorted ascending by distance = price desc)
+      const below = valid
+          .filter(sr => sr.currentPrice < closePrice)
+          .sort((a, b) => b.currentPrice - a.currentPrice)  // closest first = highest price first
+          .slice(0, 3);
 
-      if (closest.length === 0) return null;
+      if (above.length === 0 && below.length === 0) return null;
+
+      // Build rows: above rows, then close price sentinel, then below rows
+      type SRRow = { kind: 'sr'; sr: typeof valid[0] } | { kind: 'close' };
+      const rows: SRRow[] = [
+          ...above.map(sr => ({ kind: 'sr' as const, sr })),
+          { kind: 'close' as const },
+          ...below.map(sr => ({ kind: 'sr' as const, sr })),
+      ];
+
 
       return (
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
