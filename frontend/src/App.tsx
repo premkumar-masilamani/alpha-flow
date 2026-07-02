@@ -476,14 +476,18 @@ function App() {
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
           <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Support &amp; Resistance</h2>
+            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+              {candle.date}
+            </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                  <th className="p-4 w-1/3">Type</th>
-                  <th className="p-4 w-1/3">Current Price</th>
-                  <th className="p-4 w-1/3">% Away</th>
+                  <th className="p-4 w-1/4">Type</th>
+                  <th className="p-4 w-1/4">Current Price</th>
+                  <th className="p-4 w-1/4">% Away</th>
+                  <th className="p-4 w-1/4">Timeframe</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -494,6 +498,7 @@ function App() {
                         <td className="p-4 font-bold text-slate-300 text-xs uppercase tracking-widest">Close Price</td>
                         <td className="p-4 text-white font-mono font-bold">{closePrice.toFixed(2)}</td>
                         <td className="p-4 font-mono text-slate-500">0.00%</td>
+                        <td className="p-4"></td>
                       </tr>
                     );
                   }
@@ -513,6 +518,13 @@ function App() {
                       <td className="p-4 font-mono font-semibold">
                         <span className={isAbove ? 'text-emerald-400' : 'text-rose-400'}>
                           {isAbove ? '+' : ''}{pctAway.toFixed(2)}%
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`text-xs px-2 py-1 rounded font-bold tracking-wider ${
+                          sr.timeframe === 'DAILY' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                        }`}>
+                          {sr.timeframe}
                         </span>
                       </td>
                     </tr>
