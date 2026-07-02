@@ -467,9 +467,9 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, srLine
                 const isDaily = sr.timeframe === 'DAILY' || !sr.timeframe;
                 let color = '';
                 if (isDaily) {
-                    color = sr.currentType === 'SUPPORT' ? '#f87171' : '#4ade80';
+                    color = sr.currentType === 'SUPPORT' ? '#4ade80' : '#f87171';
                 } else {
-                    color = sr.currentType === 'SUPPORT' ? '#dc2626' : '#10b981';
+                    color = sr.currentType === 'SUPPORT' ? '#10b981' : '#dc2626';
                 }
                 const actualLineWidth = 1;
                 

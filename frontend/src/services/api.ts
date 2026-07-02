@@ -157,12 +157,9 @@ export const getIndicatorSeries = async (
 };
 
 export const getSupportResistance = async (
-    symbol: string,
-    timeframe: Timeframe
+    symbol: string
 ): Promise<SupportResistanceLine[]> => {
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`, {
-        params: { timeframe: timeframe.toLowerCase() }
-    });
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`);
     return response.data;
 };
 
@@ -171,19 +168,22 @@ export interface TechnicalAnalysisData {
     candle: DailyCandleData | null;
     dailyIndicators: IndicatorSeries[];
     weeklyIndicators: IndicatorSeries[];
+    srLines: SupportResistanceLine[];
 }
 
 export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAnalysisData> => {
-    const [candles, dailyInds, weeklyInds] = await Promise.all([
+    const [candles, dailyInds, weeklyInds, srLines] = await Promise.all([
         getCandleData(symbol, 'DAILY', 0, 1),
         getIndicatorSeries(symbol, 'DAILY', 0, 1),
-        getIndicatorSeries(symbol, 'WEEKLY', 0, 1)
+        getIndicatorSeries(symbol, 'WEEKLY', 0, 1),
+        getSupportResistance(symbol)
     ]);
 
     return {
         symbol,
         candle: candles.length > 0 ? candles[0] : null,
         dailyIndicators: dailyInds,
-        weeklyIndicators: weeklyInds
+        weeklyIndicators: weeklyInds,
+        srLines
     };
 };
