@@ -455,14 +455,11 @@ function App() {
                   <th className="p-4 w-1/4">Type</th>
                   <th className="p-4 w-1/4">Timeframe</th>
                   <th className="p-4 w-1/4">Importance</th>
-                  <th className="p-4 w-1/4">Price (Last Touch)</th>
+                  <th className="p-4 w-1/4">Current Price</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-800">
                 {srLines.map((sr, idx) => {
-                  const lastTouch = sr.touchPoints && sr.touchPoints.length > 0
-                    ? sr.touchPoints[sr.touchPoints.length - 1].price
-                    : null;
                   return (
                     <tr key={`sr-${idx}`} className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors">
                       <td className="p-4 font-bold">
@@ -481,7 +478,7 @@ function App() {
                         {sr.importance}
                       </td>
                       <td className="p-4 text-slate-300 font-mono">
-                        {lastTouch !== null ? lastTouch.toFixed(2) : 'N/A'}
+                        {sr.currentPrice !== undefined && sr.currentPrice !== null ? sr.currentPrice.toFixed(2) : 'N/A'}
                       </td>
                     </tr>
                   );

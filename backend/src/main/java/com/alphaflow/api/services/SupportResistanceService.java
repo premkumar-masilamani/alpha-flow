@@ -27,6 +27,7 @@ public class SupportResistanceService {
                     .timeframe(sr.getTimeframe().name())
                     .currentType(sr.getCurrentType().name())
                     .importance(sr.getImportance())
+                    .currentPrice(sr.getCurrentPrice())
                     .touchPoints(
                         sr.getTouchPoints().stream()
                             .map(

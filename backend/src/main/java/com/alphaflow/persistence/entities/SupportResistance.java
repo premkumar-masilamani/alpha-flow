@@ -42,6 +42,9 @@ public class SupportResistance {
   @Column(nullable = false, precision = 18, scale = 4)
   private BigDecimal intercept;
 
+  @Column(name = "current_price", nullable = false, precision = 18, scale = 4)
+  private BigDecimal currentPrice;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "current_type", nullable = false)
   private SRCurrentType currentType;
