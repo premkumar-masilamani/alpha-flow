@@ -87,3 +87,10 @@ public void execute() {
 ## Backend Architecture & Package Structure
 - **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
 - **Algorithm Configurability & Clean Architecture**: Avoid littering with `@Value` annotations inside the core engine classes; instead, use a config class and inject it.
+
+## Technical Indicators & Mathematical Calculations
+- **BigDecimal Math Precision & Stability**: When computing standard deviation or variance over sliding windows:
+  - Protect standard deviation `.sqrt()` calculations with a scale-bounded `MathContext` (e.g., scale limit of `INTERNAL_SCALE + 4`) to ensure determinism and avoid decimal overflows.
+  - Handle potential floating-point precision-based negative variance values by guarding them (e.g. check `variance.signum() < 0` and set to `BigDecimal.ZERO`).
+  - Provide fallback calculations using unweighted Simple Moving Average and standard deviation when total volume or source values within a sliding window are zero to avoid division by zero.
+- **Config Parameter Types Limit**: The `IndicatorParams` helper class parses and holds parameters inside a `Map<String, Integer>`, restricting indicator configuration inputs to integer types. To support fractional multipliers (like a standard deviation multiplier of 2.5), the parsing architecture would need significant refactoring; standard integer parameters (e.g. `2`) or defaults should be preferred.
