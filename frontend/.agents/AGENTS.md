@@ -63,4 +63,4 @@ export const ExampleComponent = () => {
 
 ## Chart Rendering & Indicators
 - **Lightweight-Charts Multi-Line Overlays**: When plotting technical indicators with multiple line outputs (like Bollinger Bands) as overlays on the main price chart, returning multiple output definitions (e.g. `upper`, `middle`, `lower` from `outputsFor()`) automatically loops over them and draws multiple line series that align perfectly on the same scale.
-- **Color Palettes & Styling**: Always configure consistent visual styling and lookup rules under `indicatorColors.ts` mapped by output key so line colors remain distinct, stable, and decoupled from the canvas drawing scripts. Default to standard layouts like TradingView defaults (`#2962FF` for upper/lower band lines, `#FF6D00` for middle line/basis) for Bollinger Bands.
+- **Color Palettes & Styling**: Always configure consistent visual styling and lookup rules under `indicatorColors.ts` mapped by output key so line colors remain distinct, stable, and decoupled from the canvas drawing scripts. Use custom or standard palettes (e.g. Red for upper, Blue for middle, Green for lower) for Bollinger Bands to provide strong visual contrast.
