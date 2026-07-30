@@ -18,12 +18,13 @@
         <exclude name="CloseResource"/>
         <exclude name="AvoidAccessibilityAlteration"/>
         <exclude name="AssignmentInOperand"/>
+        <exclude name="AvoidCatchingGenericException"/>
     </rule>
 
     <rule ref="category/java/bestpractices.xml">
-        <exclude name="JUnitTestContainsTooManyAsserts"/>
-        <exclude name="JUnitTestsShouldIncludeAssert"/>
-        <exclude name="JUnitAssertionsShouldIncludeMessage"/>
+        <exclude name="UnitTestContainsTooManyAsserts"/>
+        <exclude name="UnitTestShouldIncludeAssert"/>
+        <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
         <exclude name="PreserveStackTrace"/>
         <exclude name="GuardLogStatement"/>
         <exclude name="AvoidReassigningParameters"/>

@@ -1,5 +1,5 @@
 # Build stage
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:26-jdk AS build
 WORKDIR /app
 
 # Grant execute permission to the gradlew script
@@ -22,7 +22,7 @@ COPY src /app/src
 RUN ./gradlew bootJar --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:26-jre
 WORKDIR /app
 
 # Copy the executable JAR from the build stage
