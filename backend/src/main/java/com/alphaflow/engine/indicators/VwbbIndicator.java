@@ -12,7 +12,6 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,16 +19,20 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * Volume-Weighted Bollinger Bands (VWBB). Computes the middle band as Volume-Weighted Moving
- * Average (VWMA) and outer bands using Volume-Weighted Standard Deviation.
- */
+/** Volume-Weighted Bollinger Bands (VWBB). Uses Typical Price and O(1) rolling sum calculations. */
 @Component
 @Slf4j
 public class VwbbIndicator implements Indicator {
 
   private static final MathContext SQRT_CONTEXT =
       new MathContext(IndicatorMath.INTERNAL_SCALE + 4, RoundingMode.HALF_UP);
+
+  private record TypicalPriceTerms(
+      BigDecimal volume,
+      BigDecimal typicalPrice,
+      BigDecimal weightedPrice,
+      BigDecimal weightedPriceSq,
+      BigDecimal typicalPriceSq) {}
 
   @Override
   public IndicatorType type() {
@@ -43,82 +46,110 @@ public class VwbbIndicator implements Indicator {
     if (period < 1) {
       throw new IllegalArgumentException("VWBB period must be >= 1. Provided: " + period);
     }
-    log.debug(
-        "Computing VWBB indicator for {} bars, period={}, source={}", bars.size(), period, source);
+    int stdDevMultiplier = params.getInt(IndicatorParamKey.STD_DEV);
+    if (stdDevMultiplier < 1) {
+      throw new IllegalArgumentException(
+          "VWBB stdDev multiplier must be >= 1. Provided: " + stdDevMultiplier);
+    }
 
-    int multiplier = params.getInt("stdDev", 2);
+    log.debug(
+        "Computing VWBB rolling indicator for {} bars, period={}, stdDev={}, source={}",
+        bars.size(),
+        period,
+        stdDevMultiplier,
+        source);
 
     Map<LocalDate, Map<String, BigDecimal>> values = new LinkedHashMap<>();
-    Deque<PriceBar> window = new ArrayDeque<>(period);
+    Deque<TypicalPriceTerms> window = new ArrayDeque<>(period);
+
+    BigDecimal sumVol = BigDecimal.ZERO;
+    BigDecimal sumPriceVol = BigDecimal.ZERO;
+    BigDecimal sumPriceSqVol = BigDecimal.ZERO;
+
+    // Fallback rolling sums
+    BigDecimal sumP = BigDecimal.ZERO;
+    BigDecimal sumP2 = BigDecimal.ZERO;
+
+    BigDecimal periodBd = BigDecimal.valueOf(period);
+    BigDecimal multiplierBd = BigDecimal.valueOf(stdDevMultiplier);
 
     for (PriceBar bar : bars) {
-      window.addLast(bar);
+      // Step 1: Calculate Typical Price (TP_t) = (high + low + close) / 3.0
+      BigDecimal tp =
+          bar.high()
+              .add(bar.low())
+              .add(bar.close())
+              .divide(BigDecimal.valueOf(3), IndicatorMath.INTERNAL_SCALE, RoundingMode.HALF_UP);
+
+      BigDecimal vol = bar.volume();
+      BigDecimal weightedPrice = tp.multiply(vol);
+      BigDecimal weightedPriceSq = tp.multiply(tp).multiply(vol);
+      BigDecimal typicalPriceSq = tp.multiply(tp);
+
+      TypicalPriceTerms terms =
+          new TypicalPriceTerms(vol, tp, weightedPrice, weightedPriceSq, typicalPriceSq);
+
+      // Slide window and update rolling sums
+      window.addLast(terms);
+      sumVol = sumVol.add(vol);
+      sumPriceVol = sumPriceVol.add(weightedPrice);
+      sumPriceSqVol = sumPriceSqVol.add(weightedPriceSq);
+      sumP = sumP.add(tp);
+      sumP2 = sumP2.add(typicalPriceSq);
+
       if (window.size() > period) {
-        window.removeFirst();
+        TypicalPriceTerms removed = window.removeFirst();
+        sumVol = sumVol.subtract(removed.volume());
+        sumPriceVol = sumPriceVol.subtract(removed.weightedPrice());
+        sumPriceSqVol = sumPriceSqVol.subtract(removed.weightedPriceSq());
+        sumP = sumP.subtract(removed.typicalPrice());
+        sumP2 = sumP2.subtract(removed.typicalPriceSq());
       }
 
       if (window.size() == period) {
-        values.put(bar.date(), computeBandsForWindow(window, period, multiplier, source));
+        BigDecimal vwap;
+        BigDecimal variance;
+
+        if (sumVol.signum() == 0) {
+          // Fallback to unweighted SMA and variance
+          vwap = IndicatorMath.divide(sumP, periodBd);
+          BigDecimal meanSq = vwap.multiply(vwap);
+          variance = IndicatorMath.divide(sumP2, periodBd).subtract(meanSq);
+        } else {
+          // Rolling VWAP and Variance
+          vwap = IndicatorMath.divide(sumPriceVol, sumVol);
+          BigDecimal meanSq = vwap.multiply(vwap);
+          variance = IndicatorMath.divide(sumPriceSqVol, sumVol).subtract(meanSq);
+        }
+
+        // Guard variance against small negative precision errors
+        if (variance.signum() < 0) {
+          variance = BigDecimal.ZERO;
+        }
+
+        BigDecimal stdDev = variance.sqrt(SQRT_CONTEXT);
+        BigDecimal devOffset = stdDev.multiply(multiplierBd);
+
+        BigDecimal upper = vwap.add(devOffset);
+        BigDecimal lower = vwap.subtract(devOffset);
+
+        BigDecimal bandwidth;
+        if (vwap.compareTo(BigDecimal.ZERO) == 0) {
+          bandwidth = BigDecimal.ZERO;
+        } else {
+          bandwidth = IndicatorMath.divide(upper.subtract(lower), vwap);
+        }
+
+        values.put(
+            bar.date(),
+            Map.of(
+                IndicatorOutputKey.UPPER.getValue(), IndicatorMath.publish(upper),
+                IndicatorOutputKey.MIDDLE.getValue(), IndicatorMath.publish(vwap),
+                IndicatorOutputKey.LOWER.getValue(), IndicatorMath.publish(lower),
+                IndicatorOutputKey.BANDWIDTH.getValue(), IndicatorMath.publish(bandwidth)));
       }
     }
 
     return values;
-  }
-
-  private Map<String, BigDecimal> computeBandsForWindow(
-      Collection<PriceBar> window, int period, int multiplier, PriceSource source) {
-    BigDecimal sumPriceVol = BigDecimal.ZERO;
-    BigDecimal sumVol = BigDecimal.ZERO;
-
-    for (PriceBar bar : window) {
-      BigDecimal p = bar.valueFor(source);
-      BigDecimal v = bar.volume();
-      sumPriceVol = sumPriceVol.add(p.multiply(v));
-      sumVol = sumVol.add(v);
-    }
-
-    BigDecimal vwma;
-    BigDecimal variance;
-
-    if (sumVol.signum() == 0) {
-      // Fallback to unweighted calculation (SMA and unweighted variance)
-      BigDecimal sumPrice = BigDecimal.ZERO;
-      for (PriceBar bar : window) {
-        sumPrice = sumPrice.add(bar.valueFor(source));
-      }
-      vwma = IndicatorMath.divide(sumPrice, BigDecimal.valueOf(period));
-
-      BigDecimal sumSqDev = BigDecimal.ZERO;
-      for (PriceBar bar : window) {
-        BigDecimal dev = bar.valueFor(source).subtract(vwma);
-        sumSqDev = sumSqDev.add(dev.multiply(dev));
-      }
-      variance = IndicatorMath.divide(sumSqDev, BigDecimal.valueOf(period));
-    } else {
-      vwma = IndicatorMath.divide(sumPriceVol, sumVol);
-
-      BigDecimal sumWeightedSqDev = BigDecimal.ZERO;
-      for (PriceBar bar : window) {
-        BigDecimal dev = bar.valueFor(source).subtract(vwma);
-        BigDecimal v = bar.volume();
-        sumWeightedSqDev = sumWeightedSqDev.add(v.multiply(dev.multiply(dev)));
-      }
-      variance = IndicatorMath.divide(sumWeightedSqDev, sumVol);
-    }
-
-    if (variance.signum() < 0) {
-      variance = BigDecimal.ZERO;
-    }
-
-    BigDecimal stdDev = variance.sqrt(SQRT_CONTEXT);
-    BigDecimal devOffset = stdDev.multiply(BigDecimal.valueOf(multiplier));
-
-    BigDecimal upper = vwma.add(devOffset);
-    BigDecimal lower = vwma.subtract(devOffset);
-
-    return Map.of(
-        IndicatorOutputKey.UPPER.getValue(), IndicatorMath.publish(upper),
-        IndicatorOutputKey.MIDDLE.getValue(), IndicatorMath.publish(vwma),
-        IndicatorOutputKey.LOWER.getValue(), IndicatorMath.publish(lower));
   }
 }
