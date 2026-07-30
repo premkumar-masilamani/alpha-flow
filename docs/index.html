@@ -376,6 +376,14 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.config",
+      "label": "api.config",
+      "parent": "api",
+      "is_parent": true
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.configs",
       "label": "api.configs",
       "parent": "api",
@@ -424,9 +432,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.utils",
-      "label": "api.utils",
-      "parent": "api",
+      "id": "com.alphaflow.common.enums",
+      "label": "common.enums",
+      "parent": "root",
       "is_parent": true
     }
   },
@@ -531,6 +539,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.common.enums.Timeframe",
+      "label": "Timeframe",
+      "parent": "com.alphaflow.common.enums",
+      "type": "enum",
+      "component": "root",
+      "filepath": "backend/src/main/java/com/alphaflow/common/enums/Timeframe.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "label": "IndicatorOutputKey",
       "parent": "com.alphaflow.persistence.enums",
@@ -570,17 +589,6 @@
       "type": "enum",
       "component": "persistence",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/PriceSource.java",
-      "violation": false
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.persistence.enums.Timeframe",
-      "label": "Timeframe",
-      "parent": "com.alphaflow.persistence.enums",
-      "type": "enum",
-      "component": "persistence",
-      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/Timeframe.java",
       "violation": false
     }
   },
@@ -740,12 +748,12 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.utils.APIUtil",
-      "label": "APIUtil",
-      "parent": "com.alphaflow.api.utils",
+      "id": "com.alphaflow.api.config.TimeframeConverter",
+      "label": "TimeframeConverter",
+      "parent": "com.alphaflow.api.config",
       "type": "class",
       "component": "api",
-      "filepath": "backend/src/main/java/com/alphaflow/api/utils/APIUtil.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/config/TimeframeConverter.java",
       "violation": false
     }
   },
@@ -850,17 +858,6 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.controllers.WeeklyPriceController",
-      "label": "WeeklyPriceController",
-      "parent": "com.alphaflow.api.controllers",
-      "type": "class",
-      "component": "api",
-      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/WeeklyPriceController.java",
-      "violation": false
-    }
-  },
-  {
-    "data": {
       "id": "com.alphaflow.api.controllers.TickerController",
       "label": "TickerController",
       "parent": "com.alphaflow.api.controllers",
@@ -872,12 +869,12 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.controllers.DailyPriceController",
-      "label": "DailyPriceController",
+      "id": "com.alphaflow.api.controllers.PriceController",
+      "label": "PriceController",
       "parent": "com.alphaflow.api.controllers",
       "type": "class",
       "component": "api",
-      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/DailyPriceController.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/PriceController.java",
       "violation": false
     }
   },
@@ -1158,45 +1155,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.controllers.DailyPriceController_to_com.alphaflow.api.dtos.OhlcvDTO",
-      "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.DailyPriceController_to_com.alphaflow.api.services.DailyPriceService",
-      "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.api.services.DailyPriceService",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.DailyPriceController_to_com.alphaflow.persistence.entities.Ticker",
-      "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.persistence.entities.Ticker",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.DailyPriceController_to_com.alphaflow.persistence.exceptions.ResourceNotFoundException",
-      "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.DailyPriceController_to_com.alphaflow.persistence.repositories.TickerRepository",
-      "source": "com.alphaflow.api.controllers.DailyPriceController",
-      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "id": "com.alphaflow.api.config.TimeframeConverter_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.api.config.TimeframeConverter",
+      "target": "com.alphaflow.common.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -1230,9 +1191,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.controllers.IndicatorController_to_com.alphaflow.api.utils.APIUtil",
+      "id": "com.alphaflow.api.controllers.IndicatorController_to_com.alphaflow.common.enums.Timeframe",
       "source": "com.alphaflow.api.controllers.IndicatorController",
-      "target": "com.alphaflow.api.utils.APIUtil",
+      "target": "com.alphaflow.common.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -1266,6 +1227,69 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.dtos.OhlcvDTO",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.DailyPriceService",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.DailyPriceService",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.WeeklyPriceService",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.WeeklyPriceService",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.persistence.exceptions.ResourceNotFoundException",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.persistence.repositories.TickerRepository",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.controllers.TickerController_to_com.alphaflow.api.dtos.TickerDTO",
       "source": "com.alphaflow.api.controllers.TickerController",
       "target": "com.alphaflow.api.dtos.TickerDTO",
@@ -1278,24 +1302,6 @@
       "id": "com.alphaflow.api.controllers.TickerController_to_com.alphaflow.api.services.TickerService",
       "source": "com.alphaflow.api.controllers.TickerController",
       "target": "com.alphaflow.api.services.TickerService",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.WeeklyPriceController_to_com.alphaflow.api.dtos.OhlcvDTO",
-      "source": "com.alphaflow.api.controllers.WeeklyPriceController",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.WeeklyPriceController_to_com.alphaflow.api.services.WeeklyPriceService",
-      "source": "com.alphaflow.api.controllers.WeeklyPriceController",
-      "target": "com.alphaflow.api.services.WeeklyPriceService",
       "violation": false,
       "reason": ""
     }
@@ -1356,6 +1362,15 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.mappers.IndicatorMapper_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.api.mappers.IndicatorMapper",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.mappers.IndicatorMapper_to_com.alphaflow.engine.indicators.dtos.IndicatorParams",
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
       "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
@@ -1395,15 +1410,6 @@
       "id": "com.alphaflow.api.mappers.IndicatorMapper_to_com.alphaflow.persistence.enums.PriceSource",
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
       "target": "com.alphaflow.persistence.enums.PriceSource",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.mappers.IndicatorMapper_to_com.alphaflow.persistence.enums.Timeframe",
-      "source": "com.alphaflow.api.mappers.IndicatorMapper",
-      "target": "com.alphaflow.persistence.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -1527,6 +1533,15 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.services.IndicatorService_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.api.services.IndicatorService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.services.IndicatorService_to_com.alphaflow.engine.configs.IndicatorConfig",
       "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.engine.configs.IndicatorConfig",
@@ -1557,15 +1572,6 @@
       "id": "com.alphaflow.api.services.IndicatorService_to_com.alphaflow.persistence.entities.Ticker",
       "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.persistence.entities.Ticker",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.services.IndicatorService_to_com.alphaflow.persistence.enums.Timeframe",
-      "source": "com.alphaflow.api.services.IndicatorService",
-      "target": "com.alphaflow.persistence.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -1716,9 +1722,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.utils.APIUtil_to_com.alphaflow.persistence.enums.Timeframe",
-      "source": "com.alphaflow.api.utils.APIUtil",
-      "target": "com.alphaflow.persistence.enums.Timeframe",
+      "id": "com.alphaflow.engine.calculators.IndicatorCalculator_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
+      "target": "com.alphaflow.common.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -1800,15 +1806,6 @@
       "id": "com.alphaflow.engine.calculators.IndicatorCalculator_to_com.alphaflow.persistence.entities.WeeklyIndicator",
       "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "target": "com.alphaflow.persistence.entities.WeeklyIndicator",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.calculators.IndicatorCalculator_to_com.alphaflow.persistence.enums.Timeframe",
-      "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
-      "target": "com.alphaflow.persistence.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -1923,18 +1920,18 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.configs.IndicatorConfig_to_com.alphaflow.persistence.entities.IndicatorDefinition",
+      "id": "com.alphaflow.engine.configs.IndicatorConfig_to_com.alphaflow.common.enums.Timeframe",
       "source": "com.alphaflow.engine.configs.IndicatorConfig",
-      "target": "com.alphaflow.persistence.entities.IndicatorDefinition",
+      "target": "com.alphaflow.common.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.configs.IndicatorConfig_to_com.alphaflow.persistence.enums.Timeframe",
+      "id": "com.alphaflow.engine.configs.IndicatorConfig_to_com.alphaflow.persistence.entities.IndicatorDefinition",
       "source": "com.alphaflow.engine.configs.IndicatorConfig",
-      "target": "com.alphaflow.persistence.enums.Timeframe",
+      "target": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "violation": false,
       "reason": ""
     }

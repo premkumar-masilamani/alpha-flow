@@ -7,7 +7,7 @@ import sys
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 JAVA_SRC_DIR = os.path.join(BASE_DIR, "backend", "src", "main", "java")
-DIAGRAMS_DIR = os.path.join(BASE_DIR, "architecture", "diagrams")
+DIAGRAMS_DIR = os.path.join(BASE_DIR, "docs")
 
 def strip_comments(text):
     # Strip block comments /* ... */
@@ -19,17 +19,17 @@ def strip_comments(text):
 def parse_java_file(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     cleaned = strip_comments(content)
-    
+
     # Extract package
     pkg_match = re.search(r'package\s+([a-zA-Z0-9_\.]+);', cleaned)
     package = pkg_match.group(1) if pkg_match else ""
-    
+
     # Class Name is filename without extension
     class_name = os.path.basename(filepath).replace(".java", "")
     fqn = f"{package}.{class_name}" if package else class_name
-    
+
     # Determine component (api, engine, persistence, root)
     if "com.alphaflow.api" in package:
         component = "api"
@@ -39,7 +39,7 @@ def parse_java_file(filepath):
         component = "persistence"
     else:
         component = "root"
-        
+
     # Extract imports
     imports = []
     for line in cleaned.splitlines():
@@ -50,13 +50,13 @@ def parse_java_file(filepath):
             if imp.startswith("static "):
                 imp = imp[7:].strip()
             imports.append(imp)
-            
+
     # Class type
     class_type = "class"
     type_match = re.search(r'\b(interface|class|enum|record)\s+' + re.escape(class_name) + r'\b', cleaned)
     if type_match:
         class_type = type_match.group(1)
-        
+
     return {
         "name": class_name,
         "fqn": fqn,
@@ -72,54 +72,54 @@ def main():
     if not os.path.exists(JAVA_SRC_DIR):
         print(f"Error: Java source directory not found at {JAVA_SRC_DIR}", file=sys.stderr)
         sys.exit(1)
-        
+
     # 1. Walk Java files
     java_files = []
     for root, _, files in os.walk(JAVA_SRC_DIR):
         for file in files:
             if file.endswith(".java"):
                 java_files.append(os.path.join(root, file))
-                
+
     classes = []
     for filepath in java_files:
         try:
             classes.append(parse_java_file(filepath))
         except Exception as e:
             print(f"Warning: Failed to parse {filepath}: {e}", file=sys.stderr)
-            
+
     # Map for FQN lookup and list of all class names
     class_map = {c['fqn']: c for c in classes}
     class_names = {c['name'] for c in classes}
-    
+
     # 2. Resolve dependencies
     dependencies = []
-    
+
     def resolve_class_name(name, src_class):
         candidates = [c for c in classes if c['name'] == name]
         if not candidates:
             return None
-        
+
         # Exact package match
         for cand in candidates:
             if cand['package'] == src_class['package']:
                 return cand['fqn']
-                
+
         # Explicit import match
         for cand in candidates:
             if cand['fqn'] in src_class['imports']:
                 return cand['fqn']
-                
+
         # Wildcard import match
         for cand in candidates:
             wildcard = cand['package'] + ".*"
             if wildcard in src_class['imports']:
                 return cand['fqn']
-                
+
         # Full FQN usage check in content
         for cand in candidates:
             if cand['fqn'] in src_class['content']:
                 return cand['fqn']
-                
+
         # If there's only one candidate and it matches FQN in imports/content
         if len(candidates) == 1:
             cand = candidates[0]
@@ -127,16 +127,16 @@ def main():
             # check if it is imported or in the same package (handled above), or if it is fully qualified.
             # Otherwise we don't assume dependency to avoid false positives.
             pass
-            
+
         return None
 
     # Build edges
     edges = set() # Set of (source_fqn, target_fqn)
-    
+
     for c in classes:
         # Find all words in content
         words = set(re.findall(r'\b[A-Za-z0-9_]+\b', c['content']))
-        
+
         # Direct imports (specific class or star imports)
         for imp in c['imports']:
             if imp.startswith("com.alphaflow"):
@@ -149,7 +149,7 @@ def main():
                 else:
                     if imp in class_map and imp != c['fqn']:
                         edges.add((c['fqn'], imp))
-                        
+
         # Same package and textual reference resolution
         for word in words:
             if word in class_names and word != c['name']:
@@ -164,15 +164,15 @@ def main():
     violations = []
     violated_nodes = set()
     violated_edges = []
-    
+
     edges_list = []
     for src, tgt in sorted(edges):
         src_c = class_map[src]
         tgt_c = class_map[tgt]
-        
+
         is_violation = False
         reason = ""
-        
+
         if src_c['component'] == 'engine' and tgt_c['component'] == 'api':
             is_violation = True
             reason = "Engine component cannot depend on API layer DTOs or Controllers"
@@ -182,7 +182,7 @@ def main():
         elif src_c['component'] == 'persistence' and tgt_c['component'] == 'engine':
             is_violation = True
             reason = "Persistence database entities and repositories cannot depend on Business Logic (Engine)"
-            
+
         if is_violation:
             violations.append({
                 "source": src,
@@ -193,7 +193,7 @@ def main():
             })
             violated_nodes.add(src)
             violated_nodes.add(tgt)
-            
+
         edges_list.append({
             "source": src,
             "target": tgt,
@@ -203,7 +203,7 @@ def main():
 
     # Ensure output directories exist
     os.makedirs(DIAGRAMS_DIR, exist_ok=True)
-    
+
     # 4. Generate JSON Graph
     graph_data = {
         "nodes": [
@@ -221,30 +221,30 @@ def main():
         "edges": edges_list,
         "violations": violations
     }
-    
+
     with open(os.path.join(DIAGRAMS_DIR, "class_map.json"), "w", encoding="utf-8") as f:
         json.dump(graph_data, f, indent=2)
-        
+
     # 5. Generate Markdown Report (Mermaid)
     generate_markdown_report(classes, edges_list, violations)
-    
+
     # 6. Generate Interactive HTML (Cytoscape.js)
     generate_html_visualizer(classes, edges_list, violations)
-    
+
     # Print summary to stdout
     print(f"Successfully processed {len(classes)} classes and {len(edges_list)} dependencies.")
     print(f"Generated:")
     print(f"  - JSON Data: architecture/diagrams/class_map.json")
     print(f"  - Markdown:  architecture/diagrams/class_map.md")
     print(f"  - HTML App:  architecture/diagrams/index.html")
-    
+
     if violations:
         print(f"\n[WARNING] Found {len(violations)} package separation violations!", file=sys.stderr)
         for v in violations:
             print(f"  - {v['source']} -> {v['target']}", file=sys.stderr)
             print(f"    Reason: {v['reason']}", file=sys.stderr)
             print(f"    Source File: {v['source_file']}", file=sys.stderr)
-            
+
     # Handle check mode
     if "--check" in sys.argv:
         if violations:
@@ -256,11 +256,11 @@ def main():
 
 def generate_markdown_report(classes, edges, violations):
     md_path = os.path.join(DIAGRAMS_DIR, "class_map.md")
-    
+
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# AlphaFlow Class Map & Package Dependency Report\n\n")
         f.write("This report was generated dynamically by parsing the backend codebase. It provides a visual class dependency map and flags any violations of package separation rules.\n\n")
-        
+
         # Violations section
         if violations:
             f.write("## ⚠️ Architectural Violations\n\n")
@@ -275,11 +275,11 @@ def generate_markdown_report(classes, edges, violations):
             f.write("## ✅ Package Separation Status\n\n")
             f.write("> [!NOTE]\n")
             f.write("> All classes adhere to the clean separation boundaries. No violations detected.\n\n")
-            
+
         # Mermaid Diagram
         f.write("## Class Dependency Diagram (Mermaid)\n\n")
         f.write("```mermaid\nflowchart TD\n")
-        
+
         # Subgraphs for components
         components = {"api": "API Layer", "engine": "Engine (Logic)", "persistence": "Persistence (Database)"}
         for comp, label in components.items():
@@ -288,39 +288,39 @@ def generate_markdown_report(classes, edges, violations):
                 if c['component'] == comp:
                     f.write(f"        {c['fqn'].replace('.', '_')}[\"{c['name']} ({c['type']})\"]\n")
             f.write("    end\n\n")
-            
+
         # Add root classes
         for c in classes:
             if c['component'] == "root":
                 f.write(f"    {c['fqn'].replace('.', '_')}[\"{c['name']} (Root)\"]\n")
-                
+
         f.write("\n    %% Edges\n")
         # Write edges
         violation_indices = []
         for idx, edge in enumerate(edges):
             src_id = edge['source'].replace('.', '_')
             tgt_id = edge['target'].replace('.', '_')
-            
+
             arrow = "-->"
             if edge['violation']:
                 arrow = "==x"
                 violation_indices.append(idx)
-                
+
             f.write(f"    {src_id} {arrow} {tgt_id}\n")
-            
+
         # Style violation links
         f.write("\n    %% Styles for Violations\n")
         for idx in violation_indices:
             f.write(f"    linkStyle {idx} stroke:#ef4444,stroke-width:3px;\n")
-            
+
         # Style violation nodes
         violated_fqns = {v['source'] for v in violations} | {v['target'] for v in violations}
         for fqn in violated_fqns:
             f.write(f"    classDef violated stroke:#ef4444,stroke-width:2px,fill:#fee2e2,color:#991b1b;\n")
             f.write(f"    class {fqn.replace('.', '_')} violated;\n")
-            
+
         f.write("```\n\n")
-        
+
         # Summary details
         f.write("## Component Summary\n\n")
         f.write(f"- **Total Classes**: {len(classes)}\n")
@@ -331,10 +331,10 @@ def generate_markdown_report(classes, edges, violations):
 
 def generate_html_visualizer(classes, edges, violations):
     html_path = os.path.join(DIAGRAMS_DIR, "index.html")
-    
+
     # Generate cytoscape elements JSON
     cy_elements = []
-    
+
     # 1. Compound Component Nodes
     components = [
         {"id": "api", "label": "API LAYER (controllers, dtos, mappers, services)"},
@@ -349,7 +349,7 @@ def generate_html_visualizer(classes, edges, violations):
                 "is_parent": True
             }
         })
-        
+
     # 2. Package nodes (grouped under components)
     packages = sorted(list({c['package'] for c in classes if c['package']}))
     for pkg in packages:
@@ -361,7 +361,7 @@ def generate_html_visualizer(classes, edges, violations):
             parent_comp = "engine"
         elif "com.alphaflow.persistence" in pkg:
             parent_comp = "persistence"
-            
+
         cy_elements.append({
             "data": {
                 "id": pkg,
@@ -370,7 +370,7 @@ def generate_html_visualizer(classes, edges, violations):
                 "is_parent": True
             }
         })
-        
+
     # 3. Class Nodes
     violated_fqns = {v['source'] for v in violations} | {v['target'] for v in violations}
     for c in classes:
@@ -385,7 +385,7 @@ def generate_html_visualizer(classes, edges, violations):
                 "violation": c['fqn'] in violated_fqns
             }
         })
-        
+
     # 4. Edges
     for edge in edges:
         cy_elements.append({
@@ -704,7 +704,7 @@ def generate_html_visualizer(classes, edges, violations):
             <div class="search-container">
                 <input type="text" id="search" class="search-input" placeholder="Search class (e.g. ASTAStrategy)">
             </div>
-            
+
             <div class="filter-group">
                 <div class="detail-label">Layout Mode</div>
                 <select id="layout-select" class="search-input" style="font-size: 13px;">
@@ -714,7 +714,7 @@ def generate_html_visualizer(classes, edges, violations):
                     <option value="circle">Concentric Circle</option>
                 </select>
             </div>
-            
+
             <div class="filter-group">
                 <div class="detail-label">Filter Components</div>
                 <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; margin-top: 2px;">
@@ -921,7 +921,7 @@ def generate_html_visualizer(classes, edges, violations):
                 if (data.violation) {{
                     // Find specific violations involving this node
                     const nodeViolations = elements.filter(el => el.data.violation && (el.data.source === data.id || el.data.target === data.id));
-                    
+
                     violationHtml = `
                         <div class="violation-banner">
                             <div class="violation-title">
@@ -948,11 +948,11 @@ def generate_html_visualizer(classes, edges, violations):
 
                 detailsPanel.innerHTML = `
                     ${{violationHtml}}
-                    
+
                     <div class="detail-section">
                         <div class="detail-label">Class Name</div>
                         <div class="detail-value" style="font-weight: 700; font-size: 16px;">
-                            ${{data.label}} 
+                            ${{data.label}}
                             <span class="badge badge-${{data.type}}">${{data.type}}</span>
                         </div>
                     </div>
@@ -1013,7 +1013,7 @@ def generate_html_visualizer(classes, edges, violations):
 
                 detailsPanel.innerHTML = `
                     ${{violationHtml}}
-                    
+
                     <div class="detail-section">
                         <div class="detail-label">Dependency Line</div>
                         <div class="detail-value" style="font-weight: 700; font-size: 15px;">
@@ -1048,7 +1048,7 @@ def generate_html_visualizer(classes, edges, violations):
                 const el = cy.getElementById(id);
                 if (el.length > 0) {{
                     cy.elements().removeClass('dimmed').removeClass('highlighted');
-                    
+
                     if (el.isNode()) {{
                         // Highlight node and its neighbors
                         const neighbors = el.neighborhood();
@@ -1099,13 +1099,13 @@ def generate_html_visualizer(classes, edges, violations):
                     cy.elements().removeClass('dimmed').removeClass('highlighted');
                     return;
                 }}
-                
+
                 cy.elements().addClass('dimmed');
-                
+
                 const matches = cy.nodes().filter(node => {{
                     return !node.data('is_parent') && node.data('label').toLowerCase().includes(q);
                 }});
-                
+
                 matches.removeClass('dimmed');
                 matches.neighborhood().removeClass('dimmed');
             }});
@@ -1121,26 +1121,26 @@ def generate_html_visualizer(classes, edges, violations):
                 const showApi = document.getElementById('chk-api').checked;
                 const showEngine = document.getElementById('chk-engine').checked;
                 const showPersistence = document.getElementById('chk-persistence').checked;
-                
+
                 cy.batch(() => {{
                     cy.nodes().forEach(node => {{
                         if (node.data('is_parent')) return;
-                        
+
                         const comp = node.data('component');
                         let isVisible = true;
-                        
+
                         if (comp === 'api' && !showApi) isVisible = false;
                         if (comp === 'engine' && !showEngine) isVisible = false;
                         if (comp === 'persistence' && !showPersistence) isVisible = false;
                         if (onlyViolationsMode && !node.data('violation')) isVisible = false;
-                        
+
                         if (isVisible) {{
                             node.style('display', 'element');
                         }} else {{
                             node.style('display', 'none');
                         }}
                     }});
-                    
+
                     // Filter empty package/component boundaries
                     cy.nodes('[?is_parent]').forEach(parent => {{
                         const visibleChildren = parent.descendants().filter(node => !node.data('is_parent') && node.style('display') !== 'none');
@@ -1162,7 +1162,7 @@ def generate_html_visualizer(classes, edges, violations):
                 if (onlyViolationsMode) {{
                     this.textContent = "Show All Graph";
                     this.classList.add('active');
-                    
+
                     if (violationNodes.length === 0) {{
                         cy.elements().addClass('dimmed');
                         detailsPanel.innerHTML = `
@@ -1172,7 +1172,7 @@ def generate_html_visualizer(classes, edges, violations):
                         `;
                         return;
                     }}
-                    
+
                     applyFilters();
                 }} else {{
                     this.textContent = "Violations Only";
@@ -1184,7 +1184,7 @@ def generate_html_visualizer(classes, edges, violations):
 
             // Layout switching
             const layoutSelect = document.getElementById('layout-select');
-            
+
             function runLayout(layoutName) {{
                 let layoutConfig = {{ name: layoutName }};
                 if (layoutName === 'dagre') {{
@@ -1229,7 +1229,7 @@ def generate_html_visualizer(classes, edges, violations):
                 }}
                 cy.layout(layoutConfig).run();
             }}
-            
+
             layoutSelect.addEventListener('change', function() {{
                 runLayout(this.value);
             }});
