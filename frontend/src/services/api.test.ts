@@ -128,7 +128,7 @@ describe('API Service Layer Tests', () => {
             const mockDaily = [{ type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI', points: [{ date: '2026-06-01', values: { value: 50 } }] }];
             const mockWeekly = [{ type: 'MACD', source: 'CLOSE', params: 'fast=12', label: 'MACD', points: [{ date: '2026-05-31', values: { value: 1 } }] }];
             
-            // Promise.all calls getCandleData, getIndicatorSeries(DAILY), getIndicatorSeries(WEEKLY)
+            // Promise.all calls getCandleData, getIndicatorSeries(DAILY), getIndicatorSeries(WEEKLY).
             // But getCandleData and getIndicatorSeries are mocked? No, we are testing the API service which CALLS axios.
             // Let's mock the axios responses in order or by URL.
             mockedAxios.get.mockImplementation((url, config) => {
@@ -144,9 +144,8 @@ describe('API Service Layer Tests', () => {
                 candle: mockCandles[0],
                 dailyIndicators: mockDaily,
                 weeklyIndicators: mockWeekly,
-                srLines: []
             });
-            expect(mockedAxios.get).toHaveBeenCalledTimes(4);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(3);
         });
     });
 
