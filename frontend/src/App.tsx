@@ -17,8 +17,6 @@ import {
   type Ticker,
   type Timeframe,
   type TechnicalAnalysisData,
-  getSupportResistance,
-  type SupportResistanceLine,
 } from "./services/api";
 import {
   Loader2,
@@ -50,9 +48,6 @@ function App() {
     [],
   );
   const [chartIndicators, setChartIndicators] = useState<IndicatorSeries[]>([]);
-  const [chartSrLines, setChartSrLines] = useState<SupportResistanceLine[]>([]);
-  const [showDailySR, setShowDailySR] = useState(true);
-  const [showWeeklySR, setShowWeeklySR] = useState(false);
   const [enabledIndicators, setEnabledIndicators] = useState<Set<string>>(
     new Set(),
   );
@@ -143,17 +138,6 @@ function App() {
     }
   }, [timeframe, indicatorConfigs]);
 
-  // Set SR visibility defaults when timeframe changes
-  useEffect(() => {
-    if (timeframe === "DAILY") {
-      setShowDailySR(true);
-      setShowWeeklySR(true);
-    } else {
-      setShowDailySR(false);
-      setShowWeeklySR(true);
-    }
-  }, [timeframe]);
-
   // Fetch technical analysis data when selectedTicker changes
   useEffect(() => {
     let active = true;
@@ -201,33 +185,19 @@ function App() {
       setLoading(true);
       setChartCandleData([]);
       setChartIndicators([]);
-      setChartSrLines([]);
       setLoadedSymbol(null);
       setPage(0);
       setHasMore(true);
       setLoadingOlder(false);
       try {
-        let candles, indicators, srLines = [];
-        if (timeframe === "DAILY") {
-            const res = await Promise.all([
-              getCandleData(selectedTicker, timeframe, 0),
-              getIndicatorSeries(selectedTicker, timeframe, 0),
-              getSupportResistance(selectedTicker)
-            ]);
-            candles = res[0]; indicators = res[1]; srLines = res[2];
-        } else {
-            const res = await Promise.all([
-              getCandleData(selectedTicker, timeframe, 0),
-              getIndicatorSeries(selectedTicker, timeframe, 0),
-              getSupportResistance(selectedTicker)
-            ]);
-            candles = res[0]; indicators = res[1]; srLines = res[2];
-        }
+        const [candles, indicators] = await Promise.all([
+          getCandleData(selectedTicker, timeframe, 0),
+          getIndicatorSeries(selectedTicker, timeframe, 0),
+        ]);
 
         if (active) {
           setChartCandleData(candles);
           setChartIndicators(indicators);
-          setChartSrLines(srLines);
           setLoadedSymbol(selectedTicker);
           setLoadedTimeframe(timeframe);
         }
@@ -239,7 +209,6 @@ function App() {
         if (active) {
           setChartCandleData([]);
           setChartIndicators([]);
-          setChartSrLines([]);
         }
       } finally {
         if (active) {
@@ -379,7 +348,7 @@ function App() {
       );
     }
 
-    const { candle, dailyIndicators, weeklyIndicators, srLines } = analysisData;
+    const { candle, dailyIndicators, weeklyIndicators } = analysisData;
     const priceChange = candle.close - candle.open;
     const priceChangePct = pctChange(priceChange, candle.open);
 
@@ -440,103 +409,6 @@ function App() {
 
     const dailyDate = dailyIndicators[0]?.points[0]?.date || candle.date;
     const weeklyDate = weeklyIndicators[0]?.points[0]?.date || '';
-
-    const renderSRTable = () => {
-      if (!srLines || srLines.length === 0) return null;
-
-      const closePrice = candle.close;
-
-      const valid = [...srLines].filter(sr => sr.currentPrice !== undefined && sr.currentPrice !== null);
-
-      // 3 closest lines strictly above close price (sorted ascending by distance = price desc)
-      const above = valid
-          .filter(sr => sr.currentPrice > closePrice)
-          .sort((a, b) => a.currentPrice - b.currentPrice)  // closest first = lowest price first
-          .slice(0, 3)
-          .sort((a, b) => b.currentPrice - a.currentPrice); // display: highest on top
-
-      // 3 closest lines strictly below close price (sorted ascending by distance = price desc)
-      const below = valid
-          .filter(sr => sr.currentPrice < closePrice)
-          .sort((a, b) => b.currentPrice - a.currentPrice)  // closest first = highest price first
-          .slice(0, 3);
-
-      if (above.length === 0 && below.length === 0) return null;
-
-      // Build rows: above rows, then close price sentinel, then below rows
-      type SRRow = { kind: 'sr'; sr: typeof valid[0] } | { kind: 'close' };
-      const rows: SRRow[] = [
-          ...above.map(sr => ({ kind: 'sr' as const, sr })),
-          { kind: 'close' as const },
-          ...below.map(sr => ({ kind: 'sr' as const, sr })),
-      ];
-
-
-      return (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
-          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
-            <h2 className="text-base font-bold text-white">Support &amp; Resistance</h2>
-            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-              {candle.date}
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-950 text-slate-400 font-bold border-b border-slate-800">
-                  <th className="p-4 w-1/4">Type</th>
-                  <th className="p-4 w-1/4">Current Price</th>
-                  <th className="p-4 w-1/4">% Away</th>
-                  <th className="p-4 w-1/4">Timeframe</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
-                {rows.map((row, idx) => {
-                  if (row.kind === 'close') {
-                    return (
-                      <tr key="close-price" className="bg-slate-800/60 border-y border-slate-600">
-                        <td className="p-4 font-bold text-slate-300 text-xs uppercase tracking-widest">Close Price</td>
-                        <td className="p-4 text-white font-mono font-bold">{closePrice.toFixed(2)}</td>
-                        <td className="p-4 font-mono text-slate-500">0.00%</td>
-                        <td className="p-4"></td>
-                      </tr>
-                    );
-                  }
-                  const { sr } = row;
-                  const pctAway = ((sr.currentPrice - closePrice) / closePrice) * 100;
-                  const isAbove = pctAway >= 0;
-                  return (
-                    <tr key={`sr-${idx}`} className="border-b border-slate-800/40 hover:bg-slate-900/20 transition-colors">
-                      <td className="p-4 font-bold">
-                        <span className={sr.currentType === 'SUPPORT' ? 'text-emerald-400' : 'text-rose-400'}>
-                          {sr.currentType}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-300 font-mono">
-                        {sr.currentPrice.toFixed(2)}
-                      </td>
-                      <td className="p-4 font-mono font-semibold">
-                        <span className={isAbove ? 'text-emerald-400' : 'text-rose-400'}>
-                          {isAbove ? '+' : ''}{pctAway.toFixed(2)}%
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <span className={`text-xs px-2 py-1 rounded font-bold tracking-wider ${
-                          sr.timeframe === 'DAILY' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                        }`}>
-                          {sr.timeframe}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-    };
-
 
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
@@ -601,9 +473,6 @@ function App() {
             </div>
           </div>
         </div>
-
-        {/* SR Lines Table */}
-        {renderSRTable()}
 
         {/* Indicators Tables */}
         {renderIndicatorTable("Daily Indicators", dailyDate, dailyIndicators)}
@@ -725,31 +594,6 @@ function App() {
                     </button>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mr-1">S/R Lines</span>
-                  {timeframe === "DAILY" && (
-                      <button
-                        onClick={() => setShowDailySR(!showDailySR)}
-                        className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
-                          showDailySR
-                            ? "bg-blue-600 border-blue-500 text-white"
-                            : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-                        }`}
-                      >
-                        Daily
-                      </button>
-                  )}
-                  <button
-                    onClick={() => setShowWeeklySR(!showWeeklySR)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
-                      showWeeklySR
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600"
-                    }`}
-                  >
-                    Weekly
-                  </button>
-                </div>
               </div>
             )}
             <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
@@ -759,15 +603,6 @@ function App() {
                   indicators={chartIndicators}
                   enabled={enabledIndicators}
                   configs={indicatorConfigs}
-                  srLines={chartSrLines.filter(sr => {
-                    if (loadedTimeframe === 'WEEKLY') return sr.timeframe === 'WEEKLY' && showWeeklySR;
-                    if (loadedTimeframe === 'DAILY') {
-                        if (sr.timeframe === 'DAILY' && showDailySR) return true;
-                        if (sr.timeframe === 'WEEKLY' && showWeeklySR) return true;
-                    }
-                    return false;
-                  })}
-                  showSR={true}
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
                   onLoadOlderData={handleLoadOlderData}

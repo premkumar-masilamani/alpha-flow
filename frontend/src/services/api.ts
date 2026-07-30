@@ -87,19 +87,6 @@ export interface IndicatorSeries {
     points: IndicatorPoint[];
 }
 
-export interface SRTouchPoint {
-    date: string;
-    price: number;
-}
-
-export interface SupportResistanceLine {
-    currentType: 'SUPPORT' | 'RESISTANCE';
-    importance: number;
-    touchPoints: {date: string; price: number}[];
-    timeframe?: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-    currentPrice: number;
-}
-
 // Stable key identifying a combo across the config and series endpoints.
 export const indicatorKey = (i: {type: string; source: string; params: string}): string =>
     `${i.type}|${i.source}|${i.params}`;
@@ -157,34 +144,24 @@ export const getIndicatorSeries = async (
     return response.data;
 };
 
-export const getSupportResistance = async (
-    symbol: string
-): Promise<SupportResistanceLine[]> => {
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/sr`);
-    return response.data;
-};
-
 export interface TechnicalAnalysisData {
     symbol: string;
     candle: DailyCandleData | null;
     dailyIndicators: IndicatorSeries[];
     weeklyIndicators: IndicatorSeries[];
-    srLines: SupportResistanceLine[];
 }
 
 export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAnalysisData> => {
-    const [candles, dailyInds, weeklyInds, srLines] = await Promise.all([
+    const [candles, dailyInds, weeklyInds] = await Promise.all([
         getCandleData(symbol, 'DAILY', 0, 1),
         getIndicatorSeries(symbol, 'DAILY', 0, 1),
-        getIndicatorSeries(symbol, 'WEEKLY', 0, 1),
-        getSupportResistance(symbol)
+        getIndicatorSeries(symbol, 'WEEKLY', 0, 1)
     ]);
 
     return {
         symbol,
         candle: candles.length > 0 ? candles[0] : null,
         dailyIndicators: dailyInds,
-        weeklyIndicators: weeklyInds,
-        srLines
+        weeklyIndicators: weeklyInds
     };
 };
