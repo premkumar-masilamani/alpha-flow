@@ -49,9 +49,8 @@ diagrams:
 
 generate_diagram:
 	@echo "Generating Java backend class map and interactive visualizer..."
-	@python3 architecture/diagrams/generate_diagram.py
+	@python3 docs/generate_diagram.py
 
 check_separation:
 	@echo "Verifying backend package separation boundaries..."
-	@python3 architecture/diagrams/generate_diagram.py --check
-
+	@python3 docs/generate_diagram.py --check

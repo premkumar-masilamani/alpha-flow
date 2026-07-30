@@ -83,20 +83,22 @@ public class IndicatorMapper {
             }
           }
           case RSI -> "RSI (" + params.getInt("period") + ")";
-          case MACD -> "MACD ("
-              + params.getInt("fast")
-              + ","
-              + params.getInt("slow")
-              + ","
-              + params.getInt("signal", 9)
-              + ")";
-          case STOCHASTIC -> "Stoch ("
-              + params.getInt("k")
-              + ","
-              + params.getInt("kSmooth")
-              + ","
-              + params.getInt("dSmooth")
-              + ")";
+          case MACD ->
+              "MACD ("
+                  + params.getInt("fast")
+                  + ","
+                  + params.getInt("slow")
+                  + ","
+                  + params.getInt("signal", 9)
+                  + ")";
+          case STOCHASTIC ->
+              "Stoch ("
+                  + params.getInt("k")
+                  + ","
+                  + params.getInt("kSmooth")
+                  + ","
+                  + params.getInt("dSmooth")
+                  + ")";
         };
 
     return source == PriceSource.CLOSE

@@ -4,8 +4,8 @@ AlphaFlow studies the flow of buying and selling to make better trading decision
 
 ## Pre-requisites
 
-- Java version 21
-- Node version 20
+- Java version 26
+- Node version 26
 
 ## Local Dev Setup.
 

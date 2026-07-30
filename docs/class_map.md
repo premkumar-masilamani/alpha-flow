@@ -12,7 +12,7 @@ This report was generated dynamically by parsing the backend codebase. It provid
 ```mermaid
 flowchart TD
     subgraph api ["API Layer"]
-        com_alphaflow_api_utils_APIUtil["APIUtil (class)"]
+        com_alphaflow_api_config_TimeframeConverter["TimeframeConverter (class)"]
         com_alphaflow_api_dtos_OhlcvDTO["OhlcvDTO (record)"]
         com_alphaflow_api_dtos_TickerDTO["TickerDTO (record)"]
         com_alphaflow_api_dtos_IndicatorSeriesDTO["IndicatorSeriesDTO (record)"]
@@ -22,9 +22,8 @@ flowchart TD
         com_alphaflow_api_mappers_IndicatorMapper["IndicatorMapper (class)"]
         com_alphaflow_api_mappers_OhlcvMapper["OhlcvMapper (class)"]
         com_alphaflow_api_mappers_TickerMapper["TickerMapper (class)"]
-        com_alphaflow_api_controllers_WeeklyPriceController["WeeklyPriceController (class)"]
         com_alphaflow_api_controllers_TickerController["TickerController (class)"]
-        com_alphaflow_api_controllers_DailyPriceController["DailyPriceController (class)"]
+        com_alphaflow_api_controllers_PriceController["PriceController (class)"]
         com_alphaflow_api_controllers_IndicatorController["IndicatorController (class)"]
         com_alphaflow_api_controllers_generic_GlobalExceptionHandler["GlobalExceptionHandler (class)"]
         com_alphaflow_api_controllers_generic_ApiController["ApiController (class)"]
@@ -60,7 +59,6 @@ flowchart TD
         com_alphaflow_persistence_enums_IndicatorParamKey["IndicatorParamKey (enum)"]
         com_alphaflow_persistence_enums_IndicatorType["IndicatorType (enum)"]
         com_alphaflow_persistence_enums_PriceSource["PriceSource (enum)"]
-        com_alphaflow_persistence_enums_Timeframe["Timeframe (enum)"]
         com_alphaflow_persistence_repositories_TickerRepository["TickerRepository (interface)"]
         com_alphaflow_persistence_repositories_WeeklyPriceRepository["WeeklyPriceRepository (interface)"]
         com_alphaflow_persistence_repositories_IndicatorDefinitionRepository["IndicatorDefinitionRepository (interface)"]
@@ -78,36 +76,38 @@ flowchart TD
     end
 
     com_alphaflow_AlphaFlowApp["AlphaFlowApp (Root)"]
+    com_alphaflow_common_enums_Timeframe["Timeframe (Root)"]
 
     %% Edges
-    com_alphaflow_api_controllers_DailyPriceController --> com_alphaflow_api_dtos_OhlcvDTO
-    com_alphaflow_api_controllers_DailyPriceController --> com_alphaflow_api_services_DailyPriceService
-    com_alphaflow_api_controllers_DailyPriceController --> com_alphaflow_persistence_entities_Ticker
-    com_alphaflow_api_controllers_DailyPriceController --> com_alphaflow_persistence_exceptions_ResourceNotFoundException
-    com_alphaflow_api_controllers_DailyPriceController --> com_alphaflow_persistence_repositories_TickerRepository
+    com_alphaflow_api_config_TimeframeConverter --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_api_dtos_IndicatorConfigDTO
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_api_dtos_IndicatorSeriesDTO
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_api_services_IndicatorService
-    com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_api_utils_APIUtil
+    com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_persistence_exceptions_ResourceNotFoundException
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_persistence_repositories_TickerRepository
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_dtos_OhlcvDTO
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_DailyPriceService
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_WeeklyPriceService
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_common_enums_Timeframe
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_persistence_exceptions_ResourceNotFoundException
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_persistence_repositories_TickerRepository
     com_alphaflow_api_controllers_TickerController --> com_alphaflow_api_dtos_TickerDTO
     com_alphaflow_api_controllers_TickerController --> com_alphaflow_api_services_TickerService
-    com_alphaflow_api_controllers_WeeklyPriceController --> com_alphaflow_api_dtos_OhlcvDTO
-    com_alphaflow_api_controllers_WeeklyPriceController --> com_alphaflow_api_services_WeeklyPriceService
     com_alphaflow_api_controllers_generic_GlobalExceptionHandler --> com_alphaflow_persistence_exceptions_ResourceNotFoundException
     com_alphaflow_api_dtos_IndicatorPointDTO --> com_alphaflow_persistence_enums_IndicatorOutputKey
     com_alphaflow_api_dtos_IndicatorSeriesDTO --> com_alphaflow_api_dtos_IndicatorPointDTO
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorConfigDTO
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorPointDTO
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorSeriesDTO
+    com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_engine_indicators_dtos_IndicatorParams
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_entities_Indicator
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_enums_IndicatorType
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_enums_PriceSource
-    com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_enums_Timeframe
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_api_dtos_OhlcvDTO
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_DailyPrice
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_WeeklyPrice
@@ -121,11 +121,11 @@ flowchart TD
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_api_dtos_IndicatorConfigDTO
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_api_dtos_IndicatorSeriesDTO
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_api_mappers_IndicatorMapper
+    com_alphaflow_api_services_IndicatorService --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_engine_configs_IndicatorConfig
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_entities_Indicator
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_entities_Ticker
-    com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_enums_Timeframe
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_DailyIndicatorRepository
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_DailyPriceRepository
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
@@ -142,7 +142,7 @@ flowchart TD
     com_alphaflow_api_services_WeeklyPriceService --> com_alphaflow_persistence_exceptions_ResourceNotFoundException
     com_alphaflow_api_services_WeeklyPriceService --> com_alphaflow_persistence_repositories_TickerRepository
     com_alphaflow_api_services_WeeklyPriceService --> com_alphaflow_persistence_repositories_WeeklyPriceRepository
-    com_alphaflow_api_utils_APIUtil --> com_alphaflow_persistence_enums_Timeframe
+    com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_engine_configs_IndicatorConfig
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_engine_indicators_Indicator
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_engine_indicators_dtos_IndicatorParams
@@ -152,7 +152,6 @@ flowchart TD
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_entities_WeeklyIndicator
-    com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_enums_Timeframe
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_repositories_DailyIndicatorRepository
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_repositories_DailyPriceRepository
     com_alphaflow_engine_calculators_IndicatorCalculator --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
@@ -165,8 +164,8 @@ flowchart TD
     com_alphaflow_engine_calculators_WeeklyPriceCalculator --> com_alphaflow_persistence_repositories_DailyPriceRepository
     com_alphaflow_engine_calculators_WeeklyPriceCalculator --> com_alphaflow_persistence_repositories_TickerRepository
     com_alphaflow_engine_calculators_WeeklyPriceCalculator --> com_alphaflow_persistence_repositories_WeeklyPriceRepository
+    com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_entities_IndicatorDefinition
-    com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_enums_Timeframe
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_configs_YahooFinanceConfig
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_YahooResponseParser
@@ -264,8 +263,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 58
+- **Total Classes**: 57
 - **Total Dependencies**: 178
-- **API Layer Classes**: 20
+- **API Layer Classes**: 19
 - **Engine Layer Classes**: 18
-- **Persistence Layer Classes**: 19
+- **Persistence Layer Classes**: 18

@@ -61,7 +61,7 @@ public class Ticker {
     private BigDecimal price;
 }
 
-// Java 21 Sequenced Collections over list.get(0)
+// Sequenced Collections over list.get(0)
 var first = list.getFirst();
 var last = list.getLast();
 
