@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -127,6 +127,7 @@ interface ChartProps {
     configs: IndicatorConfig[];
     symbol: string;
     timeframe: string;
+    patterns?: CandlestickPatternData[];
     onLoadOlderData: () => void;
 }
 
@@ -212,7 +213,9 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
     }
 };
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData}) => {
+const EMPTY_PATTERNS: CandlestickPatternData[] = [];
+
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, patterns = EMPTY_PATTERNS, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -276,6 +279,17 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             low: Number(d.low),
             close: Number(d.close),
         })));
+
+        if (patterns && patterns.length > 0) {
+            const markers = patterns.map((p) => ({
+                time: p.date as Time,
+                position: p.sentiment === 'BULL' ? 'belowBar' as const : 'aboveBar' as const,
+                color: p.sentiment === 'BULL' ? '#22c55e' : '#ef4444',
+                shape: p.sentiment === 'BULL' ? 'arrowUp' : 'arrowDown',
+                text: p.shortName,
+            }));
+            candlestickSeries.setMarkers(markers);
+        }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
             color: '#3b82f6',
@@ -464,7 +478,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, patterns, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

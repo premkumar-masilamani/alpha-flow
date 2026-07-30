@@ -2,6 +2,7 @@ package com.alphaflow.engine.schedulers;
 
 import static org.mockito.Mockito.*;
 
+import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
@@ -16,15 +17,18 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyPriceCalculator, indicatorCalculator);
+        new CoreScheduler(
+            downloader, weeklyPriceCalculator, indicatorCalculator, patternCalculator);
 
     scheduler.runScheduledUpdate();
 
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
+    verify(patternCalculator, times(1)).computePatterns();
   }
 
   @Test
@@ -32,11 +36,13 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
 
     doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadDailyPrices();
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyPriceCalculator, indicatorCalculator);
+        new CoreScheduler(
+            downloader, weeklyPriceCalculator, indicatorCalculator, patternCalculator);
 
     scheduler.runOnStartup();
 
@@ -44,6 +50,7 @@ class CoreSchedulerTest {
     // Subsequent steps skipped due to exception
     verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
     verify(indicatorCalculator, never()).computeIndicators();
+    verify(patternCalculator, never()).computePatterns();
   }
 
   @Test
@@ -51,6 +58,7 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
 
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
@@ -66,7 +74,8 @@ class CoreSchedulerTest {
         .downloadDailyPrices();
 
     CoreScheduler scheduler =
-        new CoreScheduler(downloader, weeklyPriceCalculator, indicatorCalculator);
+        new CoreScheduler(
+            downloader, weeklyPriceCalculator, indicatorCalculator, patternCalculator);
 
     // Start thread for first invocation
     Thread t = new Thread(scheduler::runScheduledUpdate);
@@ -86,5 +95,6 @@ class CoreSchedulerTest {
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
+    verify(patternCalculator, times(1)).computePatterns();
   }
 }

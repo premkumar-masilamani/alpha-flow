@@ -17,6 +17,8 @@ import {
   type Ticker,
   type Timeframe,
   type TechnicalAnalysisData,
+  getCandlestickPatterns,
+  type CandlestickPatternData,
 } from "./services/api";
 import {
   Loader2,
@@ -38,6 +40,8 @@ const pctChange = (change: number, base: number): number => {
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [showPatterns, setShowPatterns] = useState(false);
+  const [chartPatterns, setChartPatterns] = useState<CandlestickPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
@@ -221,6 +225,30 @@ function App() {
       active = false;
     };
   }, [selectedTicker, timeframe]);
+
+  // Fetch candlestick patterns when selectedTicker, timeframe, showPatterns, or page changes
+  useEffect(() => {
+    let active = true;
+    const fetchPatterns = async () => {
+      if (!selectedTicker || !showPatterns) {
+        setChartPatterns([]);
+        return;
+      }
+      try {
+        const size = (page + 1) * CHART_WINDOW;
+        const patterns = await getCandlestickPatterns(selectedTicker, timeframe, 0, size);
+        if (active) {
+          setChartPatterns(patterns);
+        }
+      } catch (error) {
+        console.error("Failed to fetch patterns:", error);
+      }
+    };
+    fetchPatterns();
+    return () => {
+      active = false;
+    };
+  }, [selectedTicker, timeframe, showPatterns, page]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -571,6 +599,18 @@ function App() {
                     enabled={enabledIndicators}
                     onToggle={toggleIndicator}
                   />
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-slate-400">
+                    <input
+                      type="checkbox"
+                      id="show-patterns"
+                      checked={showPatterns}
+                      onChange={(e) => setShowPatterns(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <label htmlFor="show-patterns" className="cursor-pointer select-none">
+                      Show Patterns
+                    </label>
+                  </div>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                     <button
                       onClick={() => setTimeframe("DAILY")}
@@ -605,6 +645,7 @@ function App() {
                   configs={indicatorConfigs}
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
+                  patterns={chartPatterns}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (

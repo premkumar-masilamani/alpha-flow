@@ -1,5 +1,6 @@
 package com.alphaflow.engine.schedulers;
 
+import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
@@ -14,9 +15,8 @@ import org.springframework.stereotype.Component;
 /**
  * CoreScheduler for periodic data updates.
  *
- * <p>This component automates the download of daily price data and the
- *
- * <p>aggregation of weekly price data on a regular basis.
+ * <p>This component automates the download of daily price data, the aggregation of weekly price
+ * data, technical indicators, and candlestick patterns.
  */
 @Component
 @Slf4j
@@ -25,6 +25,7 @@ public class CoreScheduler {
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
   private final IndicatorCalculator indicatorCalculator;
+  private final CandlestickPatternCalculator candlestickPatternCalculator;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   /**
@@ -33,14 +34,17 @@ public class CoreScheduler {
    * @param yahooFinanceDownloader the Yahoo Finance downloader
    * @param weeklyPriceCalculator the weekly price calculator
    * @param indicatorCalculator the indicator calculator
+   * @param candlestickPatternCalculator the candlestick pattern calculator
    */
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
-      IndicatorCalculator indicatorCalculator) {
+      IndicatorCalculator indicatorCalculator,
+      CandlestickPatternCalculator candlestickPatternCalculator) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.indicatorCalculator = indicatorCalculator;
+    this.candlestickPatternCalculator = candlestickPatternCalculator;
   }
 
   /** Runs the data update pipeline every hour on the hour. */
@@ -70,20 +74,25 @@ public class CoreScheduler {
 
     long cycleStart = System.currentTimeMillis();
     try {
-      log.info("Step 1/3: Downloading Yahoo Finance daily data...");
+      log.info("Step 1/4: Downloading Yahoo Finance daily data...");
       long start = System.currentTimeMillis();
       yahooFinanceDownloader.downloadDailyPrices();
-      log.info("Step 1/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 1/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 2/3: Computing weekly candles...");
+      log.info("Step 2/4: Computing weekly candles...");
       start = System.currentTimeMillis();
       weeklyPriceCalculator.computeWeeklyPrices();
-      log.info("Step 2/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 2/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 3/3: Computing indicators...");
+      log.info("Step 3/4: Computing indicators...");
       start = System.currentTimeMillis();
       indicatorCalculator.computeIndicators();
-      log.info("Step 3/3 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 3/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+      log.info("Step 4/4: Computing candlestick patterns...");
+      start = System.currentTimeMillis();
+      candlestickPatternCalculator.computePatterns();
+      log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(
           "Scheduled data update cycle completed successfully in {}.",

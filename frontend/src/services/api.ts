@@ -165,3 +165,21 @@ export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAna
         weeklyIndicators: weeklyInds
     };
 };
+
+export interface CandlestickPatternData {
+    date: string;
+    shortName: string;
+    longName: string;
+    sentiment: 'BULL' | 'BEAR';
+}
+
+export const getCandlestickPatterns = async (
+    symbol: string,
+    timeframe: Timeframe = 'DAILY',
+    page: number = 0,
+    size: number = CHART_WINDOW
+): Promise<CandlestickPatternData[]> => {
+    const url = `${API_BASE_URL}/tickers/${symbol}/patterns`;
+    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
+    return response.data;
+};
