@@ -83,6 +83,7 @@ public class IndicatorMapper {
             }
           }
           case RSI -> "RSI (" + params.getInt("period") + ")";
+          case VWBB -> "VWBB (" + params.getInt("period") + ")";
           case MACD ->
               "MACD ("
                   + params.getInt("fast")

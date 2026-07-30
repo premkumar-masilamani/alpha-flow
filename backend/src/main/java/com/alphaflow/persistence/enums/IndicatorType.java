@@ -11,4 +11,5 @@ public enum IndicatorType {
   RSI,
   MACD,
   STOCHASTIC,
+  VWBB,
 }

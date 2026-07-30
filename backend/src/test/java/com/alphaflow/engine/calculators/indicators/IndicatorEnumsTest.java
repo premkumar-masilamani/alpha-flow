@@ -27,5 +27,8 @@ class IndicatorEnumsTest {
     assertEquals("histogram", IndicatorOutputKey.HISTOGRAM.getValue());
     assertEquals("k", IndicatorOutputKey.K.getValue());
     assertEquals("d", IndicatorOutputKey.D.getValue());
+    assertEquals("upper", IndicatorOutputKey.UPPER.getValue());
+    assertEquals("middle", IndicatorOutputKey.MIDDLE.getValue());
+    assertEquals("lower", IndicatorOutputKey.LOWER.getValue());
   }
 }

@@ -65,6 +65,12 @@ class IndicatorMapperTest {
             IndicatorType.STOCHASTIC,
             PriceSource.CLOSE,
             IndicatorParams.of(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))));
+
+    // VWBB
+    assertEquals(
+        "VWBB (20)",
+        IndicatorMapper.label(
+            IndicatorType.VWBB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
   }
 
   @Test

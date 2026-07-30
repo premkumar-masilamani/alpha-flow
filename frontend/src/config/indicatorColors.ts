@@ -38,5 +38,12 @@ export const INDICATOR_COLORS: IndicatorColorsConfig = {
             k: '#3b82f6', // Blue
             d: '#f97316'  // Orange
         }
+    },
+    VWBB: {
+        byOutput: {
+            upper: '#ef4444',  // Red
+            middle: '#3b82f6', // Blue
+            lower: '#22c55e'   // Green
+        }
     }
 };

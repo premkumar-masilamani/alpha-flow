@@ -60,3 +60,7 @@ export const ExampleComponent = () => {
 ## Testing
 - **Framework**: Vitest / React Testing Library.
 - **Conventions**: Ensure chart components properly mock canvas APIs if they use `lightweight-charts`.
+
+## Chart Rendering & Indicators
+- **Lightweight-Charts Multi-Line Overlays**: When plotting technical indicators with multiple line outputs (like Bollinger Bands) as overlays on the main price chart, returning multiple output definitions (e.g. `upper`, `middle`, `lower` from `outputsFor()`) automatically loops over them and draws multiple line series that align perfectly on the same scale.
+- **Color Palettes & Styling**: Always configure consistent visual styling and lookup rules under `indicatorColors.ts` mapped by output key so line colors remain distinct, stable, and decoupled from the canvas drawing scripts. Use custom or standard palettes (e.g. Red for upper, Blue for middle, Green for lower) for Bollinger Bands to provide strong visual contrast.

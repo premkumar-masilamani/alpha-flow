@@ -157,6 +157,12 @@ const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; s
                 {name: 'signal', style: 'line', suffix: ' Signal'},
                 {name: 'histogram', style: 'histogram', suffix: ' Hist'},
             ];
+        case 'VWBB':
+            return [
+                {name: 'upper', style: 'line', suffix: ' Upper'},
+                {name: 'middle', style: 'line', suffix: ' Middle'},
+                {name: 'lower', style: 'line', suffix: ' Lower'},
+            ];
         default:
             return [{name: 'value', style: 'line', suffix: ''}];
     }
@@ -188,6 +194,15 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
             const sVal = sigPoints[sigPoints.length - 1]?.value;
             const hVal = histPoints[histPoints.length - 1]?.value;
             return `MACD: ${mVal !== undefined ? mVal.toFixed(2) : 'N/A'}, Signal: ${sVal !== undefined ? sVal.toFixed(2) : 'N/A'}, Hist: ${hVal !== undefined ? hVal.toFixed(2) : 'N/A'}`;
+        }
+        case 'VWBB': {
+            const upperPoints = lineData(series, 'upper');
+            const middlePoints = lineData(series, 'middle');
+            const lowerPoints = lineData(series, 'lower');
+            const uVal = upperPoints[upperPoints.length - 1]?.value;
+            const mVal = middlePoints[middlePoints.length - 1]?.value;
+            const lVal = lowerPoints[lowerPoints.length - 1]?.value;
+            return `Upper: ${uVal !== undefined ? uVal.toFixed(2) : 'N/A'}, Mid: ${mVal !== undefined ? mVal.toFixed(2) : 'N/A'}, Lower: ${lVal !== undefined ? lVal.toFixed(2) : 'N/A'}`;
         }
         default: {
             const valPoints = lineData(series, 'value');
