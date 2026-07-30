@@ -41,9 +41,9 @@ export const INDICATOR_COLORS: IndicatorColorsConfig = {
     },
     VWBB: {
         byOutput: {
-            upper: '#ec4899',  // Pink
-            middle: '#3b82f6', // Blue
-            lower: '#ec4899'   // Pink
+            upper: '#2962FF',  // TradingView Blue
+            middle: '#FF6D00', // TradingView Orange
+            lower: '#2962FF'   // TradingView Blue
         }
     }
 };
