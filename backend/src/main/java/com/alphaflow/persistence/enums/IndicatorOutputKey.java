@@ -13,7 +13,10 @@ public enum IndicatorOutputKey {
   SIGNAL("signal"),
   HISTOGRAM("histogram"),
   K("k"),
-  D("d");
+  D("d"),
+  UPPER("upper"),
+  MIDDLE("middle"),
+  LOWER("lower");
 
   private final String value;
 
