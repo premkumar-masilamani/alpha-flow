@@ -17,6 +17,7 @@ class IndicatorEnumsTest {
     assertEquals("k", IndicatorParamKey.K.getValue());
     assertEquals("kSmooth", IndicatorParamKey.K_SMOOTH.getValue());
     assertEquals("dSmooth", IndicatorParamKey.D_SMOOTH.getValue());
+    assertEquals("stdDev", IndicatorParamKey.STD_DEV.getValue());
   }
 
   @Test
@@ -30,5 +31,6 @@ class IndicatorEnumsTest {
     assertEquals("upper", IndicatorOutputKey.UPPER.getValue());
     assertEquals("middle", IndicatorOutputKey.MIDDLE.getValue());
     assertEquals("lower", IndicatorOutputKey.LOWER.getValue());
+    assertEquals("bandwidth", IndicatorOutputKey.BANDWIDTH.getValue());
   }
 }

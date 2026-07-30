@@ -14,7 +14,8 @@ public enum IndicatorParamKey {
   SIGNAL("signal"),
   K("k"),
   K_SMOOTH("kSmooth"),
-  D_SMOOTH("dSmooth");
+  D_SMOOTH("dSmooth"),
+  STD_DEV("stdDev");
 
   private final String value;
 

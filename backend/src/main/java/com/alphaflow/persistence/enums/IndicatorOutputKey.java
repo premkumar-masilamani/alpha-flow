@@ -16,7 +16,8 @@ public enum IndicatorOutputKey {
   D("d"),
   UPPER("upper"),
   MIDDLE("middle"),
-  LOWER("lower");
+  LOWER("lower"),
+  BANDWIDTH("bandwidth");
 
   private final String value;
 
