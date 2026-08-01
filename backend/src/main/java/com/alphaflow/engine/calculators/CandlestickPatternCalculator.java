@@ -226,18 +226,24 @@ public class CandlestickPatternCalculator {
     boolean curRed = isRed(cur);
 
     switch (pattern) {
+      // Bullish Marubozu: A long green body with little to no upper and lower shadows, showing
+      // strong buying pressure.
       case BULLISH_MARUBOZU:
         return curGreen
             && curBody.compareTo(avgBody.multiply(THRESHOLD_LARGE, MC)) >= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
 
+      // Bearish Marubozu: A long red body with little to no upper and lower shadows, showing strong
+      // selling pressure.
       case BEARISH_MARUBOZU:
         return curRed
             && curBody.compareTo(avgBody.multiply(THRESHOLD_LARGE, MC)) >= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
 
+      // Bullish Engulfing: A two-candle pattern where a small red candle is fully engulfed by a
+      // subsequent larger green candle.
       case BULLISH_ENGULFING:
         {
           PriceBar prev = bars.get(i - 1);
@@ -248,6 +254,8 @@ public class CandlestickPatternCalculator {
               && (cur.open().compareTo(prev.close()) < 0 || cur.close().compareTo(prev.open()) > 0);
         }
 
+      // Bearish Engulfing: A two-candle pattern where a small green candle is fully engulfed by a
+      // subsequent larger red candle.
       case BEARISH_ENGULFING:
         {
           PriceBar prev = bars.get(i - 1);
@@ -258,6 +266,8 @@ public class CandlestickPatternCalculator {
               && (cur.open().compareTo(prev.close()) > 0 || cur.close().compareTo(prev.open()) < 0);
         }
 
+      // Bullish Piercing (Piercing Line): A two-candle reversal pattern where a green candle opens
+      // below the previous red candle's close and closes more than halfway up its body.
       case BULLISH_PIERCING:
         {
           PriceBar prev = bars.get(i - 1);
@@ -270,6 +280,8 @@ public class CandlestickPatternCalculator {
               && cur.close().compareTo(prev.open()) <= 0;
         }
 
+      // Bearish Piercing (Dark Cloud Cover): A two-candle reversal pattern where a red candle opens
+      // above the previous green candle's close and closes more than halfway down its body.
       case BEARISH_PIERCING:
         {
           PriceBar prev = bars.get(i - 1);
@@ -282,18 +294,24 @@ public class CandlestickPatternCalculator {
               && cur.close().compareTo(prev.open()) >= 0;
         }
 
+      // Hammer: A single-candle bullish reversal pattern with a small body and a long lower shadow
+      // (>= 2x body), occurring in a downtrend (below 20 SMA).
       case HAMMER:
         return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
             && cur.close().compareTo(sma20) < 0;
 
+      // Inverted Hammer: A single-candle bullish reversal pattern with a small body and a long
+      // upper shadow (>= 2x body), occurring in a downtrend (below 20 SMA).
       case INVERTED_HAMMER:
         return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
             && cur.close().compareTo(sma20) < 0;
 
+      // Hanging Man: A bearish reversal pattern featuring a hammer-like candle followed by a
+      // confirmation red candle, occurring in an uptrend (above 20 SMA).
       case HANGING_MAN:
         {
           PriceBar prev = bars.get(i - 1);
@@ -305,6 +323,9 @@ public class CandlestickPatternCalculator {
           return prevHangingMan && curRed;
         }
 
+      // Morning Star: A three-candle bullish reversal pattern consisting of a long red candle, a
+      // gapping down star (small body), and a green candle closing more than halfway up the first
+      // candle's body.
       case MORNING_STAR:
         {
           PriceBar first = bars.get(i - 2);
@@ -328,6 +349,9 @@ public class CandlestickPatternCalculator {
               && first.close().compareTo(sma20) < 0;
         }
 
+      // Evening Star: A three-candle bearish reversal pattern consisting of a long green candle, a
+      // gapping up star (small body), and a red candle closing more than halfway down the first
+      // candle's body.
       case EVENING_STAR:
         {
           PriceBar first = bars.get(i - 2);
