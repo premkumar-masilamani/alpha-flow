@@ -17,7 +17,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -36,8 +37,13 @@ public class CandlestickPatternCalculator {
   private static final MathContext MC = new MathContext(18, RoundingMode.HALF_UP);
   private static final BigDecimal THRESHOLD_LARGE = new BigDecimal("1.5");
   private static final BigDecimal THRESHOLD_SMALL = new BigDecimal("0.3");
+  private static final BigDecimal THRESHOLD_STAR = new BigDecimal("0.7");
   private static final BigDecimal RATIO_HAMMER_SHADOW = new BigDecimal("2.0");
   private static final BigDecimal RATIO_HAMMER_UPPER = new BigDecimal("0.1");
+  private static final BigDecimal TWO = new BigDecimal("2");
+  private static final int BODY_MA_PERIOD = 14;
+  private static final int SMA_PERIOD = 20;
+  private static final int MIN_BARS = 3;
 
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
@@ -104,87 +110,94 @@ public class CandlestickPatternCalculator {
   private record PatternMatch(LocalDate date, CandlestickPattern pattern) {}
 
   private void computeDailyPatternsForTicker(Ticker ticker) {
-    List<PriceBar> bars = loadDailyBars(ticker);
-    if (bars.size() < 3) {
-      log.debug(
-          "Ticker {}: Insufficient daily data points (found {}) to compute patterns.",
-          ticker.getTickerSymbol(),
-          bars.size());
-      return;
-    }
-
-    Optional<DailyCandlestickPattern> lastPattern =
-        dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker);
-    LocalDate lastComputedDate =
-        lastPattern.map(DailyCandlestickPattern::getPriceDate).orElse(null);
-
-    List<PatternMatch> matches = findMatches(bars, lastComputedDate);
-
-    if (!matches.isEmpty()) {
-      List<DailyCandlestickPattern> newPatterns =
-          matches.stream()
-              .map(
-                  m ->
-                      DailyCandlestickPattern.builder()
-                          .ticker(ticker)
-                          .priceDate(m.date())
-                          .pattern(m.pattern())
-                          .sentiment(m.pattern().getSentiment())
-                          .build())
-              .toList();
-      dailyCandlestickPatternRepository.saveAll(newPatterns);
-      log.info(
-          "Ticker {}: Saved {} new daily candlestick patterns.",
-          ticker.getTickerSymbol(),
-          newPatterns.size());
-    }
+    computeAndSavePatterns(
+        ticker,
+        "daily",
+        loadDailyBars(ticker),
+        dailyCandlestickPatternRepository
+            .findFirstByTickerOrderByPriceDateDesc(ticker)
+            .map(DailyCandlestickPattern::getPriceDate)
+            .orElse(null),
+        (date, pattern) ->
+            DailyCandlestickPattern.builder()
+                .ticker(ticker)
+                .priceDate(date)
+                .pattern(pattern)
+                .sentiment(pattern.getSentiment())
+                .build(),
+        dailyCandlestickPatternRepository::saveAll);
   }
 
   private void computeWeeklyPatternsForTicker(Ticker ticker) {
-    List<PriceBar> bars = loadWeeklyBars(ticker);
-    if (bars.size() < 3) {
+    computeAndSavePatterns(
+        ticker,
+        "weekly",
+        loadWeeklyBars(ticker),
+        weeklyCandlestickPatternRepository
+            .findFirstByTickerOrderByPriceDateDesc(ticker)
+            .map(WeeklyCandlestickPattern::getPriceDate)
+            .orElse(null),
+        (date, pattern) ->
+            WeeklyCandlestickPattern.builder()
+                .ticker(ticker)
+                .priceDate(date)
+                .pattern(pattern)
+                .sentiment(pattern.getSentiment())
+                .build(),
+        weeklyCandlestickPatternRepository::saveAll);
+  }
+
+  /**
+   * Computes candlestick pattern matches for a timeframe and persists any new occurrences. Shared by
+   * the daily and weekly paths, which differ only in their entity type and repository.
+   *
+   * @param ticker the ticker being processed
+   * @param timeframe human-readable timeframe label used in logging
+   * @param bars the ordered price bars for the timeframe
+   * @param lastComputedDate the most recent date already persisted, or {@code null} if none
+   * @param factory builds a persistence entity from a matched date and pattern
+   * @param saver persists the built entities
+   * @param <T> the candlestick pattern entity type
+   */
+  private <T> void computeAndSavePatterns(
+      Ticker ticker,
+      String timeframe,
+      List<PriceBar> bars,
+      LocalDate lastComputedDate,
+      BiFunction<LocalDate, CandlestickPattern, T> factory,
+      Consumer<List<T>> saver) {
+    if (bars.size() < MIN_BARS) {
       log.debug(
-          "Ticker {}: Insufficient weekly data points (found {}) to compute patterns.",
+          "Ticker {}: Insufficient {} data points (found {}) to compute patterns.",
           ticker.getTickerSymbol(),
+          timeframe,
           bars.size());
       return;
     }
 
-    Optional<WeeklyCandlestickPattern> lastPattern =
-        weeklyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker);
-    LocalDate lastComputedDate =
-        lastPattern.map(WeeklyCandlestickPattern::getPriceDate).orElse(null);
-
     List<PatternMatch> matches = findMatches(bars, lastComputedDate);
-
-    if (!matches.isEmpty()) {
-      List<WeeklyCandlestickPattern> newPatterns =
-          matches.stream()
-              .map(
-                  m ->
-                      WeeklyCandlestickPattern.builder()
-                          .ticker(ticker)
-                          .priceDate(m.date())
-                          .pattern(m.pattern())
-                          .sentiment(m.pattern().getSentiment())
-                          .build())
-              .toList();
-      weeklyCandlestickPatternRepository.saveAll(newPatterns);
-      log.info(
-          "Ticker {}: Saved {} new weekly candlestick patterns.",
-          ticker.getTickerSymbol(),
-          newPatterns.size());
+    if (matches.isEmpty()) {
+      return;
     }
+
+    List<T> newPatterns =
+        matches.stream().map(m -> factory.apply(m.date(), m.pattern())).toList();
+    saver.accept(newPatterns);
+    log.info(
+        "Ticker {}: Saved {} new {} candlestick patterns.",
+        ticker.getTickerSymbol(),
+        newPatterns.size(),
+        timeframe);
   }
 
   private List<PatternMatch> findMatches(List<PriceBar> bars, LocalDate lastComputedDate) {
     List<PatternMatch> matches = new ArrayList<>();
     List<BigDecimal> bodies = computeAbsoluteBodies(bars);
-    List<BigDecimal> avgBodies = computeMovingAverages(bodies, 14);
+    List<BigDecimal> avgBodies = computeMovingAverages(bodies, BODY_MA_PERIOD);
     List<BigDecimal> sma20List =
-        computeMovingAverages(bars.stream().map(PriceBar::close).toList(), 20);
+        computeMovingAverages(bars.stream().map(PriceBar::close).toList(), SMA_PERIOD);
 
-    for (int i = 2; i < bars.size(); i++) {
+    for (int i = MIN_BARS - 1; i < bars.size(); i++) {
       PriceBar bar = bars.get(i);
       LocalDate date = bar.date();
 
@@ -274,7 +287,7 @@ public class CandlestickPatternCalculator {
           if (!isRed(prev) || !curGreen || body(prev).compareTo(avgBody) < 0) {
             return false;
           }
-          BigDecimal prevMidpoint = prev.close().add(prev.open()).divide(new BigDecimal("2"), MC);
+          BigDecimal prevMidpoint = prev.close().add(prev.open()).divide(TWO, MC);
           return cur.open().compareTo(prev.close()) < 0
               && cur.close().compareTo(prevMidpoint) > 0
               && cur.close().compareTo(prev.open()) <= 0;
@@ -288,7 +301,7 @@ public class CandlestickPatternCalculator {
           if (!isGreen(prev) || !curRed || body(prev).compareTo(avgBody) < 0) {
             return false;
           }
-          BigDecimal prevMidpoint = prev.close().add(prev.open()).divide(new BigDecimal("2"), MC);
+          BigDecimal prevMidpoint = prev.close().add(prev.open()).divide(TWO, MC);
           return cur.open().compareTo(prev.close()) > 0
               && cur.close().compareTo(prevMidpoint) < 0
               && cur.close().compareTo(prev.open()) >= 0;
@@ -331,7 +344,7 @@ public class CandlestickPatternCalculator {
           PriceBar first = bars.get(i - 2);
           PriceBar star = bars.get(i - 1);
           if (!isRed(first)
-              || body(first).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) < 0) {
+              || body(first).compareTo(avgBody.multiply(THRESHOLD_STAR, MC)) < 0) {
             return false;
           }
           if (body(star).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
@@ -341,10 +354,10 @@ public class CandlestickPatternCalculator {
           boolean gapDown = starMax.compareTo(first.close()) < 0;
 
           BigDecimal firstMidpoint =
-              first.close().add(first.open()).divide(new BigDecimal("2"), MC);
+              first.close().add(first.open()).divide(TWO, MC);
           return gapDown
               && curGreen
-              && body(cur).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) >= 0
+              && body(cur).compareTo(avgBody.multiply(THRESHOLD_STAR, MC)) >= 0
               && cur.close().compareTo(firstMidpoint) > 0
               && first.close().compareTo(sma20) < 0;
         }
@@ -357,7 +370,7 @@ public class CandlestickPatternCalculator {
           PriceBar first = bars.get(i - 2);
           PriceBar star = bars.get(i - 1);
           if (!isGreen(first)
-              || body(first).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) < 0) {
+              || body(first).compareTo(avgBody.multiply(THRESHOLD_STAR, MC)) < 0) {
             return false;
           }
           if (body(star).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
@@ -367,10 +380,10 @@ public class CandlestickPatternCalculator {
           boolean gapUp = starMin.compareTo(first.close()) > 0;
 
           BigDecimal firstMidpoint =
-              first.close().add(first.open()).divide(new BigDecimal("2"), MC);
+              first.close().add(first.open()).divide(TWO, MC);
           return gapUp
               && curRed
-              && body(cur).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) >= 0
+              && body(cur).compareTo(avgBody.multiply(THRESHOLD_STAR, MC)) >= 0
               && cur.close().compareTo(firstMidpoint) < 0
               && first.close().compareTo(sma20) > 0;
         }
