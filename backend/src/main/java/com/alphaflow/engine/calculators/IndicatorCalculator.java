@@ -91,10 +91,10 @@ public class IndicatorCalculator {
     int weeklySaved = 0;
 
     for (Timeframe timeframe : Timeframe.values()) {
-      List<PriceBar> bars;
+      List<PriceBar> bars = List.of();
       if (timeframe == Timeframe.DAILY) {
         bars = loadDailyBars(ticker);
-      } else {
+      } else if (timeframe == Timeframe.WEEKLY) {
         bars = loadWeeklyBars(ticker);
       }
       if (bars.isEmpty()) {
