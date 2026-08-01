@@ -18,20 +18,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api")
 @Slf4j
-public class PatternController {
+public class CandlestickPatternController {
 
-  private final CandlestickPatternService patternService;
+  private final CandlestickPatternService candlestickPatternService;
   private final TickerRepository tickerRepository;
 
-  public PatternController(
-      CandlestickPatternService patternService, TickerRepository tickerRepository) {
-    this.patternService = patternService;
+  public CandlestickPatternController(
+      CandlestickPatternService candlestickPatternService, TickerRepository tickerRepository) {
+    this.candlestickPatternService = candlestickPatternService;
     this.tickerRepository = tickerRepository;
   }
 
   /** Endpoint to retrieve candlestick patterns for a specific ticker and timeframe. */
-  @GetMapping("/tickers/{symbol}/patterns")
-  public List<CandlestickPatternDTO> getPatterns(
+  @GetMapping("/tickers/{symbol}/candlestick-patterns")
+  public List<CandlestickPatternDTO> getCandlestickPatterns(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
@@ -50,6 +50,6 @@ public class PatternController {
             .findByTickerSymbolIgnoreCase(symbol)
             .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
-    return patternService.getPatterns(ticker, timeframe, page, finalSize);
+    return candlestickPatternService.getPatterns(ticker, timeframe, page, finalSize);
   }
 }

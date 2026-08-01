@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, PATTERN_MODES, type PatternMode, SENTIMENT_TYPES} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, SENTIMENT_TYPES} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -127,8 +127,8 @@ interface ChartProps {
     configs: IndicatorConfig[];
     symbol: string;
     timeframe: string;
-    patterns?: CandlestickPatternData[];
-    patternMode?: PatternMode;
+    candlestickPatterns?: CandlestickPatternData[];
+    candlestickPatternMode?: CandlestickPatternMode;
     onLoadOlderData: () => void;
 }
 
@@ -224,9 +224,9 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
     }
 };
 
-const EMPTY_PATTERNS: CandlestickPatternData[] = [];
+const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, patterns = EMPTY_PATTERNS, patternMode = PATTERN_MODES.NONE, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, candlestickPatternMode = CANDLESTICK_PATTERN_MODES.NONE, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -291,26 +291,26 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             close: Number(d.close),
         })));
 
-        let visiblePatterns = patterns;
-        if (patternMode === PATTERN_MODES.RECENT) {
+        let visibleCandlestickPatterns = candlestickPatterns;
+        if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT) {
             const recentDates = new Set(sortedData.slice(-14).map((d) => d.date));
-            visiblePatterns = patterns.filter((p) => recentDates.has(p.date));
-        } else if (patternMode === PATTERN_MODES.NONE) {
-            visiblePatterns = [];
+            visibleCandlestickPatterns = candlestickPatterns.filter((p) => recentDates.has(p.date));
+        } else if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
+            visibleCandlestickPatterns = [];
         }
 
-        // Deduplicate patterns by date to prevent duplicate time assertions in lightweight-charts
-        const uniquePatternsMap = new Map<string, CandlestickPatternData>();
-        const safePatterns = Array.isArray(visiblePatterns) ? visiblePatterns : [];
-        for (const p of safePatterns) {
-            if (p && p.date && !uniquePatternsMap.has(p.date)) {
-                uniquePatternsMap.set(p.date, p);
+        // Deduplicate candlestick patterns by date to prevent duplicate time assertions in lightweight-charts
+        const uniqueCandlestickPatternsMap = new Map<string, CandlestickPatternData>();
+        const safeCandlestickPatterns = Array.isArray(visibleCandlestickPatterns) ? visibleCandlestickPatterns : [];
+        for (const p of safeCandlestickPatterns) {
+            if (p && p.date && !uniqueCandlestickPatternsMap.has(p.date)) {
+                uniqueCandlestickPatternsMap.set(p.date, p);
             }
         }
-        const deduplicatedPatterns = Array.from(uniquePatternsMap.values());
+        const deduplicatedCandlestickPatterns = Array.from(uniqueCandlestickPatternsMap.values());
 
-        if (deduplicatedPatterns.length > 0) {
-            const markers = deduplicatedPatterns.map((p) => ({
+        if (deduplicatedCandlestickPatterns.length > 0) {
+            const markers = deduplicatedCandlestickPatterns.map((p) => ({
                 time: p.date as Time,
                 position: p.sentiment === SENTIMENT_TYPES.BULL ? 'belowBar' as const : 'aboveBar' as const,
                 color: p.sentiment === SENTIMENT_TYPES.BULL ? '#22c55e' : '#ef4444',
@@ -518,7 +518,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, patterns, patternMode, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, candlestickPatternMode, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

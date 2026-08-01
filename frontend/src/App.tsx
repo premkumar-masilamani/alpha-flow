@@ -20,8 +20,8 @@ import {
   getCandlestickPatterns,
   type CandlestickPatternData,
   CHART_WINDOW,
-  PATTERN_MODES,
-  type PatternMode,
+  CANDLESTICK_PATTERN_MODES,
+  type CandlestickPatternMode,
 } from "./services/api";
 import {
   Loader2,
@@ -53,8 +53,8 @@ const INDICATOR_ORDER = [
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [patternMode, setPatternMode] = useState<PatternMode>(PATTERN_MODES.RECENT);
-  const [chartPatterns, setChartPatterns] = useState<CandlestickPatternData[]>([]);
+  const [candlestickPatternMode, setCandlestickPatternMode] = useState<CandlestickPatternMode>(CANDLESTICK_PATTERN_MODES.RECENT);
+  const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
@@ -239,29 +239,29 @@ function App() {
     };
   }, [selectedTicker, timeframe]);
 
-  // Fetch candlestick patterns when selectedTicker, timeframe, patternMode, or page changes
+  // Fetch candlestick patterns when selectedTicker, timeframe, candlestickPatternMode, or page changes
   useEffect(() => {
     let active = true;
-    const fetchPatterns = async () => {
-      if (!selectedTicker || patternMode === PATTERN_MODES.NONE) {
-        setChartPatterns([]);
+    const fetchCandlestickPatterns = async () => {
+      if (!selectedTicker || candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
+        setCandlestickPatterns([]);
         return;
       }
       try {
         const size = (page + 1) * CHART_WINDOW;
         const patterns = await getCandlestickPatterns(selectedTicker, timeframe, 0, size);
         if (active) {
-          setChartPatterns(patterns);
+          setCandlestickPatterns(patterns);
         }
       } catch (error) {
-        console.error("Failed to fetch patterns:", error);
+        console.error("Failed to fetch candlestick patterns:", error);
       }
     };
-    fetchPatterns();
+    fetchCandlestickPatterns();
     return () => {
       active = false;
     };
-  }, [selectedTicker, timeframe, patternMode, page]);
+  }, [selectedTicker, timeframe, candlestickPatternMode, page]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -629,12 +629,12 @@ function App() {
                   />
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
                     <span className="px-2 text-xs font-bold text-slate-400 select-none">
-                      Patterns
+                      Candlestick Patterns
                     </span>
                     <button
-                      onClick={() => setPatternMode(PATTERN_MODES.NONE)}
+                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.NONE)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        patternMode === PATTERN_MODES.NONE
+                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE
                           ? "bg-slate-800 text-slate-200"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
@@ -642,9 +642,9 @@ function App() {
                       None
                     </button>
                     <button
-                      onClick={() => setPatternMode(PATTERN_MODES.RECENT)}
+                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.RECENT)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        patternMode === PATTERN_MODES.RECENT
+                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT
                           ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
@@ -652,9 +652,9 @@ function App() {
                       Recent
                     </button>
                     <button
-                      onClick={() => setPatternMode(PATTERN_MODES.ALL)}
+                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.ALL)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        patternMode === PATTERN_MODES.ALL
+                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.ALL
                           ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
@@ -696,8 +696,8 @@ function App() {
                   configs={indicatorConfigs}
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
-                  patterns={chartPatterns}
-                  patternMode={patternMode}
+                  candlestickPatterns={candlestickPatterns}
+                  candlestickPatternMode={candlestickPatternMode}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (

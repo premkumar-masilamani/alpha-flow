@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
 import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../services/api';
-import { PATTERN_MODES, SENTIMENT_TYPES } from '../services/api';
+import { CANDLESTICK_PATTERN_MODES, SENTIMENT_TYPES } from '../services/api';
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => import('../__mocks__/lightweight-charts'));
@@ -173,7 +173,7 @@ describe('Chart Component', () => {
         expect(onLoadOlderDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('sets markers on candlestick series depending on patternMode', () => {
+    it('sets markers on candlestick series depending on candlestickPatternMode', () => {
         const mockPatterns = [
             { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
             { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
@@ -188,8 +188,8 @@ describe('Chart Component', () => {
                 configs={mockConfigs}
                 symbol="AAPL"
                 timeframe="DAILY"
-                patterns={mockPatterns}
-                patternMode={PATTERN_MODES.ALL}
+                candlestickPatterns={mockPatterns}
+                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.ALL}
                 onLoadOlderData={vi.fn()}
             />
         );
@@ -223,8 +223,8 @@ describe('Chart Component', () => {
                 configs={mockConfigs}
                 symbol="AAPL"
                 timeframe="DAILY"
-                patterns={mockPatterns}
-                patternMode={PATTERN_MODES.RECENT}
+                candlestickPatterns={mockPatterns}
+                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.RECENT}
                 onLoadOlderData={vi.fn()}
             />
         );
@@ -254,8 +254,8 @@ describe('Chart Component', () => {
                 configs={mockConfigs}
                 symbol="AAPL"
                 timeframe="DAILY"
-                patterns={duplicateMockPatterns}
-                patternMode={PATTERN_MODES.ALL}
+                candlestickPatterns={duplicateMockPatterns}
+                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.ALL}
                 onLoadOlderData={vi.fn()}
             />
         );

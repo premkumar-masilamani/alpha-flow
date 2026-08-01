@@ -166,13 +166,13 @@ export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAna
     };
 };
 
-export const PATTERN_MODES = {
+export const CANDLESTICK_PATTERN_MODES = {
     NONE: 'none',
     RECENT: 'recent',
     ALL: 'all',
 } as const;
 
-export type PatternMode = typeof PATTERN_MODES[keyof typeof PATTERN_MODES];
+export type CandlestickPatternMode = typeof CANDLESTICK_PATTERN_MODES[keyof typeof CANDLESTICK_PATTERN_MODES];
 
 export const SENTIMENT_TYPES = {
     BULL: 'BULL',
@@ -194,7 +194,7 @@ export const getCandlestickPatterns = async (
     page: number = 0,
     size: number = CHART_WINDOW
 ): Promise<CandlestickPatternData[]> => {
-    const url = `${API_BASE_URL}/tickers/${symbol}/patterns`;
+    const url = `${API_BASE_URL}/tickers/${symbol}/candlestick-patterns`;
     const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
     return response.data;
 };
