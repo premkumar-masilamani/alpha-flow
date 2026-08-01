@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
@@ -9,7 +9,11 @@ import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
@@ -30,7 +34,7 @@ public class PriceController {
   }
 
   @GetMapping("/tickers/{symbol}/data")
-  public List<OhlcvDTO> getPriceDataForTicker(
+  public List<OhlcvDto> getPriceDataForTicker(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,

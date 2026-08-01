@@ -1,12 +1,17 @@
 package com.alphaflow.api.services;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.IndicatorConfigDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
@@ -101,17 +106,17 @@ class IndicatorServiceTest {
                     PriceSource.CLOSE,
                     Map.of("fast", 12, "slow", 26, "signal", 9))));
 
-    List<IndicatorConfigDTO> configs = indicatorService.getConfiguredIndicators();
+    List<IndicatorConfigDto> configs = indicatorService.getConfiguredIndicators();
 
     assertEquals(4, configs.size());
 
-    List<IndicatorConfigDTO> dailyConfigs =
+    List<IndicatorConfigDto> dailyConfigs =
         configs.stream().filter(c -> c.timeframe().equals("DAILY")).toList();
     assertEquals(2, dailyConfigs.size());
     assertTrue(dailyConfigs.stream().anyMatch(c -> c.type().equals("EMA")));
     assertTrue(dailyConfigs.stream().anyMatch(c -> c.type().equals("MACD")));
 
-    List<IndicatorConfigDTO> weeklyConfigs =
+    List<IndicatorConfigDto> weeklyConfigs =
         configs.stream().filter(c -> c.timeframe().equals("WEEKLY")).toList();
     assertEquals(2, weeklyConfigs.size());
     assertTrue(weeklyConfigs.stream().anyMatch(c -> c.type().equals("EMA")));
@@ -143,18 +148,18 @@ class IndicatorServiceTest {
         .when(dailyIndicatorRepository)
         .findSeriesBetween(eq(ticker), any(), eq(D1), eq(D3));
 
-    List<IndicatorSeriesDTO> series =
+    List<IndicatorSeriesDto> series =
         indicatorService.getIndicatorSeries(ticker, Timeframe.DAILY, 0, 250);
 
     assertEquals(2, series.size());
 
-    IndicatorSeriesDTO ema =
+    IndicatorSeriesDto ema =
         series.stream().filter(s -> s.type().equals("EMA")).findFirst().orElseThrow();
 
     assertEquals(2, ema.points().size());
     assertEquals(Map.of("value", new BigDecimal("10.0")), ema.points().getFirst().values());
 
-    IndicatorSeriesDTO macd =
+    IndicatorSeriesDto macd =
         series.stream().filter(s -> s.type().equals("MACD")).findFirst().orElseThrow();
 
     assertEquals("MACD (12,26,9)", macd.label());
@@ -189,7 +194,7 @@ class IndicatorServiceTest {
         .when(weeklyIndicatorRepository)
         .findSeriesBetween(eq(ticker), any(), eq(D1), eq(D1));
 
-    List<IndicatorSeriesDTO> result =
+    List<IndicatorSeriesDto> result =
         indicatorService.getIndicatorSeries(ticker, Timeframe.WEEKLY, 0, 250);
 
     assertTrue(result.isEmpty());
@@ -209,7 +214,7 @@ class IndicatorServiceTest {
         .when(dailyIndicatorRepository)
         .findSeriesBetween(eq(ticker), any(), eq(D1), eq(D1));
 
-    List<IndicatorSeriesDTO> result =
+    List<IndicatorSeriesDto> result =
         indicatorService.getIndicatorSeries(ticker, Timeframe.DAILY, 1, 10);
 
     assertTrue(result.isEmpty());

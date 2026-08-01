@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.IndicatorConfigDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.api.services.IndicatorService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
@@ -22,14 +22,14 @@ class IndicatorControllerTest {
     IndicatorService service = mock(IndicatorService.class);
     TickerRepository tickerRepository = mock(TickerRepository.class);
 
-    IndicatorConfigDTO configDto =
-        new IndicatorConfigDTO("DAILY", "EMA", "CLOSE", "period=14", "EMA (14)");
+    IndicatorConfigDto configDto =
+        new IndicatorConfigDto("DAILY", "EMA", "CLOSE", "period=14", "EMA (14)");
 
     when(service.getConfiguredIndicators()).thenReturn(List.of(configDto));
 
     IndicatorController controller = new IndicatorController(service, tickerRepository);
 
-    List<IndicatorConfigDTO> res = controller.getConfiguredIndicators();
+    List<IndicatorConfigDto> res = controller.getConfiguredIndicators();
 
     assertEquals(1, res.size());
 
@@ -44,8 +44,8 @@ class IndicatorControllerTest {
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
-    IndicatorSeriesDTO seriesDto =
-        new IndicatorSeriesDTO("EMA", "CLOSE", "period=14", "EMA (14)", List.of());
+    IndicatorSeriesDto seriesDto =
+        new IndicatorSeriesDto("EMA", "CLOSE", "period=14", "EMA (14)", List.of());
 
     when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
     when(service.getIndicatorSeries(ticker, Timeframe.DAILY, 0, 250))
@@ -53,7 +53,7 @@ class IndicatorControllerTest {
 
     IndicatorController controller = new IndicatorController(service, tickerRepository);
 
-    List<IndicatorSeriesDTO> res = controller.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, 250);
+    List<IndicatorSeriesDto> res = controller.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, 250);
     assertEquals(1, res.size());
     assertEquals("EMA", res.getFirst().type());
 

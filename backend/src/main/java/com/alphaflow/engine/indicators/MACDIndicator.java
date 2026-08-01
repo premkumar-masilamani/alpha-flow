@@ -2,7 +2,7 @@ package com.alphaflow.engine.indicators;
 
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
-import com.alphaflow.engine.indicators.utils.EMAAccumulator;
+import com.alphaflow.engine.indicators.utils.EmaAccumulator;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.enums.IndicatorOutputKey;
 import com.alphaflow.persistence.enums.IndicatorParamKey;
@@ -17,10 +17,9 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Moving Average Convergence Divergence: three chained EMAs over a source field. */
 @Component
 @Slf4j
-public class MACDIndicator implements Indicator {
+public class MacdIndicator implements Indicator {
 
   @Override
   public IndicatorType type() {
@@ -44,9 +43,9 @@ public class MACDIndicator implements Indicator {
         source);
 
     // Create stateful fast, slow, and signal accumulators
-    EMAAccumulator fast = EMAAccumulator.fresh(fastPeriod);
-    EMAAccumulator slow = EMAAccumulator.fresh(slowPeriod);
-    EMAAccumulator signal = EMAAccumulator.fresh(signalPeriod);
+    EmaAccumulator fast = EmaAccumulator.fresh(fastPeriod);
+    EmaAccumulator slow = EmaAccumulator.fresh(slowPeriod);
+    EmaAccumulator signal = EmaAccumulator.fresh(signalPeriod);
 
     Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
 

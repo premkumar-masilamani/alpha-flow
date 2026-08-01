@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
@@ -27,8 +27,8 @@ class PriceControllerTest {
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
-    OhlcvDTO dto =
-        new OhlcvDTO(
+    OhlcvDto dto =
+        new OhlcvDto(
             LocalDate.of(2026, 5, 29),
             new BigDecimal("100.00"),
             new BigDecimal("105.00"),
@@ -42,13 +42,13 @@ class PriceControllerTest {
     PriceController controller =
         new PriceController(dailyPriceService, weeklyPriceService, tickerRepository);
 
-    List<OhlcvDTO> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
+    List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
     assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
 
     when(weeklyPriceService.getWeeklyPriceByTickerName("AAPL", 0, 250)).thenReturn(List.of(dto));
-    List<OhlcvDTO> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
+    List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
   }
 }

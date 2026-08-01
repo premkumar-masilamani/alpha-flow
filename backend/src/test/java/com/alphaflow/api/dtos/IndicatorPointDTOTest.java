@@ -9,12 +9,12 @@ import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class IndicatorPointDTOTest {
+class IndicatorPointDtoTest {
 
   @Test
   void testGetValue() {
-    IndicatorPointDTO point =
-        IndicatorPointDTO.builder()
+    IndicatorPointDto point =
+        IndicatorPointDto.builder()
             .date(LocalDate.now())
             .values(
                 Map.of(
@@ -31,8 +31,8 @@ class IndicatorPointDTOTest {
 
   @Test
   void testGetValueWithNullValues() {
-    IndicatorPointDTO point =
-        IndicatorPointDTO.builder().date(LocalDate.now()).values(null).build();
+    IndicatorPointDto point =
+        IndicatorPointDto.builder().date(LocalDate.now()).values(null).build();
     assertNull(point.getValue(IndicatorOutputKey.MACD));
   }
 }

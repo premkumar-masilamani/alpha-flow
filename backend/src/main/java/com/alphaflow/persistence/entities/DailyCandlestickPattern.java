@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 import lombok.*;
 
-/** JPA entity representing daily candlestick pattern occurrences. */
 @Entity
 @Table(name = "daily_candlestick_patterns")
 @Getter

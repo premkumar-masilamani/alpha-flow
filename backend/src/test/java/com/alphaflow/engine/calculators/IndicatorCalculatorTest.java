@@ -2,16 +2,38 @@ package com.alphaflow.engine.calculators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.configs.IndicatorConfig;
-import com.alphaflow.engine.indicators.*;
+import com.alphaflow.engine.indicators.EmaIndicator;
+import com.alphaflow.engine.indicators.MacdIndicator;
+import com.alphaflow.engine.indicators.RsiIndicator;
+import com.alphaflow.engine.indicators.SmaIndicator;
+import com.alphaflow.engine.indicators.StochasticIndicator;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
-import com.alphaflow.persistence.entities.*;
+import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Indicator;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
+import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
-import com.alphaflow.persistence.repositories.*;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
+import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -83,10 +105,10 @@ class IndicatorCalculatorTest {
     IndicatorRegistry registry =
         new IndicatorRegistry(
             List.of(
-                new EMAIndicator(),
-                new SMAIndicator(),
-                new RSIIndicator(),
-                new MACDIndicator(),
+                new EmaIndicator(),
+                new SmaIndicator(),
+                new RsiIndicator(),
+                new MacdIndicator(),
                 new StochasticIndicator()));
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
@@ -206,10 +228,10 @@ class IndicatorCalculatorTest {
             tickerRepo,
             new IndicatorRegistry(
                 List.of(
-                    new EMAIndicator(),
-                    new SMAIndicator(),
-                    new RSIIndicator(),
-                    new MACDIndicator(),
+                    new EmaIndicator(),
+                    new SmaIndicator(),
+                    new RsiIndicator(),
+                    new MacdIndicator(),
                     new StochasticIndicator())),
             properties,
             dailyRepo,
@@ -266,7 +288,7 @@ class IndicatorCalculatorTest {
     IndicatorCalculator testCalculator =
         new IndicatorCalculator(
             tickerRepo,
-            new IndicatorRegistry(List.of(new EMAIndicator())),
+            new IndicatorRegistry(List.of(new EmaIndicator())),
             properties,
             dailyRepo,
             weeklyRepo,
@@ -309,7 +331,7 @@ class IndicatorCalculatorTest {
     calculator =
         new IndicatorCalculator(
             tickerRepo,
-            new IndicatorRegistry(List.of(new EMAIndicator())),
+            new IndicatorRegistry(List.of(new EmaIndicator())),
             properties,
             dailyRepo,
             weeklyRepo,

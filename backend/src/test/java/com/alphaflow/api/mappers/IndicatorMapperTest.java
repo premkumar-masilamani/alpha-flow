@@ -1,6 +1,9 @@
 package com.alphaflow.api.mappers;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.enums.IndicatorType;

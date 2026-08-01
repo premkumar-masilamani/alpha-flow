@@ -23,12 +23,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Orchestrates indicator computation across all active tickers — the third pipeline step, after the
- * Yahoo download and the weekly rollup. Mirrors {@link WeeklyPriceCalculator}: each ticker is
- * processed in its own transaction, and a failure on one ticker is logged and isolated so the rest
- * still complete.
- */
 @Component
 @Slf4j
 public class IndicatorCalculator {
@@ -43,17 +37,6 @@ public class IndicatorCalculator {
 
   @Autowired @Lazy private IndicatorCalculator indicatorCalculator;
 
-  /**
-   * Constructs an IndicatorCalculator.
-   *
-   * @param tickerRepository the ticker repository
-   * @param registry the indicator implementation registry
-   * @param properties the configured active indicators properties
-   * @param dailyPriceRepository the daily prices repository
-   * @param weeklyPriceRepository the weekly prices repository
-   * @param dailyIndicatorRepository the daily indicators repository
-   * @param weeklyIndicatorRepository the weekly indicators repository
-   */
   public IndicatorCalculator(
       TickerRepository tickerRepository,
       IndicatorRegistry registry,
@@ -71,7 +54,6 @@ public class IndicatorCalculator {
     this.weeklyIndicatorRepository = weeklyIndicatorRepository;
   }
 
-  /** Triggers the computation of indicators across all active tickers. */
   public void computeIndicators() {
     log.info("Computing indicators...");
 
@@ -95,11 +77,6 @@ public class IndicatorCalculator {
     log.info("Indicators computed.");
   }
 
-  /**
-   * Computes indicators for a specific ticker across all configured timeframes.
-   *
-   * @param ticker the ticker entity to process
-   */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
     log.info("{}: Computing indicators...", ticker.getTickerSymbol());
@@ -114,11 +91,12 @@ public class IndicatorCalculator {
     int weeklySaved = 0;
 
     for (Timeframe timeframe : Timeframe.values()) {
-      List<PriceBar> bars =
-          switch (timeframe) {
-            case DAILY -> loadDailyBars(ticker);
-            case WEEKLY -> loadWeeklyBars(ticker);
-          };
+      List<PriceBar> bars;
+      if (timeframe == Timeframe.DAILY) {
+        bars = loadDailyBars(ticker);
+      } else {
+        bars = loadWeeklyBars(ticker);
+      }
       if (bars.isEmpty()) {
         continue;
       }

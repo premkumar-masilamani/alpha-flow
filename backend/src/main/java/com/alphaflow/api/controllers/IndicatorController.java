@@ -1,7 +1,7 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.IndicatorConfigDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.api.services.IndicatorService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
@@ -9,7 +9,11 @@ import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")
@@ -25,13 +29,13 @@ public class IndicatorController {
   }
 
   @GetMapping("/indicator-definitions")
-  public List<IndicatorConfigDTO> getConfiguredIndicators() {
+  public List<IndicatorConfigDto> getConfiguredIndicators() {
     log.info("Request to get configured indicators");
     return indicatorService.getConfiguredIndicators();
   }
 
   @GetMapping("/tickers/{symbol}/indicators")
-  public List<IndicatorSeriesDTO> getIndicatorSeries(
+  public List<IndicatorSeriesDto> getIndicatorSeries(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,

@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.Map;
 import lombok.*;
 
-/** Concrete JPA entity mapped to the weekly_indicators database table. */
 @Entity
 @Table(name = "weekly_indicators")
 @Getter
@@ -21,15 +20,6 @@ public class WeeklyIndicator extends Indicator {
   @Column(name = "weekly_indicator_id")
   private Long weeklyIndicatorId;
 
-  /**
-   * Constructs a WeeklyIndicator.
-   *
-   * @param weeklyIndicatorId the primary key ID
-   * @param ticker the ticker
-   * @param indicatorDefinition the definition
-   * @param priceDate the price date
-   * @param values the output values map
-   */
   @Builder
   public WeeklyIndicator(
       Long weeklyIndicatorId,

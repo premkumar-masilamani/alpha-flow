@@ -8,7 +8,6 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/** JPA Entity representing a technical indicator configuration definition. */
 @Entity
 @Table(name = "indicator_definitions")
 @Getter
@@ -40,11 +39,6 @@ public class IndicatorDefinition {
   @Column(name = "params", nullable = false)
   private Map<String, Integer> params;
 
-  /**
-   * Helper alias method to return the indicator type, maintaining compatibility with config usage.
-   *
-   * @return the technical indicator type
-   */
   public IndicatorType getType() {
     return indicatorType;
   }

@@ -1,6 +1,11 @@
 package com.alphaflow.engine.schedulers;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
@@ -28,7 +33,7 @@ class CoreSchedulerTest {
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
-    verify(patternCalculator, times(1)).computePatterns();
+    verify(patternCalculator, times(1)).computeCandleStickPatterns();
   }
 
   @Test
@@ -50,7 +55,7 @@ class CoreSchedulerTest {
     // Subsequent steps skipped due to exception
     verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
     verify(indicatorCalculator, never()).computeIndicators();
-    verify(patternCalculator, never()).computePatterns();
+    verify(patternCalculator, never()).computeCandleStickPatterns();
   }
 
   @Test
@@ -95,6 +100,6 @@ class CoreSchedulerTest {
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
-    verify(patternCalculator, times(1)).computePatterns();
+    verify(patternCalculator, times(1)).computeCandleStickPatterns();
   }
 }

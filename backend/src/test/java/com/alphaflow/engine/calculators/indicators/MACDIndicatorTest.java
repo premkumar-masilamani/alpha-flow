@@ -1,9 +1,15 @@
 package com.alphaflow.engine.calculators.indicators;
 
-import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.EPOCH;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.bd;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.closes;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.plot;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.walk;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.alphaflow.engine.indicators.MACDIndicator;
+import com.alphaflow.engine.indicators.MacdIndicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
@@ -11,7 +17,7 @@ import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
-class MACDIndicatorTest {
+class MacdIndicatorTest {
 
   @Test
   void macdConstantSeriesIsZero() {
@@ -21,7 +27,7 @@ class MACDIndicatorTest {
     java.util.Arrays.fill(flat, 50.0);
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new MACDIndicator()
+        new MacdIndicator()
             .compute(
                 closes(flat), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
@@ -42,7 +48,7 @@ class MACDIndicatorTest {
   void macdEmitsThreePlotsOnceDefined() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new MACDIndicator()
+        new MacdIndicator()
             .compute(
                 walk(80), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
@@ -71,7 +77,7 @@ class MACDIndicatorTest {
   void macdDefaultSignalPeriod() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new MACDIndicator()
+        new MacdIndicator()
             .compute(walk(50), IndicatorParams.parse("fast=12,slow=26"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());

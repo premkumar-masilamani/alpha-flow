@@ -3,19 +3,21 @@ package com.alphaflow.api.configs;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.config.annotation.CorsRegistration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
-class CORSConfigTest {
+class CorsConfigTest {
 
   @Test
   void testAddCorsMappingsThrowsExceptionIfNull() {
 
-    CORSConfig config = new CORSConfig();
+    CorsConfig config = new CorsConfig();
 
     config.setAllowedOrigins(null);
 
@@ -26,7 +28,7 @@ class CORSConfigTest {
   @Test
   void testAddCorsMappingsThrowsExceptionIfEmpty() {
 
-    CORSConfig config = new CORSConfig();
+    CorsConfig config = new CorsConfig();
 
     config.setAllowedOrigins(List.of());
 
@@ -37,7 +39,7 @@ class CORSConfigTest {
   @Test
   void testAddCorsMappingsRegistersCorrectly() {
 
-    CORSConfig config = new CORSConfig();
+    CorsConfig config = new CorsConfig();
 
     List<String> origins = List.of("http://localhost:3000", "https://app.example.com");
 

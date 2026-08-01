@@ -10,7 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @ConfigurationProperties(prefix = "alphaflow.cors")
 @Data
-public class CORSConfig implements WebMvcConfigurer {
+public class CorsConfig implements WebMvcConfigurer {
 
   private List<String> allowedOrigins;
 

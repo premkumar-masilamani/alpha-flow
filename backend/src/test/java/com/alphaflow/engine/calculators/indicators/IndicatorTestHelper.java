@@ -17,7 +17,6 @@ public final class IndicatorTestHelper {
 
   private IndicatorTestHelper() {}
 
-  /** Deterministic, non-trivial walk so resume tests exercise real recurrence (no RNG). */
   public static List<PriceBar> walk(int n) {
 
     List<PriceBar> bars = new ArrayList<>(n);
@@ -85,7 +84,6 @@ public final class IndicatorTestHelper {
     return value;
   }
 
-  /** Helper to load AAPL stock daily price data from resources (aapl.csv). */
   public static List<PriceBar> loadAaplCsv() {
 
     List<PriceBar> bars = new ArrayList<>();

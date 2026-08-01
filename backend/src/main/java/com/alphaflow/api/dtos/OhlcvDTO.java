@@ -6,7 +6,7 @@ import java.time.LocalDate;
 import lombok.Builder;
 
 @Builder
-public record OhlcvDTO(
+public record OhlcvDto(
     @JsonProperty("date") LocalDate priceDate,
     @JsonProperty("open") BigDecimal priceOpen,
     @JsonProperty("high") BigDecimal priceHigh,
