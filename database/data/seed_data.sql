@@ -18,4 +18,5 @@ VALUES ('EMA', 'CLOSE', '{"period": 5}'),
        ('STOCHASTIC', 'CLOSE', '{"k": 14, "kSmooth": 3, "dSmooth": 3}'),
        ('SMA', 'VOLUME', '{"period": 20}'),
        ('MACD', 'CLOSE', '{"fast": 12, "slow": 26, "signal": 9}'),
-       ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}');
+       ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}'),
+       ('VWBB', 'CLOSE', '{"period": 20, "stdDev": 2}');

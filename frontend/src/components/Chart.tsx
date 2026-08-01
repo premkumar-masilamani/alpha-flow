@@ -158,6 +158,7 @@ const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; s
                 {name: 'histogram', style: 'histogram', suffix: ' Hist'},
             ];
         case 'BB':
+        case 'VWBB':
             return [
                 {name: 'upper', style: 'line', suffix: ' Upper'},
                 {name: 'middle', style: 'line', suffix: ' Middle'},
@@ -195,7 +196,8 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
             const hVal = histPoints[histPoints.length - 1]?.value;
             return `MACD: ${mVal !== undefined ? mVal.toFixed(2) : 'N/A'}, Signal: ${sVal !== undefined ? sVal.toFixed(2) : 'N/A'}, Hist: ${hVal !== undefined ? hVal.toFixed(2) : 'N/A'}`;
         }
-        case 'BB': {
+        case 'BB':
+        case 'VWBB': {
             const upperPoints = lineData(series, 'upper');
             const middlePoints = lineData(series, 'middle');
             const lowerPoints = lineData(series, 'lower');

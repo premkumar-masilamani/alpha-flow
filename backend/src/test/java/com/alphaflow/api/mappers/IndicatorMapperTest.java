@@ -71,6 +71,12 @@ class IndicatorMapperTest {
         "BB (20)",
         IndicatorMapper.label(
             IndicatorType.BB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
+
+    // VWBB
+    assertEquals(
+        "VWBB (20)",
+        IndicatorMapper.label(
+            IndicatorType.VWBB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
   }
 
   @Test
