@@ -66,11 +66,11 @@ class IndicatorMapperTest {
             PriceSource.CLOSE,
             IndicatorParams.of(Map.of("k", 14, "kSmooth", 3, "dSmooth", 3))));
 
-    // VWBB
+    // BB
     assertEquals(
-        "VWBB (20)",
+        "BB (20)",
         IndicatorMapper.label(
-            IndicatorType.VWBB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
+            IndicatorType.BB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
   }
 
   @Test
