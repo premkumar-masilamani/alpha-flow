@@ -8,7 +8,7 @@ import type {
     LogicalRange,
     Logical
 } from 'lightweight-charts';
-import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers} from 'lightweight-charts';
 import { INDICATOR_COLORS } from '../config/indicatorColors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -307,9 +307,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                 shape: p.sentiment === 'BULL' ? 'arrowUp' : 'arrowDown',
                 text: p.shortName,
             }));
-            candlestickSeries.setMarkers(markers);
-        } else {
-            candlestickSeries.setMarkers([]);
+            createSeriesMarkers(candlestickSeries, markers);
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {

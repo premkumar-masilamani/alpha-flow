@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createChart } from 'lightweight-charts';
+import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
 import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../services/api';
 
@@ -182,8 +182,8 @@ describe('Chart Component', () => {
 
         const chartInstance = vi.mocked(createChart).mock.results[0].value;
         const candlestickSeriesMock = chartInstance.addSeries.mock.results[0].value;
-        expect(candlestickSeriesMock.setMarkers).toHaveBeenCalledTimes(1);
-        expect(candlestickSeriesMock.setMarkers).toHaveBeenCalledWith([
+        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
+        expect(createSeriesMarkers).toHaveBeenCalledWith(candlestickSeriesMock, [
             { time: '2026-06-01', position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'HAM' },
             { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
         ]);
@@ -217,9 +217,9 @@ describe('Chart Component', () => {
 
         const recentChartInstance = vi.mocked(createChart).mock.results[0].value;
         const recentCandleMock = recentChartInstance.addSeries.mock.results[0].value;
-        expect(recentCandleMock.setMarkers).toHaveBeenCalledTimes(1);
+        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
         // Only ENG (on '2026-06-03') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 5.
-        expect(recentCandleMock.setMarkers).toHaveBeenCalledWith([
+        expect(createSeriesMarkers).toHaveBeenCalledWith(recentCandleMock, [
             { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
         ]);
 
@@ -248,9 +248,9 @@ describe('Chart Component', () => {
 
         const dupChartInstance = vi.mocked(createChart).mock.results[0].value;
         const dupCandleMock = dupChartInstance.addSeries.mock.results[0].value;
-        expect(dupCandleMock.setMarkers).toHaveBeenCalledTimes(1);
+        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
         // Only the first pattern HAM (on '2026-06-03') should be displayed.
-        expect(dupCandleMock.setMarkers).toHaveBeenCalledWith([
+        expect(createSeriesMarkers).toHaveBeenCalledWith(dupCandleMock, [
             { time: '2026-06-03', position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'HAM' }
         ]);
 
