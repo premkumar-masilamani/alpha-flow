@@ -289,8 +289,18 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             visiblePatterns = [];
         }
 
-        if (visiblePatterns && visiblePatterns.length > 0) {
-            const markers = visiblePatterns.map((p) => ({
+        // Deduplicate patterns by date to prevent duplicate time assertions in lightweight-charts
+        const uniquePatternsMap = new Map<string, CandlestickPatternData>();
+        const safePatterns = Array.isArray(visiblePatterns) ? visiblePatterns : [];
+        for (const p of safePatterns) {
+            if (p && p.date && !uniquePatternsMap.has(p.date)) {
+                uniquePatternsMap.set(p.date, p);
+            }
+        }
+        const deduplicatedPatterns = Array.from(uniquePatternsMap.values());
+
+        if (deduplicatedPatterns.length > 0) {
+            const markers = deduplicatedPatterns.map((p) => ({
                 time: p.date as Time,
                 position: p.sentiment === 'BULL' ? 'belowBar' as const : 'aboveBar' as const,
                 color: p.sentiment === 'BULL' ? '#22c55e' : '#ef4444',
@@ -298,6 +308,8 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                 text: p.shortName,
             }));
             candlestickSeries.setMarkers(markers);
+        } else {
+            candlestickSeries.setMarkers([]);
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {

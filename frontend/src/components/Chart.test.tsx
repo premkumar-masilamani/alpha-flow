@@ -120,6 +120,7 @@ describe('Chart Component', () => {
                         applyOptions: vi.fn(),
                     }),
                     createPriceLine: vi.fn(),
+                    setMarkers: vi.fn(),
                 }),
                 remove: vi.fn(),
                 applyOptions: vi.fn(),
@@ -200,7 +201,7 @@ describe('Chart Component', () => {
             { date: '2026-06-06', open: 125, high: 135, low: 122, close: 130, vol: 10000 },
         ];
         
-        render(
+        const { unmount: unmountRecent } = render(
             <Chart
                 data={longMockData}
                 indicators={mockIndicators}
@@ -221,5 +222,38 @@ describe('Chart Component', () => {
         expect(recentCandleMock.setMarkers).toHaveBeenCalledWith([
             { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
         ]);
+
+        unmountRecent();
+        vi.clearAllMocks();
+
+        // 3. Deduplicate duplicate dates (only show the first pattern on a given date)
+        const duplicateMockPatterns = [
+            { date: '2026-06-03', shortName: 'HAM', longName: 'Hammer', sentiment: 'BULL' as const },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: 'BEAR' as const }
+        ];
+
+        const { unmount: unmountDup } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                patterns={duplicateMockPatterns}
+                patternMode="all"
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const dupChartInstance = vi.mocked(createChart).mock.results[0].value;
+        const dupCandleMock = dupChartInstance.addSeries.mock.results[0].value;
+        expect(dupCandleMock.setMarkers).toHaveBeenCalledTimes(1);
+        // Only the first pattern HAM (on '2026-06-03') should be displayed.
+        expect(dupCandleMock.setMarkers).toHaveBeenCalledWith([
+            { time: '2026-06-03', position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'HAM' }
+        ]);
+
+        unmountDup();
     });
 });
