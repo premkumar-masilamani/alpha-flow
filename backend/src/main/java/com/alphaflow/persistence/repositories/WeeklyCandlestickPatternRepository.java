@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-/** Repository interface for WeeklyCandlestickPattern entity. */
 @Repository
 public interface WeeklyCandlestickPatternRepository
     extends JpaRepository<WeeklyCandlestickPattern, Long> {

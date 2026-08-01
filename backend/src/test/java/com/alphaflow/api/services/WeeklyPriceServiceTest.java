@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
@@ -51,7 +51,7 @@ class WeeklyPriceServiceTest {
 
     WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
 
-    List<OhlcvDTO> result = service.getWeeklyPriceByTickerName("AAPL", 0, 250);
+    List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 0, 250);
 
     assertEquals(2, result.size());
 
@@ -98,7 +98,7 @@ class WeeklyPriceServiceTest {
 
     WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
 
-    List<OhlcvDTO> result = service.getWeeklyPriceByTickerName("AAPL", 1, 10);
+    List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 1, 10);
 
     assertEquals(1, result.size());
 

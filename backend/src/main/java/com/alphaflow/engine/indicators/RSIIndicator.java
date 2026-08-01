@@ -15,10 +15,9 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Relative Strength Index using Wilder's smoothing. */
 @Component
 @Slf4j
-public class RSIIndicator implements Indicator {
+public class RsiIndicator implements Indicator {
 
   @Override
   public IndicatorType type() {

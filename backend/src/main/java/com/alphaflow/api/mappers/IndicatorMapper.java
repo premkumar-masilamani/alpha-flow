@@ -1,8 +1,8 @@
 package com.alphaflow.api.mappers;
 
-import com.alphaflow.api.dtos.IndicatorConfigDTO;
-import com.alphaflow.api.dtos.IndicatorPointDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.api.dtos.IndicatorPointDto;
+import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.entities.Indicator;
@@ -14,21 +14,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Maps indicator config and persisted plot values into the API DTOs, including a human-readable
- *
- * <p>label per combo (e.g. {@code "MACD(12,26,9)"}, {@code "SMA(20) VOL"}).
- */
 public class IndicatorMapper {
 
   private IndicatorMapper() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  public static IndicatorConfigDTO toConfigDTO(
+  public static IndicatorConfigDto toConfigDto(
       Timeframe timeframe, IndicatorDefinition definition) {
     IndicatorParams params = IndicatorParams.of(definition.getParams());
-    return IndicatorConfigDTO.builder()
+    return IndicatorConfigDto.builder()
         .timeframe(timeframe.name())
         .type(definition.getType().name())
         .source(definition.getSource().name())
@@ -37,30 +32,24 @@ public class IndicatorMapper {
         .build();
   }
 
-  /**
-   * Groups chronological plot rows into one series per (type, source, params) combo, with each
-   *
-   * <p>bar's plots collected into a single point. Encounter order is preserved (rows arrive
-   * ascending).
-   */
-  public static List<IndicatorSeriesDTO> toSeries(List<? extends Indicator> rows) {
+  public static List<IndicatorSeriesDto> toSeries(List<? extends Indicator> rows) {
 
     Map<String, List<Indicator>> byCombo = new LinkedHashMap<>();
     for (Indicator row : rows) {
       byCombo.computeIfAbsent(comboKey(row), k -> new ArrayList<>()).add(row);
     }
 
-    List<IndicatorSeriesDTO> series = new ArrayList<>();
+    List<IndicatorSeriesDto> series = new ArrayList<>();
     for (List<Indicator> combo : byCombo.values()) {
       Indicator first = combo.getFirst();
       IndicatorParams params = IndicatorParams.parse(first.getParams());
-      List<IndicatorPointDTO> points = new ArrayList<>();
+      List<IndicatorPointDto> points = new ArrayList<>();
       for (Indicator row : combo) {
         points.add(
-            IndicatorPointDTO.builder().date(row.getPriceDate()).values(row.getValues()).build());
+            IndicatorPointDto.builder().date(row.getPriceDate()).values(row.getValues()).build());
       }
       series.add(
-          IndicatorSeriesDTO.builder()
+          IndicatorSeriesDto.builder()
               .type(first.getIndicatorType().name())
               .source(first.getSource().name())
               .params(first.getParams())
@@ -71,36 +60,50 @@ public class IndicatorMapper {
     return series;
   }
 
+  @SuppressWarnings("PMD.ExhaustiveSwitchHasDefault")
   static String label(IndicatorType type, PriceSource source, IndicatorParams params) {
-    String base =
-        switch (type) {
-          case EMA -> "EMA (" + params.getInt("period") + ")";
-          case SMA -> {
-            if (source == PriceSource.VOLUME) {
-              yield "Vol (" + params.getInt("period") + ")";
-            } else {
-              yield "SMA (" + params.getInt("period") + ")";
-            }
-          }
-          case RSI -> "RSI (" + params.getInt("period") + ")";
-          case BB -> "BB (" + params.getInt("period") + ")";
-          case MACD ->
-              "MACD ("
-                  + params.getInt("fast")
-                  + ","
-                  + params.getInt("slow")
-                  + ","
-                  + params.getInt("signal", 9)
-                  + ")";
-          case STOCHASTIC ->
-              "Stoch ("
-                  + params.getInt("k")
-                  + ","
-                  + params.getInt("kSmooth")
-                  + ","
-                  + params.getInt("dSmooth")
-                  + ")";
-        };
+    String base;
+    switch (type) {
+      case EMA:
+        base = "EMA (" + params.getInt("period") + ")";
+        break;
+      case SMA:
+        if (source == PriceSource.VOLUME) {
+          base = "Vol (" + params.getInt("period") + ")";
+        } else {
+          base = "SMA (" + params.getInt("period") + ")";
+        }
+        break;
+      case RSI:
+        base = "RSI (" + params.getInt("period") + ")";
+        break;
+      case BB:
+        base = "BB (" + params.getInt("period") + ")";
+        break;
+      case MACD:
+        base =
+            "MACD ("
+                + params.getInt("fast")
+                + ","
+                + params.getInt("slow")
+                + ","
+                + params.getInt("signal", 9)
+                + ")";
+        break;
+      case STOCHASTIC:
+        base =
+            "Stoch ("
+                + params.getInt("k")
+                + ","
+                + params.getInt("kSmooth")
+                + ","
+                + params.getInt("dSmooth")
+                + ")";
+        break;
+      default:
+        base = type.name();
+        break;
+    }
 
     return source == PriceSource.CLOSE
             || (type == IndicatorType.SMA && source == PriceSource.VOLUME)

@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.TickerDTO;
+import com.alphaflow.api.dtos.TickerDto;
 import com.alphaflow.api.services.TickerService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -21,13 +21,13 @@ public class TickerController {
   }
 
   @GetMapping("/tickers")
-  public List<TickerDTO> getAllTickers() {
+  public List<TickerDto> getAllTickers() {
     log.info("Request to get all tickers");
     return tickerService.getAllTickers();
   }
 
   @GetMapping("/tickers/{symbol}")
-  public TickerDTO getTickerBySymbol(@PathVariable String symbol) {
+  public TickerDto getTickerBySymbol(@PathVariable String symbol) {
     log.debug("Request to get ticker by symbol: {}", symbol);
     return tickerService.getTickerBySymbol(symbol);
   }

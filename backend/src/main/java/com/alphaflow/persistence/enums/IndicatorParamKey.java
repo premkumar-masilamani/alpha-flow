@@ -2,10 +2,6 @@ package com.alphaflow.persistence.enums;
 
 import lombok.Getter;
 
-/**
- * Represents the configuration parameter keys stored inside the JSONB params database column of the
- * indicator_definitions table.
- */
 @Getter
 public enum IndicatorParamKey {
   PERIOD("period"),

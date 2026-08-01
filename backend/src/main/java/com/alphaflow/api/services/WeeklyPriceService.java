@@ -1,6 +1,6 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
@@ -13,10 +13,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Serves the weekly OHLCV series for a ticker — the weekly mirror of {@link DailyPriceService},
- * reading {@code weekly_prices} and capping at the configured weekly window.
- */
 @Service
 @Transactional(readOnly = true)
 @Slf4j
@@ -31,7 +27,7 @@ public class WeeklyPriceService {
     this.tickerRepository = tickerRepository;
   }
 
-  public List<OhlcvDTO> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
+  public List<OhlcvDto> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(
         "Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, size);
     if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
@@ -42,7 +38,7 @@ public class WeeklyPriceService {
         .findLatestByTickerName(tickerName, PageRequest.of(page, size))
         .stream()
         .sorted(Comparator.comparing(WeeklyPrice::getPriceDate))
-        .map(OhlcvMapper::toDTO)
+        .map(OhlcvMapper::toDto)
         .toList();
   }
 }

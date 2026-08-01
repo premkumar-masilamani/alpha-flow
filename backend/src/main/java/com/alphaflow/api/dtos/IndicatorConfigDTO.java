@@ -3,13 +3,8 @@ package com.alphaflow.api.dtos;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 
-/**
- * One configured indicator combo, returned by the discovery endpoint so the UI can build its
- *
- * <p>controls from configuration rather than a hardcoded list.
- */
 @Builder
-public record IndicatorConfigDTO(
+public record IndicatorConfigDto(
     @JsonProperty("timeframe") String timeframe,
     @JsonProperty("type") String type,
     @JsonProperty("source") String source,

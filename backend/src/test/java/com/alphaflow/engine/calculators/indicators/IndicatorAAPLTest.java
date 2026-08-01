@@ -1,11 +1,13 @@
 package com.alphaflow.engine.calculators.indicators;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import com.alphaflow.engine.indicators.EMAIndicator;
-import com.alphaflow.engine.indicators.MACDIndicator;
-import com.alphaflow.engine.indicators.RSIIndicator;
-import com.alphaflow.engine.indicators.SMAIndicator;
+import com.alphaflow.engine.indicators.EmaIndicator;
+import com.alphaflow.engine.indicators.MacdIndicator;
+import com.alphaflow.engine.indicators.RsiIndicator;
+import com.alphaflow.engine.indicators.SmaIndicator;
 import com.alphaflow.engine.indicators.StochasticIndicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -17,7 +19,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-class IndicatorAAPLTest {
+class IndicatorAaplTest {
 
   private static List<PriceBar> aaplBars;
 
@@ -32,10 +34,10 @@ class IndicatorAAPLTest {
   }
 
   @Test
-  void testAaplSMA() {
+  void testAaplSma() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new SMAIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
+        new SmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
@@ -48,10 +50,10 @@ class IndicatorAAPLTest {
   }
 
   @Test
-  void testAaplEMA() {
+  void testAaplEma() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new EMAIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
+        new EmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
@@ -64,10 +66,10 @@ class IndicatorAAPLTest {
   }
 
   @Test
-  void testAaplRSI() {
+  void testAaplRsi() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new RSIIndicator().compute(aaplBars, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
+        new RsiIndicator().compute(aaplBars, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
 
     assertFalse(r.isEmpty());
 
@@ -80,10 +82,10 @@ class IndicatorAAPLTest {
   }
 
   @Test
-  void testAaplMACD() {
+  void testAaplMacd() {
 
     Map<LocalDate, Map<String, BigDecimal>> r =
-        new MACDIndicator()
+        new MacdIndicator()
             .compute(
                 aaplBars, IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
@@ -119,14 +121,14 @@ class IndicatorAAPLTest {
 
     LocalDate latestDate = LocalDate.of(2026, 5, 29);
 
-    BigDecimal kVal = IndicatorTestHelper.plot(r, latestDate, "k");
+    BigDecimal stochK = IndicatorTestHelper.plot(r, latestDate, "k");
 
-    BigDecimal dVal = IndicatorTestHelper.plot(r, latestDate, "d");
+    BigDecimal stochD = IndicatorTestHelper.plot(r, latestDate, "d");
 
-    System.out.println("[AAPL-STOCHASTIC] Latest point: %K=" + kVal + ", %D=" + dVal);
+    System.out.println("[AAPL-STOCHASTIC] Latest point: %K=" + stochK + ", %D=" + stochD);
 
-    assertEquals(0, kVal.compareTo(new BigDecimal("92.0455")));
+    assertEquals(0, stochK.compareTo(new BigDecimal("92.0455")));
 
-    assertEquals(0, dVal.compareTo(new BigDecimal("91.6978")));
+    assertEquals(0, stochD.compareTo(new BigDecimal("91.6978")));
   }
 }

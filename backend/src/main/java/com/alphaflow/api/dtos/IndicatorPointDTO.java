@@ -7,17 +7,10 @@ import java.time.LocalDate;
 import java.util.Map;
 import lombok.Builder;
 
-/**
- * One indicator reading for one bar. {@code values} is keyed by output name so multi-plot
- * indicators
- *
- * <p>carry all their plots together (e.g. MACD -> {@code {"macd":..,"signal":..,"histogram":..}}).
- */
 @Builder
-public record IndicatorPointDTO(
+public record IndicatorPointDto(
     @JsonProperty("date") LocalDate date, @JsonProperty("values") Map<String, BigDecimal> values) {
 
-  /** Safely retrieves a calculated output value by enum key. */
   public BigDecimal getValue(IndicatorOutputKey key) {
     return values != null ? values.get(key.getValue()) : null;
   }

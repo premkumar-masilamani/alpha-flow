@@ -1,6 +1,6 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.CandlestickPatternDTO;
+import com.alphaflow.api.dtos.CandlestickPatternDto;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.CandlestickPattern;
@@ -16,10 +16,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Service to query computed candlestick pattern records. Aligns pattern events to matching date
- * ranges of price page windows.
- */
 @Service
 @Transactional(readOnly = true)
 @Slf4j
@@ -41,8 +37,7 @@ public class CandlestickPatternService {
     this.weeklyCandlestickPatternRepository = weeklyCandlestickPatternRepository;
   }
 
-  /** Fetches candlestick patterns for a given ticker, timeframe, and page date range. */
-  public List<CandlestickPatternDTO> getPatterns(
+  public List<CandlestickPatternDto> getPatterns(
       Ticker ticker, Timeframe timeframe, int page, int size) {
     LocalDate endDate = LocalDate.now();
     PageRequest pageRequest = PageRequest.of(page, size);
@@ -61,19 +56,19 @@ public class CandlestickPatternService {
 
     if (timeframe == Timeframe.WEEKLY) {
       return weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(r -> toDTO(r.getPriceDate(), r.getPattern(), r.getSentiment()))
+          .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
           .toList();
     } else if (timeframe == Timeframe.DAILY) {
       return dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(r -> toDTO(r.getPriceDate(), r.getPattern(), r.getSentiment()))
+          .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
           .toList();
     }
     return List.of();
   }
 
-  private CandlestickPatternDTO toDTO(
+  private CandlestickPatternDto toDto(
       LocalDate date, CandlestickPattern pattern, PatternSentiment sentiment) {
-    return CandlestickPatternDTO.builder()
+    return CandlestickPatternDto.builder()
         .date(date)
         .shortName(pattern.getShortName())
         .longName(pattern.getLongName())

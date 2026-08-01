@@ -11,29 +11,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-/** JPA repository for managing DailyIndicator entities. */
 @Repository
 public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, Long> {
 
-  /**
-   * Finds the last stored daily indicator entity for a given ticker and definition.
-   *
-   * @param ticker the ticker
-   * @param indicatorDefinition the indicator definition
-   * @return optional containing the daily indicator entity if found
-   */
   Optional<DailyIndicator> findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(
       Ticker ticker, IndicatorDefinition indicatorDefinition);
 
-  /**
-   * Finds daily indicators series between two dates.
-   *
-   * @param symbol the ticker symbol
-   * @param indicatorIds the indicator IDs
-   * @param from the start date (inclusive)
-   * @param to the end date (inclusive)
-   * @return list of daily indicators
-   */
   @Query(
       """
             SELECT iv FROM DailyIndicator iv

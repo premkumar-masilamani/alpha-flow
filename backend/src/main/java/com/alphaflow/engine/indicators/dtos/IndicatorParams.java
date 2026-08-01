@@ -5,23 +5,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.Getter;
 
-/**
- * Parsed indicator parameters (integer periods) plus their canonical string form.
- *
- * <p>The canonical string (e.g. {@code "period=14"}, {@code "fast=12,signal=9,slow=26"}) is what
- * gets
- *
- * <p>stored in the {@code params} column and forms part of an indicator's natural key. Keys are
- * sorted
- *
- * <p>so the same logical configuration always serializes to the exact same string regardless of how
- * the
- *
- * <p>source map was built (e.g. config-binding order) — this keeps the natural key stable across
- * runs.
- *
- * <p>Lookups are by name, so ordering never affects computation.
- */
 @Getter
 public final class IndicatorParams {
 
@@ -31,12 +14,10 @@ public final class IndicatorParams {
     this.values = values;
   }
 
-  /** Builds from a map of name → period (key order is irrelevant; canonical form is sorted). */
   public static IndicatorParams of(Map<String, Integer> values) {
     return new IndicatorParams(new TreeMap<>(values));
   }
 
-  /** Parses a canonical string like {@code "fast=12,signal=9,slow=26"}. */
   public static IndicatorParams parse(String canonical) {
     Map<String, Integer> parsed = new TreeMap<>();
     if (canonical != null && !canonical.isBlank()) {
@@ -52,7 +33,6 @@ public final class IndicatorParams {
     return new IndicatorParams(parsed);
   }
 
-  /** Required integer param; throws if absent. */
   public int getInt(String name) {
     Integer v = values.get(name);
     if (v == null) {
@@ -61,22 +41,18 @@ public final class IndicatorParams {
     return v;
   }
 
-  /** Required integer param by enum key; throws if absent. */
   public int getInt(IndicatorParamKey key) {
     return getInt(key.getValue());
   }
 
-  /** Optional integer param with a fallback default. */
   public int getInt(String name, int defaultValue) {
     return values.getOrDefault(name, defaultValue);
   }
 
-  /** Optional integer param by enum key with a fallback default. */
   public int getInt(IndicatorParamKey key, int defaultValue) {
     return getInt(key.getValue(), defaultValue);
   }
 
-  /** The stable canonical string used for storage and as part of the natural key. */
   public String canonical() {
     StringBuilder sb = new StringBuilder();
     for (Map.Entry<String, Integer> e : values.entrySet()) {

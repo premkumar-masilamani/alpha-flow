@@ -10,12 +10,6 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/**
- * A shared base class for daily and weekly technical indicator values.
- *
- * <p>All calculated outputs for a specific ticker, indicator definition, and date are stored
- * together in a single row within the {@code values} JSONB column.
- */
 @MappedSuperclass
 @Getter
 @Setter
@@ -44,29 +38,14 @@ public abstract class Indicator {
   @Column(name = "values", nullable = false)
   private Map<String, BigDecimal> values;
 
-  /**
-   * Delegates indicator type access to the associated indicator definition.
-   *
-   * @return the indicator type
-   */
   public IndicatorType getIndicatorType() {
     return indicatorDefinition.getIndicatorType();
   }
 
-  /**
-   * Delegates price source access to the associated indicator definition.
-   *
-   * @return the price source of the indicator
-   */
   public PriceSource getSource() {
     return indicatorDefinition.getSource();
   }
 
-  /**
-   * Serializes definition parameter map to canonical string representation.
-   *
-   * @return canonical parameter string
-   */
   public String getParams() {
     if (indicatorDefinition == null || indicatorDefinition.getParams() == null) {
       return "";

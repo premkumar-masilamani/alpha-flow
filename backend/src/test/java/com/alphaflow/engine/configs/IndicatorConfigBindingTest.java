@@ -14,7 +14,6 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/** Verifies that IndicatorConfig binds timeframes and resolves cached definitions. */
 class IndicatorConfigBindingTest {
 
   private IndicatorDefinitionRepository indicatorDefinitionRepository;

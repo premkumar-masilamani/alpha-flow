@@ -24,6 +24,8 @@ make format
 - Use `BigDecimal` for prices, monetary values, and volume.
 - Use `Long` for all IDs and `LocalDate` / `LocalDateTime` for dates.
 - Enforce strict boundaries: `api` depends on `engine` and `persistence`; `engine` depends on `persistence`; `persistence` is completely self-contained.
+- Ensure all Java files contain exactly one Java type definition (only one class, record, interface, or enum per file) with no nested or extra package-private helper type definitions.
+- Ensure all code (including tests and newly generated files) fully conforms to Checkstyle, PMD, and Spotless formatting rules. Fix code quality warnings in the source code rather than suppressing them.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.

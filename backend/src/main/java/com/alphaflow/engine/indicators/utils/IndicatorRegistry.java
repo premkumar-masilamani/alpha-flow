@@ -7,14 +7,6 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
-/**
- * Resolves an {@link IndicatorType} to its {@link Indicator} implementation.
- *
- * <p>Spring injects every {@link Indicator} bean; adding a new indicator family is just a new bean
- * —
- *
- * <p>it registers itself here automatically with no change to the engine.
- */
 @Component
 public class IndicatorRegistry {
 

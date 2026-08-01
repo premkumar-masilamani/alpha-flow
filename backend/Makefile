@@ -7,7 +7,7 @@ GRADLE := ./gradlew
 DEV_FLAGS   := --daemon --parallel --build-cache --configuration-cache
 PROD_FLAGS  := --no-daemon --parallel --build-cache --configuration-cache
 
-.PHONY: dev test coverage lint build format
+.PHONY: dev test coverage lint build
 
 all: dev
 
@@ -44,10 +44,6 @@ lint:
 	@echo "4/4 Running SpotBugs bytecode vulnerability sweep..."
 	$(GRADLE) spotbugsMain spotbugsTest $(DEV_FLAGS)
 	@echo "Code verification and auto-fixing complete."
-
-format:
-	@echo "Reformatting Java codebase using Spotless..."
-	$(GRADLE) spotlessApply $(DEV_FLAGS)
 
 build:
 	@echo "Building production artifact (running full verification)..."

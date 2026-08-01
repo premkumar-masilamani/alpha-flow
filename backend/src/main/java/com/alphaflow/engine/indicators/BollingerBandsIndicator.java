@@ -19,7 +19,6 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Standard Bollinger Bands (BB). Uses price source rolling SMA and standard deviation. */
 @Component
 @Slf4j
 public class BollingerBandsIndicator implements Indicator {

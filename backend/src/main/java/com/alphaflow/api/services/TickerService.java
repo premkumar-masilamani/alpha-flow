@@ -1,6 +1,6 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.TickerDTO;
+import com.alphaflow.api.dtos.TickerDto;
 import com.alphaflow.api.mappers.TickerMapper;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
@@ -20,12 +20,12 @@ public class TickerService {
     this.tickerRepository = tickerRepository;
   }
 
-  public TickerDTO getTickerBySymbol(String symbol) {
+  public TickerDto getTickerBySymbol(String symbol) {
     log.debug("Fetching ticker for symbol: {}", symbol);
 
     return tickerRepository
         .findByTickerSymbol(symbol)
-        .map(TickerMapper::toDTO)
+        .map(TickerMapper::toDto)
         .orElseThrow(
             () -> {
               log.warn("Ticker not found for symbol: {}", symbol);
@@ -34,7 +34,7 @@ public class TickerService {
             });
   }
 
-  public List<TickerDTO> getAllTickers() {
-    return tickerRepository.findByIsActiveTrue().stream().map(TickerMapper::toDTO).toList();
+  public List<TickerDto> getAllTickers() {
+    return tickerRepository.findByIsActiveTrue().stream().map(TickerMapper::toDto).toList();
   }
 }

@@ -1,14 +1,13 @@
 package com.alphaflow.api.mappers;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 
 public class OhlcvMapper {
 
-  public static OhlcvDTO toDTO(DailyPrice dailyPrice) {
-
-    return OhlcvDTO.builder()
+  public static OhlcvDto toDto(DailyPrice dailyPrice) {
+    return OhlcvDto.builder()
         .priceDate(dailyPrice.getPriceDate())
         .priceOpen(dailyPrice.getPriceOpen())
         .priceHigh(dailyPrice.getPriceHigh())
@@ -18,9 +17,8 @@ public class OhlcvMapper {
         .build();
   }
 
-  public static OhlcvDTO toDTO(WeeklyPrice weeklyPrice) {
-
-    return OhlcvDTO.builder()
+  public static OhlcvDto toDto(WeeklyPrice weeklyPrice) {
+    return OhlcvDto.builder()
         .priceDate(weeklyPrice.getPriceDate())
         .priceOpen(weeklyPrice.getPriceOpen())
         .priceHigh(weeklyPrice.getPriceHigh())

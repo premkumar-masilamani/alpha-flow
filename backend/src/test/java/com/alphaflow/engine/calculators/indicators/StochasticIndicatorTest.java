@@ -1,7 +1,11 @@
 package com.alphaflow.engine.calculators.indicators;
 
-import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.bd;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.closes;
+import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.walk;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.StochasticIndicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;

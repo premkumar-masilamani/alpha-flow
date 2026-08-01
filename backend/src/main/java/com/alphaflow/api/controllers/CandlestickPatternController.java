@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.CandlestickPatternDTO;
+import com.alphaflow.api.dtos.CandlestickPatternDto;
 import com.alphaflow.api.services.CandlestickPatternService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** REST controller for retrieving candlestick patterns. */
 @RestController
 @RequestMapping("/api")
 @Slf4j
@@ -29,9 +28,8 @@ public class CandlestickPatternController {
     this.tickerRepository = tickerRepository;
   }
 
-  /** Endpoint to retrieve candlestick patterns for a specific ticker and timeframe. */
   @GetMapping("/tickers/{symbol}/candlestick-patterns")
-  public List<CandlestickPatternDTO> getCandlestickPatterns(
+  public List<CandlestickPatternDto> getCandlestickPatterns(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,

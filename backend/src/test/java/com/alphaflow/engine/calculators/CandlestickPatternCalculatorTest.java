@@ -2,7 +2,12 @@ package com.alphaflow.engine.calculators;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.DailyPrice;
@@ -86,13 +91,13 @@ class CandlestickPatternCalculatorTest {
     CandlestickPatternCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Calculators fail"))
         .when(calculatorSpy)
-        .computePatternsForTicker(activeTicker1);
-    doNothing().when(calculatorSpy).computePatternsForTicker(activeTicker2);
+        .computeCandleStickPatternsForTicker(activeTicker1);
+    doNothing().when(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2);
 
-    calculatorSpy.computePatterns();
+    calculatorSpy.computeCandleStickPatterns();
 
-    verify(calculatorSpy).computePatternsForTicker(activeTicker1);
-    verify(calculatorSpy).computePatternsForTicker(activeTicker2);
+    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker1);
+    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2);
   }
 
   @Test
@@ -100,7 +105,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(List.of(daily(LocalDate.now(), "100", "105", "98", "102")));
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     verify(dailyCandlestickPatternRepository, never()).saveAll(any());
   }
@@ -121,7 +126,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -145,7 +150,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -170,7 +175,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -195,7 +200,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -222,7 +227,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -245,7 +250,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -272,7 +277,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -299,7 +304,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -326,7 +331,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -348,7 +353,7 @@ class CandlestickPatternCalculatorTest {
     when(weeklyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.empty());
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
@@ -373,7 +378,7 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
         .thenReturn(Optional.of(lastPat));
 
-    calculator.computePatternsForTicker(ticker);
+    calculator.computeCandleStickPatternsForTicker(ticker);
 
     verify(dailyCandlestickPatternRepository, never()).saveAll(any());
   }

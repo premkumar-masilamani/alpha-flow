@@ -16,10 +16,9 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Simple moving average over a configurable source field (e.g. SMA-20 on volume). */
 @Component
 @Slf4j
-public class SMAIndicator implements Indicator {
+public class SmaIndicator implements Indicator {
 
   @Override
   public IndicatorType type() {

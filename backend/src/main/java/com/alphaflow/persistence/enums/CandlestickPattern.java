@@ -1,9 +1,5 @@
 package com.alphaflow.persistence.enums;
 
-/**
- * Supported candlestick patterns with their 3-letter short names, full long names, and sentiment
- * (BULL/BEAR).
- */
 public enum CandlestickPattern {
   BULLISH_MARUBOZU("MBZ", "Bullish Marubozu", PatternSentiment.BULL),
   BULLISH_PIERCING("PRC", "Bullish Piercing", PatternSentiment.BULL),

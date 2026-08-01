@@ -12,12 +12,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * CoreScheduler for periodic data updates.
- *
- * <p>This component automates the download of daily price data, the aggregation of weekly price
- * data, technical indicators, and candlestick patterns.
- */
 @Component
 @Slf4j
 public class CoreScheduler {
@@ -28,14 +22,6 @@ public class CoreScheduler {
   private final CandlestickPatternCalculator candlestickPatternCalculator;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
-  /**
-   * Constructs a CoreScheduler with the required data downloaders and calculators.
-   *
-   * @param yahooFinanceDownloader the Yahoo Finance downloader
-   * @param weeklyPriceCalculator the weekly price calculator
-   * @param indicatorCalculator the indicator calculator
-   * @param candlestickPatternCalculator the candlestick pattern calculator
-   */
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
@@ -47,18 +33,12 @@ public class CoreScheduler {
     this.candlestickPatternCalculator = candlestickPatternCalculator;
   }
 
-  /** Runs the data update pipeline every hour on the hour. */
   @Scheduled(cron = "0 0 * * * *")
   public void runScheduledUpdate() {
     log.info("Starting scheduled data update cycle (on the hour)...");
     run();
   }
 
-  /**
-   * Runs the data update pipeline asynchronously upon application startup,
-   *
-   * <p>so it does not block the application's main thread.
-   */
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
@@ -91,7 +71,7 @@ public class CoreScheduler {
 
       log.info("Step 4/4: Computing candlestick patterns...");
       start = System.currentTimeMillis();
-      candlestickPatternCalculator.computePatterns();
+      candlestickPatternCalculator.computeCandleStickPatterns();
       log.info("Step 4/4 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(

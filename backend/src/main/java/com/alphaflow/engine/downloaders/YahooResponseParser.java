@@ -1,5 +1,8 @@
 package com.alphaflow.engine.downloaders;
 
+import com.alphaflow.engine.downloaders.dtos.YahooQuote;
+import com.alphaflow.engine.downloaders.dtos.YahooResponse;
+import com.alphaflow.engine.downloaders.dtos.YahooResult;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -125,19 +128,4 @@ public class YahooResponseParser {
         ticker.getTickerSymbol());
     return list;
   }
-
-  private record YahooResponse(YahooChart chart) {}
-
-  private record YahooChart(List<YahooResult> result) {}
-
-  private record YahooResult(List<Long> timestamp, YahooIndicators indicators) {}
-
-  private record YahooIndicators(List<YahooQuote> quote) {}
-
-  private record YahooQuote(
-      List<BigDecimal> open,
-      List<BigDecimal> high,
-      List<BigDecimal> low,
-      List<BigDecimal> close,
-      List<BigDecimal> volume) {}
 }

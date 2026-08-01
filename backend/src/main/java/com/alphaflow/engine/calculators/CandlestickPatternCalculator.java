@@ -1,6 +1,9 @@
 package com.alphaflow.engine.calculators;
 
+import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.dtos.PatternMatch;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyCandlestickPattern;
@@ -25,10 +28,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Computes candlestick patterns for all active tickers. Follows the same transactional boundaries
- * and proxy pattern as other engine calculators.
- */
 @Component
 @Slf4j
 public class CandlestickPatternCalculator {
@@ -38,6 +37,10 @@ public class CandlestickPatternCalculator {
   private static final BigDecimal THRESHOLD_SMALL = new BigDecimal("0.3");
   private static final BigDecimal RATIO_HAMMER_SHADOW = new BigDecimal("2.0");
   private static final BigDecimal RATIO_HAMMER_UPPER = new BigDecimal("0.1");
+  private static final BigDecimal RATIO_STAR_OUTER = new BigDecimal("0.7");
+  private static final BigDecimal DIVISOR_MIDPOINT = new BigDecimal("2");
+  private static final int MIN_BARS = 3;
+  private static final int PERIOD_BODY_MA = 14;
 
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
@@ -47,15 +50,6 @@ public class CandlestickPatternCalculator {
 
   @Autowired @Lazy private CandlestickPatternCalculator selfProxy;
 
-  /**
-   * Constructs a CandlestickPatternCalculator.
-   *
-   * @param tickerRepository the ticker repository
-   * @param dailyPriceRepository the daily prices repository
-   * @param weeklyPriceRepository the weekly prices repository
-   * @param dailyCandlestickPatternRepository the daily candlestick patterns repository
-   * @param weeklyCandlestickPatternRepository the weekly candlestick patterns repository
-   */
   public CandlestickPatternCalculator(
       TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
@@ -69,9 +63,8 @@ public class CandlestickPatternCalculator {
     this.weeklyCandlestickPatternRepository = weeklyCandlestickPatternRepository;
   }
 
-  /** Main entry point to compute patterns across all active tickers. */
-  public void computePatterns() {
-    log.info("Starting candlestick pattern computation...");
+  public void computeCandleStickPatterns() {
+    log.info("Computing candlestick patterns...");
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for patterns.", tickers.size());
 
@@ -79,7 +72,7 @@ public class CandlestickPatternCalculator {
 
     for (Ticker ticker : tickers) {
       try {
-        proxy.computePatternsForTicker(ticker);
+        proxy.computeCandleStickPatternsForTicker(ticker);
       } catch (Exception e) {
         log.error(
             "Failed to compute candlestick patterns for ticker {}: {}",
@@ -88,24 +81,21 @@ public class CandlestickPatternCalculator {
             e);
       }
     }
-    log.info("Candlestick pattern computation completed.");
+    log.info("Candlestick pattern computed.");
   }
 
-  /**
-   * Computes daily and weekly patterns for a specific ticker in separate transaction boundaries.
-   */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computePatternsForTicker(Ticker ticker) {
-    log.info("Ticker {}: Starting pattern calculation...", ticker.getTickerSymbol());
+  public void computeCandleStickPatternsForTicker(Ticker ticker) {
+    log.info("Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.DAILY);
     computeDailyPatternsForTicker(ticker);
+    log.info(
+        "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.WEEKLY);
     computeWeeklyPatternsForTicker(ticker);
   }
 
-  private record PatternMatch(LocalDate date, CandlestickPattern pattern) {}
-
   private void computeDailyPatternsForTicker(Ticker ticker) {
     List<PriceBar> bars = loadDailyBars(ticker);
-    if (bars.size() < 3) {
+    if (bars.size() < MIN_BARS) {
       log.debug(
           "Ticker {}: Insufficient daily data points (found {}) to compute patterns.",
           ticker.getTickerSymbol(),
@@ -142,7 +132,7 @@ public class CandlestickPatternCalculator {
 
   private void computeWeeklyPatternsForTicker(Ticker ticker) {
     List<PriceBar> bars = loadWeeklyBars(ticker);
-    if (bars.size() < 3) {
+    if (bars.size() < MIN_BARS) {
       log.debug(
           "Ticker {}: Insufficient weekly data points (found {}) to compute patterns.",
           ticker.getTickerSymbol(),
@@ -180,9 +170,7 @@ public class CandlestickPatternCalculator {
   private List<PatternMatch> findMatches(List<PriceBar> bars, LocalDate lastComputedDate) {
     List<PatternMatch> matches = new ArrayList<>();
     List<BigDecimal> bodies = computeAbsoluteBodies(bars);
-    List<BigDecimal> avgBodies = computeMovingAverages(bodies, 14);
-    List<BigDecimal> sma20List =
-        computeMovingAverages(bars.stream().map(PriceBar::close).toList(), 20);
+    List<BigDecimal> avgBodies = computeMovingAverages(bodies, PERIOD_BODY_MA);
 
     for (int i = 2; i < bars.size(); i++) {
       PriceBar bar = bars.get(i);
@@ -193,10 +181,9 @@ public class CandlestickPatternCalculator {
       }
 
       BigDecimal avgBody = avgBodies.get(i);
-      BigDecimal sma20 = sma20List.get(i);
 
       for (CandlestickPattern pattern : CandlestickPattern.values()) {
-        if (matchesPattern(bars, i, pattern, avgBody, sma20)) {
+        if (matchesPattern(bars, i, pattern, avgBody)) {
           matches.add(new PatternMatch(date, pattern));
         }
       }
@@ -204,22 +191,9 @@ public class CandlestickPatternCalculator {
     return matches;
   }
 
-  /**
-   * Matches a candlestick pattern at a specific bar index.
-   *
-   * @param bars the list of price bars
-   * @param i the current bar index
-   * @param pattern the pattern to match
-   * @param avgBody the moving average of body size
-   * @param sma20 the 20-period moving average of close prices
-   * @return true if the pattern matches at the index
-   */
+  @SuppressWarnings("PMD.ExhaustiveSwitchHasDefault")
   private boolean matchesPattern(
-      List<PriceBar> bars,
-      int i,
-      CandlestickPattern pattern,
-      BigDecimal avgBody,
-      BigDecimal sma20) {
+      List<PriceBar> bars, int i, CandlestickPattern pattern, BigDecimal avgBody) {
     PriceBar cur = bars.get(i);
     BigDecimal curBody = body(cur);
     boolean curGreen = isGreen(cur);
@@ -245,137 +219,137 @@ public class CandlestickPatternCalculator {
       // Bullish Engulfing: A two-candle pattern where a small red candle is fully engulfed by a
       // subsequent larger green candle.
       case BULLISH_ENGULFING:
-        {
-          PriceBar prev = bars.get(i - 1);
-          return isRed(prev)
-              && curGreen
-              && cur.open().compareTo(prev.close()) <= 0
-              && cur.close().compareTo(prev.open()) >= 0
-              && (cur.open().compareTo(prev.close()) < 0 || cur.close().compareTo(prev.open()) > 0);
-        }
+        PriceBar prevBullish = bars.get(i - 1);
+        return isRed(prevBullish)
+            && curGreen
+            && cur.open().compareTo(prevBullish.close()) <= 0
+            && cur.close().compareTo(prevBullish.open()) >= 0
+            && (cur.open().compareTo(prevBullish.close()) < 0
+                || cur.close().compareTo(prevBullish.open()) > 0);
 
       // Bearish Engulfing: A two-candle pattern where a small green candle is fully engulfed by a
       // subsequent larger red candle.
       case BEARISH_ENGULFING:
-        {
-          PriceBar prev = bars.get(i - 1);
-          return isGreen(prev)
-              && curRed
-              && cur.open().compareTo(prev.close()) >= 0
-              && cur.close().compareTo(prev.open()) <= 0
-              && (cur.open().compareTo(prev.close()) > 0 || cur.close().compareTo(prev.open()) < 0);
-        }
+        PriceBar prevBearish = bars.get(i - 1);
+        return isGreen(prevBearish)
+            && curRed
+            && cur.open().compareTo(prevBearish.close()) >= 0
+            && cur.close().compareTo(prevBearish.open()) <= 0
+            && (cur.open().compareTo(prevBearish.close()) > 0
+                || cur.close().compareTo(prevBearish.open()) < 0);
 
       // Bullish Piercing (Piercing Line): A two-candle reversal pattern where a green candle opens
       // below the previous red candle's close and closes more than halfway up its body.
       case BULLISH_PIERCING:
-        {
-          PriceBar prev = bars.get(i - 1);
-          if (!isRed(prev) || !curGreen || body(prev).compareTo(avgBody) < 0) {
-            return false;
-          }
-          BigDecimal prevMidpoint = prev.close().add(prev.open()).divide(new BigDecimal("2"), MC);
-          return cur.open().compareTo(prev.close()) < 0
-              && cur.close().compareTo(prevMidpoint) > 0
-              && cur.close().compareTo(prev.open()) <= 0;
+        PriceBar prevPiercingBullish = bars.get(i - 1);
+        if (!isRed(prevPiercingBullish)
+            || !curGreen
+            || body(prevPiercingBullish).compareTo(avgBody) < 0) {
+          return false;
         }
+        BigDecimal midpointBullish =
+            prevPiercingBullish
+                .close()
+                .add(prevPiercingBullish.open())
+                .divide(DIVISOR_MIDPOINT, MC);
+        return cur.open().compareTo(prevPiercingBullish.close()) < 0
+            && cur.close().compareTo(midpointBullish) > 0
+            && cur.close().compareTo(prevPiercingBullish.open()) <= 0;
 
       // Bearish Piercing (Dark Cloud Cover): A two-candle reversal pattern where a red candle opens
       // above the previous green candle's close and closes more than halfway down its body.
       case BEARISH_PIERCING:
-        {
-          PriceBar prev = bars.get(i - 1);
-          if (!isGreen(prev) || !curRed || body(prev).compareTo(avgBody) < 0) {
-            return false;
-          }
-          BigDecimal prevMidpoint = prev.close().add(prev.open()).divide(new BigDecimal("2"), MC);
-          return cur.open().compareTo(prev.close()) > 0
-              && cur.close().compareTo(prevMidpoint) < 0
-              && cur.close().compareTo(prev.open()) >= 0;
+        PriceBar prevPiercingBearish = bars.get(i - 1);
+        if (!isGreen(prevPiercingBearish)
+            || !curRed
+            || body(prevPiercingBearish).compareTo(avgBody) < 0) {
+          return false;
         }
+        BigDecimal midpointBearish =
+            prevPiercingBearish
+                .close()
+                .add(prevPiercingBearish.open())
+                .divide(DIVISOR_MIDPOINT, MC);
+        return cur.open().compareTo(prevPiercingBearish.close()) > 0
+            && cur.close().compareTo(midpointBearish) < 0
+            && cur.close().compareTo(prevPiercingBearish.open()) >= 0;
 
       // Hammer: A single-candle bullish reversal pattern with a small body and a long lower shadow
-      // (>= 2x body), occurring in a downtrend (below 20 SMA).
+      // (>= 2x body).
       case HAMMER:
         return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
-            && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
-            && cur.close().compareTo(sma20) < 0;
+            && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
 
       // Inverted Hammer: A single-candle bullish reversal pattern with a small body and a long
-      // upper shadow (>= 2x body), occurring in a downtrend (below 20 SMA).
+      // upper shadow (>= 2x body).
       case INVERTED_HAMMER:
         return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
-            && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
-            && cur.close().compareTo(sma20) < 0;
+            && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
 
       // Hanging Man: A bearish reversal pattern featuring a hammer-like candle followed by a
-      // confirmation red candle, occurring in an uptrend (above 20 SMA).
+      // confirmation red candle.
       case HANGING_MAN:
-        {
-          PriceBar prev = bars.get(i - 1);
-          boolean prevHangingMan =
-              body(prev).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
-                  && lowerShadow(prev).compareTo(body(prev).multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
-                  && upperShadow(prev).compareTo(body(prev).multiply(RATIO_HAMMER_UPPER, MC)) <= 0
-                  && prev.close().compareTo(sma20) > 0;
-          return prevHangingMan && curRed;
-        }
+        PriceBar prevHanging = bars.get(i - 1);
+        boolean prevHangingMan =
+            body(prevHanging).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+                && lowerShadow(prevHanging)
+                        .compareTo(body(prevHanging).multiply(RATIO_HAMMER_SHADOW, MC))
+                    >= 0
+                && upperShadow(prevHanging)
+                        .compareTo(body(prevHanging).multiply(RATIO_HAMMER_UPPER, MC))
+                    <= 0;
+        return prevHangingMan && curRed;
 
       // Morning Star: A three-candle bullish reversal pattern consisting of a long red candle, a
       // gapping down star (small body), and a green candle closing more than halfway up the first
       // candle's body.
       case MORNING_STAR:
-        {
-          PriceBar first = bars.get(i - 2);
-          PriceBar star = bars.get(i - 1);
-          if (!isRed(first)
-              || body(first).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) < 0) {
-            return false;
-          }
-          if (body(star).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
-            return false;
-          }
-          BigDecimal starMax = star.open().max(star.close());
-          boolean gapDown = starMax.compareTo(first.close()) < 0;
-
-          BigDecimal firstMidpoint =
-              first.close().add(first.open()).divide(new BigDecimal("2"), MC);
-          return gapDown
-              && curGreen
-              && body(cur).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) >= 0
-              && cur.close().compareTo(firstMidpoint) > 0
-              && first.close().compareTo(sma20) < 0;
+        PriceBar firstMorning = bars.get(i - 2);
+        PriceBar starMorning = bars.get(i - 1);
+        if (!isRed(firstMorning)
+            || body(firstMorning).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
+          return false;
         }
+        if (body(starMorning).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
+          return false;
+        }
+        BigDecimal starMax = starMorning.open().max(starMorning.close());
+        boolean gapDown = starMax.compareTo(firstMorning.close()) < 0;
+
+        BigDecimal firstMidpoint =
+            firstMorning.close().add(firstMorning.open()).divide(DIVISOR_MIDPOINT, MC);
+        return gapDown
+            && curGreen
+            && body(cur).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
+            && cur.close().compareTo(firstMidpoint) > 0;
 
       // Evening Star: A three-candle bearish reversal pattern consisting of a long green candle, a
       // gapping up star (small body), and a red candle closing more than halfway down the first
       // candle's body.
       case EVENING_STAR:
-        {
-          PriceBar first = bars.get(i - 2);
-          PriceBar star = bars.get(i - 1);
-          if (!isGreen(first)
-              || body(first).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) < 0) {
-            return false;
-          }
-          if (body(star).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
-            return false;
-          }
-          BigDecimal starMin = star.open().min(star.close());
-          boolean gapUp = starMin.compareTo(first.close()) > 0;
-
-          BigDecimal firstMidpoint =
-              first.close().add(first.open()).divide(new BigDecimal("2"), MC);
-          return gapUp
-              && curRed
-              && body(cur).compareTo(avgBody.multiply(new BigDecimal("0.7"), MC)) >= 0
-              && cur.close().compareTo(firstMidpoint) < 0
-              && first.close().compareTo(sma20) > 0;
+        PriceBar firstEvening = bars.get(i - 2);
+        PriceBar starEvening = bars.get(i - 1);
+        if (!isGreen(firstEvening)
+            || body(firstEvening).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
+          return false;
         }
+        if (body(starEvening).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
+          return false;
+        }
+        BigDecimal starMin = starEvening.open().min(starEvening.close());
+        boolean gapUp = starMin.compareTo(firstEvening.close()) > 0;
+
+        BigDecimal firstMidpointEvening =
+            firstEvening.close().add(firstEvening.open()).divide(DIVISOR_MIDPOINT, MC);
+        return gapUp
+            && curRed
+            && body(cur).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
+            && cur.close().compareTo(firstMidpointEvening) < 0;
+      default:
+        return false;
     }
-    return false;
   }
 
   private BigDecimal body(PriceBar bar) {
@@ -414,7 +388,7 @@ public class CandlestickPatternCalculator {
         sum = sum.subtract(values.get(i - period));
       }
       int count = Math.min(i + 1, period);
-      ma.set(i, sum.divide(BigDecimal.valueOf(count), MC));
+      ma.set(i, IndicatorMath.divide(sum, BigDecimal.valueOf(count)));
     }
     return ma;
   }

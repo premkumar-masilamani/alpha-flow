@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.OhlcvDTO;
+import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
@@ -49,7 +49,7 @@ class DailyPriceServiceTest {
             eq(ticker), any(LocalDate.class), eq(PageRequest.of(0, 250))))
         .thenReturn(List.of(dp1, dp2));
 
-    List<OhlcvDTO> result = dailyPriceService.getDailyPrice(ticker, 0, 250);
+    List<OhlcvDto> result = dailyPriceService.getDailyPrice(ticker, 0, 250);
 
     assertEquals(2, result.size());
     assertEquals(LocalDate.of(2026, 5, 28), result.getFirst().priceDate());
@@ -77,7 +77,7 @@ class DailyPriceServiceTest {
             eq(ticker), any(LocalDate.class), eq(PageRequest.of(1, 10))))
         .thenReturn(List.of(dp));
 
-    List<OhlcvDTO> result = dailyPriceService.getDailyPrice(ticker, 1, 10);
+    List<OhlcvDto> result = dailyPriceService.getDailyPrice(ticker, 1, 10);
 
     assertEquals(1, result.size());
     assertEquals(LocalDate.of(2026, 5, 29), result.getFirst().priceDate());

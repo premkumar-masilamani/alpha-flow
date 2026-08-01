@@ -1,14 +1,18 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.IndicatorConfigDTO;
-import com.alphaflow.api.dtos.IndicatorSeriesDTO;
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.api.mappers.IndicatorMapper;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.repositories.*;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
+import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,12 +21,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Serves the indicator discovery matrix and the per-ticker, per-timeframe indicator series.
- *
- * <p>The series window mirrors the price endpoint: indicators are returned for the same date range
- * as the most recent {@code window} candles, so chart overlays align exactly with the bars.
- */
 @Service
 @Transactional(readOnly = true)
 @Slf4j
@@ -50,24 +48,23 @@ public class IndicatorService {
     this.weeklyIndicatorRepository = weeklyIndicatorRepository;
   }
 
-  /** The configured indicator matrix across all timeframes. */
-  public List<IndicatorConfigDTO> getConfiguredIndicators() {
-    List<IndicatorConfigDTO> configs = new ArrayList<>();
+  public List<IndicatorConfigDto> getConfiguredIndicators() {
+    List<IndicatorConfigDto> configs = new ArrayList<>();
     List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
     for (Timeframe timeframe : Timeframe.values()) {
       for (IndicatorDefinition definition : definitions) {
-        configs.add(IndicatorMapper.toConfigDTO(timeframe, definition));
+        configs.add(IndicatorMapper.toConfigDto(timeframe, definition));
       }
     }
     return configs;
   }
 
-  public List<IndicatorSeriesDTO> getIndicatorSeries(
+  public List<IndicatorSeriesDto> getIndicatorSeries(
       Ticker ticker, Timeframe timeframe, int page, int size) {
     return getIndicatorSeries(ticker, timeframe, LocalDate.now(), page, size);
   }
 
-  public List<IndicatorSeriesDTO> getIndicatorSeries(
+  public List<IndicatorSeriesDto> getIndicatorSeries(
       Ticker ticker, Timeframe timeframe, LocalDate endDate, int page, int size) {
     log.debug(
         "Fetching {} indicators for ticker: {} up to {} (page={}, size={})",
@@ -78,12 +75,12 @@ public class IndicatorService {
         size);
 
     PageRequest pageRequest = PageRequest.of(page, size);
-    List<LocalDate> pageDates =
-        switch (timeframe) {
-          case WEEKLY ->
-              weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
-          case DAILY -> dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
-        };
+    List<LocalDate> pageDates = List.of();
+    if (timeframe == Timeframe.DAILY) {
+      pageDates = dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      pageDates = weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+    }
 
     if (pageDates.isEmpty()) {
       return List.of();
@@ -101,13 +98,12 @@ public class IndicatorService {
     List<Long> indicatorIds =
         definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
 
-    List<? extends Indicator> rows =
-        switch (timeframe) {
-          case DAILY ->
-              dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
-          case WEEKLY ->
-              weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
-        };
+    List<? extends Indicator> rows = List.of();
+    if (timeframe == Timeframe.DAILY) {
+      rows = dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      rows = weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+    }
     return IndicatorMapper.toSeries(rows);
   }
 }

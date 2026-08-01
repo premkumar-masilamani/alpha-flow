@@ -13,7 +13,6 @@ import java.util.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/** Slow Stochastic oscillator (standard "(k, kSmooth, dSmooth)", e.g. 14,3,3). */
 @Component
 @Slf4j
 public class StochasticIndicator implements Indicator {
@@ -28,31 +27,31 @@ public class StochasticIndicator implements Indicator {
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     // 1. Setup and parameter retrieval
     int k = params.getInt(IndicatorParamKey.K);
-    int kSmooth = params.getInt(IndicatorParamKey.K_SMOOTH);
-    int dSmooth = params.getInt(IndicatorParamKey.D_SMOOTH);
+    int smoothK = params.getInt(IndicatorParamKey.K_SMOOTH);
+    int smoothD = params.getInt(IndicatorParamKey.D_SMOOTH);
     if (k < 1) {
       throw new IllegalArgumentException("Stochastic k must be >= 1. Provided: " + k);
     }
-    if (kSmooth < 1) {
-      throw new IllegalArgumentException("Stochastic kSmooth must be >= 1. Provided: " + kSmooth);
+    if (smoothK < 1) {
+      throw new IllegalArgumentException("Stochastic kSmooth must be >= 1. Provided: " + smoothK);
     }
-    if (dSmooth < 1) {
-      throw new IllegalArgumentException("Stochastic dSmooth must be >= 1. Provided: " + dSmooth);
+    if (smoothD < 1) {
+      throw new IllegalArgumentException("Stochastic dSmooth must be >= 1. Provided: " + smoothD);
     }
 
     log.debug(
         "Computing Stochastic indicator for {} bars, k={}, kSmooth={}, dSmooth={}, source={}",
         bars.size(),
         k,
-        kSmooth,
-        dSmooth,
+        smoothK,
+        smoothD,
         source);
 
     // Deques representing sliding windows for tracking values
     Deque<BigDecimal> highs = new ArrayDeque<>(k);
     Deque<BigDecimal> lows = new ArrayDeque<>(k);
-    Deque<BigDecimal> rawKWindow = new ArrayDeque<>(kSmooth);
-    Deque<BigDecimal> kWindow = new ArrayDeque<>(dSmooth);
+    Deque<BigDecimal> rawWindowK = new ArrayDeque<>(smoothK);
+    Deque<BigDecimal> windowK = new ArrayDeque<>(smoothD);
 
     Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
 
@@ -81,26 +80,26 @@ public class StochasticIndicator implements Indicator {
                       .multiply(IndicatorMath.HUNDRED));
 
       // Step 3: Compute Slow %K (Output `k`) using simple averaging of rawKWindow
-      rawKWindow.addLast(rawK);
-      if (rawKWindow.size() > kSmooth) {
-        rawKWindow.removeFirst();
+      rawWindowK.addLast(rawK);
+      if (rawWindowK.size() > smoothK) {
+        rawWindowK.removeFirst();
       }
-      if (rawKWindow.size() < kSmooth) {
+      if (rawWindowK.size() < smoothK) {
         continue; // Skip until we have enough rawK values for smoothing
       }
 
-      BigDecimal kValue = IndicatorMath.average(new ArrayList<>(rawKWindow));
+      BigDecimal valueK = IndicatorMath.average(new ArrayList<>(rawWindowK));
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
-      barValues.put(IndicatorOutputKey.K.getValue(), IndicatorMath.publish(kValue));
+      barValues.put(IndicatorOutputKey.K.getValue(), IndicatorMath.publish(valueK));
 
       // Step 4: Compute Slow %D (Output `d`) using simple averaging of kWindow
-      kWindow.addLast(kValue);
-      if (kWindow.size() > dSmooth) {
-        kWindow.removeFirst();
+      windowK.addLast(valueK);
+      if (windowK.size() > smoothD) {
+        windowK.removeFirst();
       }
-      if (kWindow.size() == dSmooth) {
-        BigDecimal dValue = IndicatorMath.average(new ArrayList<>(kWindow));
-        barValues.put(IndicatorOutputKey.D.getValue(), IndicatorMath.publish(dValue));
+      if (windowK.size() == smoothD) {
+        BigDecimal valueD = IndicatorMath.average(new ArrayList<>(windowK));
+        barValues.put(IndicatorOutputKey.D.getValue(), IndicatorMath.publish(valueD));
       }
       // Step 5: Save published output mapped to bar date
       values.put(bar.date(), barValues);
