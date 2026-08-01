@@ -19,6 +19,7 @@ import {
   type TechnicalAnalysisData,
   getCandlestickPatterns,
   type CandlestickPatternData,
+  CHART_WINDOW,
 } from "./services/api";
 import {
   Loader2,
@@ -600,7 +601,7 @@ function App() {
                     onToggle={toggleIndicator}
                   />
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
-                    <span className="px-2 text-2xs font-extrabold text-slate-500 uppercase tracking-wider select-none">
+                    <span className="px-2 text-xs font-bold text-slate-400 select-none">
                       Patterns
                     </span>
                     <button
