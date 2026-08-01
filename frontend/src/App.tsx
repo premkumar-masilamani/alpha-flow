@@ -38,6 +38,16 @@ const pctChange = (change: number, base: number): number => {
 
 
 
+const INDICATOR_ORDER = [
+  "EMA (5)",
+  "EMA (13)",
+  "EMA (26)",
+  "BB (20)",
+  "RSI (14)",
+  "Stoch (14,3,3)",
+  "MACD (12,26,9)"
+];
+
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -594,9 +604,24 @@ function App() {
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <IndicatorControls
-                    configs={indicatorConfigs.filter(
-                      (c) => c.timeframe === timeframe && !(c.type === 'SMA' && c.source === 'VOLUME' && c.params === 'period=20'),
-                    )}
+                    configs={indicatorConfigs
+                      .filter(
+                        (c) =>
+                          c.timeframe === timeframe &&
+                          !(
+                            c.type === "SMA" &&
+                            c.source === "VOLUME" &&
+                            c.params === "period=20"
+                          ),
+                      )
+                      .sort((a, b) => {
+                        const idxA = INDICATOR_ORDER.indexOf(a.label);
+                        const idxB = INDICATOR_ORDER.indexOf(b.label);
+                        if (idxA === -1 && idxB === -1) return a.label.localeCompare(b.label);
+                        if (idxA === -1) return 1;
+                        if (idxB === -1) return -1;
+                        return idxA - idxB;
+                      })}
                     enabled={enabledIndicators}
                     onToggle={toggleIndicator}
                   />

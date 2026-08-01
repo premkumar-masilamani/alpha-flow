@@ -140,6 +140,16 @@ interface LegendEntry {
 // Deterministic palette; assigned in enabled-order so a given chart is stable across renders.
 const PALETTE = ['#f59e0b', '#06b6d4', '#a855f7', '#ec4899', '#84cc16', '#f43f5e', '#22d3ee', '#fb923c', '#eab308'];
 
+const INDICATOR_ORDER = [
+  "EMA (5)",
+  "EMA (13)",
+  "EMA (26)",
+  "BB (20)",
+  "RSI (14)",
+  "Stoch (14,3,3)",
+  "MACD (12,26,9)"
+];
+
 type Placement = 'priceOverlay' | 'volumeOverlay' | 'oscillator';
 
 const placementFor = (series: IndicatorSeries): Placement => {
@@ -327,7 +337,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         const nextColor = () => PALETTE[colorIdx++ % PALETTE.length];
         let nextPane = 1;
 
-        for (const series of indicators) {
+        const sortedIndicators = [...indicators].sort((a, b) => {
+            const idxA = INDICATOR_ORDER.indexOf(a.label);
+            const idxB = INDICATOR_ORDER.indexOf(b.label);
+            if (idxA === -1 && idxB === -1) return a.label.localeCompare(b.label);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+        });
+
+        for (const series of sortedIndicators) {
             const key = indicatorKey(series);
             const isVolMA = series.type === 'SMA' && series.source === 'VOLUME' && series.params === 'period=20';
             if (!isVolMA && !enabled.has(key)) continue;
@@ -515,7 +534,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         visibleLogicalRangeRef.current = targetRange;
     };
 
-    const oscillatorIndicators = indicators.filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator');
+    const oscillatorIndicators = indicators
+        .filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator')
+        .sort((a, b) => {
+            const idxA = INDICATOR_ORDER.indexOf(a.label);
+            const idxB = INDICATOR_ORDER.indexOf(b.label);
+            if (idxA === -1 && idxB === -1) return a.label.localeCompare(b.label);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+        });
 
     return (
         <div className="relative w-full h-full min-h-0 flex-1 flex flex-col">
