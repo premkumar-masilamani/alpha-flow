@@ -11,8 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Holds the in-memory cache of technical indicator configurations. Loads them from the database at
- * application startup.
+ * Holds the in-memory cache of technical indicator configurations. Loads them from the database at application startup.
  */
 @Component
 public class IndicatorConfig {
@@ -32,18 +31,14 @@ public class IndicatorConfig {
     loadFromDatabase();
   }
 
-  /**
-   * Loads all indicator definitions from the database and updates the in-memory cache.
-   */
+  /** Loads all indicator definitions from the database and updates the in-memory cache. */
   public synchronized void loadFromDatabase() {
     logger.info("Loading indicator definitions from database...");
     List<IndicatorDefinition> all = indicatorDefinitionRepository.findAll();
 
     cachedDefinitions.clear();
     cachedDefinitions.addAll(all);
-    logger.info(
-        "Successfully loaded and cached {} indicator definitions.",
-        all.size());
+    logger.info("Successfully loaded and cached {} indicator definitions.", all.size());
   }
 
   public List<IndicatorDefinition> getDefinitions() {

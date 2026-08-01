@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.indicators.*;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;

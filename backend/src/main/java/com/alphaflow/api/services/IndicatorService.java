@@ -79,9 +79,11 @@ public class IndicatorService {
 
     PageRequest pageRequest = PageRequest.of(page, size);
     List<LocalDate> pageDates =
-        timeframe == Timeframe.WEEKLY
-            ? weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest)
-            : dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+        switch (timeframe) {
+          case WEEKLY ->
+              weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+          case DAILY -> dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+        };
 
     if (pageDates.isEmpty()) {
       return List.of();
@@ -100,9 +102,12 @@ public class IndicatorService {
         definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
 
     List<? extends Indicator> rows =
-        timeframe == Timeframe.DAILY
-            ? dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end)
-            : weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+        switch (timeframe) {
+          case DAILY ->
+              dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+          case WEEKLY ->
+              weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+        };
     return IndicatorMapper.toSeries(rows);
   }
 }

@@ -108,13 +108,17 @@ public class IndicatorCalculator {
 
     List<IndicatorDefinition> indicatorDefinitions = indicatorConfig.getDefinitions();
     if (indicatorDefinitions.isEmpty()) {
-      log.info("{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
+      log.info(
+          "{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
       return;
     }
 
     for (Timeframe timeframe : Timeframe.values()) {
       List<PriceBar> bars =
-          (timeframe == Timeframe.DAILY) ? loadDailyBars(ticker) : loadWeeklyBars(ticker);
+          switch (timeframe) {
+            case DAILY -> loadDailyBars(ticker);
+            case WEEKLY -> loadWeeklyBars(ticker);
+          };
       if (bars.isEmpty()) {
         continue;
       }
