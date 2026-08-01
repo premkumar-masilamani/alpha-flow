@@ -2,9 +2,9 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.CandlestickPatternDTO;
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.entities.WeeklyCandlestickPattern;
+import com.alphaflow.persistence.enums.CandlestickPattern;
+import com.alphaflow.persistence.enums.PatternSentiment;
 import com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository;
@@ -60,31 +60,24 @@ public class CandlestickPatternService {
     LocalDate end = pageDates.getFirst();
 
     if (timeframe == Timeframe.WEEKLY) {
-      List<WeeklyCandlestickPattern> rows =
-          weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end);
-      return rows.stream()
-          .map(
-              r ->
-                  CandlestickPatternDTO.builder()
-                      .date(r.getPriceDate())
-                      .shortName(r.getPattern().getShortName())
-                      .longName(r.getPattern().getLongName())
-                      .sentiment(r.getSentiment())
-                      .build())
+      return weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
+          .map(r -> toDTO(r.getPriceDate(), r.getPattern(), r.getSentiment()))
           .toList();
-    } else {
-      List<DailyCandlestickPattern> rows =
-          dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end);
-      return rows.stream()
-          .map(
-              r ->
-                  CandlestickPatternDTO.builder()
-                      .date(r.getPriceDate())
-                      .shortName(r.getPattern().getShortName())
-                      .longName(r.getPattern().getLongName())
-                      .sentiment(r.getSentiment())
-                      .build())
+    } else if (timeframe == Timeframe.DAILY) {
+      return dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
+          .map(r -> toDTO(r.getPriceDate(), r.getPattern(), r.getSentiment()))
           .toList();
     }
+    return List.of();
+  }
+
+  private CandlestickPatternDTO toDTO(
+      LocalDate date, CandlestickPattern pattern, PatternSentiment sentiment) {
+    return CandlestickPatternDTO.builder()
+        .date(date)
+        .shortName(pattern.getShortName())
+        .longName(pattern.getLongName())
+        .sentiment(sentiment)
+        .build();
   }
 }

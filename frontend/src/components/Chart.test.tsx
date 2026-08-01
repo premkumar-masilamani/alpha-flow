@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
 import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../services/api';
+import { PATTERN_MODES, SENTIMENT_TYPES } from '../services/api';
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => import('../__mocks__/lightweight-charts'));
@@ -174,8 +175,8 @@ describe('Chart Component', () => {
 
     it('sets markers on candlestick series depending on patternMode', () => {
         const mockPatterns = [
-            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: 'BULL' as const },
-            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: 'BEAR' as const }
+            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
         ];
 
         // 1. All patterns mode
@@ -188,7 +189,7 @@ describe('Chart Component', () => {
                 symbol="AAPL"
                 timeframe="DAILY"
                 patterns={mockPatterns}
-                patternMode="all"
+                patternMode={PATTERN_MODES.ALL}
                 onLoadOlderData={vi.fn()}
             />
         );
@@ -223,7 +224,7 @@ describe('Chart Component', () => {
                 symbol="AAPL"
                 timeframe="DAILY"
                 patterns={mockPatterns}
-                patternMode="recent"
+                patternMode={PATTERN_MODES.RECENT}
                 onLoadOlderData={vi.fn()}
             />
         );
@@ -241,8 +242,8 @@ describe('Chart Component', () => {
 
         // 3. Deduplicate duplicate dates (only show the first pattern on a given date)
         const duplicateMockPatterns = [
-            { date: '2026-06-03', shortName: 'HAM', longName: 'Hammer', sentiment: 'BULL' as const },
-            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: 'BEAR' as const }
+            { date: '2026-06-03', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
         ];
 
         const { unmount: unmountDup } = render(
@@ -254,7 +255,7 @@ describe('Chart Component', () => {
                 symbol="AAPL"
                 timeframe="DAILY"
                 patterns={duplicateMockPatterns}
-                patternMode="all"
+                patternMode={PATTERN_MODES.ALL}
                 onLoadOlderData={vi.fn()}
             />
         );

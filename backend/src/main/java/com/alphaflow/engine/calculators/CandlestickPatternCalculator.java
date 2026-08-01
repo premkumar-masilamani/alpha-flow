@@ -101,6 +101,8 @@ public class CandlestickPatternCalculator {
     computeWeeklyPatternsForTicker(ticker);
   }
 
+  private record PatternMatch(LocalDate date, CandlestickPattern pattern) {}
+
   private void computeDailyPatternsForTicker(Ticker ticker) {
     List<PriceBar> bars = loadDailyBars(ticker);
     if (bars.size() < 3) {
@@ -116,37 +118,20 @@ public class CandlestickPatternCalculator {
     LocalDate lastComputedDate =
         lastPattern.map(DailyCandlestickPattern::getPriceDate).orElse(null);
 
-    List<DailyCandlestickPattern> newPatterns = new ArrayList<>();
-    List<BigDecimal> bodies = computeAbsoluteBodies(bars);
-    List<BigDecimal> avgBodies = computeMovingAverages(bodies, 14);
-    List<BigDecimal> sma20List =
-        computeMovingAverages(bars.stream().map(PriceBar::close).toList(), 20);
+    List<PatternMatch> matches = findMatches(bars, lastComputedDate);
 
-    for (int i = 2; i < bars.size(); i++) {
-      PriceBar bar = bars.get(i);
-      LocalDate date = bar.date();
-
-      if (lastComputedDate != null && !date.isAfter(lastComputedDate)) {
-        continue;
-      }
-
-      BigDecimal avgBody = avgBodies.get(i);
-      BigDecimal sma20 = sma20List.get(i);
-
-      for (CandlestickPattern pattern : CandlestickPattern.values()) {
-        if (matchesPattern(bars, i, pattern, avgBody, sma20)) {
-          newPatterns.add(
-              DailyCandlestickPattern.builder()
-                  .ticker(ticker)
-                  .priceDate(date)
-                  .pattern(pattern)
-                  .sentiment(pattern.getSentiment())
-                  .build());
-        }
-      }
-    }
-
-    if (!newPatterns.isEmpty()) {
+    if (!matches.isEmpty()) {
+      List<DailyCandlestickPattern> newPatterns =
+          matches.stream()
+              .map(
+                  m ->
+                      DailyCandlestickPattern.builder()
+                          .ticker(ticker)
+                          .priceDate(m.date())
+                          .pattern(m.pattern())
+                          .sentiment(m.pattern().getSentiment())
+                          .build())
+              .toList();
       dailyCandlestickPatternRepository.saveAll(newPatterns);
       log.info(
           "Ticker {}: Saved {} new daily candlestick patterns.",
@@ -170,7 +155,30 @@ public class CandlestickPatternCalculator {
     LocalDate lastComputedDate =
         lastPattern.map(WeeklyCandlestickPattern::getPriceDate).orElse(null);
 
-    List<WeeklyCandlestickPattern> newPatterns = new ArrayList<>();
+    List<PatternMatch> matches = findMatches(bars, lastComputedDate);
+
+    if (!matches.isEmpty()) {
+      List<WeeklyCandlestickPattern> newPatterns =
+          matches.stream()
+              .map(
+                  m ->
+                      WeeklyCandlestickPattern.builder()
+                          .ticker(ticker)
+                          .priceDate(m.date())
+                          .pattern(m.pattern())
+                          .sentiment(m.pattern().getSentiment())
+                          .build())
+              .toList();
+      weeklyCandlestickPatternRepository.saveAll(newPatterns);
+      log.info(
+          "Ticker {}: Saved {} new weekly candlestick patterns.",
+          ticker.getTickerSymbol(),
+          newPatterns.size());
+    }
+  }
+
+  private List<PatternMatch> findMatches(List<PriceBar> bars, LocalDate lastComputedDate) {
+    List<PatternMatch> matches = new ArrayList<>();
     List<BigDecimal> bodies = computeAbsoluteBodies(bars);
     List<BigDecimal> avgBodies = computeMovingAverages(bodies, 14);
     List<BigDecimal> sma20List =
@@ -189,24 +197,11 @@ public class CandlestickPatternCalculator {
 
       for (CandlestickPattern pattern : CandlestickPattern.values()) {
         if (matchesPattern(bars, i, pattern, avgBody, sma20)) {
-          newPatterns.add(
-              WeeklyCandlestickPattern.builder()
-                  .ticker(ticker)
-                  .priceDate(date)
-                  .pattern(pattern)
-                  .sentiment(pattern.getSentiment())
-                  .build());
+          matches.add(new PatternMatch(date, pattern));
         }
       }
     }
-
-    if (!newPatterns.isEmpty()) {
-      weeklyCandlestickPatternRepository.saveAll(newPatterns);
-      log.info(
-          "Ticker {}: Saved {} new weekly candlestick patterns.",
-          ticker.getTickerSymbol(),
-          newPatterns.size());
-    }
+    return matches;
   }
 
   /**

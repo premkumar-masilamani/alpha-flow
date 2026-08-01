@@ -166,11 +166,26 @@ export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAna
     };
 };
 
+export const PATTERN_MODES = {
+    NONE: 'none',
+    RECENT: 'recent',
+    ALL: 'all',
+} as const;
+
+export type PatternMode = typeof PATTERN_MODES[keyof typeof PATTERN_MODES];
+
+export const SENTIMENT_TYPES = {
+    BULL: 'BULL',
+    BEAR: 'BEAR',
+} as const;
+
+export type SentimentType = typeof SENTIMENT_TYPES[keyof typeof SENTIMENT_TYPES];
+
 export interface CandlestickPatternData {
     date: string;
     shortName: string;
     longName: string;
-    sentiment: 'BULL' | 'BEAR';
+    sentiment: SentimentType;
 }
 
 export const getCandlestickPatterns = async (

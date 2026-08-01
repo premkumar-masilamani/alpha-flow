@@ -20,6 +20,8 @@ import {
   getCandlestickPatterns,
   type CandlestickPatternData,
   CHART_WINDOW,
+  PATTERN_MODES,
+  type PatternMode,
 } from "./services/api";
 import {
   Loader2,
@@ -51,7 +53,7 @@ const INDICATOR_ORDER = [
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [patternMode, setPatternMode] = useState<'none' | 'recent' | 'all'>('recent');
+  const [patternMode, setPatternMode] = useState<PatternMode>(PATTERN_MODES.RECENT);
   const [chartPatterns, setChartPatterns] = useState<CandlestickPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
@@ -241,7 +243,7 @@ function App() {
   useEffect(() => {
     let active = true;
     const fetchPatterns = async () => {
-      if (!selectedTicker || patternMode === 'none') {
+      if (!selectedTicker || patternMode === PATTERN_MODES.NONE) {
         setChartPatterns([]);
         return;
       }
@@ -630,9 +632,9 @@ function App() {
                       Patterns
                     </span>
                     <button
-                      onClick={() => setPatternMode("none")}
+                      onClick={() => setPatternMode(PATTERN_MODES.NONE)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        patternMode === "none"
+                        patternMode === PATTERN_MODES.NONE
                           ? "bg-slate-800 text-slate-200"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
@@ -640,9 +642,9 @@ function App() {
                       None
                     </button>
                     <button
-                      onClick={() => setPatternMode("recent")}
+                      onClick={() => setPatternMode(PATTERN_MODES.RECENT)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        patternMode === "recent"
+                        patternMode === PATTERN_MODES.RECENT
                           ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
@@ -650,9 +652,9 @@ function App() {
                       Recent
                     </button>
                     <button
-                      onClick={() => setPatternMode("all")}
+                      onClick={() => setPatternMode(PATTERN_MODES.ALL)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        patternMode === "all"
+                        patternMode === PATTERN_MODES.ALL
                           ? "bg-blue-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
