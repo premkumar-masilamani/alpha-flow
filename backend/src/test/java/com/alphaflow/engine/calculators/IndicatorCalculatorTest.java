@@ -91,7 +91,7 @@ class IndicatorCalculatorTest {
                 new StochasticIndicator()));
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.DAILY, List.of(emaDef(), smaVolumeDef())));
+    properties.setCachedDefinitions(List.of(emaDef(), smaVolumeDef()));
 
     calculator =
         new IndicatorCalculator(
@@ -200,7 +200,7 @@ class IndicatorCalculatorTest {
             .build();
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.WEEKLY, List.of(weeklyDef)));
+    properties.setCachedDefinitions(List.of(weeklyDef));
 
     calculator =
         new IndicatorCalculator(
@@ -218,6 +218,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
+    when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     calculator.computeIndicatorForTicker(ticker);
 
     verify(weeklyIndicatorRepo)
@@ -236,7 +237,7 @@ class IndicatorCalculatorTest {
             .build();
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.DAILY, List.of(emaDef)));
+    properties.setCachedDefinitions(List.of(emaDef));
 
     Ticker testTicker = Ticker.builder().tickerId(99L).tickerSymbol("TEST").isActive(true).build();
     BigDecimal close = BigDecimal.TEN;
@@ -304,7 +305,7 @@ class IndicatorCalculatorTest {
             .build();
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.WEEKLY, List.of(weeklyDef)));
+    properties.setCachedDefinitions(List.of(weeklyDef));
 
     calculator =
         new IndicatorCalculator(
@@ -316,6 +317,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
+    when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     calculator.computeIndicatorForTicker(ticker);
 
     verify(weeklyIndicatorRepo)

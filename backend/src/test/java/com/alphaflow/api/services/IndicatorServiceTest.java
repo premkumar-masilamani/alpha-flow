@@ -92,11 +92,10 @@ class IndicatorServiceTest {
 
   @Test
   void discoveryFlattensConfiguredMatrix() {
-    when(indicatorConfig.forTimeframe(Timeframe.DAILY))
-        .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5))));
-    when(indicatorConfig.forTimeframe(Timeframe.WEEKLY))
+    when(indicatorConfig.getDefinitions())
         .thenReturn(
             List.of(
+                def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5)),
                 def(
                     IndicatorType.MACD,
                     PriceSource.CLOSE,
@@ -104,20 +103,19 @@ class IndicatorServiceTest {
 
     List<IndicatorConfigDTO> configs = indicatorService.getConfiguredIndicators();
 
-    assertEquals(2, configs.size());
+    assertEquals(4, configs.size());
 
-    IndicatorConfigDTO ema =
-        configs.stream().filter(c -> c.type().equals("EMA")).findFirst().orElseThrow();
+    List<IndicatorConfigDTO> dailyConfigs =
+        configs.stream().filter(c -> c.timeframe().equals("DAILY")).toList();
+    assertEquals(2, dailyConfigs.size());
+    assertTrue(dailyConfigs.stream().anyMatch(c -> c.type().equals("EMA")));
+    assertTrue(dailyConfigs.stream().anyMatch(c -> c.type().equals("MACD")));
 
-    assertEquals("DAILY", ema.timeframe());
-    assertEquals("period=5", ema.params());
-    assertEquals("EMA (5)", ema.label());
-
-    IndicatorConfigDTO macd =
-        configs.stream().filter(c -> c.type().equals("MACD")).findFirst().orElseThrow();
-
-    assertEquals("WEEKLY", macd.timeframe());
-    assertEquals("MACD (12,26,9)", macd.label());
+    List<IndicatorConfigDTO> weeklyConfigs =
+        configs.stream().filter(c -> c.timeframe().equals("WEEKLY")).toList();
+    assertEquals(2, weeklyConfigs.size());
+    assertTrue(weeklyConfigs.stream().anyMatch(c -> c.type().equals("EMA")));
+    assertTrue(weeklyConfigs.stream().anyMatch(c -> c.type().equals("MACD")));
   }
 
   @Test
@@ -125,7 +123,7 @@ class IndicatorServiceTest {
     when(dailyPriceRepository.findRecentPriceDatesUpTo(eq(ticker), any(LocalDate.class), any()))
         .thenReturn(List.of(D3, D2, D1));
 
-    when(indicatorConfig.forTimeframe(Timeframe.DAILY))
+    when(indicatorConfig.getDefinitions())
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5))));
 
     doReturn(
@@ -184,7 +182,7 @@ class IndicatorServiceTest {
     when(weeklyPriceRepository.findRecentPriceDatesUpTo(eq(ticker), any(LocalDate.class), any()))
         .thenReturn(List.of(D1));
 
-    when(indicatorConfig.forTimeframe(Timeframe.WEEKLY))
+    when(indicatorConfig.getDefinitions())
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 2))));
 
     doReturn(List.of())
@@ -204,7 +202,7 @@ class IndicatorServiceTest {
             eq(ticker), any(LocalDate.class), eq(PageRequest.of(1, 10))))
         .thenReturn(List.of(D1));
 
-    when(indicatorConfig.forTimeframe(Timeframe.DAILY))
+    when(indicatorConfig.getDefinitions())
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 2))));
 
     doReturn(List.of())
@@ -223,7 +221,7 @@ class IndicatorServiceTest {
   void seriesReturnsEmptyWhenNoDefinitions() {
     when(dailyPriceRepository.findRecentPriceDatesUpTo(eq(ticker), any(LocalDate.class), any()))
         .thenReturn(List.of(D1));
-    when(indicatorConfig.forTimeframe(Timeframe.DAILY)).thenReturn(List.of());
+    when(indicatorConfig.getDefinitions()).thenReturn(List.of());
 
     assertTrue(indicatorService.getIndicatorSeries(ticker, Timeframe.DAILY, 0, 250).isEmpty());
 

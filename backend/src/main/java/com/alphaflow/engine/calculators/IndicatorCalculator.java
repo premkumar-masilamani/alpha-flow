@@ -106,12 +106,13 @@ public class IndicatorCalculator {
     int dailySaved = 0;
     int weeklySaved = 0;
 
-    for (Timeframe timeframe : Timeframe.values()) {
-      List<IndicatorDefinition> IndicatorDefinitions = indicatorConfig.forTimeframe(timeframe);
-      if (IndicatorDefinitions.isEmpty()) {
-        continue;
-      }
+    List<IndicatorDefinition> indicatorDefinitions = indicatorConfig.getDefinitions();
+    if (indicatorDefinitions.isEmpty()) {
+      log.info("{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
+      return;
+    }
 
+    for (Timeframe timeframe : Timeframe.values()) {
       List<PriceBar> bars =
           (timeframe == Timeframe.DAILY) ? loadDailyBars(ticker) : loadWeeklyBars(ticker);
       if (bars.isEmpty()) {
@@ -120,7 +121,7 @@ public class IndicatorCalculator {
 
       if (timeframe == Timeframe.DAILY) {
         List<DailyIndicator> toInsert = new ArrayList<>();
-        for (IndicatorDefinition definition : IndicatorDefinitions) {
+        for (IndicatorDefinition definition : indicatorDefinitions) {
           Indicator indicator = indicatorRegistry.get(definition.getType());
           IndicatorParams params = IndicatorParams.of(definition.getParams());
 
@@ -153,7 +154,7 @@ public class IndicatorCalculator {
         }
       } else {
         List<WeeklyIndicator> toInsert = new ArrayList<>();
-        for (IndicatorDefinition definition : IndicatorDefinitions) {
+        for (IndicatorDefinition definition : indicatorDefinitions) {
           Indicator indicator = indicatorRegistry.get(definition.getType());
           IndicatorParams params = IndicatorParams.of(definition.getParams());
 

@@ -53,8 +53,9 @@ public class IndicatorService {
   /** The configured indicator matrix across all timeframes. */
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
     List<IndicatorConfigDTO> configs = new ArrayList<>();
+    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
     for (Timeframe timeframe : Timeframe.values()) {
-      for (IndicatorDefinition definition : indicatorConfig.forTimeframe(timeframe)) {
+      for (IndicatorDefinition definition : definitions) {
         configs.add(IndicatorMapper.toConfigDTO(timeframe, definition));
       }
     }
@@ -91,7 +92,7 @@ public class IndicatorService {
     LocalDate start = pageDates.getLast();
     LocalDate end = pageDates.getFirst();
 
-    List<IndicatorDefinition> definitions = indicatorConfig.forTimeframe(timeframe);
+    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
     if (definitions.isEmpty()) {
       return List.of();
     }

@@ -1,14 +1,10 @@
 package com.alphaflow.engine.configs;
 
-import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Holds the in-memory cache of technical indicator configurations. Loads them from the database at
- * application startup and maps them to all supported timeframes.
+ * application startup.
  */
 @Component
 public class IndicatorConfig {
@@ -24,8 +20,7 @@ public class IndicatorConfig {
   private static final Logger logger = LoggerFactory.getLogger(IndicatorConfig.class);
 
   private final IndicatorDefinitionRepository indicatorDefinitionRepository;
-  private final Map<Timeframe, List<IndicatorDefinition>> cachedDefinitions =
-      new EnumMap<>(Timeframe.class);
+  private final List<IndicatorDefinition> cachedDefinitions = new ArrayList<>();
 
   @Autowired
   public IndicatorConfig(IndicatorDefinitionRepository indicatorDefinitionRepository) {
@@ -38,33 +33,30 @@ public class IndicatorConfig {
   }
 
   /**
-   * Loads all indicator definitions from the database and maps them to all timeframes.
+   * Loads all indicator definitions from the database and updates the in-memory cache.
    */
   public synchronized void loadFromDatabase() {
     logger.info("Loading indicator definitions from database...");
     List<IndicatorDefinition> all = indicatorDefinitionRepository.findAll();
 
     cachedDefinitions.clear();
-    for (Timeframe timeframe : Timeframe.values()) {
-      cachedDefinitions.put(timeframe, new ArrayList<>(all));
-    }
+    cachedDefinitions.addAll(all);
     logger.info(
-        "Successfully loaded and mapped {} indicator definitions for all timeframes.",
+        "Successfully loaded and cached {} indicator definitions.",
         all.size());
   }
 
-  public List<IndicatorDefinition> forTimeframe(Timeframe timeframe) {
-    return cachedDefinitions.getOrDefault(timeframe, List.of());
+  public List<IndicatorDefinition> getDefinitions() {
+    return new ArrayList<>(cachedDefinitions);
   }
 
   /**
    * Directly sets the cached definitions. Intended primarily for testing.
    *
-   * @param definitions the pre-configured definitions map
+   * @param definitions the pre-configured definitions list
    */
-  public synchronized void setCachedDefinitions(
-      Map<Timeframe, List<IndicatorDefinition>> definitions) {
+  public synchronized void setCachedDefinitions(List<IndicatorDefinition> definitions) {
     this.cachedDefinitions.clear();
-    this.cachedDefinitions.putAll(definitions);
+    this.cachedDefinitions.addAll(definitions);
   }
 }

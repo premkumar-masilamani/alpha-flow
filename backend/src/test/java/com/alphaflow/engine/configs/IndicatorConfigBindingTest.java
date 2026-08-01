@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
@@ -28,7 +27,7 @@ class IndicatorConfigBindingTest {
   }
 
   @Test
-  void mapsAllDefinitionsToSupportedTimeframes() {
+  void mapsAllDefinitionsFromDatabase() {
     IndicatorDefinition ema =
         IndicatorDefinition.builder()
             .indicatorId(101L)
@@ -50,14 +49,9 @@ class IndicatorConfigBindingTest {
     // Execute init
     indicatorConfig.init();
 
-    List<IndicatorDefinition> daily = indicatorConfig.forTimeframe(Timeframe.DAILY);
-    assertEquals(2, daily.size());
-    assertTrue(daily.contains(ema));
-    assertTrue(daily.contains(macd));
-
-    List<IndicatorDefinition> weekly = indicatorConfig.forTimeframe(Timeframe.WEEKLY);
-    assertEquals(2, weekly.size());
-    assertTrue(weekly.contains(ema));
-    assertTrue(weekly.contains(macd));
+    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
+    assertEquals(2, definitions.size());
+    assertTrue(definitions.contains(ema));
+    assertTrue(definitions.contains(macd));
   }
 }
