@@ -59,8 +59,5 @@ class IndicatorConfigBindingTest {
     assertEquals(2, weekly.size());
     assertTrue(weekly.contains(ema));
     assertTrue(weekly.contains(macd));
-
-    List<IndicatorDefinition> monthly = indicatorConfig.forTimeframe(Timeframe.MONTHLY);
-    assertTrue(monthly.isEmpty());
   }
 }

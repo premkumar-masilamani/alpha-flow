@@ -42,11 +42,6 @@ public class IndicatorController {
         tickerRepository
             .findByTickerSymbolIgnoreCase(symbol)
             .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
-
-    if (timeframe == Timeframe.MONTHLY) {
-      throw new UnsupportedOperationException("Monthly timeframe not yet supported");
-    }
-
     return indicatorService.getIndicatorSeries(ticker, timeframe, page, finalSize);
   }
 }

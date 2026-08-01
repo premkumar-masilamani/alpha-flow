@@ -27,9 +27,6 @@ public class IndicatorConfig {
   private final Map<Timeframe, List<IndicatorDefinition>> cachedDefinitions =
       new EnumMap<>(Timeframe.class);
 
-  private static final Set<Timeframe> SUPPORTED_TIMEFRAMES =
-      Set.of(Timeframe.DAILY, Timeframe.WEEKLY);
-
   @Autowired
   public IndicatorConfig(IndicatorDefinitionRepository indicatorDefinitionRepository) {
     this.indicatorDefinitionRepository = indicatorDefinitionRepository;
@@ -41,7 +38,7 @@ public class IndicatorConfig {
   }
 
   /**
-   * Loads all indicator definitions from the database and maps them to all supported timeframes.
+   * Loads all indicator definitions from the database and maps them to all timeframes.
    */
   public synchronized void loadFromDatabase() {
     logger.info("Loading indicator definitions from database...");
@@ -49,14 +46,10 @@ public class IndicatorConfig {
 
     cachedDefinitions.clear();
     for (Timeframe timeframe : Timeframe.values()) {
-      if (SUPPORTED_TIMEFRAMES.contains(timeframe)) {
-        cachedDefinitions.put(timeframe, new ArrayList<>(all));
-      } else {
-        cachedDefinitions.put(timeframe, new ArrayList<>());
-      }
+      cachedDefinitions.put(timeframe, new ArrayList<>(all));
     }
     logger.info(
-        "Successfully loaded and mapped {} indicator definitions for supported timeframes.",
+        "Successfully loaded and mapped {} indicator definitions for all timeframes.",
         all.size());
   }
 

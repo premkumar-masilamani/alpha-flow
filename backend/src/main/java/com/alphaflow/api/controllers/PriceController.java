@@ -44,10 +44,6 @@ public class PriceController {
         page,
         finalSize);
 
-    if (timeframe == Timeframe.MONTHLY) {
-      throw new UnsupportedOperationException("Monthly timeframe not yet supported");
-    }
-
     if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, finalSize);
     }

@@ -60,7 +60,7 @@ export const getCandleData = async (
     return response.data;
 };
 
-export type Timeframe = 'DAILY' | 'WEEKLY' | 'MONTHLY';
+export type Timeframe = 'DAILY' | 'WEEKLY';
 
 // One configured (indicator, source, params) combo from the discovery endpoint.
 export interface IndicatorConfig {
