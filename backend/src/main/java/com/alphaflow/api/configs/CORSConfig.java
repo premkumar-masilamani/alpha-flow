@@ -4,7 +4,6 @@ import java.util.List;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -16,7 +15,7 @@ public class CORSConfig implements WebMvcConfigurer {
   private List<String> allowedOrigins;
 
   @Override
-  public void addCorsMappings(@NonNull CorsRegistry registry) {
+  public void addCorsMappings(CorsRegistry registry) {
 
     if (allowedOrigins == null || allowedOrigins.isEmpty()) {
       throw new IllegalStateException(

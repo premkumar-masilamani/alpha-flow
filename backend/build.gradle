@@ -22,6 +22,10 @@ java {
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs << "-Xlint:deprecation"
+}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
