@@ -53,8 +53,9 @@ public class IndicatorService {
   /** The configured indicator matrix across all timeframes. */
   public List<IndicatorConfigDTO> getConfiguredIndicators() {
     List<IndicatorConfigDTO> configs = new ArrayList<>();
+    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
     for (Timeframe timeframe : Timeframe.values()) {
-      for (IndicatorDefinition definition : indicatorConfig.forTimeframe(timeframe)) {
+      for (IndicatorDefinition definition : definitions) {
         configs.add(IndicatorMapper.toConfigDTO(timeframe, definition));
       }
     }
@@ -78,9 +79,11 @@ public class IndicatorService {
 
     PageRequest pageRequest = PageRequest.of(page, size);
     List<LocalDate> pageDates =
-        timeframe == Timeframe.WEEKLY
-            ? weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest)
-            : dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+        switch (timeframe) {
+          case WEEKLY ->
+              weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+          case DAILY -> dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+        };
 
     if (pageDates.isEmpty()) {
       return List.of();
@@ -91,7 +94,7 @@ public class IndicatorService {
     LocalDate start = pageDates.getLast();
     LocalDate end = pageDates.getFirst();
 
-    List<IndicatorDefinition> definitions = indicatorConfig.forTimeframe(timeframe);
+    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
     if (definitions.isEmpty()) {
       return List.of();
     }
@@ -99,9 +102,12 @@ public class IndicatorService {
         definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
 
     List<? extends Indicator> rows =
-        timeframe == Timeframe.DAILY
-            ? dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end)
-            : weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+        switch (timeframe) {
+          case DAILY ->
+              dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+          case WEEKLY ->
+              weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+        };
     return IndicatorMapper.toSeries(rows);
   }
 }

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.indicators.*;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
@@ -91,7 +90,7 @@ class IndicatorCalculatorTest {
                 new StochasticIndicator()));
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.DAILY, List.of(emaDef(), smaVolumeDef())));
+    properties.setCachedDefinitions(List.of(emaDef(), smaVolumeDef()));
 
     calculator =
         new IndicatorCalculator(
@@ -200,7 +199,7 @@ class IndicatorCalculatorTest {
             .build();
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.WEEKLY, List.of(weeklyDef)));
+    properties.setCachedDefinitions(List.of(weeklyDef));
 
     calculator =
         new IndicatorCalculator(
@@ -218,6 +217,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
+    when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     calculator.computeIndicatorForTicker(ticker);
 
     verify(weeklyIndicatorRepo)
@@ -236,7 +236,7 @@ class IndicatorCalculatorTest {
             .build();
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.DAILY, List.of(emaDef)));
+    properties.setCachedDefinitions(List.of(emaDef));
 
     Ticker testTicker = Ticker.builder().tickerId(99L).tickerSymbol("TEST").isActive(true).build();
     BigDecimal close = BigDecimal.TEN;
@@ -304,7 +304,7 @@ class IndicatorCalculatorTest {
             .build();
 
     IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(Map.of(Timeframe.WEEKLY, List.of(weeklyDef)));
+    properties.setCachedDefinitions(List.of(weeklyDef));
 
     calculator =
         new IndicatorCalculator(
@@ -316,6 +316,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
+    when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     calculator.computeIndicatorForTicker(ticker);
 
     verify(weeklyIndicatorRepo)

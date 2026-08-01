@@ -1,7 +1,6 @@
 package com.alphaflow.api.controllers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,21 +61,5 @@ class IndicatorControllerTest {
     controller.getIndicatorSeries("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
-  }
-
-  @Test
-  void testGetIndicatorSeriesInvalidTimeframe() {
-
-    IndicatorService service = mock(IndicatorService.class);
-    TickerRepository tickerRepository = mock(TickerRepository.class);
-
-    Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
-    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
-
-    IndicatorController controller = new IndicatorController(service, tickerRepository);
-
-    assertThrows(
-        UnsupportedOperationException.class,
-        () -> controller.getIndicatorSeries("AAPL", Timeframe.MONTHLY, 0, 250));
   }
 }
