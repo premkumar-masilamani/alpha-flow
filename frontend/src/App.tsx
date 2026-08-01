@@ -40,7 +40,7 @@ const pctChange = (change: number, base: number): number => {
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [showPatterns, setShowPatterns] = useState(false);
+  const [patternMode, setPatternMode] = useState<'none' | 'recent' | 'all'>('none');
   const [chartPatterns, setChartPatterns] = useState<CandlestickPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
@@ -226,11 +226,11 @@ function App() {
     };
   }, [selectedTicker, timeframe]);
 
-  // Fetch candlestick patterns when selectedTicker, timeframe, showPatterns, or page changes
+  // Fetch candlestick patterns when selectedTicker, timeframe, patternMode, or page changes
   useEffect(() => {
     let active = true;
     const fetchPatterns = async () => {
-      if (!selectedTicker || !showPatterns) {
+      if (!selectedTicker || patternMode === 'none') {
         setChartPatterns([]);
         return;
       }
@@ -248,7 +248,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [selectedTicker, timeframe, showPatterns, page]);
+  }, [selectedTicker, timeframe, patternMode, page]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -599,17 +599,40 @@ function App() {
                     enabled={enabledIndicators}
                     onToggle={toggleIndicator}
                   />
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-bold text-slate-400">
-                    <input
-                      type="checkbox"
-                      id="show-patterns"
-                      checked={showPatterns}
-                      onChange={(e) => setShowPatterns(e.target.checked)}
-                      className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                    />
-                    <label htmlFor="show-patterns" className="cursor-pointer select-none">
-                      Show Patterns
-                    </label>
+                  <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
+                    <span className="px-2 text-2xs font-extrabold text-slate-500 uppercase tracking-wider select-none">
+                      Patterns
+                    </span>
+                    <button
+                      onClick={() => setPatternMode("none")}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        patternMode === "none"
+                          ? "bg-slate-800 text-slate-200"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      None
+                    </button>
+                    <button
+                      onClick={() => setPatternMode("recent")}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        patternMode === "recent"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Recent
+                    </button>
+                    <button
+                      onClick={() => setPatternMode("all")}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        patternMode === "all"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      All
+                    </button>
                   </div>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                     <button
@@ -646,6 +669,7 @@ function App() {
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
                   patterns={chartPatterns}
+                  patternMode={patternMode}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (

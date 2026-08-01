@@ -128,6 +128,7 @@ interface ChartProps {
     symbol: string;
     timeframe: string;
     patterns?: CandlestickPatternData[];
+    patternMode?: 'none' | 'recent' | 'all';
     onLoadOlderData: () => void;
 }
 
@@ -215,7 +216,7 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
 
 const EMPTY_PATTERNS: CandlestickPatternData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, patterns = EMPTY_PATTERNS, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, patterns = EMPTY_PATTERNS, patternMode = 'none', onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -280,8 +281,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             close: Number(d.close),
         })));
 
-        if (patterns && patterns.length > 0) {
-            const markers = patterns.map((p) => ({
+        let visiblePatterns = patterns;
+        if (patternMode === 'recent') {
+            const recentDates = new Set(sortedData.slice(-5).map((d) => d.date));
+            visiblePatterns = patterns.filter((p) => recentDates.has(p.date));
+        } else if (patternMode === 'none') {
+            visiblePatterns = [];
+        }
+
+        if (visiblePatterns && visiblePatterns.length > 0) {
+            const markers = visiblePatterns.map((p) => ({
                 time: p.date as Time,
                 position: p.sentiment === 'BULL' ? 'belowBar' as const : 'aboveBar' as const,
                 color: p.sentiment === 'BULL' ? '#22c55e' : '#ef4444',
@@ -478,7 +487,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, patterns, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, patterns, patternMode, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

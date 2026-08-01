@@ -7,6 +7,7 @@ export const createChart = vi.fn().mockReturnValue({
             applyOptions: vi.fn(),
         }),
         createPriceLine: vi.fn(),
+        setMarkers: vi.fn(),
     }),
     remove: vi.fn(),
     applyOptions: vi.fn(),

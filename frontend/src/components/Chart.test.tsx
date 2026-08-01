@@ -157,4 +157,69 @@ describe('Chart Component', () => {
         capturedCallback!({ from: 1, to: 20 });
         expect(onLoadOlderDataMock).toHaveBeenCalledTimes(1);
     });
+
+    it('sets markers on candlestick series depending on patternMode', () => {
+        const mockPatterns = [
+            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: 'BULL' as const },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: 'BEAR' as const }
+        ];
+
+        // 1. All patterns mode
+        const { unmount } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                patterns={mockPatterns}
+                patternMode="all"
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMock = chartInstance.addSeries.mock.results[0].value;
+        expect(candlestickSeriesMock.setMarkers).toHaveBeenCalledTimes(1);
+        expect(candlestickSeriesMock.setMarkers).toHaveBeenCalledWith([
+            { time: '2026-06-01', position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'HAM' },
+            { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
+        ]);
+
+        unmount();
+        vi.clearAllMocks();
+
+        // 2. Recent patterns mode (only displays patterns occurring on the last 5 candles)
+        const longMockData = [
+            { date: '2026-06-01', open: 100, high: 110, low: 90, close: 105, vol: 5000 },
+            { date: '2026-06-02', open: 105, high: 115, low: 100, close: 112, vol: 6000 },
+            { date: '2026-06-03', open: 112, high: 120, low: 110, close: 115, vol: 7000 },
+            { date: '2026-06-04', open: 115, high: 125, low: 112, close: 120, vol: 8000 },
+            { date: '2026-06-05', open: 120, high: 130, low: 118, close: 125, vol: 9000 },
+            { date: '2026-06-06', open: 125, high: 135, low: 122, close: 130, vol: 10000 },
+        ];
+        
+        render(
+            <Chart
+                data={longMockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                patterns={mockPatterns}
+                patternMode="recent"
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const recentChartInstance = vi.mocked(createChart).mock.results[0].value;
+        const recentCandleMock = recentChartInstance.addSeries.mock.results[0].value;
+        expect(recentCandleMock.setMarkers).toHaveBeenCalledTimes(1);
+        // Only ENG (on '2026-06-03') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 5.
+        expect(recentCandleMock.setMarkers).toHaveBeenCalledWith([
+            { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
+        ]);
+    });
 });
