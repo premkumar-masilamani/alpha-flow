@@ -17,7 +17,7 @@ const IndicatorControls: React.FC<IndicatorControlsProps> = ({configs, enabled, 
 
     return (
         <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mr-1">Indicators</span>
+            <span className="text-xs font-bold text-slate-400 mr-1">Indicators</span>
             {configs.map((config) => {
                 const key = indicatorKey(config);
                 const on = enabled.has(key);

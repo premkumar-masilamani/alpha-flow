@@ -165,3 +165,36 @@ export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAna
         weeklyIndicators: weeklyInds
     };
 };
+
+export const CANDLESTICK_PATTERN_MODES = {
+    NONE: 'none',
+    RECENT: 'recent',
+    ALL: 'all',
+} as const;
+
+export type CandlestickPatternMode = typeof CANDLESTICK_PATTERN_MODES[keyof typeof CANDLESTICK_PATTERN_MODES];
+
+export const SENTIMENT_TYPES = {
+    BULL: 'BULL',
+    BEAR: 'BEAR',
+} as const;
+
+export type SentimentType = typeof SENTIMENT_TYPES[keyof typeof SENTIMENT_TYPES];
+
+export interface CandlestickPatternData {
+    date: string;
+    shortName: string;
+    longName: string;
+    sentiment: SentimentType;
+}
+
+export const getCandlestickPatterns = async (
+    symbol: string,
+    timeframe: Timeframe = 'DAILY',
+    page: number = 0,
+    size: number = CHART_WINDOW
+): Promise<CandlestickPatternData[]> => {
+    const url = `${API_BASE_URL}/tickers/${symbol}/candlestick-patterns`;
+    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
+    return response.data;
+};

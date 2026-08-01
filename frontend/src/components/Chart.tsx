@@ -8,7 +8,7 @@ import type {
     LogicalRange,
     Logical
 } from 'lightweight-charts';
-import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle} from 'lightweight-charts';
+import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers} from 'lightweight-charts';
 import { INDICATOR_COLORS } from '../config/indicatorColors';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, SENTIMENT_TYPES} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -127,6 +127,8 @@ interface ChartProps {
     configs: IndicatorConfig[];
     symbol: string;
     timeframe: string;
+    candlestickPatterns?: CandlestickPatternData[];
+    candlestickPatternMode?: CandlestickPatternMode;
     onLoadOlderData: () => void;
 }
 
@@ -137,6 +139,16 @@ interface LegendEntry {
 
 // Deterministic palette; assigned in enabled-order so a given chart is stable across renders.
 const PALETTE = ['#f59e0b', '#06b6d4', '#a855f7', '#ec4899', '#84cc16', '#f43f5e', '#22d3ee', '#fb923c', '#eab308'];
+
+const INDICATOR_ORDER = [
+  "EMA (5)",
+  "EMA (13)",
+  "EMA (26)",
+  "BB (20)",
+  "RSI (14)",
+  "Stoch (14,3,3)",
+  "MACD (12,26,9)"
+];
 
 type Placement = 'priceOverlay' | 'volumeOverlay' | 'oscillator';
 
@@ -212,7 +224,9 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
     }
 };
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData}) => {
+const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
+
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, candlestickPatternMode = CANDLESTICK_PATTERN_MODES.NONE, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -277,6 +291,35 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             close: Number(d.close),
         })));
 
+        let visibleCandlestickPatterns = candlestickPatterns;
+        if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT) {
+            const recentDates = new Set(sortedData.slice(-14).map((d) => d.date));
+            visibleCandlestickPatterns = candlestickPatterns.filter((p) => recentDates.has(p.date));
+        } else if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
+            visibleCandlestickPatterns = [];
+        }
+
+        // Deduplicate candlestick patterns by date to prevent duplicate time assertions in lightweight-charts
+        const uniqueCandlestickPatternsMap = new Map<string, CandlestickPatternData>();
+        const safeCandlestickPatterns = Array.isArray(visibleCandlestickPatterns) ? visibleCandlestickPatterns : [];
+        for (const p of safeCandlestickPatterns) {
+            if (p && p.date && !uniqueCandlestickPatternsMap.has(p.date)) {
+                uniqueCandlestickPatternsMap.set(p.date, p);
+            }
+        }
+        const deduplicatedCandlestickPatterns = Array.from(uniqueCandlestickPatternsMap.values());
+
+        if (deduplicatedCandlestickPatterns.length > 0) {
+            const markers = deduplicatedCandlestickPatterns.map((p) => ({
+                time: p.date as Time,
+                position: p.sentiment === SENTIMENT_TYPES.BULL ? 'belowBar' as const : 'aboveBar' as const,
+                color: p.sentiment === SENTIMENT_TYPES.BULL ? '#22c55e' : '#ef4444',
+                shape: p.sentiment === SENTIMENT_TYPES.BULL ? 'arrowUp' : 'arrowDown',
+                text: p.shortName,
+            }));
+            createSeriesMarkers(candlestickSeries, markers);
+        }
+
         const volumeSeries = chart.addSeries(HistogramSeries, {
             color: '#3b82f6',
             priceFormat: {type: 'volume'},
@@ -294,8 +337,19 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         const nextColor = () => PALETTE[colorIdx++ % PALETTE.length];
         let nextPane = 1;
 
-        for (const series of indicators) {
-            if (!enabled.has(indicatorKey(series))) continue;
+        const sortedIndicators = [...indicators].sort((a, b) => {
+            const idxA = INDICATOR_ORDER.indexOf(a.label);
+            const idxB = INDICATOR_ORDER.indexOf(b.label);
+            if (idxA === -1 && idxB === -1) return a.label.localeCompare(b.label);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+        });
+
+        for (const series of sortedIndicators) {
+            const key = indicatorKey(series);
+            const isVolMA = series.type === 'SMA' && series.source === 'VOLUME' && series.params === 'period=20';
+            if (!isVolMA && !enabled.has(key)) continue;
             const placement = placementFor(series);
             const paneIndex = placement === 'oscillator' ? nextPane++ : 0;
 
@@ -464,7 +518,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, candlestickPatternMode, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
@@ -480,7 +534,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         visibleLogicalRangeRef.current = targetRange;
     };
 
-    const oscillatorIndicators = indicators.filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator');
+    const oscillatorIndicators = indicators
+        .filter((series) => enabled.has(indicatorKey(series)) && placementFor(series) === 'oscillator')
+        .sort((a, b) => {
+            const idxA = INDICATOR_ORDER.indexOf(a.label);
+            const idxB = INDICATOR_ORDER.indexOf(b.label);
+            if (idxA === -1 && idxB === -1) return a.label.localeCompare(b.label);
+            if (idxA === -1) return 1;
+            if (idxB === -1) return -1;
+            return idxA - idxB;
+        });
 
     return (
         <div className="relative w-full h-full min-h-0 flex-1 flex flex-col">

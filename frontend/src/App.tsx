@@ -17,6 +17,11 @@ import {
   type Ticker,
   type Timeframe,
   type TechnicalAnalysisData,
+  getCandlestickPatterns,
+  type CandlestickPatternData,
+  CHART_WINDOW,
+  CANDLESTICK_PATTERN_MODES,
+  type CandlestickPatternMode,
 } from "./services/api";
 import {
   Loader2,
@@ -35,9 +40,21 @@ const pctChange = (change: number, base: number): number => {
 
 
 
+const INDICATOR_ORDER = [
+  "EMA (5)",
+  "EMA (13)",
+  "EMA (26)",
+  "BB (20)",
+  "RSI (14)",
+  "Stoch (14,3,3)",
+  "MACD (12,26,9)"
+];
+
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [candlestickPatternMode, setCandlestickPatternMode] = useState<CandlestickPatternMode>(CANDLESTICK_PATTERN_MODES.RECENT);
+  const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
@@ -221,6 +238,30 @@ function App() {
       active = false;
     };
   }, [selectedTicker, timeframe]);
+
+  // Fetch candlestick patterns when selectedTicker, timeframe, candlestickPatternMode, or page changes
+  useEffect(() => {
+    let active = true;
+    const fetchCandlestickPatterns = async () => {
+      if (!selectedTicker || candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
+        setCandlestickPatterns([]);
+        return;
+      }
+      try {
+        const size = (page + 1) * CHART_WINDOW;
+        const patterns = await getCandlestickPatterns(selectedTicker, timeframe, 0, size);
+        if (active) {
+          setCandlestickPatterns(patterns);
+        }
+      } catch (error) {
+        console.error("Failed to fetch candlestick patterns:", error);
+      }
+    };
+    fetchCandlestickPatterns();
+    return () => {
+      active = false;
+    };
+  }, [selectedTicker, timeframe, candlestickPatternMode, page]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -565,12 +606,62 @@ function App() {
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <IndicatorControls
-                    configs={indicatorConfigs.filter(
-                      (c) => c.timeframe === timeframe,
-                    )}
+                    configs={indicatorConfigs
+                      .filter(
+                        (c) =>
+                          c.timeframe === timeframe &&
+                          !(
+                            c.type === "SMA" &&
+                            c.source === "VOLUME" &&
+                            c.params === "period=20"
+                          ),
+                      )
+                      .sort((a, b) => {
+                        const idxA = INDICATOR_ORDER.indexOf(a.label);
+                        const idxB = INDICATOR_ORDER.indexOf(b.label);
+                        if (idxA === -1 && idxB === -1) return a.label.localeCompare(b.label);
+                        if (idxA === -1) return 1;
+                        if (idxB === -1) return -1;
+                        return idxA - idxB;
+                      })}
                     enabled={enabledIndicators}
                     onToggle={toggleIndicator}
                   />
+                  <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
+                    <span className="px-2 text-xs font-bold text-slate-400 select-none">
+                      Candlestick Patterns
+                    </span>
+                    <button
+                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.NONE)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE
+                          ? "bg-slate-800 text-slate-200"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      None
+                    </button>
+                    <button
+                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.RECENT)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Recent
+                    </button>
+                    <button
+                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.ALL)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.ALL
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      All
+                    </button>
+                  </div>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                     <button
                       onClick={() => setTimeframe("DAILY")}
@@ -605,6 +696,8 @@ function App() {
                   configs={indicatorConfigs}
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
+                  candlestickPatterns={candlestickPatterns}
+                  candlestickPatternMode={candlestickPatternMode}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (

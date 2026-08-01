@@ -1,8 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createChart } from 'lightweight-charts';
+import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
 import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../services/api';
+import { CANDLESTICK_PATTERN_MODES, SENTIMENT_TYPES } from '../services/api';
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => import('../__mocks__/lightweight-charts'));
@@ -36,12 +37,24 @@ describe('Chart Component', () => {
                 { date: '2026-06-02', values: { value: 55 } },
                 { date: '2026-06-03', values: { value: 60 } }
             ]
+        },
+        {
+            type: 'SMA',
+            source: 'VOLUME',
+            params: 'period=20',
+            label: 'Vol (20)',
+            points: [
+                { date: '2026-06-01', values: { value: 1000 } },
+                { date: '2026-06-02', values: { value: 1000 } },
+                { date: '2026-06-03', values: { value: 1000 } }
+            ]
         }
     ];
 
     const mockConfigs: IndicatorConfig[] = [
         { timeframe: 'DAILY', type: 'EMA', source: 'CLOSE', params: 'period=5', label: 'EMA(5)' },
-        { timeframe: 'DAILY', type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)' }
+        { timeframe: 'DAILY', type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)' },
+        { timeframe: 'DAILY', type: 'SMA', source: 'VOLUME', params: 'period=20', label: 'Vol (20)' }
     ];
 
     beforeEach(() => {
@@ -80,7 +93,8 @@ describe('Chart Component', () => {
 
         expect(createChart).toHaveBeenCalled();
         const chartInstance = vi.mocked(createChart).mock.results[0].value;
-        expect(chartInstance.addSeries).toHaveBeenCalledTimes(3);
+        // 4 series: Candlestick, Volume, enabled EMA(5), and always-displayed Vol (20)
+        expect(chartInstance.addSeries).toHaveBeenCalledTimes(4);
     });
 
     it('triggers setVisibleLogicalRange when clicking Reset Zoom', async () => {
@@ -120,6 +134,7 @@ describe('Chart Component', () => {
                         applyOptions: vi.fn(),
                     }),
                     createPriceLine: vi.fn(),
+                    setMarkers: vi.fn(),
                 }),
                 remove: vi.fn(),
                 applyOptions: vi.fn(),
@@ -156,5 +171,103 @@ describe('Chart Component', () => {
         // Call callback with logical range from <= 2 -> should trigger onLoadOlderData
         capturedCallback!({ from: 1, to: 20 });
         expect(onLoadOlderDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('sets markers on candlestick series depending on candlestickPatternMode', () => {
+        const mockPatterns = [
+            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
+        ];
+
+        // 1. All patterns mode
+        const { unmount } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                candlestickPatterns={mockPatterns}
+                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.ALL}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMock = chartInstance.addSeries.mock.results[0].value;
+        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
+        expect(createSeriesMarkers).toHaveBeenCalledWith(candlestickSeriesMock, [
+            { time: '2026-06-01', position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'HAM' },
+            { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
+        ]);
+
+        unmount();
+        vi.clearAllMocks();
+
+        // 2. Recent patterns mode (displays patterns occurring on the last 14 candles)
+        const longMockData = Array.from({ length: 15 }, (_, i) => ({
+            date: `2026-06-${String(i + 1).padStart(2, '0')}`,
+            open: 100 + i,
+            high: 110 + i,
+            low: 90 + i,
+            close: 105 + i,
+            vol: 5000
+        }));
+        
+        const { unmount: unmountRecent } = render(
+            <Chart
+                data={longMockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                candlestickPatterns={mockPatterns}
+                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.RECENT}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const recentChartInstance = vi.mocked(createChart).mock.results[0].value;
+        const recentCandleMock = recentChartInstance.addSeries.mock.results[0].value;
+        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
+        // Only ENG (on '2026-06-03') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 14.
+        expect(createSeriesMarkers).toHaveBeenCalledWith(recentCandleMock, [
+            { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
+        ]);
+
+        unmountRecent();
+        vi.clearAllMocks();
+
+        // 3. Deduplicate duplicate dates (only show the first pattern on a given date)
+        const duplicateMockPatterns = [
+            { date: '2026-06-03', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
+        ];
+
+        const { unmount: unmountDup } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                candlestickPatterns={duplicateMockPatterns}
+                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.ALL}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const dupChartInstance = vi.mocked(createChart).mock.results[0].value;
+        const dupCandleMock = dupChartInstance.addSeries.mock.results[0].value;
+        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
+        // Only the first pattern HAM (on '2026-06-03') should be displayed.
+        expect(createSeriesMarkers).toHaveBeenCalledWith(dupCandleMock, [
+            { time: '2026-06-03', position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'HAM' }
+        ]);
+
+        unmountDup();
     });
 });

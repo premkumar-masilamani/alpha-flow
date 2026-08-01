@@ -7,6 +7,7 @@ export const createChart = vi.fn().mockReturnValue({
             applyOptions: vi.fn(),
         }),
         createPriceLine: vi.fn(),
+        setMarkers: vi.fn(),
     }),
     remove: vi.fn(),
     applyOptions: vi.fn(),
@@ -33,3 +34,7 @@ export const LineStyle = {
 export const CandlestickSeries = 'CandlestickSeries';
 export const HistogramSeries = 'HistogramSeries';
 export const LineSeries = 'LineSeries';
+
+export const createSeriesMarkers = vi.fn().mockReturnValue({
+    setMarkers: vi.fn(),
+});
