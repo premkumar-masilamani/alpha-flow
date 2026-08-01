@@ -39,7 +39,7 @@ export const INDICATOR_COLORS: IndicatorColorsConfig = {
             d: '#f97316'  // Orange
         }
     },
-    VWBB: {
+    BB: {
         byOutput: {
             upper: '#ef4444',  // Red
             middle: '#3b82f6', // Blue

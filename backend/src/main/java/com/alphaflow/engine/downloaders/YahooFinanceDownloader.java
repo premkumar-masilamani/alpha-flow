@@ -69,19 +69,16 @@ public class YahooFinanceDownloader {
     long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
 
     if (startTs >= endTs) {
-      log.info(
-          "Ticker {} is already up to date (last sync: {}).",
-          ticker.getTickerSymbol(),
-          actualLatestDate);
+      log.info("{}: up to date (last sync: {}).", ticker.getTickerSymbol(), actualLatestDate);
       return;
     }
 
     log.info(
-        "Syncing Yahoo Finance data for {} from {} (timestamp: {}) to start of today (timestamp: {})",
+        "Syncing {} from {} (timestamp: {}) to start of today (timestamp: {})",
         ticker.getTickerSymbol(),
         startDate,
-        startTs,
-        endTs);
+        Instant.ofEpochSecond(startTs),
+        Instant.ofEpochSecond(endTs));
 
     String encodedSymbol = URLEncoder.encode(ticker.getTickerSymbol(), StandardCharsets.UTF_8);
     String url =

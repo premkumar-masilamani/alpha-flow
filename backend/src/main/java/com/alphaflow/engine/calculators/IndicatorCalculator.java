@@ -73,7 +73,7 @@ public class IndicatorCalculator {
 
   /** Triggers the computation of indicators across all active tickers. */
   public void computeIndicators() {
-    log.info("Starting indicator computation...");
+    log.info("Computing indicators...");
 
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for indicators.", tickers.size());
@@ -92,7 +92,7 @@ public class IndicatorCalculator {
       }
     }
 
-    log.info("Indicator computation completed.");
+    log.info("Indicators computed.");
   }
 
   /**
@@ -102,7 +102,7 @@ public class IndicatorCalculator {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
-    log.info("Ticker {}: Starting indicator computation...", ticker.getTickerSymbol());
+    log.info("{}: Computing indicators...", ticker.getTickerSymbol());
     int dailySaved = 0;
     int weeklySaved = 0;
 
@@ -188,7 +188,7 @@ public class IndicatorCalculator {
     }
 
     log.info(
-        "Ticker {}: Indicator computation completed. Saved {} daily and {} weekly indicator records.",
+        "Ticker {}: Saved {} daily and {} weekly indicators.",
         ticker.getTickerSymbol(),
         dailySaved,
         weeklySaved);

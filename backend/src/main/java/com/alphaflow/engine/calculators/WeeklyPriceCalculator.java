@@ -163,8 +163,6 @@ public class WeeklyPriceCalculator {
     weeklyPriceRepository.saveAll(weeklyPricesToSave);
 
     log.info(
-        "Ticker {}: Saved/updated {} weekly prices.",
-        ticker.getTickerSymbol(),
-        weeklyPricesToSave.size());
+        "{}: Saved/updated {} weekly prices.", ticker.getTickerSymbol(), weeklyPricesToSave.size());
   }
 }
