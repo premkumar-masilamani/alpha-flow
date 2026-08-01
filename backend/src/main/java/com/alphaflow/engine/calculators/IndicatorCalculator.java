@@ -103,15 +103,15 @@ public class IndicatorCalculator {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
     log.info("{}: Computing indicators...", ticker.getTickerSymbol());
-    int dailySaved = 0;
-    int weeklySaved = 0;
-
     List<IndicatorDefinition> indicatorDefinitions = indicatorConfig.getDefinitions();
     if (indicatorDefinitions.isEmpty()) {
       log.info(
           "{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
       return;
     }
+
+    int dailySaved = 0;
+    int weeklySaved = 0;
 
     for (Timeframe timeframe : Timeframe.values()) {
       List<PriceBar> bars =

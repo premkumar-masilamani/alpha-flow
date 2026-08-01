@@ -45,10 +45,6 @@ public class PatternController {
         page,
         finalSize);
 
-    if (timeframe == Timeframe.MONTHLY) {
-      throw new UnsupportedOperationException("Monthly timeframe not yet supported");
-    }
-
     Ticker ticker =
         tickerRepository
             .findByTickerSymbolIgnoreCase(symbol)

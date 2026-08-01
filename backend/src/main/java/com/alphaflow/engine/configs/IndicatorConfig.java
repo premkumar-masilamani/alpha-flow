@@ -11,7 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * Holds the in-memory cache of technical indicator configurations. Loads them from the database at application startup.
+ * Holds the in-memory cache of technical indicator configurations. Loads them from the database at
+ * application startup.
  */
 @Component
 public class IndicatorConfig {
