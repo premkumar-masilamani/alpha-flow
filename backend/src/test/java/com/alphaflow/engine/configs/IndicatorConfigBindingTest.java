@@ -1,6 +1,7 @@
 package com.alphaflow.engine.configs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,7 +28,7 @@ class IndicatorConfigBindingTest {
   }
 
   @Test
-  void resolvesCachedDefinitionsBasedOnConfiguredIds() {
+  void mapsAllDefinitionsToSupportedTimeframes() {
     IndicatorDefinition ema =
         IndicatorDefinition.builder()
             .indicatorId(101L)
@@ -46,21 +47,20 @@ class IndicatorConfigBindingTest {
 
     when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(ema, macd));
 
-    // Manually simulate properties binding
-    indicatorConfig.getTimeframes().put(Timeframe.DAILY, List.of(101L));
-    indicatorConfig.getTimeframes().put(Timeframe.WEEKLY, List.of(202L, 999L)); // 999 is missing
-
     // Execute init
     indicatorConfig.init();
 
     List<IndicatorDefinition> daily = indicatorConfig.forTimeframe(Timeframe.DAILY);
-    assertEquals(1, daily.size());
-    assertEquals(IndicatorType.EMA, daily.getFirst().getType());
-    assertEquals(101L, daily.getFirst().getIndicatorId());
+    assertEquals(2, daily.size());
+    assertTrue(daily.contains(ema));
+    assertTrue(daily.contains(macd));
 
     List<IndicatorDefinition> weekly = indicatorConfig.forTimeframe(Timeframe.WEEKLY);
-    assertEquals(1, weekly.size()); // 999 was skipped
-    assertEquals(IndicatorType.MACD, weekly.getFirst().getType());
-    assertEquals(202L, weekly.getFirst().getIndicatorId());
+    assertEquals(2, weekly.size());
+    assertTrue(weekly.contains(ema));
+    assertTrue(weekly.contains(macd));
+
+    List<IndicatorDefinition> monthly = indicatorConfig.forTimeframe(Timeframe.MONTHLY);
+    assertTrue(monthly.isEmpty());
   }
 }

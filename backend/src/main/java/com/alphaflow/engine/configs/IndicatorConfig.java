@@ -4,28 +4,31 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
 import jakarta.annotation.PostConstruct;
-import java.util.*;
-import lombok.Getter;
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
  * Holds the in-memory cache of technical indicator configurations. Loads them from the database at
- * application startup and maps them to configured timeframes from application properties.
+ * application startup and maps them to all supported timeframes.
  */
 @Component
-@ConfigurationProperties(prefix = "alphaflow.indicators")
 public class IndicatorConfig {
 
   private static final Logger logger = LoggerFactory.getLogger(IndicatorConfig.class);
 
   private final IndicatorDefinitionRepository indicatorDefinitionRepository;
-  @Getter private final Map<Timeframe, List<Long>> timeframes = new EnumMap<>(Timeframe.class);
   private final Map<Timeframe, List<IndicatorDefinition>> cachedDefinitions =
       new EnumMap<>(Timeframe.class);
+
+  private static final Set<Timeframe> SUPPORTED_TIMEFRAMES =
+      Set.of(Timeframe.DAILY, Timeframe.WEEKLY);
 
   @Autowired
   public IndicatorConfig(IndicatorDefinitionRepository indicatorDefinitionRepository) {
@@ -37,36 +40,24 @@ public class IndicatorConfig {
     loadFromDatabase();
   }
 
+  /**
+   * Loads all indicator definitions from the database and maps them to all supported timeframes.
+   */
   public synchronized void loadFromDatabase() {
     logger.info("Loading indicator definitions from database...");
     List<IndicatorDefinition> all = indicatorDefinitionRepository.findAll();
 
-    Map<Long, IndicatorDefinition> definitionMap = new HashMap<>();
-    for (IndicatorDefinition def : all) {
-      definitionMap.put(def.getIndicatorId(), def);
-    }
-
-    Map<Timeframe, List<IndicatorDefinition>> mapFromConfig = new EnumMap<>(Timeframe.class);
+    cachedDefinitions.clear();
     for (Timeframe timeframe : Timeframe.values()) {
-      mapFromConfig.put(timeframe, new ArrayList<>());
-      List<Long> timeframeIDs = timeframes.getOrDefault(timeframe, List.of());
-      for (Long timeframeID : timeframeIDs) {
-        IndicatorDefinition indicatorDefinition = definitionMap.get(timeframeID);
-        if (indicatorDefinition != null) {
-          mapFromConfig.get(timeframe).add(indicatorDefinition);
-        } else {
-          logger.warn(
-              "Configured indicator ID {} for timeframe {} was not found in the database"
-                  + " definitions!",
-              timeframeID,
-              timeframe);
-        }
+      if (SUPPORTED_TIMEFRAMES.contains(timeframe)) {
+        cachedDefinitions.put(timeframe, new ArrayList<>(all));
+      } else {
+        cachedDefinitions.put(timeframe, new ArrayList<>());
       }
     }
-
-    cachedDefinitions.clear();
-    cachedDefinitions.putAll(mapFromConfig);
-    logger.info("Successfully loaded and mapped indicator definitions from database.");
+    logger.info(
+        "Successfully loaded and mapped {} indicator definitions for supported timeframes.",
+        all.size());
   }
 
   public List<IndicatorDefinition> forTimeframe(Timeframe timeframe) {
