@@ -36,12 +36,24 @@ describe('Chart Component', () => {
                 { date: '2026-06-02', values: { value: 55 } },
                 { date: '2026-06-03', values: { value: 60 } }
             ]
+        },
+        {
+            type: 'SMA',
+            source: 'VOLUME',
+            params: 'period=20',
+            label: 'Vol (20)',
+            points: [
+                { date: '2026-06-01', values: { value: 1000 } },
+                { date: '2026-06-02', values: { value: 1000 } },
+                { date: '2026-06-03', values: { value: 1000 } }
+            ]
         }
     ];
 
     const mockConfigs: IndicatorConfig[] = [
         { timeframe: 'DAILY', type: 'EMA', source: 'CLOSE', params: 'period=5', label: 'EMA(5)' },
-        { timeframe: 'DAILY', type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)' }
+        { timeframe: 'DAILY', type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)' },
+        { timeframe: 'DAILY', type: 'SMA', source: 'VOLUME', params: 'period=20', label: 'Vol (20)' }
     ];
 
     beforeEach(() => {
@@ -80,7 +92,8 @@ describe('Chart Component', () => {
 
         expect(createChart).toHaveBeenCalled();
         const chartInstance = vi.mocked(createChart).mock.results[0].value;
-        expect(chartInstance.addSeries).toHaveBeenCalledTimes(3);
+        // 4 series: Candlestick, Volume, enabled EMA(5), and always-displayed Vol (20)
+        expect(chartInstance.addSeries).toHaveBeenCalledTimes(4);
     });
 
     it('triggers setVisibleLogicalRange when clicking Reset Zoom', async () => {
@@ -191,15 +204,15 @@ describe('Chart Component', () => {
         unmount();
         vi.clearAllMocks();
 
-        // 2. Recent patterns mode (only displays patterns occurring on the last 5 candles)
-        const longMockData = [
-            { date: '2026-06-01', open: 100, high: 110, low: 90, close: 105, vol: 5000 },
-            { date: '2026-06-02', open: 105, high: 115, low: 100, close: 112, vol: 6000 },
-            { date: '2026-06-03', open: 112, high: 120, low: 110, close: 115, vol: 7000 },
-            { date: '2026-06-04', open: 115, high: 125, low: 112, close: 120, vol: 8000 },
-            { date: '2026-06-05', open: 120, high: 130, low: 118, close: 125, vol: 9000 },
-            { date: '2026-06-06', open: 125, high: 135, low: 122, close: 130, vol: 10000 },
-        ];
+        // 2. Recent patterns mode (displays patterns occurring on the last 14 candles)
+        const longMockData = Array.from({ length: 15 }, (_, i) => ({
+            date: `2026-06-${String(i + 1).padStart(2, '0')}`,
+            open: 100 + i,
+            high: 110 + i,
+            low: 90 + i,
+            close: 105 + i,
+            vol: 5000
+        }));
         
         const { unmount: unmountRecent } = render(
             <Chart
@@ -218,7 +231,7 @@ describe('Chart Component', () => {
         const recentChartInstance = vi.mocked(createChart).mock.results[0].value;
         const recentCandleMock = recentChartInstance.addSeries.mock.results[0].value;
         expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
-        // Only ENG (on '2026-06-03') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 5.
+        // Only ENG (on '2026-06-03') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 14.
         expect(createSeriesMarkers).toHaveBeenCalledWith(recentCandleMock, [
             { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
         ]);

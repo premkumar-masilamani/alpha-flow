@@ -283,7 +283,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
 
         let visiblePatterns = patterns;
         if (patternMode === 'recent') {
-            const recentDates = new Set(sortedData.slice(-5).map((d) => d.date));
+            const recentDates = new Set(sortedData.slice(-14).map((d) => d.date));
             visiblePatterns = patterns.filter((p) => recentDates.has(p.date));
         } else if (patternMode === 'none') {
             visiblePatterns = [];
@@ -328,7 +328,9 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         let nextPane = 1;
 
         for (const series of indicators) {
-            if (!enabled.has(indicatorKey(series))) continue;
+            const key = indicatorKey(series);
+            const isVolMA = series.type === 'SMA' && series.source === 'VOLUME' && series.params === 'period=20';
+            if (!isVolMA && !enabled.has(key)) continue;
             const placement = placementFor(series);
             const paneIndex = placement === 'oscillator' ? nextPane++ : 0;
 

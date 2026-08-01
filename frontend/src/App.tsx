@@ -41,7 +41,7 @@ const pctChange = (change: number, base: number): number => {
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [patternMode, setPatternMode] = useState<'none' | 'recent' | 'all'>('none');
+  const [patternMode, setPatternMode] = useState<'none' | 'recent' | 'all'>('recent');
   const [chartPatterns, setChartPatterns] = useState<CandlestickPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
@@ -595,7 +595,7 @@ function App() {
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <IndicatorControls
                     configs={indicatorConfigs.filter(
-                      (c) => c.timeframe === timeframe,
+                      (c) => c.timeframe === timeframe && !(c.type === 'SMA' && c.source === 'VOLUME' && c.params === 'period=20'),
                     )}
                     enabled={enabledIndicators}
                     onToggle={toggleIndicator}
