@@ -330,7 +330,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                     lineWidth: 1,
                     lineStyle: LineStyle.Solid,
                     axisLabelVisible: true,
-                    title: sr.levelType,
+                    title: '',
                 });
             });
         }

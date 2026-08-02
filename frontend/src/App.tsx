@@ -684,14 +684,24 @@ function App() {
                       Support/Resistance
                     </span>
                     <button
-                      onClick={() => setShowSupportResistance(!showSupportResistance)}
+                      onClick={() => setShowSupportResistance(false)}
                       className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
                         !showSupportResistance
                           ? "bg-slate-800 text-slate-200"
-                          : "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
                       }`}
                     >
-                      {showSupportResistance ? "Hide" : "Show"}
+                      Hide
+                    </button>
+                    <button
+                      onClick={() => setShowSupportResistance(true)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        showSupportResistance
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      Show
                     </button>
                   </div>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
