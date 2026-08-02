@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, SENTIMENT_TYPES} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, SENTIMENT_TYPES, type SupportResistanceData} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -129,6 +129,8 @@ interface ChartProps {
     timeframe: string;
     candlestickPatterns?: CandlestickPatternData[];
     candlestickPatternMode?: CandlestickPatternMode;
+    supportResistances?: SupportResistanceData[];
+    showSupportResistance?: boolean;
     onLoadOlderData: () => void;
 }
 
@@ -226,7 +228,7 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
 
 const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, candlestickPatternMode = CANDLESTICK_PATTERN_MODES.NONE, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, candlestickPatternMode = CANDLESTICK_PATTERN_MODES.NONE, supportResistances = [], showSupportResistance = false, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -314,10 +316,23 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                 time: p.date as Time,
                 position: p.sentiment === SENTIMENT_TYPES.BULL ? 'belowBar' as const : 'aboveBar' as const,
                 color: p.sentiment === SENTIMENT_TYPES.BULL ? '#22c55e' : '#ef4444',
-                shape: p.sentiment === SENTIMENT_TYPES.BULL ? 'arrowUp' : 'arrowDown',
+                shape: p.sentiment === SENTIMENT_TYPES.BULL ? 'arrowUp' as const : 'arrowDown' as const,
                 text: p.shortName,
             }));
             createSeriesMarkers(candlestickSeries, markers);
+        }
+
+        if (showSupportResistance && supportResistances.length > 0) {
+            supportResistances.forEach((sr) => {
+                candlestickSeries.createPriceLine({
+                    price: sr.zoneMidpoint,
+                    color: sr.levelType === 'SUPPORT' ? '#22c55e' : '#ef4444',
+                    lineWidth: 1,
+                    lineStyle: LineStyle.Solid,
+                    axisLabelVisible: true,
+                    title: sr.levelType,
+                });
+            });
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -518,7 +533,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, candlestickPatternMode, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, candlestickPatternMode, supportResistances, showSupportResistance, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

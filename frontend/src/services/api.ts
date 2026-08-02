@@ -198,3 +198,22 @@ export const getCandlestickPatterns = async (
     const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
     return response.data;
 };
+
+export interface SupportResistanceData {
+    priceDate: string;
+    zoneBottom: number;
+    zoneTop: number;
+    zoneMidpoint: number;
+    levelType: 'SUPPORT' | 'RESISTANCE';
+    touchCount: number;
+}
+
+export const getSupportResistances = async (
+    symbol: string,
+    timeframe: Timeframe = 'DAILY',
+    date: string
+): Promise<SupportResistanceData[]> => {
+    const url = `${API_BASE_URL}/tickers/${symbol}/support-resistances/${timeframe.toLowerCase()}`;
+    const response = await axios.get(url, { params: { date } });
+    return response.data;
+};

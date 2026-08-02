@@ -22,6 +22,8 @@ import {
   CHART_WINDOW,
   CANDLESTICK_PATTERN_MODES,
   type CandlestickPatternMode,
+  type SupportResistanceData,
+  getSupportResistances,
 } from "./services/api";
 import {
   Loader2,
@@ -55,6 +57,8 @@ function App() {
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [candlestickPatternMode, setCandlestickPatternMode] = useState<CandlestickPatternMode>(CANDLESTICK_PATTERN_MODES.RECENT);
   const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
+  const [showSupportResistance, setShowSupportResistance] = useState(false);
+  const [supportResistances, setSupportResistances] = useState<SupportResistanceData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [loading, setLoading] = useState(false);
@@ -202,6 +206,7 @@ function App() {
       setLoading(true);
       setChartCandleData([]);
       setChartIndicators([]);
+      setSupportResistances([]);
       setLoadedSymbol(null);
       setPage(0);
       setHasMore(true);
@@ -215,6 +220,18 @@ function App() {
         if (active) {
           setChartCandleData(candles);
           setChartIndicators(indicators);
+          // Fetch S&R using the latest candle's date if candles exist
+          if (candles.length > 0) {
+            const latestDate = candles[candles.length - 1].date;
+            getSupportResistances(selectedTicker, timeframe, latestDate).then((srData) => {
+              if (active) setSupportResistances(srData);
+            }).catch(err => {
+              console.error("Failed to fetch S&R data", err);
+              if (active) setSupportResistances([]);
+            });
+          } else {
+            setSupportResistances([]);
+          }
           setLoadedSymbol(selectedTicker);
           setLoadedTimeframe(timeframe);
         }
@@ -662,6 +679,21 @@ function App() {
                       All
                     </button>
                   </div>
+                  <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
+                    <span className="px-2 text-xs font-bold text-slate-400 select-none">
+                      Support/Resistance
+                    </span>
+                    <button
+                      onClick={() => setShowSupportResistance(!showSupportResistance)}
+                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                        !showSupportResistance
+                          ? "bg-slate-800 text-slate-200"
+                          : "bg-blue-600 text-white shadow-sm"
+                      }`}
+                    >
+                      {showSupportResistance ? "Hide" : "Show"}
+                    </button>
+                  </div>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                     <button
                       onClick={() => setTimeframe("DAILY")}
@@ -698,6 +730,8 @@ function App() {
                   timeframe={loadedTimeframe}
                   candlestickPatterns={candlestickPatterns}
                   candlestickPatternMode={candlestickPatternMode}
+                  supportResistances={supportResistances}
+                  showSupportResistance={showSupportResistance}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (
