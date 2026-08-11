@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
+import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.concurrent.CountDownLatch;
@@ -22,17 +23,24 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
 
     CoreScheduler scheduler =
         new CoreScheduler(
-            downloader, weeklyPriceCalculator, indicatorCalculator, patternCalculator);
+            downloader,
+            weeklyPriceCalculator,
+            indicatorCalculator,
+            supportResistanceCalculator,
+            patternCalculator);
 
     scheduler.runScheduledUpdate();
 
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
+    verify(supportResistanceCalculator, times(1)).computeSupportResistances();
     verify(patternCalculator, times(1)).computeCandleStickPatterns();
   }
 
@@ -41,13 +49,19 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
 
     doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadDailyPrices();
 
     CoreScheduler scheduler =
         new CoreScheduler(
-            downloader, weeklyPriceCalculator, indicatorCalculator, patternCalculator);
+            downloader,
+            weeklyPriceCalculator,
+            indicatorCalculator,
+            supportResistanceCalculator,
+            patternCalculator);
 
     scheduler.runOnStartup();
 
@@ -55,6 +69,7 @@ class CoreSchedulerTest {
     // Subsequent steps skipped due to exception
     verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
     verify(indicatorCalculator, never()).computeIndicators();
+    verify(supportResistanceCalculator, never()).computeSupportResistances();
     verify(patternCalculator, never()).computeCandleStickPatterns();
   }
 
@@ -63,6 +78,8 @@ class CoreSchedulerTest {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
 
     CountDownLatch startLatch = new CountDownLatch(1);
@@ -80,7 +97,11 @@ class CoreSchedulerTest {
 
     CoreScheduler scheduler =
         new CoreScheduler(
-            downloader, weeklyPriceCalculator, indicatorCalculator, patternCalculator);
+            downloader,
+            weeklyPriceCalculator,
+            indicatorCalculator,
+            supportResistanceCalculator,
+            patternCalculator);
 
     // Start thread for first invocation
     Thread t = new Thread(scheduler::runScheduledUpdate);
@@ -100,6 +121,7 @@ class CoreSchedulerTest {
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
+    verify(supportResistanceCalculator, times(1)).computeSupportResistances();
     verify(patternCalculator, times(1)).computeCandleStickPatterns();
   }
 }
