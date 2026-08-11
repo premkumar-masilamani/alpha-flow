@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -25,11 +26,22 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SupportResistanceCalculator {
 
+  public enum LevelType {
+    SUPPORT,
+    RESISTANCE
+  }
+
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
+
+  @Value("${alphaflow.indicators.support-resistance.bucket-width-pct:0.01}")
+  private double bucketWidthPct;
+
+  @Value("${alphaflow.indicators.support-resistance.max-buckets:20}")
+  private int maxBuckets;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
 
@@ -100,7 +112,7 @@ public class SupportResistanceCalculator {
               .zoneTop(b.top)
               .zoneMidpoint(b.midpoint)
               .touchCount(b.touchCount)
-              .levelType(b.levelType)
+              .levelType(b.levelType.name())
               .build());
     }
 
@@ -129,7 +141,7 @@ public class SupportResistanceCalculator {
               .zoneTop(b.top)
               .zoneMidpoint(b.midpoint)
               .touchCount(b.touchCount)
-              .levelType(b.levelType)
+              .levelType(b.levelType.name())
               .build());
     }
 
@@ -145,31 +157,31 @@ public class SupportResistanceCalculator {
             .add(latestBar.close())
             .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
-    // 2. Calculate 1% Linear Bucket Width (W)
-    BigDecimal w = p.multiply(BigDecimal.valueOf(0.01));
+    // 2. Calculate Linear Bucket Width (W)
+    BigDecimal w = p.multiply(BigDecimal.valueOf(bucketWidthPct));
 
-    // 3. Construct 40 Fixed Linear Buckets (+/- 20% around P)
+    // 3. Construct Fixed Linear Buckets
     List<Bucket> buckets = new ArrayList<>();
 
-    // Resistance Buckets (k = 0 to 19, above P)
-    for (int k = 0; k < 20; k++) {
+    // Resistance Buckets (k = 0 to maxBuckets - 1, above P)
+    for (int k = 0; k < maxBuckets; k++) {
       BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(bottom, top, "RESISTANCE"));
+      buckets.add(new Bucket(bottom, top, LevelType.RESISTANCE));
     }
 
-    // Support Buckets (k = -1 to -20, below P)
-    for (int k = -1; k >= -20; k--) {
+    // Support Buckets (k = -1 to -maxBuckets, below P)
+    for (int k = -1; k >= -maxBuckets; k--) {
       BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(bottom, top, "SUPPORT"));
+      buckets.add(new Bucket(bottom, top, LevelType.SUPPORT));
     }
 
     // Scan sequentially through historical candles
     for (PriceBar bar : bars) {
       for (Bucket b : buckets) {
         // STEP 1: Touch
-        if (b.levelType.equals("SUPPORT")) {
+        if (b.levelType == LevelType.SUPPORT) {
           // If Daily Low >= Z_bottom AND Daily Low <= Z_top
           if (bar.low().compareTo(b.bottom) >= 0 && bar.low().compareTo(b.top) <= 0) {
             b.touchCount++;
@@ -183,7 +195,7 @@ public class SupportResistanceCalculator {
         }
 
         // STEP 2: Slice
-        if (b.levelType.equals("SUPPORT")) {
+        if (b.levelType == LevelType.SUPPORT) {
           // If Daily Close < Z_bottom
           if (bar.close().compareTo(b.bottom) < 0) {
             b.touchCount = 0;
@@ -205,9 +217,9 @@ public class SupportResistanceCalculator {
         // Role Reversal Check - strictly based on final Pivot P
         // If mid is below P -> SUPPORT, if above -> RESISTANCE
         if (b.midpoint.compareTo(p) < 0) {
-          b.levelType = "SUPPORT";
+          b.levelType = LevelType.SUPPORT;
         } else {
-          b.levelType = "RESISTANCE";
+          b.levelType = LevelType.RESISTANCE;
         }
         proven.add(b);
       }
@@ -248,10 +260,10 @@ public class SupportResistanceCalculator {
     BigDecimal bottom;
     BigDecimal top;
     BigDecimal midpoint;
-    String levelType;
+    LevelType levelType;
     int touchCount;
 
-    Bucket(BigDecimal bottom, BigDecimal top, String levelType) {
+    Bucket(BigDecimal bottom, BigDecimal top, LevelType levelType) {
       this.bottom = bottom;
       this.top = top;
       this.midpoint = bottom.add(top).divide(BigDecimal.valueOf(2), 18, RoundingMode.HALF_UP);
