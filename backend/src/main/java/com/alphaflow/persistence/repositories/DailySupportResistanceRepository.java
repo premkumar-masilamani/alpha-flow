@@ -14,8 +14,4 @@ public interface DailySupportResistanceRepository
     extends JpaRepository<DailySupportResistance, Long> {
 
   List<DailySupportResistance> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
-
-  @Modifying
-  @Query("DELETE FROM DailySupportResistance dsr WHERE dsr.ticker = :ticker")
-  void deleteByTicker(Ticker ticker);
 }

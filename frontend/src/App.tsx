@@ -530,6 +530,40 @@ function App() {
               </span>
             </div>
           </div>
+          
+          {/* Support and Resistance Section */}
+          {supportResistances.length > 0 && (
+            <div className="border-t border-slate-800/80 pt-4 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-emerald-500/80 block text-xs uppercase tracking-wider mb-2 font-bold">Support Zones</span>
+                <div className="space-y-1">
+                  {supportResistances.filter(sr => sr.levelType === 'SUPPORT').map((sr, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-slate-300 font-mono bg-emerald-950/20 px-3 py-1.5 rounded border border-emerald-900/30">
+                      <span>{Number(sr.zoneBottom).toFixed(2)} - {Number(sr.zoneTop).toFixed(2)}</span>
+                      <span className="text-xs text-slate-500">Touch: {sr.touchCount}</span>
+                    </div>
+                  ))}
+                  {supportResistances.filter(sr => sr.levelType === 'SUPPORT').length === 0 && (
+                    <div className="text-slate-600 italic text-xs py-1">No support zones found</div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="text-rose-500/80 block text-xs uppercase tracking-wider mb-2 font-bold">Resistance Zones</span>
+                <div className="space-y-1">
+                  {supportResistances.filter(sr => sr.levelType === 'RESISTANCE').map((sr, idx) => (
+                    <div key={idx} className="flex justify-between items-center text-slate-300 font-mono bg-rose-950/20 px-3 py-1.5 rounded border border-rose-900/30">
+                      <span>{Number(sr.zoneBottom).toFixed(2)} - {Number(sr.zoneTop).toFixed(2)}</span>
+                      <span className="text-xs text-slate-500">Touch: {sr.touchCount}</span>
+                    </div>
+                  ))}
+                  {supportResistances.filter(sr => sr.levelType === 'RESISTANCE').length === 0 && (
+                    <div className="text-slate-600 italic text-xs py-1">No resistance zones found</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Indicators Tables */}

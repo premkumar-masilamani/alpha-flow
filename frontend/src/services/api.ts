@@ -199,12 +199,19 @@ export const getCandlestickPatterns = async (
     return response.data;
 };
 
+export const LEVEL_TYPES = {
+    SUPPORT: 'SUPPORT',
+    RESISTANCE: 'RESISTANCE',
+} as const;
+
+export type LevelType = typeof LEVEL_TYPES[keyof typeof LEVEL_TYPES];
+
 export interface SupportResistanceData {
     priceDate: string;
     zoneBottom: number;
     zoneTop: number;
     zoneMidpoint: number;
-    levelType: 'SUPPORT' | 'RESISTANCE';
+    levelType: LevelType;
     touchCount: number;
 }
 

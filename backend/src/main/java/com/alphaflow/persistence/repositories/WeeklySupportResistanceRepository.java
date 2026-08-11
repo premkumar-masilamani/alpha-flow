@@ -14,8 +14,4 @@ public interface WeeklySupportResistanceRepository
     extends JpaRepository<WeeklySupportResistance, Long> {
 
   List<WeeklySupportResistance> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
-
-  @Modifying
-  @Query("DELETE FROM WeeklySupportResistance wsr WHERE wsr.ticker = :ticker")
-  void deleteByTicker(Ticker ticker);
 }
