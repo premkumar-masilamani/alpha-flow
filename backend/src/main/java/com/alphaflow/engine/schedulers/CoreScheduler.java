@@ -68,19 +68,19 @@ public class CoreScheduler {
       weeklyPriceCalculator.computeWeeklyPrices();
       log.info("Step 2/5 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 3/5: Computing indicators...");
-      start = System.currentTimeMillis();
-      indicatorCalculator.computeIndicators();
-      log.info("Step 3/5 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 4/5: Computing support and resistances...");
+      log.info("Step 3/5: Computing support and resistances...");
       start = System.currentTimeMillis();
       supportResistanceCalculator.computeSupportResistances();
-      log.info("Step 4/5 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+      log.info("Step 3/5 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-      log.info("Step 5/5: Computing candlestick patterns...");
+      log.info("Step 4/5: Computing candlestick patterns...");
       start = System.currentTimeMillis();
       candlestickPatternCalculator.computeCandleStickPatterns();
+      log.info("Step 4/5 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+      log.info("Step 5/5: Computing indicators...");
+      start = System.currentTimeMillis();
+      indicatorCalculator.computeIndicators();
       log.info("Step 5/5 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
       log.info(
