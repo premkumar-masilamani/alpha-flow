@@ -32,6 +32,8 @@ import {
   ChevronRight,
   Info,
   AlertCircle,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 
 // Percentage change relative to a base price. Returns 0 when the base is zero or
@@ -62,6 +64,8 @@ function App() {
   const [supportResistances, setSupportResistances] = useState<SupportResistanceData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
+  const [overviewPatterns, setOverviewPatterns] = useState<CandlestickPatternData[]>([]);
+  const [recentDailyCandles, setRecentDailyCandles] = useState<DailyCandleData[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Timeframe and Indicators
@@ -168,16 +172,26 @@ function App() {
         setLoading(true);
         setAnalysisData(null);
         setAnalysisError(null);
+        setOverviewPatterns([]);
+        setRecentDailyCandles([]);
 
         try {
-          const analysis = await getTechnicalAnalysis(selectedTicker);
+          const [analysis, patterns, candles] = await Promise.all([
+            getTechnicalAnalysis(selectedTicker),
+            getCandlestickPatterns(selectedTicker, "DAILY", 0, RECENT_PATTERNS_LIMIT),
+            getCandleData(selectedTicker, "DAILY", 0, 100),
+          ]);
           if (active) {
             setAnalysisData(analysis);
+            setOverviewPatterns(patterns);
+            setRecentDailyCandles(candles);
           }
         } catch (error) {
           console.error("Failed to fetch technical analysis data:", error);
           if (active) {
             setAnalysisData(null);
+            setOverviewPatterns([]);
+            setRecentDailyCandles([]);
             const status = axios.isAxiosError(error) ? error.response?.status : undefined;
             setAnalysisError(status === 404 ? "stale" : "server");
           }
@@ -413,6 +427,118 @@ function App() {
     const priceChange = candle.close - candle.open;
     const priceChangePct = pctChange(priceChange, candle.open);
 
+    const renderRecentPatterns = (patterns: CandlestickPatternData[], candles: DailyCandleData[]) => {
+      if (patterns.length === 0) {
+        return (
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
+            <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                {candle?.date || "N/A"}
+              </span>
+            </div>
+            <div className="p-6 text-center text-slate-500 text-sm italic">
+              No candlestick patterns detected recently.
+            </div>
+          </div>
+        );
+      }
+
+      // Sort patterns by date descending (newest first) and pick the first one (latest)
+      const sortedPatterns = [...patterns].sort((a, b) => b.date.localeCompare(a.date));
+      const latestPattern = sortedPatterns[0];
+
+      const isBullish = latestPattern.sentiment.startsWith("BULLISH");
+      const isReversal = latestPattern.sentiment.endsWith("REVERSAL");
+
+      // Calculate bars ago relative to the latest daily candle
+      let relativeTime = "";
+      if (candles.length > 0) {
+        const latestCandle = candles[candles.length - 1];
+        if (latestPattern.date === latestCandle.date) {
+          relativeTime = "today";
+        } else {
+          const patternIndex = candles.findIndex((c) => c.date === latestPattern.date);
+          if (patternIndex !== -1) {
+            const barsAgo = candles.length - 1 - patternIndex;
+            relativeTime = `${barsAgo} ${barsAgo === 1 ? "bar" : "bars"} ago`;
+          }
+        }
+      }
+
+      const dateText = relativeTime || latestPattern.date;
+
+      return (
+        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
+          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+            <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
+            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+              {candle?.date || "N/A"}
+            </span>
+          </div>
+          <div className="p-6">
+            <div
+              className={`relative overflow-hidden p-6 rounded-xl border transition-all duration-300 hover:scale-[1.01] ${
+                isBullish
+                  ? "bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-800/50 hover:bg-emerald-950/20"
+                  : "bg-rose-950/10 border-rose-900/30 hover:border-rose-800/50 hover:bg-rose-950/20"
+              }`}
+            >
+              {/* Ambient Glow effect */}
+              <div
+                className={`absolute top-0 right-0 w-32 h-32 -mr-6 -mt-6 rounded-full blur-3xl opacity-15 ${
+                  isBullish ? "bg-emerald-500" : "bg-rose-500"
+                }`}
+              />
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-14 h-14 flex items-center justify-center rounded-xl font-mono font-black text-lg ${
+                      isBullish
+                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+                        : "bg-rose-500/15 text-rose-400 border border-rose-500/20"
+                    }`}
+                  >
+                    {latestPattern.shortName}
+                  </div>
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <h4 className="font-extrabold text-white text-lg leading-none">
+                        {latestPattern.longName}
+                      </h4>
+                      <span
+                        className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                          isBullish
+                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/10"
+                            : "bg-rose-500/10 text-rose-400 border border-rose-500/10"
+                        }`}
+                      >
+                        {isBullish ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                        {latestPattern.sentiment.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {isReversal ? "Potential trend reversal signal" : "Potential trend continuation signal"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:items-end text-sm">
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
+                    Detected
+                  </span>
+                  <span className="font-mono text-slate-200 font-semibold bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800/60 shadow-inner">
+                    {dateText}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     const renderIndicatorTable = (title: string, date: string, indicators: IndicatorSeries[]) => (
       <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
         <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
@@ -568,6 +694,9 @@ function App() {
             </div>
           )}
         </div>
+
+        {/* Recent Candlestick Patterns */}
+        {renderRecentPatterns(overviewPatterns, recentDailyCandles)}
 
         {/* Indicators Tables */}
         {renderIndicatorTable("Daily Indicators", dailyDate, dailyIndicators)}

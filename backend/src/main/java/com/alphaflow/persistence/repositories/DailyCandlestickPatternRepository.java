@@ -24,4 +24,6 @@ public interface DailyCandlestickPatternRepository
         ORDER BY p.priceDate ASC
         """)
   List<DailyCandlestickPattern> findSeriesBetween(Ticker ticker, LocalDate from, LocalDate to);
+
+  void deleteByTickerAndPriceDateGreaterThanEqual(Ticker ticker, LocalDate priceDate);
 }
