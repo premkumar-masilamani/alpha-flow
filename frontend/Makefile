@@ -5,6 +5,7 @@ endif
 
 NPM         := npm
 NODE_ENV    ?= development
+export NODE_OPTIONS=--max-old-space-size=4096
 
 .PHONY: dev test lint build clean
 

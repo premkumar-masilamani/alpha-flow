@@ -3,6 +3,7 @@ import axios from 'axios';
 const API_BASE_URL = `${import.meta.env.NEXT_PUBLIC_API_URL || ''}/api`;
 
 export const CHART_WINDOW = 250;
+export const RECENT_PATTERNS_LIMIT = 20;
 
 export interface Ticker {
     id: number;
@@ -175,8 +176,10 @@ export const CANDLESTICK_PATTERN_MODES = {
 export type CandlestickPatternMode = typeof CANDLESTICK_PATTERN_MODES[keyof typeof CANDLESTICK_PATTERN_MODES];
 
 export const SENTIMENT_TYPES = {
-    BULL: 'BULL',
-    BEAR: 'BEAR',
+    BULLISH_REVERSAL: 'BULLISH_REVERSAL',
+    BEARISH_REVERSAL: 'BEARISH_REVERSAL',
+    BULLISH_CONTINUATION: 'BULLISH_CONTINUATION',
+    BEARISH_CONTINUATION: 'BEARISH_CONTINUATION',
 } as const;
 
 export type SentimentType = typeof SENTIMENT_TYPES[keyof typeof SENTIMENT_TYPES];

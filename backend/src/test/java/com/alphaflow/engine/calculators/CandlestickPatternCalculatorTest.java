@@ -133,7 +133,7 @@ class CandlestickPatternCalculatorTest {
     verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
 
     List<DailyCandlestickPattern> saved = captor.getValue();
-    assertThat(saved).anyMatch(p -> p.getPattern() == CandlestickPattern.BULLISH_MARUBOZU);
+    assertThat(saved).anyMatch(p -> p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test
@@ -156,7 +156,7 @@ class CandlestickPatternCalculatorTest {
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .anyMatch(p -> p.getPattern() == CandlestickPattern.BEARISH_MARUBOZU);
+        .anyMatch(p -> p.getPattern() == CandlestickPattern.LONG_BLACK_BODY);
   }
 
   @Test
@@ -359,7 +359,7 @@ class CandlestickPatternCalculatorTest {
     ArgumentCaptor<List<WeeklyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(weeklyCandlestickPatternRepository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .anyMatch(p -> p.getPattern() == CandlestickPattern.BULLISH_MARUBOZU);
+        .anyMatch(p -> p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test
@@ -381,5 +381,514 @@ class CandlestickPatternCalculatorTest {
     calculator.computeCandleStickPatternsForTicker(ticker);
 
     verify(dailyCandlestickPatternRepository, never()).saveAll(any());
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void testNewlyImplementedPatterns() {
+    List<DailyPrice> base = new ArrayList<>();
+    LocalDate start = LocalDate.of(2026, 1, 1);
+    for (int j = 0; j < 14; j++) {
+      base.add(daily(start.plusDays(j), "100", "103", "97", "102"));
+    }
+
+    // Helper to verify single patterns
+    var patternsToTest =
+        List.of(
+            // A. Bullish Reversals
+            new Object[] {
+              CandlestickPattern.BULLISH_BELT_HOLD,
+              new DailyPrice[] {daily(start.plusDays(14), "100", "108", "100", "108")}
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_HARAMI,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "92", "98", "92", "98")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_HARAMI_CROSS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "95", "95", "95", "95")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.PIERCING_LINE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "110", "111", "90", "90"),
+                daily(start.plusDays(15), "89", "105", "89", "105")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_DOJI_STAR,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "88", "88", "88", "88")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_MEETING_LINES,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "85", "90.01", "85", "90.01")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_WHITE_SOLDIERS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "95", "90", "95"),
+                daily(start.plusDays(15), "93", "98", "93", "98"),
+                daily(start.plusDays(16), "96", "101", "96", "101")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.MORNING_DOJI_STAR,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "115", "116", "105", "105"),
+                daily(start.plusDays(15), "99", "99", "99", "99"),
+                daily(start.plusDays(16), "99.5", "112", "99.5", "112")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_ABANDONED_BABY,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "115", "116", "105", "105"),
+                daily(start.plusDays(15), "99", "99.05", "98.9", "99"),
+                daily(start.plusDays(16), "105", "115", "104.9", "115")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_TRI_STAR,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "100.05", "100", "100"),
+                daily(start.plusDays(15), "98", "98.05", "98", "98"),
+                daily(start.plusDays(16), "99", "99.05", "99", "99")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_BREAKAWAY,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "120", "121", "110", "110"),
+                daily(start.plusDays(15), "108", "108", "105", "105"),
+                daily(start.plusDays(16), "104", "104", "101", "101"),
+                daily(start.plusDays(17), "100", "100", "97", "97"),
+                daily(start.plusDays(18), "96", "109", "96", "109")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_INSIDE_UP,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "92", "98", "92", "98"),
+                daily(start.plusDays(16), "97", "102", "97", "102")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_OUTSIDE_UP,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "95", "95"),
+                daily(start.plusDays(15), "94", "101", "94", "101"),
+                daily(start.plusDays(16), "100", "105", "100", "105")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_KICKING,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "101", "111", "101", "111")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.UNIQUE_THREE_RIVERS_BOTTOM,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "120", "121", "110", "110"),
+                daily(start.plusDays(15), "115", "115", "108", "112"),
+                daily(start.plusDays(16), "110", "110.2", "110", "110.2")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_STARS_IN_SOUTH,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "120", "121", "105", "110"),
+                daily(start.plusDays(15), "112", "112", "106", "108"),
+                daily(start.plusDays(16), "109", "109", "108.9", "108.9")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.CONCEALING_SWALLOW,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "120", "120", "110", "110"),
+                daily(start.plusDays(15), "110", "110", "100", "100"),
+                daily(start.plusDays(16), "98", "102", "92", "92"),
+                daily(start.plusDays(17), "103", "103", "91", "91")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_STICK_SANDWICH,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "88", "98", "88", "98"),
+                daily(start.plusDays(16), "100", "101", "90", "90")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.HOMING_PIGEON,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "98", "98", "92", "92")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.LADDER_BOTTOM,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "120", "120", "110", "110"),
+                daily(start.plusDays(15), "110", "110", "100", "100"),
+                daily(start.plusDays(16), "100", "100", "90", "90"),
+                daily(start.plusDays(17), "85", "95", "80", "80"),
+                daily(start.plusDays(18), "92", "102", "92", "102")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.MATCHING_LOW,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "95", "95", "90", "90")
+              }
+            },
+
+            // B. Bearish Reversals
+            new Object[] {
+              CandlestickPattern.SHOOTING_STAR,
+              new DailyPrice[] {daily(start.plusDays(14), "100", "102.5", "100", "100.1")}
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_BELT_HOLD,
+              new DailyPrice[] {daily(start.plusDays(14), "108", "108", "100", "100")}
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_HARAMI,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "98", "98", "92", "92")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_HARAMI_CROSS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "95", "95", "95", "95")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.DARK_CLOUD_COVER,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "105", "92", "92")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_DOJI_STAR,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "102", "102", "102", "102")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_MEETING_LINES,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "105", "100.01", "100.01")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_BLACK_CROWS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "100", "95", "95"),
+                daily(start.plusDays(15), "97", "97", "92", "92"),
+                daily(start.plusDays(16), "94", "94", "89", "89")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.EVENING_DOJI_STAR,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "85", "95", "85", "95"),
+                daily(start.plusDays(15), "101", "101", "101", "101"),
+                daily(start.plusDays(16), "100", "88", "100", "88")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_ABANDONED_BABY,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "85", "95", "85", "95"),
+                daily(start.plusDays(15), "101", "101.05", "100.8", "101"),
+                daily(start.plusDays(16), "95", "95", "85", "85")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_TRI_STAR,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "100.05", "100", "100"),
+                daily(start.plusDays(15), "102", "102.05", "102", "102"),
+                daily(start.plusDays(16), "101", "101.05", "101", "101")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_BREAKAWAY,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "110", "100", "110"),
+                daily(start.plusDays(15), "112", "115", "112", "115"),
+                daily(start.plusDays(16), "116", "119", "116", "119"),
+                daily(start.plusDays(17), "120", "123", "120", "123"),
+                daily(start.plusDays(18), "124", "124", "111", "111")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_INSIDE_DOWN,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "98", "98", "92", "92"),
+                daily(start.plusDays(16), "93", "93", "88", "88")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.THREE_OUTSIDE_DOWN,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "95", "100", "95", "100"),
+                daily(start.plusDays(15), "101", "101", "94", "94"),
+                daily(start.plusDays(16), "95", "95", "90", "90")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_KICKING,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "89", "89", "79", "79")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.LATTER_TOP,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "110", "100", "110"),
+                daily(start.plusDays(15), "110", "120", "110", "120"),
+                daily(start.plusDays(16), "120", "130", "120", "130"),
+                daily(start.plusDays(17), "130", "145", "130", "135"),
+                daily(start.plusDays(18), "128", "128", "118", "118")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.MATCHING_HIGH,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "95", "100", "95", "100")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.UPSIDE_GAP_TWO_CROWS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "105", "102", "102"),
+                daily(start.plusDays(16), "106", "106", "95", "95")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.IDENTICAL_THREE_CROWS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "100", "95", "95"),
+                daily(start.plusDays(15), "95", "95", "90", "90"),
+                daily(start.plusDays(16), "90", "90", "85", "85")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.DELIBERATION,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "80", "90", "80", "90"),
+                daily(start.plusDays(15), "90", "100", "90", "100"),
+                daily(start.plusDays(16), "102", "105", "102", "103")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.ADVANCE_BLOCK,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "80", "91", "80", "90"),
+                daily(start.plusDays(15), "89", "99", "89", "97"),
+                daily(start.plusDays(16), "96", "103", "96", "100")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.TWO_CROWS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "105", "102", "102"),
+                daily(start.plusDays(16), "101.5", "101.5", "95", "95")
+              }
+            },
+
+            // C. Bullish Continuation
+            new Object[] {
+              CandlestickPattern.BULLISH_SEPARATING_LINES,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "100", "110", "100", "110")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.RISING_THREE_METHODS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "110", "100", "110"),
+                daily(start.plusDays(15), "109", "109", "106", "106"),
+                daily(start.plusDays(16), "107", "107", "104", "104"),
+                daily(start.plusDays(17), "105", "105", "102", "102"),
+                daily(start.plusDays(18), "101", "112", "101", "112")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.UPSIDE_TASUKI_GAP,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "115", "105", "115"),
+                daily(start.plusDays(16), "110", "110", "102", "102")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_SIDE_BY_SIDE_WHITE_LINES,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "115", "105", "115"),
+                daily(start.plusDays(16), "105", "115", "105", "115")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_THREE_LINE_STRIKE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "95", "90", "95"),
+                daily(start.plusDays(15), "95", "100", "95", "100"),
+                daily(start.plusDays(16), "100", "105", "100", "105"),
+                daily(start.plusDays(17), "106", "106", "89", "89")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.UPSIDE_GAP_THREE_METHODS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "115", "105", "115"),
+                daily(start.plusDays(16), "110", "110", "98", "98")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_ON_NECK_LINE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "85", "90", "85", "90")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BULLISH_IN_NECK_LINE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "85", "90", "85", "90")
+              }
+            },
+
+            // D. Bearish Continuation
+            new Object[] {
+              CandlestickPattern.BEARISH_SEPARATING_LINES,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "90", "80", "90", "80")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.FALLING_THREE_METHODS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "110", "110", "100", "100"),
+                daily(start.plusDays(15), "101", "104", "101", "104"),
+                daily(start.plusDays(16), "103", "106", "103", "106"),
+                daily(start.plusDays(17), "105", "108", "105", "108"),
+                daily(start.plusDays(18), "109", "109", "98", "98")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.DOWNSIDE_TASUKI_GAP,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "110", "110", "100", "100"),
+                daily(start.plusDays(15), "95", "95", "85", "85"),
+                daily(start.plusDays(16), "90", "98", "90", "98")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_SIDE_BY_SIDE_WHITE_LINES,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "110", "110", "100", "100"),
+                daily(start.plusDays(15), "85", "95", "85", "95"),
+                daily(start.plusDays(16), "85", "95", "85", "95")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_THREE_LINE_STRIKE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "110", "110", "105", "105"),
+                daily(start.plusDays(15), "105", "105", "100", "100"),
+                daily(start.plusDays(16), "100", "100", "95", "95"),
+                daily(start.plusDays(17), "94", "111", "94", "111")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.DOWNSIDE_GAP_THREE_METHODS,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "110", "110", "100", "100"),
+                daily(start.plusDays(15), "95", "95", "85", "85"),
+                daily(start.plusDays(16), "90", "102", "90", "102")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_ON_NECK_LINE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "105", "100", "100")
+              }
+            },
+            new Object[] {
+              CandlestickPattern.BEARISH_IN_NECK_LINE,
+              new DailyPrice[] {
+                daily(start.plusDays(14), "90", "100", "90", "100"),
+                daily(start.plusDays(15), "105", "105", "100", "100")
+              }
+            });
+
+    for (Object[] spec : patternsToTest) {
+      DailyPrice[] adds = (DailyPrice[]) spec[1];
+
+      List<DailyPrice> testPrices = new ArrayList<>(base);
+      for (DailyPrice p : adds) {
+        testPrices.add(p);
+      }
+
+      when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(testPrices);
+      when(dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
+          .thenReturn(Optional.empty());
+
+      calculator.computeCandleStickPatternsForTicker(ticker);
+
+      ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
+      verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
+
+      CandlestickPattern pattern = (CandlestickPattern) spec[0];
+      List<DailyCandlestickPattern> saved = captor.getValue();
+      boolean matched = saved.stream().anyMatch(p -> p.getPattern() == pattern);
+      if (!matched) {
+        System.out.println(
+            "FAILED TO DETECT "
+                + pattern
+                + "! Saved patterns: "
+                + saved.stream().map(p -> p.getPattern() + "@" + p.getPriceDate()).toList());
+      }
+      assertThat(saved)
+          .withFailMessage("Failed to detect pattern: " + pattern)
+          .anyMatch(p -> p.getPattern() == pattern);
+
+      org.mockito.Mockito.reset(dailyCandlestickPatternRepository);
+    }
   }
 }

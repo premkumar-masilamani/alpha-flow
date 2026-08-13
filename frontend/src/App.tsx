@@ -24,6 +24,7 @@ import {
   type CandlestickPatternMode,
   type SupportResistanceData,
   getSupportResistances,
+  RECENT_PATTERNS_LIMIT,
 } from "./services/api";
 import {
   Loader2,
@@ -265,7 +266,9 @@ function App() {
         return;
       }
       try {
-        const size = (page + 1) * CHART_WINDOW;
+        const size = candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT
+          ? RECENT_PATTERNS_LIMIT
+          : (page + 1) * CHART_WINDOW;
         const patterns = await getCandlestickPatterns(selectedTicker, timeframe, 0, size);
         if (active) {
           setCandlestickPatterns(patterns);

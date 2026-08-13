@@ -199,154 +199,742 @@ public class CandlestickPatternCalculator {
     boolean curGreen = isGreen(cur);
     boolean curRed = isRed(cur);
 
+    PriceBar prev = i >= 1 ? bars.get(i - 1) : null;
+    PriceBar prev2 = i >= 2 ? bars.get(i - 2) : null;
+    PriceBar prev3 = i >= 3 ? bars.get(i - 3) : null;
+    PriceBar prev4 = i >= 4 ? bars.get(i - 4) : null;
+
+    BigDecimal prevBody = prev != null ? body(prev) : BigDecimal.ZERO;
+    BigDecimal prev2Body = prev2 != null ? body(prev2) : BigDecimal.ZERO;
+    BigDecimal prev3Body = prev3 != null ? body(prev3) : BigDecimal.ZERO;
+    BigDecimal prev4Body = prev4 != null ? body(prev4) : BigDecimal.ZERO;
+
+    boolean prevGreen = prev != null && isGreen(prev);
+    boolean prevRed = prev != null && isRed(prev);
+    boolean prev2Green = prev2 != null && isGreen(prev2);
+    boolean prev2Red = prev2 != null && isRed(prev2);
+    boolean prev3Green = prev3 != null && isGreen(prev3);
+    boolean prev3Red = prev3 != null && isRed(prev3);
+    boolean prev4Green = prev4 != null && isGreen(prev4);
+    boolean prev4Red = prev4 != null && isRed(prev4);
+
     switch (pattern) {
-      // Bullish Marubozu: A long green body with little to no upper and lower shadows, showing
-      // strong buying pressure.
-      case BULLISH_MARUBOZU:
-        return curGreen
-            && curBody.compareTo(avgBody.multiply(THRESHOLD_LARGE, MC)) >= 0
-            && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
-            && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
+      // A. Bullish Reversals
+      case LONG_WHITE_BODY:
+        return curGreen && curBody.compareTo(avgBody.multiply(THRESHOLD_LARGE, MC)) >= 0;
 
-      // Bearish Marubozu: A long red body with little to no upper and lower shadows, showing strong
-      // selling pressure.
-      case BEARISH_MARUBOZU:
-        return curRed
-            && curBody.compareTo(avgBody.multiply(THRESHOLD_LARGE, MC)) >= 0
-            && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
-            && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
-
-      // Bullish Engulfing: A two-candle pattern where a small red candle is fully engulfed by a
-      // subsequent larger green candle.
-      case BULLISH_ENGULFING:
-        PriceBar prevBullish = bars.get(i - 1);
-        return isRed(prevBullish)
-            && curGreen
-            && cur.open().compareTo(prevBullish.close()) <= 0
-            && cur.close().compareTo(prevBullish.open()) >= 0
-            && (cur.open().compareTo(prevBullish.close()) < 0
-                || cur.close().compareTo(prevBullish.open()) > 0);
-
-      // Bearish Engulfing: A two-candle pattern where a small green candle is fully engulfed by a
-      // subsequent larger red candle.
-      case BEARISH_ENGULFING:
-        PriceBar prevBearish = bars.get(i - 1);
-        return isGreen(prevBearish)
-            && curRed
-            && cur.open().compareTo(prevBearish.close()) >= 0
-            && cur.close().compareTo(prevBearish.open()) <= 0
-            && (cur.open().compareTo(prevBearish.close()) > 0
-                || cur.close().compareTo(prevBearish.open()) < 0);
-
-      // Bullish Piercing (Piercing Line): A two-candle reversal pattern where a green candle opens
-      // below the previous red candle's close and closes more than halfway up its body.
-      case BULLISH_PIERCING:
-        PriceBar prevPiercingBullish = bars.get(i - 1);
-        if (!isRed(prevPiercingBullish)
-            || !curGreen
-            || body(prevPiercingBullish).compareTo(avgBody) < 0) {
-          return false;
-        }
-        BigDecimal midpointBullish =
-            prevPiercingBullish
-                .close()
-                .add(prevPiercingBullish.open())
-                .divide(DIVISOR_MIDPOINT, MC);
-        return cur.open().compareTo(prevPiercingBullish.close()) < 0
-            && cur.close().compareTo(midpointBullish) > 0
-            && cur.close().compareTo(prevPiercingBullish.open()) <= 0;
-
-      // Bearish Piercing (Dark Cloud Cover): A two-candle reversal pattern where a red candle opens
-      // above the previous green candle's close and closes more than halfway down its body.
-      case BEARISH_PIERCING:
-        PriceBar prevPiercingBearish = bars.get(i - 1);
-        if (!isGreen(prevPiercingBearish)
-            || !curRed
-            || body(prevPiercingBearish).compareTo(avgBody) < 0) {
-          return false;
-        }
-        BigDecimal midpointBearish =
-            prevPiercingBearish
-                .close()
-                .add(prevPiercingBearish.open())
-                .divide(DIVISOR_MIDPOINT, MC);
-        return cur.open().compareTo(prevPiercingBearish.close()) > 0
-            && cur.close().compareTo(midpointBearish) < 0
-            && cur.close().compareTo(prevPiercingBearish.open()) >= 0;
-
-      // Hammer: A single-candle bullish reversal pattern with a small body and a long lower shadow
-      // (>= 2x body).
       case HAMMER:
         return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
 
-      // Inverted Hammer: A single-candle bullish reversal pattern with a small body and a long
-      // upper shadow (>= 2x body).
       case INVERTED_HAMMER:
         return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
             && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
             && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
 
-      // Hanging Man: A bearish reversal pattern featuring a hammer-like candle followed by a
-      // confirmation red candle.
-      case HANGING_MAN:
-        PriceBar prevHanging = bars.get(i - 1);
-        boolean prevHangingMan =
-            body(prevHanging).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
-                && lowerShadow(prevHanging)
-                        .compareTo(body(prevHanging).multiply(RATIO_HAMMER_SHADOW, MC))
-                    >= 0
-                && upperShadow(prevHanging)
-                        .compareTo(body(prevHanging).multiply(RATIO_HAMMER_UPPER, MC))
-                    <= 0;
-        return prevHangingMan && curRed;
+      case BULLISH_BELT_HOLD:
+        return curGreen
+            && lowerShadow(cur).compareTo(curBody.multiply(new BigDecimal("0.05"), MC)) <= 0
+            && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
+            && curBody.compareTo(avgBody) >= 0;
 
-      // Morning Star: A three-candle bullish reversal pattern consisting of a long red candle, a
-      // gapping down star (small body), and a green candle closing more than halfway up the first
-      // candle's body.
-      case MORNING_STAR:
-        PriceBar firstMorning = bars.get(i - 2);
-        PriceBar starMorning = bars.get(i - 1);
-        if (!isRed(firstMorning)
-            || body(firstMorning).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
-          return false;
-        }
-        if (body(starMorning).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
-          return false;
-        }
-        BigDecimal starMax = starMorning.open().max(starMorning.close());
-        boolean gapDown = starMax.compareTo(firstMorning.close()) < 0;
-
-        BigDecimal firstMidpoint =
-            firstMorning.close().add(firstMorning.open()).divide(DIVISOR_MIDPOINT, MC);
-        return gapDown
+      case BULLISH_ENGULFING:
+        return prev != null
+            && prevRed
             && curGreen
-            && body(cur).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
-            && cur.close().compareTo(firstMidpoint) > 0;
+            && cur.open().compareTo(prev.close()) <= 0
+            && cur.close().compareTo(prev.open()) >= 0
+            && (cur.open().compareTo(prev.close()) < 0 || cur.close().compareTo(prev.open()) > 0);
 
-      // Evening Star: A three-candle bearish reversal pattern consisting of a long green candle, a
-      // gapping up star (small body), and a red candle closing more than halfway down the first
-      // candle's body.
-      case EVENING_STAR:
-        PriceBar firstEvening = bars.get(i - 2);
-        PriceBar starEvening = bars.get(i - 1);
-        if (!isGreen(firstEvening)
-            || body(firstEvening).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
+      case BULLISH_HARAMI:
+        return prev != null
+            && prevRed
+            && curBody.compareTo(prevBody) < 0
+            && cur.open().compareTo(prev.close()) >= 0
+            && cur.close().compareTo(prev.open()) <= 0;
+
+      case BULLISH_HARAMI_CROSS:
+        return prev != null
+            && prevRed
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && cur.open().compareTo(prev.close()) >= 0
+            && cur.close().compareTo(prev.open()) <= 0;
+
+      case PIERCING_LINE:
+        if (prev == null || !prevRed || !curGreen || prevBody.compareTo(avgBody) < 0) {
           return false;
         }
-        if (body(starEvening).compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
+        BigDecimal midpointPL = prev.close().add(prev.open()).divide(DIVISOR_MIDPOINT, MC);
+        return cur.open().compareTo(prev.close()) < 0
+            && cur.close().compareTo(midpointPL) > 0
+            && cur.close().compareTo(prev.open()) <= 0;
+
+      case BULLISH_DOJI_STAR:
+        return prev != null
+            && prevRed
+            && prevBody.compareTo(avgBody) >= 0
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && cur.open().compareTo(prev.close()) < 0
+            && cur.close().compareTo(prev.close()) < 0;
+
+      case BULLISH_MEETING_LINES:
+        return prev != null
+            && prevRed
+            && curGreen
+            && prevBody.compareTo(avgBody) >= 0
+            && curBody.compareTo(avgBody) >= 0
+            && cur.open().compareTo(prev.low()) < 0
+            && cur.close()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0;
+
+      case THREE_WHITE_SOLDIERS:
+        return prev2 != null
+            && curGreen
+            && prevGreen
+            && prev2Green
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) >= 0
+            && prevBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) >= 0
+            && prev2Body.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) >= 0
+            && cur.open().compareTo(prev.open()) > 0
+            && cur.open().compareTo(prev.close()) < 0
+            && prev.open().compareTo(prev2.open()) > 0
+            && prev.open().compareTo(prev2.close()) < 0
+            && cur.close().compareTo(prev.close()) > 0
+            && prev.close().compareTo(prev2.close()) > 0;
+
+      case MORNING_STAR:
+        if (prev2 == null
+            || !prev2Red
+            || prev2Body.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
           return false;
         }
-        BigDecimal starMin = starEvening.open().min(starEvening.close());
-        boolean gapUp = starMin.compareTo(firstEvening.close()) > 0;
+        if (prevBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
+          return false;
+        }
+        BigDecimal starMaxMS = prev.open().max(prev.close());
+        boolean gapDownMS = starMaxMS.compareTo(prev2.close()) < 0;
+        BigDecimal midpointMS = prev2.close().add(prev2.open()).divide(DIVISOR_MIDPOINT, MC);
+        return gapDownMS
+            && curGreen
+            && curBody.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
+            && cur.close().compareTo(midpointMS) > 0;
 
-        BigDecimal firstMidpointEvening =
-            firstEvening.close().add(firstEvening.open()).divide(DIVISOR_MIDPOINT, MC);
-        return gapUp
+      case MORNING_DOJI_STAR:
+        if (prev2 == null
+            || !prev2Red
+            || prev2Body.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
+          return false;
+        }
+        if (prevBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) > 0) {
+          return false;
+        }
+        BigDecimal starMaxMDS = prev.open().max(prev.close());
+        boolean gapDownMDS = starMaxMDS.compareTo(prev2.close()) < 0;
+        BigDecimal midpointMDS = prev2.close().add(prev2.open()).divide(DIVISOR_MIDPOINT, MC);
+        return gapDownMDS
+            && curGreen
+            && curBody.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
+            && cur.close().compareTo(midpointMDS) > 0;
+
+      case BULLISH_ABANDONED_BABY:
+        return prev2 != null
+            && prev2Red
+            && curGreen
+            && prevBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prev.high().compareTo(prev2.low()) < 0
+            && prev.high().compareTo(cur.low()) < 0;
+
+      case BULLISH_TRI_STAR:
+        return prev2 != null
+            && curBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prevBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prev2Body.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prev.open().compareTo(prev2.close()) < 0
+            && prev.open().compareTo(cur.open()) < 0;
+
+      case BULLISH_BREAKAWAY:
+        return prev4 != null
+            && prev4Red
+            && prev4Body.compareTo(avgBody) >= 0
+            && prev3Red
+            && prev3.high().compareTo(prev4.low()) < 0
+            && prev2Red
+            && prevRed
+            && prev2.close().compareTo(prev3.close()) < 0
+            && prev.close().compareTo(prev2.close()) < 0
+            && curGreen
+            && curBody.compareTo(avgBody) >= 0
+            && cur.close().compareTo(prev4.low()) < 0
+            && cur.close().compareTo(prev3.open()) > 0;
+
+      case THREE_INSIDE_UP:
+        return prev2 != null
+            && prev2Red
+            && prev2Body.compareTo(avgBody) >= 0
+            && isGreen(prev)
+            && prevBody.compareTo(prev2Body) < 0
+            && prev.open().compareTo(prev2.close()) >= 0
+            && prev.close().compareTo(prev2.open()) <= 0
+            && curGreen
+            && cur.close().compareTo(prev2.open()) > 0;
+
+      case THREE_OUTSIDE_UP:
+        return prev2 != null
+            && prev2Red
+            && isGreen(prev)
+            && prev.open().compareTo(prev2.close()) <= 0
+            && prev.close().compareTo(prev2.open()) >= 0
+            && curGreen
+            && cur.close().compareTo(prev.close()) > 0;
+
+      case BULLISH_KICKING:
+        return prev != null
+            && prevRed
+            && prevBody.compareTo(avgBody) >= 0
+            && curGreen
+            && curBody.compareTo(avgBody) >= 0
+            && cur.open().compareTo(prev.open()) > 0;
+
+      case UNIQUE_THREE_RIVERS_BOTTOM:
+        return prev2 != null
+            && prev2Red
+            && prev2Body.compareTo(avgBody) >= 0
+            && prevRed
+            && prev.close().compareTo(prev2.close()) > 0
+            && prev.low().compareTo(prev2.low()) < 0
+            && curBody.compareTo(avgBody) < 0
+            && lowerShadow(cur).compareTo(curBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && cur.close().compareTo(prev.low()) > 0;
+
+      case THREE_STARS_IN_SOUTH:
+        return prev2 != null
+            && prev2Red
+            && prev2Body.compareTo(avgBody) >= 0
+            && lowerShadow(prev2).compareTo(prev2Body.multiply(new BigDecimal("0.5"), MC)) >= 0
+            && prevRed
+            && prevBody.compareTo(prev2Body) < 0
+            && prev.low().compareTo(prev2.low()) > 0
+            && lowerShadow(prev).compareTo(prevBody.multiply(new BigDecimal("0.5"), MC)) >= 0
             && curRed
-            && body(cur).compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
-            && cur.close().compareTo(firstMidpointEvening) < 0;
+            && curBody.compareTo(avgBody.multiply(new BigDecimal("0.2"), MC)) <= 0
+            && lowerShadow(cur).compareTo(curBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && upperShadow(cur).compareTo(curBody.multiply(new BigDecimal("0.1"), MC)) <= 0;
+
+      case CONCEALING_SWALLOW:
+        return prev3 != null
+            && prev3Red
+            && prev3Body.compareTo(avgBody) >= 0
+            && prev2Red
+            && prev2Body.compareTo(avgBody) >= 0
+            && lowerShadow(prev3).compareTo(prev3Body.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && upperShadow(prev3).compareTo(prev3Body.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prevRed
+            && prev.open().compareTo(prev2.close()) < 0
+            && upperShadow(prev).compareTo(prevBody.multiply(new BigDecimal("0.5"), MC)) >= 0
+            && curRed
+            && cur.open().compareTo(prev.high()) > 0
+            && cur.close().compareTo(prev.low()) < 0;
+
+      case BULLISH_STICK_SANDWICH:
+        return prev2 != null
+            && prev2Red
+            && prevGreen
+            && curRed
+            && cur.close()
+                    .subtract(prev2.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0;
+
+      case HOMING_PIGEON:
+        return prev != null
+            && prevRed
+            && curRed
+            && prevBody.compareTo(avgBody) >= 0
+            && cur.open().compareTo(prev.open()) < 0
+            && cur.close().compareTo(prev.close()) > 0;
+
+      case LADDER_BOTTOM:
+        return prev4 != null
+            && prev4Red
+            && prev3Red
+            && prev2Red
+            && prev2.close().compareTo(prev3.close()) < 0
+            && prev3.close().compareTo(prev4.close()) < 0
+            && prevRed
+            && upperShadow(prev).compareTo(prevBody) >= 0
+            && curGreen
+            && cur.open().compareTo(prev.open()) > 0;
+
+      case MATCHING_LOW:
+        return prev != null
+            && prevRed
+            && curRed
+            && cur.close()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      // B. Bearish Reversals
+      case LONG_BLACK_BODY:
+        return curRed && curBody.compareTo(avgBody.multiply(THRESHOLD_LARGE, MC)) >= 0;
+
+      case HANGING_MAN:
+        return prev != null
+            && prevBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && lowerShadow(prev).compareTo(prevBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
+            && upperShadow(prev).compareTo(prevBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
+            && curRed;
+
+      case SHOOTING_STAR:
+        return curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && upperShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_SHADOW, MC)) >= 0
+            && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0;
+
+      case BEARISH_BELT_HOLD:
+        return curRed
+            && upperShadow(cur).compareTo(curBody.multiply(new BigDecimal("0.05"), MC)) <= 0
+            && lowerShadow(cur).compareTo(curBody.multiply(RATIO_HAMMER_UPPER, MC)) <= 0
+            && curBody.compareTo(avgBody) >= 0;
+
+      case BEARISH_ENGULFING:
+        return prev != null
+            && prevGreen
+            && curRed
+            && cur.open().compareTo(prev.close()) >= 0
+            && cur.close().compareTo(prev.open()) <= 0
+            && (cur.open().compareTo(prev.close()) > 0 || cur.close().compareTo(prev.open()) < 0);
+
+      case BEARISH_HARAMI:
+        return prev != null
+            && prevGreen
+            && curBody.compareTo(prevBody) < 0
+            && cur.open().compareTo(prev.close()) <= 0
+            && cur.close().compareTo(prev.open()) >= 0;
+
+      case BEARISH_HARAMI_CROSS:
+        return prev != null
+            && prevGreen
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && cur.open().compareTo(prev.close()) <= 0
+            && cur.close().compareTo(prev.open()) >= 0;
+
+      case DARK_CLOUD_COVER:
+        if (prev == null || !prevGreen || !curRed || prevBody.compareTo(avgBody) < 0) {
+          return false;
+        }
+        BigDecimal midpointDCC = prev.close().add(prev.open()).divide(DIVISOR_MIDPOINT, MC);
+        return cur.open().compareTo(prev.close()) > 0
+            && cur.close().compareTo(midpointDCC) < 0
+            && cur.close().compareTo(prev.open()) >= 0;
+
+      case BEARISH_DOJI_STAR:
+        return prev != null
+            && prevGreen
+            && prevBody.compareTo(avgBody) >= 0
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && cur.open().compareTo(prev.close()) > 0
+            && cur.close().compareTo(prev.close()) > 0;
+
+      case BEARISH_MEETING_LINES:
+        return prev != null
+            && prevGreen
+            && curRed
+            && prevBody.compareTo(avgBody) >= 0
+            && curBody.compareTo(avgBody) >= 0
+            && cur.open().compareTo(prev.high()) > 0
+            && cur.close()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0;
+
+      case THREE_BLACK_CROWS:
+        return prev2 != null
+            && curRed
+            && prevRed
+            && prev2Red
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) >= 0
+            && prevBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) >= 0
+            && prev2Body.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) >= 0
+            && cur.open().compareTo(prev.open()) < 0
+            && cur.open().compareTo(prev.close()) > 0
+            && prev.open().compareTo(prev2.open()) < 0
+            && prev.open().compareTo(prev2.close()) > 0
+            && cur.close().compareTo(prev.close()) < 0
+            && prev.close().compareTo(prev2.close()) < 0;
+
+      case EVENING_STAR:
+        if (prev2 == null
+            || !prev2Green
+            || prev2Body.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
+          return false;
+        }
+        if (prevBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) > 0) {
+          return false;
+        }
+        BigDecimal starMinES = prev.open().min(prev.close());
+        boolean gapUpES = starMinES.compareTo(prev2.close()) > 0;
+        BigDecimal midpointES = prev2.close().add(prev2.open()).divide(DIVISOR_MIDPOINT, MC);
+        return gapUpES
+            && curRed
+            && curBody.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
+            && cur.close().compareTo(midpointES) < 0;
+
+      case EVENING_DOJI_STAR:
+        if (prev2 == null
+            || !prev2Green
+            || prev2Body.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) < 0) {
+          return false;
+        }
+        if (prevBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) > 0) {
+          return false;
+        }
+        BigDecimal starMinEDS = prev.open().min(prev.close());
+        boolean gapUpEDS = starMinEDS.compareTo(prev2.close()) > 0;
+        BigDecimal midpointEDS = prev2.close().add(prev2.open()).divide(DIVISOR_MIDPOINT, MC);
+        return gapUpEDS
+            && curRed
+            && curBody.compareTo(avgBody.multiply(RATIO_STAR_OUTER, MC)) >= 0
+            && cur.close().compareTo(midpointEDS) < 0;
+
+      case BEARISH_ABANDONED_BABY:
+        return prev2 != null
+            && prev2Green
+            && curRed
+            && prevBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prev.low().compareTo(prev2.high()) > 0
+            && prev.low().compareTo(cur.high()) > 0;
+
+      case BEARISH_TRI_STAR:
+        return prev2 != null
+            && curBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prevBody.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prev2Body.compareTo(avgBody.multiply(new BigDecimal("0.1"), MC)) <= 0
+            && prev.open().compareTo(prev2.close()) > 0
+            && prev.open().compareTo(cur.open()) > 0;
+
+      case BEARISH_BREAKAWAY:
+        return prev4 != null
+            && prev4Green
+            && prev4Body.compareTo(avgBody) >= 0
+            && prev3Green
+            && prev3.low().compareTo(prev4.high()) > 0
+            && prev2Green
+            && prevGreen
+            && prev2.close().compareTo(prev3.close()) > 0
+            && prev.close().compareTo(prev2.close()) > 0
+            && curRed
+            && curBody.compareTo(avgBody) >= 0
+            && cur.close().compareTo(prev4.high()) > 0
+            && cur.close().compareTo(prev3.open()) < 0;
+
+      case THREE_INSIDE_DOWN:
+        return prev2 != null
+            && prev2Green
+            && prev2Body.compareTo(avgBody) >= 0
+            && isRed(prev)
+            && prevBody.compareTo(prev2Body) < 0
+            && prev.open().compareTo(prev2.close()) <= 0
+            && prev.close().compareTo(prev2.open()) >= 0
+            && curRed
+            && cur.close().compareTo(prev2.open()) < 0;
+
+      case THREE_OUTSIDE_DOWN:
+        return prev2 != null
+            && prev2Green
+            && isRed(prev)
+            && prev.open().compareTo(prev2.close()) >= 0
+            && prev.close().compareTo(prev2.open()) <= 0
+            && curRed
+            && cur.close().compareTo(prev.close()) < 0;
+
+      case BEARISH_KICKING:
+        return prev != null
+            && prevGreen
+            && prevBody.compareTo(avgBody) >= 0
+            && curRed
+            && curBody.compareTo(avgBody) >= 0
+            && cur.open().compareTo(prev.open()) < 0;
+
+      case LATTER_TOP:
+        return prev4 != null
+            && prev4Green
+            && prev3Green
+            && prev2Green
+            && prev2.close().compareTo(prev3.close()) > 0
+            && prev3.close().compareTo(prev4.close()) > 0
+            && prevGreen
+            && upperShadow(prev).compareTo(prevBody) >= 0
+            && curRed
+            && cur.open().compareTo(prev.open()) < 0;
+
+      case MATCHING_HIGH:
+        return prev != null
+            && prevGreen
+            && curGreen
+            && cur.close()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      case UPSIDE_GAP_TWO_CROWS:
+        return prev2 != null
+            && prev2Green
+            && prev2Body.compareTo(avgBody) >= 0
+            && prevRed
+            && prev.low().compareTo(prev2.high()) > 0
+            && curRed
+            && cur.open().compareTo(prev.open()) > 0
+            && cur.close().compareTo(prev2.close()) < 0
+            && cur.close().compareTo(prev2.open()) > 0;
+
+      case IDENTICAL_THREE_CROWS:
+        return prev2 != null
+            && curRed
+            && prevRed
+            && prev2Red
+            && cur.open()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0
+            && prev.open()
+                    .subtract(prev2.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0;
+
+      case DELIBERATION:
+        return prev2 != null
+            && prev2Green
+            && prev2Body.compareTo(avgBody) >= 0
+            && prevGreen
+            && prevBody.compareTo(avgBody) >= 0
+            && curGreen
+            && curBody.compareTo(avgBody.multiply(new BigDecimal("0.5"), MC)) <= 0
+            && cur.open().compareTo(prev.close()) > 0;
+
+      case ADVANCE_BLOCK:
+        return prev2 != null
+            && curGreen
+            && prevGreen
+            && prev2Green
+            && curBody.compareTo(prevBody) < 0
+            && prevBody.compareTo(prev2Body) < 0
+            && upperShadow(cur).compareTo(upperShadow(prev)) > 0
+            && upperShadow(prev).compareTo(upperShadow(prev2)) > 0;
+
+      case TWO_CROWS:
+        return prev2 != null
+            && prev2Green
+            && isRed(prev)
+            && prev.low().compareTo(prev2.high()) > 0
+            && curRed
+            && cur.close().compareTo(prev2.close()) < 0
+            && cur.close().compareTo(prev2.open()) > 0
+            && cur.open().compareTo(prev.close()) < 0;
+
+      // C. Bullish Continuation
+      case BULLISH_SEPARATING_LINES:
+        return prev != null
+            && prevRed
+            && curGreen
+            && cur.open()
+                    .subtract(prev.open())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      case RISING_THREE_METHODS:
+        return prev4 != null
+            && prev4Green
+            && prev4Body.compareTo(avgBody) >= 0
+            && prev3Red
+            && prev2Red
+            && prevRed
+            && curGreen
+            && curBody.compareTo(avgBody) >= 0
+            && prev3.high().compareTo(prev4.high()) < 0
+            && prev3.low().compareTo(prev4.low()) > 0
+            && prev2.high().compareTo(prev4.high()) < 0
+            && prev2.low().compareTo(prev4.low()) > 0
+            && prev.high().compareTo(prev4.high()) < 0
+            && prev.low().compareTo(prev4.low()) > 0
+            && cur.close().compareTo(prev4.close()) > 0;
+
+      case UPSIDE_TASUKI_GAP:
+        return prev2 != null
+            && prev2Green
+            && prevGreen
+            && prev.open().compareTo(prev2.close()) > 0
+            && curRed
+            && cur.open().compareTo(prev.close()) < 0
+            && cur.open().compareTo(prev.open()) > 0
+            && cur.close().compareTo(prev2.close()) > 0
+            && cur.close().compareTo(prev.open()) < 0;
+
+      case BULLISH_SIDE_BY_SIDE_WHITE_LINES:
+        return prev2 != null
+            && prev2Green
+            && prevGreen
+            && curGreen
+            && prev.open().compareTo(prev2.close()) > 0
+            && cur.open().compareTo(prev2.close()) > 0
+            && prev.open()
+                    .subtract(cur.open())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0
+            && prev.close()
+                    .subtract(cur.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0;
+
+      case BULLISH_THREE_LINE_STRIKE:
+        return prev3 != null
+            && prev3Green
+            && prev2Green
+            && prevGreen
+            && curRed
+            && cur.open().compareTo(prev.close()) >= 0
+            && cur.close().compareTo(prev3.open()) <= 0;
+
+      case UPSIDE_GAP_THREE_METHODS:
+        return prev2 != null
+            && prev2Green
+            && prevGreen
+            && prev.open().compareTo(prev2.close()) > 0
+            && curRed
+            && cur.open().compareTo(prev.close()) < 0
+            && cur.close().compareTo(prev2.close()) <= 0;
+
+      case BULLISH_ON_NECK_LINE:
+        return prev != null
+            && prevRed
+            && curGreen
+            && cur.open().compareTo(prev.low()) < 0
+            && cur.close()
+                    .subtract(prev.low())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      case BULLISH_IN_NECK_LINE:
+        return prev != null
+            && prevRed
+            && curGreen
+            && cur.open().compareTo(prev.low()) < 0
+            && cur.close()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      // D. Bearish Continuation
+      case BEARISH_SEPARATING_LINES:
+        return prev != null
+            && prevGreen
+            && curRed
+            && cur.open()
+                    .subtract(prev.open())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      case FALLING_THREE_METHODS:
+        return prev4 != null
+            && prev4Red
+            && prev4Body.compareTo(avgBody) >= 0
+            && prev3Green
+            && prev2Green
+            && prevGreen
+            && curRed
+            && curBody.compareTo(avgBody) >= 0
+            && prev3.high().compareTo(prev4.high()) < 0
+            && prev3.low().compareTo(prev4.low()) > 0
+            && prev2.high().compareTo(prev4.high()) < 0
+            && prev2.low().compareTo(prev4.low()) > 0
+            && prev.high().compareTo(prev4.high()) < 0
+            && prev.low().compareTo(prev4.low()) > 0
+            && cur.close().compareTo(prev4.close()) < 0;
+
+      case DOWNSIDE_TASUKI_GAP:
+        return prev2 != null
+            && prev2Red
+            && prevRed
+            && prev.open().compareTo(prev2.close()) < 0
+            && curGreen
+            && cur.open().compareTo(prev.close()) > 0
+            && cur.open().compareTo(prev.open()) < 0
+            && cur.close().compareTo(prev2.close()) < 0
+            && cur.close().compareTo(prev.open()) > 0;
+
+      case BEARISH_SIDE_BY_SIDE_WHITE_LINES:
+        return prev2 != null
+            && prev2Red
+            && prevGreen
+            && curGreen
+            && prev.close().compareTo(prev2.low()) < 0
+            && cur.close().compareTo(prev2.low()) < 0
+            && prev.open()
+                    .subtract(cur.open())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0
+            && prev.close()
+                    .subtract(cur.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.1"), MC))
+                <= 0;
+
+      case BEARISH_THREE_LINE_STRIKE:
+        return prev3 != null
+            && prev3Red
+            && prev2Red
+            && prevRed
+            && curGreen
+            && cur.open().compareTo(prev.close()) <= 0
+            && cur.close().compareTo(prev3.open()) >= 0;
+
+      case DOWNSIDE_GAP_THREE_METHODS:
+        return prev2 != null
+            && prev2Red
+            && prevRed
+            && prev.open().compareTo(prev2.close()) < 0
+            && curGreen
+            && cur.open().compareTo(prev.close()) > 0
+            && cur.close().compareTo(prev2.close()) >= 0;
+
+      case BEARISH_ON_NECK_LINE:
+        return prev != null
+            && prevGreen
+            && curRed
+            && cur.open().compareTo(prev.high()) > 0
+            && cur.close()
+                    .subtract(prev.high())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
+      case BEARISH_IN_NECK_LINE:
+        return prev != null
+            && prevGreen
+            && curRed
+            && cur.open().compareTo(prev.high()) > 0
+            && cur.close()
+                    .subtract(prev.close())
+                    .abs()
+                    .compareTo(avgBody.multiply(new BigDecimal("0.05"), MC))
+                <= 0;
+
       default:
         return false;
     }

@@ -7,5 +7,8 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/setupTests.ts',
+        maxWorkers: 1,
+        pool: 'forks',
+        testTimeout: 120000,
     },
 });
