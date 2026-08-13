@@ -380,7 +380,17 @@ class CandlestickPatternCalculatorTest {
 
     calculator.computeCandleStickPatternsForTicker(ticker);
 
-    verify(dailyCandlestickPatternRepository, never()).saveAll(any());
+    verify(dailyCandlestickPatternRepository)
+        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusDays(10));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
+    assertThat(captor.getValue())
+        .anyMatch(
+            p ->
+                p.getPriceDate().equals(base.plusDays(14))
+                    && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test

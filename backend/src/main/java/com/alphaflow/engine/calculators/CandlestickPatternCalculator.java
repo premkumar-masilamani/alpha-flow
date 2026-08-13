@@ -108,7 +108,33 @@ public class CandlestickPatternCalculator {
     LocalDate lastComputedDate =
         lastPattern.map(DailyCandlestickPattern::getPriceDate).orElse(null);
 
-    List<PatternMatch> matches = findMatches(bars, lastComputedDate);
+    LocalDate recomputeStartDate = null;
+    int startIndex = 2;
+
+    if (lastComputedDate != null) {
+      int lastIndex = -1;
+      for (int k = 0; k < bars.size(); k++) {
+        if (bars.get(k).date().equals(lastComputedDate)) {
+          lastIndex = k;
+          break;
+        }
+      }
+      if (lastIndex != -1) {
+        startIndex = Math.max(2, lastIndex - 4);
+        recomputeStartDate = bars.get(startIndex).date();
+      }
+    }
+
+    List<PatternMatch> matches = findMatches(bars, startIndex);
+
+    if (recomputeStartDate != null) {
+      dailyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
+          ticker, recomputeStartDate);
+      log.info(
+          "Ticker {}: Cleaned up daily patterns on or after {} for recomputation.",
+          ticker.getTickerSymbol(),
+          recomputeStartDate);
+    }
 
     if (!matches.isEmpty()) {
       List<DailyCandlestickPattern> newPatterns =
@@ -124,7 +150,7 @@ public class CandlestickPatternCalculator {
               .toList();
       dailyCandlestickPatternRepository.saveAll(newPatterns);
       log.info(
-          "Ticker {}: Saved {} new daily candlestick patterns.",
+          "Ticker {}: Saved {} daily candlestick patterns (including recomputed window).",
           ticker.getTickerSymbol(),
           newPatterns.size());
     }
@@ -145,7 +171,33 @@ public class CandlestickPatternCalculator {
     LocalDate lastComputedDate =
         lastPattern.map(WeeklyCandlestickPattern::getPriceDate).orElse(null);
 
-    List<PatternMatch> matches = findMatches(bars, lastComputedDate);
+    LocalDate recomputeStartDate = null;
+    int startIndex = 2;
+
+    if (lastComputedDate != null) {
+      int lastIndex = -1;
+      for (int k = 0; k < bars.size(); k++) {
+        if (bars.get(k).date().equals(lastComputedDate)) {
+          lastIndex = k;
+          break;
+        }
+      }
+      if (lastIndex != -1) {
+        startIndex = Math.max(2, lastIndex - 4);
+        recomputeStartDate = bars.get(startIndex).date();
+      }
+    }
+
+    List<PatternMatch> matches = findMatches(bars, startIndex);
+
+    if (recomputeStartDate != null) {
+      weeklyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
+          ticker, recomputeStartDate);
+      log.info(
+          "Ticker {}: Cleaned up weekly patterns on or after {} for recomputation.",
+          ticker.getTickerSymbol(),
+          recomputeStartDate);
+    }
 
     if (!matches.isEmpty()) {
       List<WeeklyCandlestickPattern> newPatterns =
@@ -161,25 +213,20 @@ public class CandlestickPatternCalculator {
               .toList();
       weeklyCandlestickPatternRepository.saveAll(newPatterns);
       log.info(
-          "Ticker {}: Saved {} new weekly candlestick patterns.",
+          "Ticker {}: Saved {} weekly candlestick patterns (including recomputed window).",
           ticker.getTickerSymbol(),
           newPatterns.size());
     }
   }
 
-  private List<PatternMatch> findMatches(List<PriceBar> bars, LocalDate lastComputedDate) {
+  private List<PatternMatch> findMatches(List<PriceBar> bars, int startIndex) {
     List<PatternMatch> matches = new ArrayList<>();
     List<BigDecimal> bodies = computeAbsoluteBodies(bars);
     List<BigDecimal> avgBodies = computeMovingAverages(bodies, PERIOD_BODY_MA);
 
-    for (int i = 2; i < bars.size(); i++) {
+    for (int i = startIndex; i < bars.size(); i++) {
       PriceBar bar = bars.get(i);
       LocalDate date = bar.date();
-
-      if (lastComputedDate != null && !date.isAfter(lastComputedDate)) {
-        continue;
-      }
-
       BigDecimal avgBody = avgBodies.get(i);
 
       for (CandlestickPattern pattern : CandlestickPattern.values()) {
