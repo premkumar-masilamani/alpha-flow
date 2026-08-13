@@ -6,7 +6,45 @@ import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../servi
 import { CANDLESTICK_PATTERN_MODES, SENTIMENT_TYPES } from '../services/api';
 
 // Mock lightweight-charts
-vi.mock('lightweight-charts', () => import('../__mocks__/lightweight-charts'));
+vi.mock('lightweight-charts', () => {
+    return {
+        createChart: vi.fn().mockReturnValue({
+            addSeries: vi.fn().mockReturnValue({
+                setData: vi.fn(),
+                priceScale: vi.fn().mockReturnValue({
+                    applyOptions: vi.fn(),
+                }),
+                createPriceLine: vi.fn(),
+                setMarkers: vi.fn(),
+            }),
+            remove: vi.fn(),
+            applyOptions: vi.fn(),
+            subscribeCrosshairMove: vi.fn(),
+            timeScale: vi.fn().mockReturnValue({
+                setVisibleRange: vi.fn(),
+                setVisibleLogicalRange: vi.fn(),
+                subscribeVisibleTimeRangeChange: vi.fn(),
+                subscribeVisibleLogicalRangeChange: vi.fn(),
+            }),
+            panes: vi.fn().mockReturnValue([]),
+        }),
+        ColorType: {
+            Solid: 'solid',
+            VerticalGradient: 'vertical_gradient',
+        },
+        LineStyle: {
+            Solid: 0,
+            Dotted: 1,
+            Dashed: 2,
+        },
+        CandlestickSeries: 'CandlestickSeries',
+        HistogramSeries: 'HistogramSeries',
+        LineSeries: 'LineSeries',
+        createSeriesMarkers: vi.fn().mockReturnValue({
+            setMarkers: vi.fn(),
+        }),
+    };
+});
 
 describe('Chart Component', () => {
     const mockData: DailyCandleData[] = [
@@ -138,6 +176,7 @@ describe('Chart Component', () => {
                 }),
                 remove: vi.fn(),
                 applyOptions: vi.fn(),
+                subscribeCrosshairMove: vi.fn(),
                 timeScale: vi.fn().mockReturnValue({
                     setVisibleRange: vi.fn(),
                     setVisibleLogicalRange: vi.fn(),
@@ -175,8 +214,8 @@ describe('Chart Component', () => {
 
     it('sets markers on candlestick series depending on candlestickPatternMode', () => {
         const mockPatterns = [
-            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
-            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
+            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULLISH_REVERSAL },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEARISH_REVERSAL }
         ];
 
         // 1. All patterns mode
@@ -205,8 +244,13 @@ describe('Chart Component', () => {
         unmount();
         vi.clearAllMocks();
 
-        // 2. Recent patterns mode (displays patterns occurring on the last 14 candles)
-        const longMockData = Array.from({ length: 15 }, (_, i) => ({
+        // 2. Recent patterns mode (displays patterns occurring on the last RECENT_PATTERNS_LIMIT candles)
+        const mockPatternsRecent = [
+            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULLISH_REVERSAL },
+            { date: '2026-06-10', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEARISH_REVERSAL }
+        ];
+
+        const longMockData = Array.from({ length: 25 }, (_, i) => ({
             date: `2026-06-${String(i + 1).padStart(2, '0')}`,
             open: 100 + i,
             high: 110 + i,
@@ -223,7 +267,7 @@ describe('Chart Component', () => {
                 configs={mockConfigs}
                 symbol="AAPL"
                 timeframe="DAILY"
-                candlestickPatterns={mockPatterns}
+                candlestickPatterns={mockPatternsRecent}
                 candlestickPatternMode={CANDLESTICK_PATTERN_MODES.RECENT}
                 onLoadOlderData={vi.fn()}
             />
@@ -232,9 +276,9 @@ describe('Chart Component', () => {
         const recentChartInstance = vi.mocked(createChart).mock.results[0].value;
         const recentCandleMock = recentChartInstance.addSeries.mock.results[0].value;
         expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
-        // Only ENG (on '2026-06-03') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 14.
+        // Only ENG (on '2026-06-10') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 20.
         expect(createSeriesMarkers).toHaveBeenCalledWith(recentCandleMock, [
-            { time: '2026-06-03', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
+            { time: '2026-06-10', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
         ]);
 
         unmountRecent();
@@ -242,8 +286,8 @@ describe('Chart Component', () => {
 
         // 3. Deduplicate duplicate dates (only show the first pattern on a given date)
         const duplicateMockPatterns = [
-            { date: '2026-06-03', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULL },
-            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEAR }
+            { date: '2026-06-03', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULLISH_REVERSAL },
+            { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEARISH_REVERSAL }
         ];
 
         const { unmount: unmountDup } = render(

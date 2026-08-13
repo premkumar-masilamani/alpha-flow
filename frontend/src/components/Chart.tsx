@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, SENTIMENT_TYPES, type SupportResistanceData} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, type SupportResistanceData, RECENT_PATTERNS_LIMIT} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -232,6 +232,14 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
+    const [tooltip, setTooltip] = useState<{
+        visible: boolean;
+        x: number;
+        y: number;
+        longName: string;
+        shortName: string;
+        sentiment: string;
+    } | null>(null);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
     const visibleLogicalRangeRef = useRef<LogicalRange | null>(null);
     const prevDataLengthRef = useRef<number>(0);
@@ -295,7 +303,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
 
         let visibleCandlestickPatterns = candlestickPatterns;
         if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT) {
-            const recentDates = new Set(sortedData.slice(-14).map((d) => d.date));
+            const recentDates = new Set(sortedData.slice(-RECENT_PATTERNS_LIMIT).map((d) => d.date));
             visibleCandlestickPatterns = candlestickPatterns.filter((p) => recentDates.has(p.date));
         } else if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
             visibleCandlestickPatterns = [];
@@ -312,13 +320,16 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         const deduplicatedCandlestickPatterns = Array.from(uniqueCandlestickPatternsMap.values());
 
         if (deduplicatedCandlestickPatterns.length > 0) {
-            const markers = deduplicatedCandlestickPatterns.map((p) => ({
-                time: p.date as Time,
-                position: p.sentiment === SENTIMENT_TYPES.BULL ? 'belowBar' as const : 'aboveBar' as const,
-                color: p.sentiment === SENTIMENT_TYPES.BULL ? '#22c55e' : '#ef4444',
-                shape: p.sentiment === SENTIMENT_TYPES.BULL ? 'arrowUp' as const : 'arrowDown' as const,
-                text: p.shortName,
-            }));
+            const markers = deduplicatedCandlestickPatterns.map((p) => {
+                const isBullish = p.sentiment.startsWith('BULLISH');
+                return {
+                    time: p.date as Time,
+                    position: isBullish ? 'belowBar' as const : 'aboveBar' as const,
+                    color: isBullish ? '#22c55e' : '#ef4444',
+                    shape: isBullish ? 'arrowUp' as const : 'arrowDown' as const,
+                    text: p.shortName,
+                };
+            });
             createSeriesMarkers(candlestickSeries, markers);
         }
 
@@ -528,6 +539,65 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             }
         });
 
+        // Subscribe to crosshair move events to show the pattern long name tooltip on hover
+        chart.subscribeCrosshairMove((param) => {
+            if (
+                !param.time ||
+                !param.point ||
+                param.point.x < 0 ||
+                param.point.y < 0
+            ) {
+                setTooltip(null);
+                return;
+            }
+
+            let dateStr = '';
+            if (typeof param.time === 'string') {
+                dateStr = param.time;
+            } else if (param.time && typeof param.time === 'object') {
+                const t = param.time as { year?: number; month?: number; day?: number };
+                if (t.year && t.month && t.day) {
+                    const y = t.year;
+                    const m = String(t.month).padStart(2, '0');
+                    const d = String(t.day).padStart(2, '0');
+                    dateStr = `${y}-${m}-${d}`;
+                }
+            }
+
+            if (!dateStr) {
+                setTooltip(null);
+                return;
+            }
+
+            const pattern = deduplicatedCandlestickPatterns.find((p) => p.date === dateStr);
+
+            if (pattern) {
+                let tooltipX = param.point.x + 15;
+                let tooltipY = param.point.y + 15;
+                
+                const containerWidth = chartContainerRef.current?.clientWidth || 0;
+                const containerHeight = chartContainerRef.current?.clientHeight || 0;
+                
+                if (tooltipX + 220 > containerWidth) {
+                    tooltipX = param.point.x - 235;
+                }
+                if (tooltipY + 80 > containerHeight) {
+                    tooltipY = param.point.y - 95;
+                }
+
+                setTooltip({
+                    visible: true,
+                    x: tooltipX,
+                    y: tooltipY,
+                    longName: pattern.longName,
+                    shortName: pattern.shortName,
+                    sentiment: pattern.sentiment,
+                });
+            } else {
+                setTooltip(null);
+            }
+        });
+
         return () => {
             resizeObserver.disconnect();
             chartRef.current = null;
@@ -561,7 +631,10 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         });
 
     return (
-        <div className="relative w-full h-full min-h-0 flex-1 flex flex-col">
+        <div 
+            className="relative w-full h-full min-h-0 flex-1 flex flex-col"
+            onMouseLeave={() => setTooltip(null)}
+        >
             <button
                 onClick={handleResetZoom}
                 className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded shadow-lg backdrop-blur text-xs font-semibold transition-all hover:scale-105 active:scale-95"
@@ -600,6 +673,25 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             })}
 
             <div ref={chartContainerRef} className="w-full h-full" style={{backgroundColor: '#020617'}}/>
+
+            {tooltip && tooltip.visible && (
+                <div
+                    className="absolute z-30 pointer-events-none bg-slate-900/90 border border-slate-700 text-white text-xs rounded-lg p-3 shadow-xl shadow-black/50 backdrop-blur-sm flex flex-col gap-1 transition-all duration-100 ease-out"
+                    style={{
+                        left: `${tooltip.x}px`,
+                        top: `${tooltip.y}px`,
+                    }}
+                >
+                    <div className="font-bold flex items-center gap-1.5 text-sm">
+                        <span className={`w-2.5 h-2.5 rounded-full ${tooltip.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
+                        <span className="text-white">{tooltip.longName}</span>
+                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider">{tooltip.shortName}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider pl-4">
+                        {tooltip.sentiment.replace(/_/g, ' ')}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

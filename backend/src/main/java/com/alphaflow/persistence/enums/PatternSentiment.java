@@ -1,6 +1,8 @@
 package com.alphaflow.persistence.enums;
 
 public enum PatternSentiment {
-  BULL,
-  BEAR
+  BULLISH_REVERSAL,
+  BEARISH_REVERSAL,
+  BULLISH_CONTINUATION,
+  BEARISH_CONTINUATION
 }
