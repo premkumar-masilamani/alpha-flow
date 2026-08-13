@@ -130,6 +130,7 @@ public class CandlestickPatternCalculator {
     if (recomputeStartDate != null) {
       dailyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
           ticker, recomputeStartDate);
+      dailyCandlestickPatternRepository.flush();
       log.info(
           "Ticker {}: Cleaned up daily patterns on or after {} for recomputation.",
           ticker.getTickerSymbol(),
@@ -193,6 +194,7 @@ public class CandlestickPatternCalculator {
     if (recomputeStartDate != null) {
       weeklyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
           ticker, recomputeStartDate);
+      weeklyCandlestickPatternRepository.flush();
       log.info(
           "Ticker {}: Cleaned up weekly patterns on or after {} for recomputation.",
           ticker.getTickerSymbol(),
