@@ -3,7 +3,6 @@ import axios from 'axios';
 const API_BASE_URL = `${import.meta.env.NEXT_PUBLIC_API_URL || ''}/api`;
 
 export const CHART_WINDOW = 250;
-export const RECENT_PATTERNS_LIMIT = 20;
 
 export interface Ticker {
     id: number;
@@ -167,14 +166,6 @@ export const getTechnicalAnalysis = async (symbol: string): Promise<TechnicalAna
     };
 };
 
-export const CANDLESTICK_PATTERN_MODES = {
-    NONE: 'none',
-    RECENT: 'recent',
-    ALL: 'all',
-} as const;
-
-export type CandlestickPatternMode = typeof CANDLESTICK_PATTERN_MODES[keyof typeof CANDLESTICK_PATTERN_MODES];
-
 export const SENTIMENT_TYPES = {
     BULLISH_REVERSAL: 'BULLISH_REVERSAL',
     BEARISH_REVERSAL: 'BEARISH_REVERSAL',
@@ -194,11 +185,10 @@ export interface CandlestickPatternData {
 export const getCandlestickPatterns = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
-    page: number = 0,
-    size: number = CHART_WINDOW
+    page: number = 0
 ): Promise<CandlestickPatternData[]> => {
     const url = `${API_BASE_URL}/tickers/${symbol}/candlestick-patterns`;
-    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
+    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page } });
     return response.data;
 };
 
@@ -223,7 +213,7 @@ export const getSupportResistances = async (
     timeframe: Timeframe = 'DAILY',
     date: string
 ): Promise<SupportResistanceData[]> => {
-    const url = `${API_BASE_URL}/tickers/${symbol}/support-resistances/${timeframe.toLowerCase()}`;
+    const url = `${API_BASE_URL}/tickers/${symbol}/support-resistances/${timeframe.toLowerCase()}` ;
     const response = await axios.get(url, { params: { date } });
     return response.data;
 };

@@ -117,7 +117,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, CANDLESTICK_PATTERN_MODES, type CandlestickPatternMode, type SupportResistanceData, RECENT_PATTERNS_LIMIT} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -128,7 +128,7 @@ interface ChartProps {
     symbol: string;
     timeframe: string;
     candlestickPatterns?: CandlestickPatternData[];
-    candlestickPatternMode?: CandlestickPatternMode;
+    showCandlestickPatterns?: boolean;
     supportResistances?: SupportResistanceData[];
     showSupportResistance?: boolean;
     onLoadOlderData: () => void;
@@ -228,7 +228,7 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
 
 const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, candlestickPatternMode = CANDLESTICK_PATTERN_MODES.NONE, supportResistances = [], showSupportResistance = false, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, showCandlestickPatterns = false, supportResistances = [], showSupportResistance = false, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -302,10 +302,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         })));
 
         let visibleCandlestickPatterns = candlestickPatterns;
-        if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT) {
-            const recentDates = new Set(sortedData.slice(-RECENT_PATTERNS_LIMIT).map((d) => d.date));
-            visibleCandlestickPatterns = candlestickPatterns.filter((p) => recentDates.has(p.date));
-        } else if (candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
+        if (!showCandlestickPatterns) {
             visibleCandlestickPatterns = [];
         }
 
@@ -603,7 +600,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, candlestickPatternMode, supportResistances, showSupportResistance, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

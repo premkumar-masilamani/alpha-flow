@@ -19,12 +19,8 @@ import {
   type TechnicalAnalysisData,
   getCandlestickPatterns,
   type CandlestickPatternData,
-  CHART_WINDOW,
-  CANDLESTICK_PATTERN_MODES,
-  type CandlestickPatternMode,
   type SupportResistanceData,
   getSupportResistances,
-  RECENT_PATTERNS_LIMIT,
 } from "./services/api";
 import {
   Loader2,
@@ -58,7 +54,7 @@ const INDICATOR_ORDER = [
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [candlestickPatternMode, setCandlestickPatternMode] = useState<CandlestickPatternMode>(CANDLESTICK_PATTERN_MODES.RECENT);
+  const [showCandlestickPatterns, setShowCandlestickPatterns] = useState(false);
   const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
   const [showSupportResistance, setShowSupportResistance] = useState(false);
   const [supportResistances, setSupportResistances] = useState<SupportResistanceData[]>([]);
@@ -178,7 +174,7 @@ function App() {
         try {
           const [analysis, patterns, candles] = await Promise.all([
             getTechnicalAnalysis(selectedTicker),
-            getCandlestickPatterns(selectedTicker, "DAILY", 0, RECENT_PATTERNS_LIMIT),
+            getCandlestickPatterns(selectedTicker, "DAILY", 0),
             getCandleData(selectedTicker, "DAILY", 0, 100),
           ]);
           if (active) {
@@ -271,19 +267,16 @@ function App() {
     };
   }, [selectedTicker, timeframe]);
 
-  // Fetch candlestick patterns when selectedTicker, timeframe, candlestickPatternMode, or page changes
+  // Fetch candlestick patterns when selectedTicker, timeframe, or showCandlestickPatterns changes
   useEffect(() => {
     let active = true;
     const fetchCandlestickPatterns = async () => {
-      if (!selectedTicker || candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE) {
+      if (!selectedTicker || !showCandlestickPatterns) {
         setCandlestickPatterns([]);
         return;
       }
       try {
-        const size = candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT
-          ? RECENT_PATTERNS_LIMIT
-          : (page + 1) * CHART_WINDOW;
-        const patterns = await getCandlestickPatterns(selectedTicker, timeframe, 0, size);
+        const patterns = await getCandlestickPatterns(selectedTicker, timeframe, 0);
         if (active) {
           setCandlestickPatterns(patterns);
         }
@@ -295,7 +288,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [selectedTicker, timeframe, candlestickPatternMode, page]);
+  }, [selectedTicker, timeframe, showCandlestickPatterns]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -809,67 +802,30 @@ function App() {
                       })}
                     enabled={enabledIndicators}
                     onToggle={toggleIndicator}
-                  />
-                  <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
-                    <span className="px-2 text-xs font-bold text-slate-400 select-none">
-                      Candlestick Patterns
-                    </span>
+                  >
                     <button
-                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.NONE)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.NONE
-                          ? "bg-slate-800 text-slate-200"
-                          : "text-slate-400 hover:text-slate-200"
+                      onClick={() => setShowCandlestickPatterns(!showCandlestickPatterns)}
+                      aria-pressed={showCandlestickPatterns}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
+                        showCandlestickPatterns
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
                       }`}
                     >
-                      None
+                      CSP
                     </button>
                     <button
-                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.RECENT)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.RECENT
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      Recent
-                    </button>
-                    <button
-                      onClick={() => setCandlestickPatternMode(CANDLESTICK_PATTERN_MODES.ALL)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        candlestickPatternMode === CANDLESTICK_PATTERN_MODES.ALL
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      All
-                    </button>
-                  </div>
-                  <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto items-center gap-1">
-                    <span className="px-2 text-xs font-bold text-slate-400 select-none">
-                      Support/Resistance
-                    </span>
-                    <button
-                      onClick={() => setShowSupportResistance(false)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
-                        !showSupportResistance
-                          ? "bg-slate-800 text-slate-200"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      Hide
-                    </button>
-                    <button
-                      onClick={() => setShowSupportResistance(true)}
-                      className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all ${
+                      onClick={() => setShowSupportResistance(!showSupportResistance)}
+                      aria-pressed={showSupportResistance}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
                         showSupportResistance
-                          ? "bg-blue-600 text-white shadow-sm"
-                          : "text-slate-400 hover:text-slate-200"
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
                       }`}
                     >
-                      Show
+                      S/R
                     </button>
-                  </div>
+                  </IndicatorControls>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                     <button
                       onClick={() => setTimeframe("DAILY")}
@@ -905,7 +861,7 @@ function App() {
                   symbol={loadedSymbol}
                   timeframe={loadedTimeframe}
                   candlestickPatterns={candlestickPatterns}
-                  candlestickPatternMode={candlestickPatternMode}
+                  showCandlestickPatterns={showCandlestickPatterns}
                   supportResistances={supportResistances}
                   showSupportResistance={showSupportResistance}
                   onLoadOlderData={handleLoadOlderData}
