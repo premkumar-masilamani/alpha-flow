@@ -5,11 +5,12 @@ interface IndicatorControlsProps {
     configs: IndicatorConfig[];
     enabled: Set<string>;
     onToggle: (key: string) => void;
+    children?: React.ReactNode;
 }
 
 // Toggle pills for the daily indicators, built from the discovery endpoint so the UI follows config.
-const IndicatorControls: React.FC<IndicatorControlsProps> = ({configs, enabled, onToggle}) => {
-    if (configs.length === 0) return null;
+const IndicatorControls: React.FC<IndicatorControlsProps> = ({configs, enabled, onToggle, children}) => {
+    if (configs.length === 0 && !children) return null;
 
     const formatLabel = (label: string): string => {
         return label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
@@ -36,6 +37,7 @@ const IndicatorControls: React.FC<IndicatorControlsProps> = ({configs, enabled, 
                     </button>
                 );
             })}
+            {children}
         </div>
     );
 };

@@ -33,9 +33,9 @@ public class CandlestickPatternController {
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "250") int size) {
+      @RequestParam(defaultValue = "20") int size) {
 
-    int finalSize = Math.clamp(size, size, 1000);
+    int finalSize = Math.min(size, 250);
     log.info(
         "Request to get candlestick patterns for ticker: {}, timeframe: {}, page: {}, size: {}",
         symbol,
