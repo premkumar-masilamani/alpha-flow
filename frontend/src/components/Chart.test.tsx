@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
 import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../services/api';
-import { CANDLESTICK_PATTERN_MODES, SENTIMENT_TYPES } from '../services/api';
+import { SENTIMENT_TYPES } from '../services/api';
 
 // Mock lightweight-charts
 vi.mock('lightweight-charts', () => {
@@ -212,13 +212,13 @@ describe('Chart Component', () => {
         expect(onLoadOlderDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('sets markers on candlestick series depending on candlestickPatternMode', () => {
+    it('sets markers on candlestick series depending on showCandlestickPatterns', () => {
         const mockPatterns = [
             { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULLISH_REVERSAL },
             { date: '2026-06-03', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEARISH_REVERSAL }
         ];
 
-        // 1. All patterns mode
+        // 1. Patterns enabled
         const { unmount } = render(
             <Chart
                 data={mockData}
@@ -228,7 +228,7 @@ describe('Chart Component', () => {
                 symbol="AAPL"
                 timeframe="DAILY"
                 candlestickPatterns={mockPatterns}
-                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.ALL}
+                showCandlestickPatterns={true}
                 onLoadOlderData={vi.fn()}
             />
         );
@@ -244,44 +244,24 @@ describe('Chart Component', () => {
         unmount();
         vi.clearAllMocks();
 
-        // 2. Recent patterns mode (displays patterns occurring on the last RECENT_PATTERNS_LIMIT candles)
-        const mockPatternsRecent = [
-            { date: '2026-06-01', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULLISH_REVERSAL },
-            { date: '2026-06-10', shortName: 'ENG', longName: 'Engulfing', sentiment: SENTIMENT_TYPES.BEARISH_REVERSAL }
-        ];
-
-        const longMockData = Array.from({ length: 25 }, (_, i) => ({
-            date: `2026-06-${String(i + 1).padStart(2, '0')}`,
-            open: 100 + i,
-            high: 110 + i,
-            low: 90 + i,
-            close: 105 + i,
-            vol: 5000
-        }));
-        
-        const { unmount: unmountRecent } = render(
+        // 2. Patterns disabled (showCandlestickPatterns = false)
+        const { unmount: unmountDisabled } = render(
             <Chart
-                data={longMockData}
+                data={mockData}
                 indicators={mockIndicators}
                 enabled={new Set()}
                 configs={mockConfigs}
                 symbol="AAPL"
                 timeframe="DAILY"
-                candlestickPatterns={mockPatternsRecent}
-                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.RECENT}
+                candlestickPatterns={mockPatterns}
+                showCandlestickPatterns={false}
                 onLoadOlderData={vi.fn()}
             />
         );
 
-        const recentChartInstance = vi.mocked(createChart).mock.results[0].value;
-        const recentCandleMock = recentChartInstance.addSeries.mock.results[0].value;
-        expect(createSeriesMarkers).toHaveBeenCalledTimes(1);
-        // Only ENG (on '2026-06-10') should be displayed. HAM (on '2026-06-01') is excluded as it's not in the last 20.
-        expect(createSeriesMarkers).toHaveBeenCalledWith(recentCandleMock, [
-            { time: '2026-06-10', position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ENG' }
-        ]);
+        expect(createSeriesMarkers).not.toHaveBeenCalled();
 
-        unmountRecent();
+        unmountDisabled();
         vi.clearAllMocks();
 
         // 3. Deduplicate duplicate dates (only show the first pattern on a given date)
@@ -299,7 +279,7 @@ describe('Chart Component', () => {
                 symbol="AAPL"
                 timeframe="DAILY"
                 candlestickPatterns={duplicateMockPatterns}
-                candlestickPatternMode={CANDLESTICK_PATTERN_MODES.ALL}
+                showCandlestickPatterns={true}
                 onLoadOlderData={vi.fn()}
             />
         );
