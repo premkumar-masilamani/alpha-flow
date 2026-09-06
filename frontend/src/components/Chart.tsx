@@ -227,8 +227,9 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
 };
 
 const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
+const EMPTY_SUPPORT_RESISTANCES: SupportResistanceData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, showCandlestickPatterns = false, supportResistances = [], showSupportResistance = false, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, showCandlestickPatterns = false, supportResistances = EMPTY_SUPPORT_RESISTANCES, showSupportResistance = false, onLoadOlderData}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
