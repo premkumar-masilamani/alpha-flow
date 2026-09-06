@@ -84,17 +84,7 @@ public enum CandlestickPattern {
   DOWNSIDE_GAP_THREE_METHODS(
       "DGM", "Downside Gap Three Methods", PatternSentiment.BEARISH_CONTINUATION),
   BEARISH_ON_NECK_LINE("ONL", "Bearish On Neck Line", PatternSentiment.BEARISH_CONTINUATION),
-  BEARISH_IN_NECK_LINE("INL", "Bearish In Neck Line", PatternSentiment.BEARISH_CONTINUATION),
-
-  // E. Legacy patterns (deprecated, maintained for backward compatibility with historical data)
-  @Deprecated
-  BULLISH_MARUBOZU("MBZ", "Bullish Marubozu", PatternSentiment.BULLISH_REVERSAL),
-  @Deprecated
-  BEARISH_MARUBOZU("MBZ", "Bearish Marubozu", PatternSentiment.BEARISH_REVERSAL),
-  @Deprecated
-  BULLISH_PIERCING("PRC", "Bullish Piercing", PatternSentiment.BULLISH_REVERSAL),
-  @Deprecated
-  BEARISH_PIERCING("PRC", "Bearish Piercing", PatternSentiment.BEARISH_REVERSAL);
+  BEARISH_IN_NECK_LINE("INL", "Bearish In Neck Line", PatternSentiment.BEARISH_CONTINUATION);
 
   private final String shortName;
   private final String longName;
