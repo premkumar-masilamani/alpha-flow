@@ -38,7 +38,8 @@ public class CandlestickPatternCalculator {
   private static final BigDecimal RATIO_HAMMER_UPPER = new BigDecimal("0.1");
   private static final BigDecimal RATIO_STAR_OUTER = new BigDecimal("0.7");
   private static final BigDecimal DIVISOR_MIDPOINT = new BigDecimal("2");
-  private static final int MIN_BARS = 3;
+  private static final int MIN_BARS = 5;
+  private static final int LOOKBACK_BARS = MIN_BARS - 1;
   private static final int PERIOD_BODY_MA = 14;
 
   private final TickerRepository tickerRepository;
@@ -132,26 +133,27 @@ public class CandlestickPatternCalculator {
   }
 
   private int calculateStartIndex(List<PriceBar> bars, LocalDate lastComputedDate) {
-    if (lastComputedDate != null) {
-      for (int k = 0; k < bars.size(); k++) {
-        if (bars.get(k).date().equals(lastComputedDate)) {
-          return Math.max(2, k - 4);
-        }
-      }
-    }
-    return 2;
+    int lastIndex = findDateIndex(bars, lastComputedDate);
+    return lastIndex != -1 ? Math.max(LOOKBACK_BARS, lastIndex - LOOKBACK_BARS) : LOOKBACK_BARS;
   }
 
   private LocalDate calculateRecomputeStartDate(List<PriceBar> bars, LocalDate lastComputedDate) {
-    if (lastComputedDate != null) {
-      for (int k = 0; k < bars.size(); k++) {
-        if (bars.get(k).date().equals(lastComputedDate)) {
-          int startIndex = Math.max(2, k - 4);
-          return bars.get(startIndex).date();
-        }
+    int lastIndex = findDateIndex(bars, lastComputedDate);
+    return lastIndex != -1
+        ? bars.get(Math.max(LOOKBACK_BARS, lastIndex - LOOKBACK_BARS)).date()
+        : null;
+  }
+
+  private int findDateIndex(List<PriceBar> bars, LocalDate date) {
+    if (date == null) {
+      return -1;
+    }
+    for (int k = 0; k < bars.size(); k++) {
+      if (bars.get(k).date().equals(date)) {
+        return k;
       }
     }
-    return null;
+    return -1;
   }
 
   private void savePatterns(

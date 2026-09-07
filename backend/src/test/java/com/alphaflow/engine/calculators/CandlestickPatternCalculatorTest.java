@@ -102,8 +102,14 @@ class CandlestickPatternCalculatorTest {
 
   @Test
   void testNoPatternsCalculatedWithInsufficientData() {
+    LocalDate now = LocalDate.now();
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker))
-        .thenReturn(List.of(daily(LocalDate.now(), "100", "105", "98", "102")));
+        .thenReturn(
+            List.of(
+                daily(now, "100", "105", "98", "102"),
+                daily(now.plusDays(1), "100", "105", "98", "102"),
+                daily(now.plusDays(2), "100", "105", "98", "102"),
+                daily(now.plusDays(3), "100", "105", "98", "102")));
 
     calculator.computeCandleStickPatternsForTicker(ticker);
 
