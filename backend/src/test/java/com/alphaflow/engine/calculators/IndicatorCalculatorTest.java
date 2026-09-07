@@ -1,6 +1,8 @@
 package com.alphaflow.engine.calculators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
@@ -13,6 +15,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.IndicatorConfig;
 import com.alphaflow.engine.indicators.EmaIndicator;
 import com.alphaflow.engine.indicators.MacdIndicator;
@@ -34,6 +37,8 @@ import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -362,6 +367,70 @@ class IndicatorCalculatorTest {
     calculator.computeIndicators();
 
     verify(selfMock).computeIndicatorForTicker(t1);
+  }
+
+  @Test
+  void testComputeIndicatorsWithNoDefinitionsReturnsEarly() {
+    IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
+    properties.setCachedDefinitions(List.of());
+
+    IndicatorCalculator testCalculator =
+        new IndicatorCalculator(
+            tickerRepo,
+            new IndicatorRegistry(List.of(new EmaIndicator())),
+            properties,
+            dailyRepo,
+            weeklyRepo,
+            dailyIndicatorRepo,
+            weeklyIndicatorRepo);
+
+    testCalculator.computeIndicatorForTicker(ticker);
+
+    verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(any());
+    verify(weeklyRepo, never()).findByTickerOrderByPriceDateAsc(any());
+  }
+
+  @Test
+  void testUnsupportedTimeframeInLoadBarsThrowsException() throws Exception {
+    Method loadBarsMethod =
+        IndicatorCalculator.class.getDeclaredMethod("loadBars", Ticker.class, Timeframe.class);
+    loadBarsMethod.setAccessible(true);
+
+    InvocationTargetException ex =
+        assertThrows(
+            InvocationTargetException.class,
+            () -> loadBarsMethod.invoke(calculator, ticker, (Timeframe) null));
+    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+  }
+
+  @Test
+  void testUnsupportedTimeframeInSaveIndicatorsThrowsException() throws Exception {
+    Method saveMethod =
+        IndicatorCalculator.class.getDeclaredMethod(
+            "saveIndicators", Ticker.class, Timeframe.class, Map.class);
+    saveMethod.setAccessible(true);
+
+    InvocationTargetException ex =
+        assertThrows(
+            InvocationTargetException.class,
+            () ->
+                saveMethod.invoke(
+                    calculator, ticker, (Timeframe) null, Map.of(emaDef(), Map.of())));
+    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+  }
+
+  @Test
+  void testUnsupportedTimeframeInGetLastComputedDateThrowsException() throws Exception {
+    Method getLastComputedDateMethod =
+        IndicatorCalculator.class.getDeclaredMethod(
+            "getLastComputedDate", Ticker.class, IndicatorDefinition.class, Timeframe.class);
+    getLastComputedDateMethod.setAccessible(true);
+
+    InvocationTargetException ex =
+        assertThrows(
+            InvocationTargetException.class,
+            () -> getLastComputedDateMethod.invoke(calculator, ticker, emaDef(), (Timeframe) null));
+    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
   }
 
   @SuppressWarnings("unchecked")
