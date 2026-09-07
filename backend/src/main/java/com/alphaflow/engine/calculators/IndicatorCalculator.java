@@ -85,24 +85,6 @@ public class IndicatorCalculator {
     log.info("Indicators computed.");
   }
 
-  private Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computeIndicators(
-      List<PriceBar> bars, List<IndicatorDefinition> definitions) {
-    if (bars.isEmpty()) {
-      return Collections.emptyMap();
-    }
-
-    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> results =
-        new LinkedHashMap<>();
-    for (IndicatorDefinition definition : definitions) {
-      Indicator indicator = indicatorRegistry.get(definition.getType());
-      IndicatorParams params = IndicatorParams.of(definition.getParams());
-      Map<LocalDate, Map<String, BigDecimal>> computed =
-          indicator.compute(bars, params, definition.getSource());
-      results.put(definition, computed);
-    }
-    return results;
-  }
-
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
     log.info("{}: Computing indicators...", ticker.getTickerSymbol());
@@ -119,9 +101,9 @@ public class IndicatorCalculator {
 
     // Step 2: Compute the indicators (common)
     Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> dailyIndicators =
-        computeIndicators(dailyBars, indicatorDefinitions);
+        computeIndicatorSeries(dailyBars, indicatorDefinitions);
     Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> weeklyIndicators =
-        computeIndicators(weeklyBars, indicatorDefinitions);
+        computeIndicatorSeries(weeklyBars, indicatorDefinitions);
 
     // Step 3: Save the computed indicators (daily and weekly)
     int dailySaved = saveIndicators(ticker, Timeframe.DAILY, dailyIndicators);
@@ -132,6 +114,39 @@ public class IndicatorCalculator {
         ticker.getTickerSymbol(),
         dailySaved,
         weeklySaved);
+  }
+
+  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    }
+
+    log.error("Unsupported timeframe for loading bars: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  }
+
+  private Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computeIndicatorSeries(
+      List<PriceBar> bars, List<IndicatorDefinition> definitions) {
+    if (bars.isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> results =
+        new LinkedHashMap<>();
+    for (IndicatorDefinition definition : definitions) {
+      Indicator indicator = indicatorRegistry.get(definition.getType());
+      IndicatorParams params = IndicatorParams.of(definition.getParams());
+      Map<LocalDate, Map<String, BigDecimal>> computed =
+          indicator.compute(bars, params, definition.getSource());
+      results.put(definition, computed);
+    }
+    return results;
   }
 
   private int saveIndicators(
@@ -215,21 +230,6 @@ public class IndicatorCalculator {
     }
 
     log.error("Unsupported timeframe for fetching last computed date: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-  }
-
-  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
-          .toList();
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
-          .toList();
-    }
-
-    log.error("Unsupported timeframe for loading bars: {}", timeframe);
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 

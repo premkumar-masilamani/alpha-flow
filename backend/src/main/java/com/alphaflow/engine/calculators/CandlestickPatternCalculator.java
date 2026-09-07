@@ -132,6 +132,20 @@ public class CandlestickPatternCalculator {
     }
   }
 
+  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    }
+    log.error("Unsupported timeframe for loading bars: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  }
+
   private LocalDate getLastComputedDate(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyCandlestickPatternRepository
@@ -1051,20 +1065,6 @@ public class CandlestickPatternCalculator {
       ma.set(i, IndicatorMath.divide(sum, BigDecimal.valueOf(count)));
     }
     return ma;
-  }
-
-  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
-          .toList();
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
-          .toList();
-    }
-    log.error("Unsupported timeframe for loading bars: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
   private PriceBar toPriceBar(DailyPrice d) {
