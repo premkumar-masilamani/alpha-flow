@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.dtos.Bucket;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
@@ -25,7 +26,6 @@ import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -220,14 +220,7 @@ class SupportResistanceCalculatorTest {
             "saveSupportResistances", Ticker.class, Timeframe.class, List.class);
     saveMethod.setAccessible(true);
 
-    Class<?> bucketClass =
-        Class.forName("com.alphaflow.engine.calculators.SupportResistanceCalculator$Bucket");
-    Constructor<?> ctor =
-        bucketClass.getDeclaredConstructor(
-            LocalDate.class, BigDecimal.class, BigDecimal.class, LevelType.class);
-    ctor.setAccessible(true);
-    Object bucket =
-        ctor.newInstance(EPOCH, BigDecimal.TEN, BigDecimal.valueOf(11), LevelType.SUPPORT);
+    Bucket bucket = new Bucket(EPOCH, BigDecimal.TEN, BigDecimal.valueOf(11), LevelType.SUPPORT);
 
     InvocationTargetException ex =
         assertThrows(
