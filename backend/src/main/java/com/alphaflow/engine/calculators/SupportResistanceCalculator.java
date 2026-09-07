@@ -1,6 +1,7 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
@@ -29,11 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 @Slf4j
 public class SupportResistanceCalculator {
-
-  public enum LevelType {
-    SUPPORT,
-    RESISTANCE
-  }
 
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
