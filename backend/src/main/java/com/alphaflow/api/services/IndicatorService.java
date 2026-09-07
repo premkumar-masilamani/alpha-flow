@@ -10,7 +10,6 @@ import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.time.LocalDate;
@@ -27,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class IndicatorService {
 
   private final IndicatorConfig indicatorConfig;
-  private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyIndicatorRepository dailyIndicatorRepository;
@@ -35,13 +33,11 @@ public class IndicatorService {
 
   public IndicatorService(
       IndicatorConfig indicatorConfig,
-      TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyIndicatorRepository dailyIndicatorRepository,
       WeeklyIndicatorRepository weeklyIndicatorRepository) {
     this.indicatorConfig = indicatorConfig;
-    this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyIndicatorRepository = dailyIndicatorRepository;

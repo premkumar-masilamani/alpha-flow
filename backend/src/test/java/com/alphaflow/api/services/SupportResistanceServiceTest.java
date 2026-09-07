@@ -11,18 +11,16 @@ import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class SupportResistanceServiceTest {
 
-  private TickerRepository tickerRepository;
+  private TickerService tickerService;
   private DailySupportResistanceRepository dailyRepo;
   private WeeklySupportResistanceRepository weeklyRepo;
   private SupportResistanceService service;
@@ -30,10 +28,10 @@ class SupportResistanceServiceTest {
 
   @BeforeEach
   void setUp() {
-    tickerRepository = mock(TickerRepository.class);
+    tickerService = mock(TickerService.class);
     dailyRepo = mock(DailySupportResistanceRepository.class);
     weeklyRepo = mock(WeeklySupportResistanceRepository.class);
-    service = new SupportResistanceService(tickerRepository, dailyRepo, weeklyRepo);
+    service = new SupportResistanceService(tickerService, dailyRepo, weeklyRepo);
     ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
   }
 
@@ -92,7 +90,7 @@ class SupportResistanceServiceTest {
   @Test
   void testGetDailySupportResistancesLegacy() {
     LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerRepository.findByTickerSymbol("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
     when(dailyRepo.findByTickerAndPriceDate(ticker, date)).thenReturn(List.of());
 
     List<SupportResistanceDto> result = service.getDailySupportResistances("AAPL", date);
@@ -105,7 +103,7 @@ class SupportResistanceServiceTest {
   @Test
   void testGetWeeklySupportResistancesLegacy() {
     LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerRepository.findByTickerSymbol("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
     when(weeklyRepo.findByTickerAndPriceDate(ticker, date)).thenReturn(List.of());
 
     List<SupportResistanceDto> result = service.getWeeklySupportResistances("AAPL", date);

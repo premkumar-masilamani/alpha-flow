@@ -7,36 +7,35 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.SupportResistanceDto;
 import com.alphaflow.api.services.SupportResistanceService;
+import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class SupportResistanceControllerTest {
 
   private SupportResistanceService service;
-  private TickerRepository tickerRepository;
+  private TickerService tickerService;
   private SupportResistanceController controller;
   private Ticker ticker;
 
   @BeforeEach
   void setUp() {
     service = mock(SupportResistanceService.class);
-    tickerRepository = mock(TickerRepository.class);
-    controller = new SupportResistanceController(service, tickerRepository);
+    tickerService = mock(TickerService.class);
+    controller = new SupportResistanceController(service, tickerService);
     ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
   }
 
   @Test
   void testGetSupportResistancesDaily() {
     LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     SupportResistanceDto dto =
         SupportResistanceDto.builder()
@@ -59,7 +58,7 @@ class SupportResistanceControllerTest {
   @Test
   void testGetSupportResistancesWeekly() {
     LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     SupportResistanceDto dto =
         SupportResistanceDto.builder()
@@ -82,7 +81,8 @@ class SupportResistanceControllerTest {
   @Test
   void testGetSupportResistancesTickerNotFound() {
     LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerRepository.findByTickerSymbolIgnoreCase("UNKNOWN")).thenReturn(Optional.empty());
+    when(tickerService.getTicker("UNKNOWN"))
+        .thenThrow(new ResourceNotFoundException("Ticker not found: UNKNOWN"));
 
     assertThrows(
         ResourceNotFoundException.class,

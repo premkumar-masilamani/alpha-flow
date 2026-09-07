@@ -9,12 +9,10 @@ import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 
@@ -23,7 +21,7 @@ class WeeklyPriceServiceTest {
   @Test
   void testGetWeeklyPriceSuccess() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
-    TickerRepository tickerRepo = mock(TickerRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
 
@@ -39,7 +37,7 @@ class WeeklyPriceServiceTest {
 
     when(weeklyRepo.findLatestByTicker(ticker, PageRequest.of(0, 250))).thenReturn(List.of(wp));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     List<OhlcvDto> result = service.getWeeklyPrice(ticker, 0, 250);
 
@@ -50,10 +48,10 @@ class WeeklyPriceServiceTest {
   @Test
   void testGetWeeklyPriceByTickerNameSuccess() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
-    TickerRepository tickerRepo = mock(TickerRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
-    when(tickerRepo.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     WeeklyPrice wp1 =
         WeeklyPrice.builder()
@@ -78,7 +76,7 @@ class WeeklyPriceServiceTest {
     when(weeklyRepo.findLatestByTicker(ticker, PageRequest.of(0, 250)))
         .thenReturn(List.of(wp1, wp2));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 0, 250);
 
@@ -93,11 +91,12 @@ class WeeklyPriceServiceTest {
   @Test
   void testGetWeeklyPriceByTickerNameNotFound() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
-    TickerRepository tickerRepo = mock(TickerRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
-    when(tickerRepo.findByTickerSymbolIgnoreCase("INVALID")).thenReturn(Optional.empty());
+    when(tickerService.getTicker("INVALID"))
+        .thenThrow(new ResourceNotFoundException("Ticker not found: INVALID"));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     assertThrows(
         ResourceNotFoundException.class,
@@ -107,10 +106,10 @@ class WeeklyPriceServiceTest {
   @Test
   void testGetWeeklyPriceByTickerNameWithCustomPageAndSizeSuccess() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
-    TickerRepository tickerRepo = mock(TickerRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
-    when(tickerRepo.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     WeeklyPrice wp =
         WeeklyPrice.builder()
@@ -124,7 +123,7 @@ class WeeklyPriceServiceTest {
 
     when(weeklyRepo.findLatestByTicker(ticker, PageRequest.of(1, 10))).thenReturn(List.of(wp));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 1, 10);
 

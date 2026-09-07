@@ -2,10 +2,9 @@ package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.SupportResistanceDto;
 import com.alphaflow.api.services.SupportResistanceService;
+import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -22,12 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class SupportResistanceController {
 
   private final SupportResistanceService supportResistanceService;
-  private final TickerRepository tickerRepository;
+  private final TickerService tickerService;
 
   public SupportResistanceController(
-      SupportResistanceService supportResistanceService, TickerRepository tickerRepository) {
+      SupportResistanceService supportResistanceService, TickerService tickerService) {
     this.supportResistanceService = supportResistanceService;
-    this.tickerRepository = tickerRepository;
+    this.tickerService = tickerService;
   }
 
   @GetMapping("/tickers/{symbol}/support-resistances")
@@ -42,10 +41,7 @@ public class SupportResistanceController {
         timeframe,
         date);
 
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbolIgnoreCase(symbol)
-            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+    Ticker ticker = tickerService.getTicker(symbol);
 
     return supportResistanceService.getSupportResistances(ticker, timeframe, date);
   }

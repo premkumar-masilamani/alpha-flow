@@ -6,14 +6,14 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.services.DailyPriceService;
+import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PriceControllerTest {
@@ -23,7 +23,7 @@ class PriceControllerTest {
 
     DailyPriceService dailyPriceService = mock(DailyPriceService.class);
     WeeklyPriceService weeklyPriceService = mock(WeeklyPriceService.class);
-    TickerRepository tickerRepository = mock(TickerRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
@@ -36,11 +36,11 @@ class PriceControllerTest {
             new BigDecimal("102.00"),
             new BigDecimal("1000.00"));
 
-    when(tickerRepository.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
     when(dailyPriceService.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
 
     PriceController controller =
-        new PriceController(dailyPriceService, weeklyPriceService, tickerRepository);
+        new PriceController(dailyPriceService, weeklyPriceService, tickerService);
 
     List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
@@ -55,8 +55,11 @@ class PriceControllerTest {
         IllegalArgumentException.class,
         () -> controller.getPriceDataForTicker("AAPL", null, 0, 250));
 
+    when(tickerService.getTicker("UNKNOWN"))
+        .thenThrow(new ResourceNotFoundException("Ticker not found: UNKNOWN"));
+
     org.junit.jupiter.api.Assertions.assertThrows(
-        com.alphaflow.persistence.exceptions.ResourceNotFoundException.class,
+        ResourceNotFoundException.class,
         () -> controller.getPriceDataForTicker("UNKNOWN", Timeframe.WEEKLY, 0, 250));
   }
 }

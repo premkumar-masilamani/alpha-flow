@@ -23,7 +23,6 @@ import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
@@ -42,7 +41,6 @@ class IndicatorServiceTest {
   private static final LocalDate D3 = LocalDate.of(2024, 1, 3);
 
   private IndicatorConfig indicatorConfig;
-  private TickerRepository tickerRepository;
   private DailyPriceRepository dailyPriceRepository;
   private WeeklyPriceRepository weeklyPriceRepository;
   private DailyIndicatorRepository dailyIndicatorRepository;
@@ -77,7 +75,6 @@ class IndicatorServiceTest {
   @BeforeEach
   void setUp() {
     indicatorConfig = mock(IndicatorConfig.class);
-    tickerRepository = mock(TickerRepository.class);
     dailyPriceRepository = mock(DailyPriceRepository.class);
     weeklyPriceRepository = mock(WeeklyPriceRepository.class);
     dailyIndicatorRepository = mock(DailyIndicatorRepository.class);
@@ -86,7 +83,6 @@ class IndicatorServiceTest {
     indicatorService =
         new IndicatorService(
             indicatorConfig,
-            tickerRepository,
             dailyPriceRepository,
             weeklyPriceRepository,
             dailyIndicatorRepository,

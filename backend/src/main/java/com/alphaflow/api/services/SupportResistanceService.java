@@ -6,7 +6,6 @@ import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,15 +18,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SupportResistanceService {
 
-  private final TickerRepository tickerRepository;
+  private final TickerService tickerService;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
 
   public SupportResistanceService(
-      TickerRepository tickerRepository,
+      TickerService tickerService,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository) {
-    this.tickerRepository = tickerRepository;
+    this.tickerService = tickerService;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
   }
@@ -53,10 +52,7 @@ public class SupportResistanceService {
   }
 
   public List<SupportResistanceDto> getDailySupportResistances(String symbol, LocalDate date) {
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbol(symbol)
-            .orElseThrow(() -> new IllegalArgumentException("Ticker not found: " + symbol));
+    Ticker ticker = tickerService.getTicker(symbol);
     return getDailySupportResistances(ticker, date);
   }
 
@@ -65,10 +61,7 @@ public class SupportResistanceService {
   }
 
   public List<SupportResistanceDto> getWeeklySupportResistances(String symbol, LocalDate date) {
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbol(symbol)
-            .orElseThrow(() -> new IllegalArgumentException("Ticker not found: " + symbol));
+    Ticker ticker = tickerService.getTicker(symbol);
     return getWeeklySupportResistances(ticker, date);
   }
 

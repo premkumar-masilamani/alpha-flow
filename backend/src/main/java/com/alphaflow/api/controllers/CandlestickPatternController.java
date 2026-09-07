@@ -2,10 +2,9 @@ package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.CandlestickPatternDto;
 import com.alphaflow.api.services.CandlestickPatternService;
+import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,12 +19,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class CandlestickPatternController {
 
   private final CandlestickPatternService candlestickPatternService;
-  private final TickerRepository tickerRepository;
+  private final TickerService tickerService;
 
   public CandlestickPatternController(
-      CandlestickPatternService candlestickPatternService, TickerRepository tickerRepository) {
+      CandlestickPatternService candlestickPatternService, TickerService tickerService) {
     this.candlestickPatternService = candlestickPatternService;
-    this.tickerRepository = tickerRepository;
+    this.tickerService = tickerService;
   }
 
   @GetMapping("/tickers/{symbol}/candlestick-patterns")
@@ -43,10 +42,7 @@ public class CandlestickPatternController {
         page,
         finalSize);
 
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbolIgnoreCase(symbol)
-            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+    Ticker ticker = tickerService.getTicker(symbol);
 
     return candlestickPatternService.getPatterns(ticker, timeframe, page, finalSize);
   }
