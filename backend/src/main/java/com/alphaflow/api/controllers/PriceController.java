@@ -48,12 +48,12 @@ public class PriceController {
         page,
         finalSize);
 
-    if (timeframe == Timeframe.DAILY) {
-      Ticker ticker =
-          tickerRepository
-              .findByTickerSymbolIgnoreCase(symbol)
-              .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+    Ticker ticker =
+        tickerRepository
+            .findByTickerSymbolIgnoreCase(symbol)
+            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
 
+    if (timeframe == Timeframe.DAILY) {
       return dailyPriceService.getDailyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, finalSize);

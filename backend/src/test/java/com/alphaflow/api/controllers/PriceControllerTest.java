@@ -54,5 +54,9 @@ class PriceControllerTest {
     org.junit.jupiter.api.Assertions.assertThrows(
         IllegalArgumentException.class,
         () -> controller.getPriceDataForTicker("AAPL", null, 0, 250));
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        com.alphaflow.persistence.exceptions.ResourceNotFoundException.class,
+        () -> controller.getPriceDataForTicker("UNKNOWN", Timeframe.WEEKLY, 0, 250));
   }
 }
