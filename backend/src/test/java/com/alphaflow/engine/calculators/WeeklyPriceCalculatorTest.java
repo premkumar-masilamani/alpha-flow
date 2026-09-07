@@ -168,4 +168,54 @@ class WeeklyPriceCalculatorTest {
 
     verify(weeklyPriceRepository, never()).saveAll(any());
   }
+
+  @Test
+  void doesNothing_whenNoNewDailyPricesFound() {
+    WeeklyPrice existing =
+        WeeklyPrice.builder().weeklyPriceId(99L).ticker(ticker).priceDate(MONDAY).build();
+
+    when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(existing));
+
+    when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+            eq(ticker), eq(MONDAY)))
+        .thenReturn(List.of());
+
+    calculator.processTicker(ticker);
+
+    verify(weeklyPriceRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void rollsDailyPricesIntoMultipleWeeks_whenSpanningWeeks() {
+    LocalDate nextMonday = MONDAY.plusWeeks(1);
+    List<DailyPrice> dailies =
+        List.of(
+            daily(MONDAY, "10", "12", "9", "11", 100),
+            daily(nextMonday, "12", "18", "11", "17", 250));
+
+    when(weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.empty());
+
+    when(dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(Optional.of(dailies.getFirst()));
+
+    when(dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+            eq(ticker), eq(MONDAY)))
+        .thenReturn(dailies);
+
+    when(weeklyPriceRepository.findByTickerAndPriceDateGreaterThanEqual(eq(ticker), eq(MONDAY)))
+        .thenReturn(List.of());
+
+    calculator.processTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<WeeklyPrice>> captor = ArgumentCaptor.forClass(List.class);
+    verify(weeklyPriceRepository).saveAll(captor.capture());
+
+    List<WeeklyPrice> saved = captor.getValue();
+    assertThat(saved).hasSize(2);
+    assertThat(saved.getFirst().getPriceDate()).isEqualTo(MONDAY);
+    assertThat(saved.getLast().getPriceDate()).isEqualTo(nextMonday);
+  }
 }
