@@ -3,10 +3,9 @@ package com.alphaflow.api.controllers;
 import com.alphaflow.api.dtos.IndicatorConfigDto;
 import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.api.services.IndicatorService;
+import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,11 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class IndicatorController {
 
   private final IndicatorService indicatorService;
-  private final TickerRepository tickerRepository;
+  private final TickerService tickerService;
 
-  public IndicatorController(IndicatorService indicatorService, TickerRepository tickerRepository) {
+  public IndicatorController(IndicatorService indicatorService, TickerService tickerService) {
     this.indicatorService = indicatorService;
-    this.tickerRepository = tickerRepository;
+    this.tickerService = tickerService;
   }
 
   @GetMapping("/indicator-definitions")
@@ -42,10 +41,7 @@ public class IndicatorController {
       @RequestParam(defaultValue = "250") int size) {
 
     int finalSize = Math.clamp(size, size, 1000);
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbolIgnoreCase(symbol)
-            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+    Ticker ticker = tickerService.getTicker(symbol);
     return indicatorService.getIndicatorSeries(ticker, timeframe, page, finalSize);
   }
 }

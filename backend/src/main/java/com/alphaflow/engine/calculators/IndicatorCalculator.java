@@ -91,11 +91,14 @@ public class IndicatorCalculator {
     int weeklySaved = 0;
 
     for (Timeframe timeframe : Timeframe.values()) {
-      List<PriceBar> bars = List.of();
+      List<PriceBar> bars;
       if (timeframe == Timeframe.DAILY) {
         bars = loadDailyBars(ticker);
       } else if (timeframe == Timeframe.WEEKLY) {
         bars = loadWeeklyBars(ticker);
+      } else {
+        log.error("Unsupported timeframe for loading bars: {}", timeframe);
+        throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
       }
       if (bars.isEmpty()) {
         continue;
@@ -134,7 +137,7 @@ public class IndicatorCalculator {
           dailyIndicatorRepository.saveAll(toInsert);
           dailySaved = toInsert.size();
         }
-      } else {
+      } else if (timeframe == Timeframe.WEEKLY) {
         List<WeeklyIndicator> toInsert = new ArrayList<>();
         for (IndicatorDefinition definition : indicatorDefinitions) {
           Indicator indicator = indicatorRegistry.get(definition.getType());
@@ -167,6 +170,9 @@ public class IndicatorCalculator {
           weeklyIndicatorRepository.saveAll(toInsert);
           weeklySaved = toInsert.size();
         }
+      } else {
+        log.error("Unsupported timeframe for computing indicators: {}", timeframe);
+        throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
       }
     }
 

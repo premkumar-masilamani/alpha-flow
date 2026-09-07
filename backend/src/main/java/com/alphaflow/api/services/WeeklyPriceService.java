@@ -2,9 +2,8 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.mappers.OhlcvMapper;
+import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.util.Comparator;
 import java.util.List;
@@ -19,26 +18,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class WeeklyPriceService {
 
   private final WeeklyPriceRepository weeklyPriceRepository;
-  private final TickerRepository tickerRepository;
+  private final TickerService tickerService;
 
   public WeeklyPriceService(
-      WeeklyPriceRepository weeklyPriceRepository, TickerRepository tickerRepository) {
+      WeeklyPriceRepository weeklyPriceRepository, TickerService tickerService) {
     this.weeklyPriceRepository = weeklyPriceRepository;
-    this.tickerRepository = tickerRepository;
+    this.tickerService = tickerService;
+  }
+
+  public List<OhlcvDto> getWeeklyPrice(Ticker ticker, int page, int size) {
+    return weeklyPriceRepository.findLatestByTicker(ticker, PageRequest.of(page, size)).stream()
+        .sorted(Comparator.comparing(WeeklyPrice::getPriceDate))
+        .map(OhlcvMapper::toDto)
+        .toList();
   }
 
   public List<OhlcvDto> getWeeklyPriceByTickerName(String tickerName, int page, int size) {
     log.debug(
         "Fetching weekly candle data for ticker: {} (page={}, size={})", tickerName, page, size);
-    if (!tickerRepository.existsByTickerSymbolIgnoreCase(tickerName)) {
-      log.warn("Ticker not found for symbol: {}", tickerName);
-      throw new ResourceNotFoundException("Ticker not found: " + tickerName);
-    }
-    return weeklyPriceRepository
-        .findLatestByTickerName(tickerName, PageRequest.of(page, size))
-        .stream()
-        .sorted(Comparator.comparing(WeeklyPrice::getPriceDate))
-        .map(OhlcvMapper::toDto)
-        .toList();
+    Ticker ticker = tickerService.getTicker(tickerName);
+    return getWeeklyPrice(ticker, page, size);
   }
 }

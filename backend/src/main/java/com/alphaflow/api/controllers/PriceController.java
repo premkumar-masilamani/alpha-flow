@@ -2,11 +2,10 @@ package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.services.DailyPriceService;
+import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,15 +21,15 @@ public class PriceController {
 
   private final DailyPriceService dailyPriceService;
   private final WeeklyPriceService weeklyPriceService;
-  private final TickerRepository tickerRepository;
+  private final TickerService tickerService;
 
   public PriceController(
       DailyPriceService dailyPriceService,
       WeeklyPriceService weeklyPriceService,
-      TickerRepository tickerRepository) {
+      TickerService tickerService) {
     this.dailyPriceService = dailyPriceService;
     this.weeklyPriceService = weeklyPriceService;
-    this.tickerRepository = tickerRepository;
+    this.tickerService = tickerService;
   }
 
   @GetMapping("/tickers/{symbol}/data")
@@ -48,15 +47,15 @@ public class PriceController {
         page,
         finalSize);
 
-    if (timeframe == Timeframe.WEEKLY) {
-      return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, finalSize);
+    Ticker ticker = tickerService.getTicker(symbol);
+
+    if (timeframe == Timeframe.DAILY) {
+      return dailyPriceService.getDailyPrice(ticker, page, finalSize);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
+    } else {
+      log.error("Unsupported timeframe for price data: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbolIgnoreCase(symbol)
-            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
-
-    return dailyPriceService.getDailyPrice(ticker, page, finalSize);
   }
 }

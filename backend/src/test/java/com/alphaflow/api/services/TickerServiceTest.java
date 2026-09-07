@@ -16,6 +16,34 @@ import org.junit.jupiter.api.Test;
 class TickerServiceTest {
 
   @Test
+  void testGetTickerSuccess() {
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setTickerName("Apple Inc.");
+    ticker.setActive(true);
+
+    TickerRepository repo = mock(TickerRepository.class);
+    when(repo.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
+
+    TickerService service = new TickerService(repo);
+    Ticker result = service.getTicker("AAPL");
+
+    assertEquals("AAPL", result.getTickerSymbol());
+    assertEquals("Apple Inc.", result.getTickerName());
+  }
+
+  @Test
+  void testGetTickerNotFound() {
+    TickerRepository repo = mock(TickerRepository.class);
+    when(repo.findByTickerSymbolIgnoreCase("MSFT")).thenReturn(Optional.empty());
+
+    TickerService service = new TickerService(repo);
+
+    assertThrows(ResourceNotFoundException.class, () -> service.getTicker("MSFT"));
+  }
+
+  @Test
   void testGetTickerBySymbolSuccess() {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -24,7 +52,7 @@ class TickerServiceTest {
     ticker.setActive(true);
 
     TickerRepository repo = mock(TickerRepository.class);
-    when(repo.findByTickerSymbol("AAPL")).thenReturn(Optional.of(ticker));
+    when(repo.findByTickerSymbolIgnoreCase("AAPL")).thenReturn(Optional.of(ticker));
 
     TickerService service = new TickerService(repo);
     TickerDto dto = service.getTickerBySymbol("AAPL");
@@ -36,7 +64,7 @@ class TickerServiceTest {
   @Test
   void testGetTickerBySymbolNotFound() {
     TickerRepository repo = mock(TickerRepository.class);
-    when(repo.findByTickerSymbol("MSFT")).thenReturn(Optional.empty());
+    when(repo.findByTickerSymbolIgnoreCase("MSFT")).thenReturn(Optional.empty());
 
     TickerService service = new TickerService(repo);
 

@@ -6,9 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
+import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,12 +19,39 @@ import org.springframework.data.domain.PageRequest;
 class WeeklyPriceServiceTest {
 
   @Test
+  void testGetWeeklyPriceSuccess() {
+    WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
+    TickerService tickerService = mock(TickerService.class);
+
+    Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
+
+    WeeklyPrice wp =
+        WeeklyPrice.builder()
+            .priceDate(LocalDate.of(2026, 5, 29))
+            .priceOpen(new BigDecimal("100.0000"))
+            .priceHigh(new BigDecimal("105.0000"))
+            .priceLow(new BigDecimal("99.0000"))
+            .priceClose(new BigDecimal("102.0000"))
+            .volume(new BigDecimal("1000.0000"))
+            .build();
+
+    when(weeklyRepo.findLatestByTicker(ticker, PageRequest.of(0, 250))).thenReturn(List.of(wp));
+
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
+
+    List<OhlcvDto> result = service.getWeeklyPrice(ticker, 0, 250);
+
+    assertEquals(1, result.size());
+    assertEquals(LocalDate.of(2026, 5, 29), result.getFirst().priceDate());
+  }
+
+  @Test
   void testGetWeeklyPriceByTickerNameSuccess() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
-    TickerRepository tickerRepo = mock(TickerRepository.class);
-
-    when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
+    Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     WeeklyPrice wp1 =
         WeeklyPrice.builder()
@@ -46,10 +73,10 @@ class WeeklyPriceServiceTest {
             .volume(new BigDecimal("800.0000"))
             .build();
 
-    when(weeklyRepo.findLatestByTickerName("AAPL", PageRequest.of(0, 250)))
+    when(weeklyRepo.findLatestByTicker(ticker, PageRequest.of(0, 250)))
         .thenReturn(List.of(wp1, wp2));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 0, 250);
 
@@ -64,12 +91,12 @@ class WeeklyPriceServiceTest {
   @Test
   void testGetWeeklyPriceByTickerNameNotFound() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
-    TickerRepository tickerRepo = mock(TickerRepository.class);
+    when(tickerService.getTicker("INVALID"))
+        .thenThrow(new ResourceNotFoundException("Ticker not found: INVALID"));
 
-    when(tickerRepo.existsByTickerSymbolIgnoreCase("INVALID")).thenReturn(false);
-
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     assertThrows(
         ResourceNotFoundException.class,
@@ -79,10 +106,10 @@ class WeeklyPriceServiceTest {
   @Test
   void testGetWeeklyPriceByTickerNameWithCustomPageAndSizeSuccess() {
     WeeklyPriceRepository weeklyRepo = mock(WeeklyPriceRepository.class);
+    TickerService tickerService = mock(TickerService.class);
 
-    TickerRepository tickerRepo = mock(TickerRepository.class);
-
-    when(tickerRepo.existsByTickerSymbolIgnoreCase("AAPL")).thenReturn(true);
+    Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     WeeklyPrice wp =
         WeeklyPrice.builder()
@@ -94,9 +121,9 @@ class WeeklyPriceServiceTest {
             .volume(new BigDecimal("1000.0000"))
             .build();
 
-    when(weeklyRepo.findLatestByTickerName("AAPL", PageRequest.of(1, 10))).thenReturn(List.of(wp));
+    when(weeklyRepo.findLatestByTicker(ticker, PageRequest.of(1, 10))).thenReturn(List.of(wp));
 
-    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerRepo);
+    WeeklyPriceService service = new WeeklyPriceService(weeklyRepo, tickerService);
 
     List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 1, 10);
 

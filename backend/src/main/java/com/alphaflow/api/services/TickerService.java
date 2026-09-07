@@ -2,6 +2,7 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.TickerDto;
 import com.alphaflow.api.mappers.TickerMapper;
+import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
@@ -20,18 +21,23 @@ public class TickerService {
     this.tickerRepository = tickerRepository;
   }
 
-  public TickerDto getTickerBySymbol(String symbol) {
-    log.debug("Fetching ticker for symbol: {}", symbol);
+  public Ticker getTicker(String symbol) {
+    log.debug("Fetching ticker entity for symbol: {}", symbol);
 
     return tickerRepository
-        .findByTickerSymbol(symbol)
-        .map(TickerMapper::toDto)
+        .findByTickerSymbolIgnoreCase(symbol)
         .orElseThrow(
             () -> {
               log.warn("Ticker not found for symbol: {}", symbol);
 
               return new ResourceNotFoundException("Ticker not found: " + symbol);
             });
+  }
+
+  public TickerDto getTickerBySymbol(String symbol) {
+    log.debug("Fetching ticker for symbol: {}", symbol);
+
+    return TickerMapper.toDto(getTicker(symbol));
   }
 
   public List<TickerDto> getAllTickers() {

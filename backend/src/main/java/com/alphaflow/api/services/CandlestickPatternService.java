@@ -42,10 +42,15 @@ public class CandlestickPatternService {
     LocalDate endDate = LocalDate.now();
     PageRequest pageRequest = PageRequest.of(page, size);
 
-    List<LocalDate> pageDates =
-        timeframe == Timeframe.WEEKLY
-            ? weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest)
-            : dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+    List<LocalDate> pageDates;
+    if (timeframe == Timeframe.DAILY) {
+      pageDates = dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      pageDates = weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+    } else {
+      log.error("Unsupported timeframe for fetching recent price dates: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
 
     if (pageDates.isEmpty()) {
       return List.of();
@@ -54,16 +59,18 @@ public class CandlestickPatternService {
     LocalDate start = pageDates.getLast();
     LocalDate end = pageDates.getFirst();
 
-    if (timeframe == Timeframe.WEEKLY) {
-      return weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
-          .toList();
-    } else if (timeframe == Timeframe.DAILY) {
+    if (timeframe == Timeframe.DAILY) {
       return dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
           .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
           .toList();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
+          .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
+          .toList();
+    } else {
+      log.error("Unsupported timeframe for fetching candlestick patterns: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    return List.of();
   }
 
   private CandlestickPatternDto toDto(
