@@ -26,6 +26,7 @@ make format
 - Enforce strict boundaries: `api` depends on `engine` and `persistence`; `engine` depends on `persistence`; `persistence` is completely self-contained.
 - Ensure all Java files contain exactly one Java type definition (only one class, record, interface, or enum per file) with no nested or extra package-private helper type definitions.
 - Ensure all code (including tests and newly generated files) fully conforms to Checkstyle, PMD, and Spotless formatting rules. Fix code quality warnings in the source code rather than suppressing them.
+- Explicitly branch on `Timeframe`: always use `if (timeframe == Timeframe.DAILY)` followed by `else if (timeframe == Timeframe.WEEKLY)`. The terminal `else` block must explicitly log an error (`log.error(...)`) and throw `new IllegalArgumentException("Unsupported timeframe: " + timeframe)`.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.
@@ -34,6 +35,7 @@ make format
 - Bypass `BigDecimal` for price data types (never use `double` or `float`).
 - Use JPA `ddl-auto` to generate schemas.
 - Omit `@Column(length = N)` on Strings or `precision` / `scale` on BigDecimals.
+- Use a fallback `else` or ternary default for `Timeframe` branches without explicit validation.
 
 ## Project Structure
 ```text
@@ -72,6 +74,16 @@ var last = list.getLast();
 public void execute() {
     MyService proxy = (self != null) ? self : this;
     proxy.transactionalMethod();
+}
+
+// Explicit Timeframe Branching Pattern
+if (timeframe == Timeframe.DAILY) {
+    // daily logic
+} else if (timeframe == Timeframe.WEEKLY) {
+    // weekly logic
+} else {
+    log.error("Unsupported timeframe: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
 }
 ```
 

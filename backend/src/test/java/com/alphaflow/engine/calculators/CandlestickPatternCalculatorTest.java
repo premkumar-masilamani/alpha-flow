@@ -102,8 +102,14 @@ class CandlestickPatternCalculatorTest {
 
   @Test
   void testNoPatternsCalculatedWithInsufficientData() {
+    LocalDate now = LocalDate.now();
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker))
-        .thenReturn(List.of(daily(LocalDate.now(), "100", "105", "98", "102")));
+        .thenReturn(
+            List.of(
+                daily(now, "100", "105", "98", "102"),
+                daily(now.plusDays(1), "100", "105", "98", "102"),
+                daily(now.plusDays(2), "100", "105", "98", "102"),
+                daily(now.plusDays(3), "100", "105", "98", "102")));
 
     calculator.computeCandleStickPatternsForTicker(ticker);
 
@@ -390,6 +396,36 @@ class CandlestickPatternCalculatorTest {
         .anyMatch(
             p ->
                 p.getPriceDate().equals(base.plusDays(14))
+                    && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+  }
+
+  @Test
+  void testWeeklyIncrementalCalculationWithLastDate() {
+    List<WeeklyPrice> prices = new ArrayList<>();
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    for (int j = 0; j < 14; j++) {
+      prices.add(weekly(base.plusDays(j * 7), "100", "101", "99", "100"));
+    }
+    prices.add(weekly(base.plusDays(14 * 7), "100", "110", "100", "110"));
+
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+    WeeklyCandlestickPattern lastPat =
+        WeeklyCandlestickPattern.builder().priceDate(base.plusDays(14 * 7)).build();
+    when(weeklyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(lastPat));
+
+    calculator.computeCandleStickPatternsForTicker(ticker);
+
+    verify(weeklyCandlestickPatternRepository)
+        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusDays(10 * 7));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<WeeklyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
+    verify(weeklyCandlestickPatternRepository).saveAll(captor.capture());
+    assertThat(captor.getValue())
+        .anyMatch(
+            p ->
+                p.getPriceDate().equals(base.plusDays(14 * 7))
                     && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
