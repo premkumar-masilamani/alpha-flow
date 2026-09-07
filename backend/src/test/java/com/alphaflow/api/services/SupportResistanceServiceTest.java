@@ -97,6 +97,9 @@ class SupportResistanceServiceTest {
 
     List<SupportResistanceDto> result = service.getDailySupportResistances("AAPL", date);
     assertEquals(0, result.size());
+
+    List<SupportResistanceDto> entityResult = service.getDailySupportResistances(ticker, date);
+    assertEquals(0, entityResult.size());
   }
 
   @Test
@@ -107,5 +110,8 @@ class SupportResistanceServiceTest {
 
     List<SupportResistanceDto> result = service.getWeeklySupportResistances("AAPL", date);
     assertEquals(0, result.size());
+
+    List<SupportResistanceDto> entityResult = service.getWeeklySupportResistances(ticker, date);
+    assertEquals(0, entityResult.size());
   }
 }

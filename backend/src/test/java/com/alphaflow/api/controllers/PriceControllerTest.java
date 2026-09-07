@@ -47,7 +47,7 @@ class PriceControllerTest {
     assertEquals(1, res.size());
     assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
 
-    when(weeklyPriceService.getWeeklyPriceByTickerName("AAPL", 0, 250)).thenReturn(List.of(dto));
+    when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
 

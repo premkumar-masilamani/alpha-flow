@@ -48,12 +48,20 @@ public class SupportResistanceService {
     }
   }
 
+  public List<SupportResistanceDto> getDailySupportResistances(Ticker ticker, LocalDate date) {
+    return getSupportResistances(ticker, Timeframe.DAILY, date);
+  }
+
   public List<SupportResistanceDto> getDailySupportResistances(String symbol, LocalDate date) {
     Ticker ticker =
         tickerRepository
             .findByTickerSymbol(symbol)
             .orElseThrow(() -> new IllegalArgumentException("Ticker not found: " + symbol));
-    return getSupportResistances(ticker, Timeframe.DAILY, date);
+    return getDailySupportResistances(ticker, date);
+  }
+
+  public List<SupportResistanceDto> getWeeklySupportResistances(Ticker ticker, LocalDate date) {
+    return getSupportResistances(ticker, Timeframe.WEEKLY, date);
   }
 
   public List<SupportResistanceDto> getWeeklySupportResistances(String symbol, LocalDate date) {
@@ -61,7 +69,7 @@ public class SupportResistanceService {
         tickerRepository
             .findByTickerSymbol(symbol)
             .orElseThrow(() -> new IllegalArgumentException("Ticker not found: " + symbol));
-    return getSupportResistances(ticker, Timeframe.WEEKLY, date);
+    return getWeeklySupportResistances(ticker, date);
   }
 
   private SupportResistanceDto toDto(DailySupportResistance dsr) {
