@@ -1,8 +1,12 @@
 package com.alphaflow.engine.calculators;
 
+import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
@@ -13,6 +17,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,11 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SupportResistanceCalculator {
 
-  public enum LevelType {
-    SUPPORT,
-    RESISTANCE
-  }
-
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
@@ -38,10 +38,10 @@ public class SupportResistanceCalculator {
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
 
   @Value("${alphaflow.indicators.support-resistance.bucket-width-pct:0.01}")
-  private double bucketWidthPct;
+  private double bucketWidthPct = 0.01;
 
   @Value("${alphaflow.indicators.support-resistance.max-buckets:20}")
-  private int maxBuckets;
+  private int maxBuckets = 20;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
 
@@ -67,7 +67,7 @@ public class SupportResistanceCalculator {
 
     for (Ticker ticker : tickers) {
       try {
-        proxy.computeForTicker(ticker);
+        proxy.computeSupportResistancesForTicker(ticker);
       } catch (Exception e) {
         log.error(
             "Failed to compute S&R for ticker {}: {}", ticker.getTickerSymbol(), e.getMessage(), e);
@@ -76,85 +76,20 @@ public class SupportResistanceCalculator {
     log.info("Support and resistances computed.");
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeForTicker(Ticker ticker) {
-    List<PriceBar> dailyBars = loadDailyBars(ticker);
-    if (!dailyBars.isEmpty()) {
-      computeAndSaveDaily(ticker, dailyBars);
+  private List<Bucket> computeSupportResistances(List<PriceBar> bars) {
+    if (bars.isEmpty()) {
+      return Collections.emptyList();
     }
 
-    List<PriceBar> weeklyBars = loadWeeklyBars(ticker);
-    if (!weeklyBars.isEmpty()) {
-      computeAndSaveWeekly(ticker, weeklyBars);
-    }
-  }
-
-  private void computeAndSaveDaily(Ticker ticker, List<PriceBar> bars) {
-    PriceBar latest = bars.get(bars.size() - 1);
+    PriceBar latest = bars.getLast();
     LocalDate priceDate = latest.date();
 
-    // Avoid duplicate computation if already run for today
-    List<DailySupportResistance> existing =
-        dailySupportResistanceRepository.findByTickerAndPriceDate(ticker, priceDate);
-    if (!existing.isEmpty()) {
-      return;
-    }
-
-    List<Bucket> provenBuckets = calculateProvenBuckets(bars, latest);
-
-    List<DailySupportResistance> toSave = new ArrayList<>();
-    for (Bucket b : provenBuckets) {
-      toSave.add(
-          DailySupportResistance.builder()
-              .ticker(ticker)
-              .priceDate(priceDate)
-              .zoneBottom(b.bottom)
-              .zoneTop(b.top)
-              .zoneMidpoint(b.midpoint)
-              .touchCount(b.touchCount)
-              .levelType(b.levelType.name())
-              .build());
-    }
-
-    dailySupportResistanceRepository.saveAll(toSave);
-  }
-
-  private void computeAndSaveWeekly(Ticker ticker, List<PriceBar> bars) {
-    PriceBar latest = bars.get(bars.size() - 1);
-    LocalDate priceDate = latest.date();
-
-    List<WeeklySupportResistance> existing =
-        weeklySupportResistanceRepository.findByTickerAndPriceDate(ticker, priceDate);
-    if (!existing.isEmpty()) {
-      return;
-    }
-
-    List<Bucket> provenBuckets = calculateProvenBuckets(bars, latest);
-
-    List<WeeklySupportResistance> toSave = new ArrayList<>();
-    for (Bucket b : provenBuckets) {
-      toSave.add(
-          WeeklySupportResistance.builder()
-              .ticker(ticker)
-              .priceDate(priceDate)
-              .zoneBottom(b.bottom)
-              .zoneTop(b.top)
-              .zoneMidpoint(b.midpoint)
-              .touchCount(b.touchCount)
-              .levelType(b.levelType.name())
-              .build());
-    }
-
-    weeklySupportResistanceRepository.saveAll(toSave);
-  }
-
-  private List<Bucket> calculateProvenBuckets(List<PriceBar> bars, PriceBar latestBar) {
     // 1. Calculate Center Anchor (P)
     BigDecimal p =
-        latestBar
+        latest
             .high()
-            .add(latestBar.low())
-            .add(latestBar.close())
+            .add(latest.low())
+            .add(latest.close())
             .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
     // 2. Calculate Linear Bucket Width (W)
@@ -167,14 +102,14 @@ public class SupportResistanceCalculator {
     for (int k = 0; k < maxBuckets; k++) {
       BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(bottom, top, LevelType.RESISTANCE));
+      buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
     }
 
     // Support Buckets (k = -1 to -maxBuckets, below P)
     for (int k = -1; k >= -maxBuckets; k--) {
       BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(bottom, top, LevelType.SUPPORT));
+      buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
     }
 
     // Scan sequentially through historical candles
@@ -228,42 +163,125 @@ public class SupportResistanceCalculator {
     return proven;
   }
 
-  private List<PriceBar> loadDailyBars(Ticker ticker) {
-    return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-        .map(
-            d ->
-                new PriceBar(
-                    d.getPriceDate(),
-                    d.getPriceOpen(),
-                    d.getPriceHigh(),
-                    d.getPriceLow(),
-                    d.getPriceClose(),
-                    d.getVolume()))
-        .toList();
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeSupportResistancesForTicker(Ticker ticker) {
+    // Step 1: Load the bars (daily and weekly)
+    List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
+    List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
+
+    // Step 2: Compute the support and resistances (common)
+    List<Bucket> dailyBuckets = computeSupportResistances(dailyBars);
+    List<Bucket> weeklyBuckets = computeSupportResistances(weeklyBars);
+
+    // Step 3: Save the computed support and resistances (daily and weekly)
+    saveSupportResistances(ticker, Timeframe.DAILY, dailyBuckets);
+    saveSupportResistances(ticker, Timeframe.WEEKLY, weeklyBuckets);
   }
 
-  private List<PriceBar> loadWeeklyBars(Ticker ticker) {
-    return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-        .map(
-            w ->
-                new PriceBar(
-                    w.getPriceDate(),
-                    w.getPriceOpen(),
-                    w.getPriceHigh(),
-                    w.getPriceLow(),
-                    w.getPriceClose(),
-                    w.getVolume()))
-        .toList();
+  private void saveSupportResistances(Ticker ticker, Timeframe timeframe, List<Bucket> buckets) {
+    if (buckets.isEmpty()) {
+      return;
+    }
+
+    LocalDate priceDate = buckets.getFirst().priceDate;
+    if (isAlreadyComputed(ticker, priceDate, timeframe)) {
+      return;
+    }
+
+    if (timeframe == Timeframe.DAILY) {
+      List<DailySupportResistance> toSave = new ArrayList<>();
+      for (Bucket b : buckets) {
+        toSave.add(
+            DailySupportResistance.builder()
+                .ticker(ticker)
+                .priceDate(b.priceDate)
+                .zoneBottom(b.bottom)
+                .zoneTop(b.top)
+                .zoneMidpoint(b.midpoint)
+                .touchCount(b.touchCount)
+                .levelType(b.levelType.name())
+                .build());
+      }
+      dailySupportResistanceRepository.saveAll(toSave);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      List<WeeklySupportResistance> toSave = new ArrayList<>();
+      for (Bucket b : buckets) {
+        toSave.add(
+            WeeklySupportResistance.builder()
+                .ticker(ticker)
+                .priceDate(b.priceDate)
+                .zoneBottom(b.bottom)
+                .zoneTop(b.top)
+                .zoneMidpoint(b.midpoint)
+                .touchCount(b.touchCount)
+                .levelType(b.levelType.name())
+                .build());
+      }
+      weeklySupportResistanceRepository.saveAll(toSave);
+    } else {
+      log.error("Unsupported timeframe for saving support resistance: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
+
+  private boolean isAlreadyComputed(Ticker ticker, LocalDate priceDate, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return !dailySupportResistanceRepository
+          .findByTickerAndPriceDate(ticker, priceDate)
+          .isEmpty();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return !weeklySupportResistanceRepository
+          .findByTickerAndPriceDate(ticker, priceDate)
+          .isEmpty();
+    }
+    log.error("Unsupported timeframe for checking existing support resistance: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  }
+
+  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    }
+    log.error("Unsupported timeframe for loading bars: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  }
+
+  private PriceBar toPriceBar(DailyPrice d) {
+    return new PriceBar(
+        d.getPriceDate(),
+        d.getPriceOpen(),
+        d.getPriceHigh(),
+        d.getPriceLow(),
+        d.getPriceClose(),
+        d.getVolume());
+  }
+
+  private PriceBar toPriceBar(WeeklyPrice w) {
+    return new PriceBar(
+        w.getPriceDate(),
+        w.getPriceOpen(),
+        w.getPriceHigh(),
+        w.getPriceLow(),
+        w.getPriceClose(),
+        w.getVolume());
   }
 
   private static class Bucket {
+    LocalDate priceDate;
     BigDecimal bottom;
     BigDecimal top;
     BigDecimal midpoint;
     LevelType levelType;
     int touchCount;
 
-    Bucket(BigDecimal bottom, BigDecimal top, LevelType levelType) {
+    Bucket(LocalDate priceDate, BigDecimal bottom, BigDecimal top, LevelType levelType) {
+      this.priceDate = priceDate;
       this.bottom = bottom;
       this.top = top;
       this.midpoint = bottom.add(top).divide(BigDecimal.valueOf(2), 18, RoundingMode.HALF_UP);
