@@ -84,8 +84,87 @@ public class SupportResistanceCalculator {
     if (bars.isEmpty()) {
       return Collections.emptyList();
     }
-    PriceBar latestBar = bars.getLast();
-    return calculateProvenBuckets(bars, latestBar);
+
+    PriceBar latest = bars.getLast();
+    LocalDate priceDate = latest.date();
+
+    // 1. Calculate Center Anchor (P)
+    BigDecimal p =
+        latest
+            .high()
+            .add(latest.low())
+            .add(latest.close())
+            .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
+
+    // 2. Calculate Linear Bucket Width (W)
+    BigDecimal w = p.multiply(BigDecimal.valueOf(bucketWidthPct));
+
+    // 3. Construct Fixed Linear Buckets
+    List<Bucket> buckets = new ArrayList<>();
+
+    // Resistance Buckets (k = 0 to maxBuckets - 1, above P)
+    for (int k = 0; k < maxBuckets; k++) {
+      BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
+      buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
+    }
+
+    // Support Buckets (k = -1 to -maxBuckets, below P)
+    for (int k = -1; k >= -maxBuckets; k--) {
+      BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
+      buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
+    }
+
+    // Scan sequentially through historical candles
+    for (PriceBar bar : bars) {
+      for (Bucket b : buckets) {
+        // STEP 1: Touch
+        if (b.levelType == LevelType.SUPPORT) {
+          // If Daily Low >= Z_bottom AND Daily Low <= Z_top
+          if (bar.low().compareTo(b.bottom) >= 0 && bar.low().compareTo(b.top) <= 0) {
+            b.touchCount++;
+          }
+        } else {
+          // RESISTANCE
+          // If Daily High >= Z_bottom AND Daily High <= Z_top
+          if (bar.high().compareTo(b.bottom) >= 0 && bar.high().compareTo(b.top) <= 0) {
+            b.touchCount++;
+          }
+        }
+
+        // STEP 2: Slice
+        if (b.levelType == LevelType.SUPPORT) {
+          // If Daily Close < Z_bottom
+          if (bar.close().compareTo(b.bottom) < 0) {
+            b.touchCount = 0;
+          }
+        } else {
+          // RESISTANCE
+          // If Daily Close > Z_top
+          if (bar.close().compareTo(b.top) > 0) {
+            b.touchCount = 0;
+          }
+        }
+      }
+    }
+
+    // Filter proven buckets
+    List<Bucket> proven = new ArrayList<>();
+    for (Bucket b : buckets) {
+      if (b.touchCount >= 3) {
+        // Role Reversal Check - strictly based on final Pivot P
+        // If mid is below P -> SUPPORT, if above -> RESISTANCE
+        if (b.midpoint.compareTo(p) < 0) {
+          b.levelType = LevelType.SUPPORT;
+        } else {
+          b.levelType = LevelType.RESISTANCE;
+        }
+        proven.add(b);
+      }
+    }
+
+    return proven;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -161,87 +240,6 @@ public class SupportResistanceCalculator {
     }
     log.error("Unsupported timeframe for checking existing support resistance: {}", timeframe);
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-  }
-
-  private List<Bucket> calculateProvenBuckets(List<PriceBar> bars, PriceBar latestBar) {
-    LocalDate priceDate = latestBar.date();
-    // 1. Calculate Center Anchor (P)
-    BigDecimal p =
-        latestBar
-            .high()
-            .add(latestBar.low())
-            .add(latestBar.close())
-            .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
-
-    // 2. Calculate Linear Bucket Width (W)
-    BigDecimal w = p.multiply(BigDecimal.valueOf(bucketWidthPct));
-
-    // 3. Construct Fixed Linear Buckets
-    List<Bucket> buckets = new ArrayList<>();
-
-    // Resistance Buckets (k = 0 to maxBuckets - 1, above P)
-    for (int k = 0; k < maxBuckets; k++) {
-      BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
-    }
-
-    // Support Buckets (k = -1 to -maxBuckets, below P)
-    for (int k = -1; k >= -maxBuckets; k--) {
-      BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
-    }
-
-    // Scan sequentially through historical candles
-    for (PriceBar bar : bars) {
-      for (Bucket b : buckets) {
-        // STEP 1: Touch
-        if (b.levelType == LevelType.SUPPORT) {
-          // If Daily Low >= Z_bottom AND Daily Low <= Z_top
-          if (bar.low().compareTo(b.bottom) >= 0 && bar.low().compareTo(b.top) <= 0) {
-            b.touchCount++;
-          }
-        } else {
-          // RESISTANCE
-          // If Daily High >= Z_bottom AND Daily High <= Z_top
-          if (bar.high().compareTo(b.bottom) >= 0 && bar.high().compareTo(b.top) <= 0) {
-            b.touchCount++;
-          }
-        }
-
-        // STEP 2: Slice
-        if (b.levelType == LevelType.SUPPORT) {
-          // If Daily Close < Z_bottom
-          if (bar.close().compareTo(b.bottom) < 0) {
-            b.touchCount = 0;
-          }
-        } else {
-          // RESISTANCE
-          // If Daily Close > Z_top
-          if (bar.close().compareTo(b.top) > 0) {
-            b.touchCount = 0;
-          }
-        }
-      }
-    }
-
-    // Filter proven buckets
-    List<Bucket> proven = new ArrayList<>();
-    for (Bucket b : buckets) {
-      if (b.touchCount >= 3) {
-        // Role Reversal Check - strictly based on final Pivot P
-        // If mid is below P -> SUPPORT, if above -> RESISTANCE
-        if (b.midpoint.compareTo(p) < 0) {
-          b.levelType = LevelType.SUPPORT;
-        } else {
-          b.levelType = LevelType.RESISTANCE;
-        }
-        proven.add(b);
-      }
-    }
-
-    return proven;
   }
 
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
