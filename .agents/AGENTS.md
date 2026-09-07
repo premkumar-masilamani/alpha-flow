@@ -23,7 +23,6 @@ make lint
 
 ### Always do
 - Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/`, or `database/` submodules before modifying their files.
-- In backend timeframe logic, always branch explicitly with `if (timeframe == Timeframe.DAILY)` followed by `else if (timeframe == Timeframe.WEEKLY)`. Explicitly log an error (`log.error(...)`) and throw `IllegalArgumentException` for unsupported timeframes. Never use a fallback `else` or ternary default.
 
 ### Ask first
 - Modifying scheduled core jobs or the downloader frequency/rate-limiting logic.
