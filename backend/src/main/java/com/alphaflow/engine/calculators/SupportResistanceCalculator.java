@@ -99,17 +99,16 @@ public class SupportResistanceCalculator {
     List<Bucket> weeklyBuckets = computeSupportResistances(weeklyBars);
 
     // Step 3: Save the computed support and resistances (daily and weekly)
-    saveSupportResistances(ticker, Timeframe.DAILY, dailyBuckets, dailyBars);
-    saveSupportResistances(ticker, Timeframe.WEEKLY, weeklyBuckets, weeklyBars);
+    saveSupportResistances(ticker, Timeframe.DAILY, dailyBuckets);
+    saveSupportResistances(ticker, Timeframe.WEEKLY, weeklyBuckets);
   }
 
-  private void saveSupportResistances(
-      Ticker ticker, Timeframe timeframe, List<Bucket> buckets, List<PriceBar> bars) {
-    if (bars.isEmpty()) {
+  private void saveSupportResistances(Ticker ticker, Timeframe timeframe, List<Bucket> buckets) {
+    if (buckets.isEmpty()) {
       return;
     }
 
-    LocalDate priceDate = bars.getLast().date();
+    LocalDate priceDate = buckets.getFirst().priceDate;
     if (isAlreadyComputed(ticker, priceDate, timeframe)) {
       return;
     }
@@ -120,7 +119,7 @@ public class SupportResistanceCalculator {
         toSave.add(
             DailySupportResistance.builder()
                 .ticker(ticker)
-                .priceDate(priceDate)
+                .priceDate(b.priceDate)
                 .zoneBottom(b.bottom)
                 .zoneTop(b.top)
                 .zoneMidpoint(b.midpoint)
@@ -135,7 +134,7 @@ public class SupportResistanceCalculator {
         toSave.add(
             WeeklySupportResistance.builder()
                 .ticker(ticker)
-                .priceDate(priceDate)
+                .priceDate(b.priceDate)
                 .zoneBottom(b.bottom)
                 .zoneTop(b.top)
                 .zoneMidpoint(b.midpoint)
@@ -165,6 +164,7 @@ public class SupportResistanceCalculator {
   }
 
   private List<Bucket> calculateProvenBuckets(List<PriceBar> bars, PriceBar latestBar) {
+    LocalDate priceDate = latestBar.date();
     // 1. Calculate Center Anchor (P)
     BigDecimal p =
         latestBar
@@ -183,14 +183,14 @@ public class SupportResistanceCalculator {
     for (int k = 0; k < maxBuckets; k++) {
       BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(bottom, top, LevelType.RESISTANCE));
+      buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
     }
 
     // Support Buckets (k = -1 to -maxBuckets, below P)
     for (int k = -1; k >= -maxBuckets; k--) {
       BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
-      buckets.add(new Bucket(bottom, top, LevelType.SUPPORT));
+      buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
     }
 
     // Scan sequentially through historical candles
@@ -279,13 +279,15 @@ public class SupportResistanceCalculator {
   }
 
   private static class Bucket {
+    LocalDate priceDate;
     BigDecimal bottom;
     BigDecimal top;
     BigDecimal midpoint;
     LevelType levelType;
     int touchCount;
 
-    Bucket(BigDecimal bottom, BigDecimal top, LevelType levelType) {
+    Bucket(LocalDate priceDate, BigDecimal bottom, BigDecimal top, LevelType levelType) {
+      this.priceDate = priceDate;
       this.bottom = bottom;
       this.top = top;
       this.midpoint = bottom.add(top).divide(BigDecimal.valueOf(2), 18, RoundingMode.HALF_UP);

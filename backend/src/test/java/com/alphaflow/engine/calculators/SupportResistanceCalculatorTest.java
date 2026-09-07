@@ -24,6 +24,7 @@ import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -215,26 +216,29 @@ class SupportResistanceCalculatorTest {
   void testUnsupportedTimeframeInSaveSupportResistancesThrowsException() throws Exception {
     Method saveMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
-            "saveSupportResistances", Ticker.class, Timeframe.class, List.class, List.class);
+            "saveSupportResistances", Ticker.class, Timeframe.class, List.class);
     saveMethod.setAccessible(true);
+
+    Class<?> bucketClass =
+        Class.forName("com.alphaflow.engine.calculators.SupportResistanceCalculator$Bucket");
+    Constructor<?> ctor =
+        bucketClass.getDeclaredConstructor(
+            LocalDate.class,
+            BigDecimal.class,
+            BigDecimal.class,
+            SupportResistanceCalculator.LevelType.class);
+    ctor.setAccessible(true);
+    Object bucket =
+        ctor.newInstance(
+            EPOCH,
+            BigDecimal.TEN,
+            BigDecimal.valueOf(11),
+            SupportResistanceCalculator.LevelType.SUPPORT);
 
     InvocationTargetException ex =
         assertThrows(
             InvocationTargetException.class,
-            () ->
-                saveMethod.invoke(
-                    calculator,
-                    ticker,
-                    (Timeframe) null,
-                    List.of(),
-                    List.of(
-                        new com.alphaflow.engine.indicators.dtos.PriceBar(
-                            EPOCH,
-                            BigDecimal.TEN,
-                            BigDecimal.TEN,
-                            BigDecimal.TEN,
-                            BigDecimal.TEN,
-                            BigDecimal.TEN))));
+            () -> saveMethod.invoke(calculator, ticker, (Timeframe) null, List.of(bucket)));
     assertInstanceOf(IllegalArgumentException.class, ex.getCause());
   }
 
