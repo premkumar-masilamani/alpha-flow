@@ -6,6 +6,7 @@ import {
     getIndicatorConfigs,
     getIndicatorSeries,
     getTechnicalAnalysis,
+    getSupportResistances,
     indicatorKey,
     type Ticker,
     type DailyCandleData,
@@ -154,6 +155,26 @@ describe('API Service Layer Tests', () => {
         it('should generate stable identifier string from configs', () => {
             const config = { type: 'EMA', source: 'CLOSE', params: 'period=50' };
             expect(indicatorKey(config)).toBe('EMA|CLOSE|period=50');
+        });
+    });
+
+    describe('getSupportResistances', () => {
+        it('should fetch support resistances with query parameters', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+            await getSupportResistances('AAPL', 'DAILY', '2026-06-01');
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/AAPL/support-resistances'),
+                { params: { timeframe: 'daily', date: '2026-06-01' } }
+            );
+        });
+
+        it('should fetch weekly support resistances with query parameters', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+            await getSupportResistances('AAPL', 'WEEKLY', '2026-06-01');
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/AAPL/support-resistances'),
+                { params: { timeframe: 'weekly', date: '2026-06-01' } }
+            );
         });
     });
 });

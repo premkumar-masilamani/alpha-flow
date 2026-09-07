@@ -1,6 +1,7 @@
 package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.SupportResistanceDto;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
@@ -9,12 +10,13 @@ import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(readOnly = true)
+@Slf4j
 public class SupportResistanceService {
 
   private final TickerRepository tickerRepository;
@@ -30,27 +32,28 @@ public class SupportResistanceService {
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
   }
 
+  public List<SupportResistanceDto> getSupportResistances(
+      Ticker ticker, Timeframe timeframe, LocalDate date) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailySupportResistanceRepository.findByTickerAndPriceDate(ticker, date).stream()
+          .map(this::toDto)
+          .toList();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklySupportResistanceRepository.findByTickerAndPriceDate(ticker, date).stream()
+          .map(this::toDto)
+          .toList();
+    } else {
+      log.error("Unsupported timeframe for support resistance: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
+
   public List<SupportResistanceDto> getDailySupportResistances(String symbol, LocalDate date) {
     Ticker ticker =
         tickerRepository
             .findByTickerSymbol(symbol)
             .orElseThrow(() -> new IllegalArgumentException("Ticker not found: " + symbol));
-
-    List<DailySupportResistance> results =
-        dailySupportResistanceRepository.findByTickerAndPriceDate(ticker, date);
-
-    return results.stream()
-        .map(
-            dsr ->
-                SupportResistanceDto.builder()
-                    .priceDate(dsr.getPriceDate())
-                    .zoneBottom(dsr.getZoneBottom())
-                    .zoneTop(dsr.getZoneTop())
-                    .zoneMidpoint(dsr.getZoneMidpoint())
-                    .levelType(dsr.getLevelType())
-                    .touchCount(dsr.getTouchCount())
-                    .build())
-        .collect(Collectors.toList());
+    return getSupportResistances(ticker, Timeframe.DAILY, date);
   }
 
   public List<SupportResistanceDto> getWeeklySupportResistances(String symbol, LocalDate date) {
@@ -58,21 +61,28 @@ public class SupportResistanceService {
         tickerRepository
             .findByTickerSymbol(symbol)
             .orElseThrow(() -> new IllegalArgumentException("Ticker not found: " + symbol));
+    return getSupportResistances(ticker, Timeframe.WEEKLY, date);
+  }
 
-    List<WeeklySupportResistance> results =
-        weeklySupportResistanceRepository.findByTickerAndPriceDate(ticker, date);
+  private SupportResistanceDto toDto(DailySupportResistance dsr) {
+    return SupportResistanceDto.builder()
+        .priceDate(dsr.getPriceDate())
+        .zoneBottom(dsr.getZoneBottom())
+        .zoneTop(dsr.getZoneTop())
+        .zoneMidpoint(dsr.getZoneMidpoint())
+        .levelType(dsr.getLevelType())
+        .touchCount(dsr.getTouchCount())
+        .build();
+  }
 
-    return results.stream()
-        .map(
-            wsr ->
-                SupportResistanceDto.builder()
-                    .priceDate(wsr.getPriceDate())
-                    .zoneBottom(wsr.getZoneBottom())
-                    .zoneTop(wsr.getZoneTop())
-                    .zoneMidpoint(wsr.getZoneMidpoint())
-                    .levelType(wsr.getLevelType())
-                    .touchCount(wsr.getTouchCount())
-                    .build())
-        .collect(Collectors.toList());
+  private SupportResistanceDto toDto(WeeklySupportResistance wsr) {
+    return SupportResistanceDto.builder()
+        .priceDate(wsr.getPriceDate())
+        .zoneBottom(wsr.getZoneBottom())
+        .zoneTop(wsr.getZoneTop())
+        .zoneMidpoint(wsr.getZoneMidpoint())
+        .levelType(wsr.getLevelType())
+        .touchCount(wsr.getTouchCount())
+        .build();
   }
 }
