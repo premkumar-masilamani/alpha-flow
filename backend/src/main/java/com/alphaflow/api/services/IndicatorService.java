@@ -75,11 +75,14 @@ public class IndicatorService {
         size);
 
     PageRequest pageRequest = PageRequest.of(page, size);
-    List<LocalDate> pageDates = List.of();
+    List<LocalDate> pageDates;
     if (timeframe == Timeframe.DAILY) {
       pageDates = dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
     } else if (timeframe == Timeframe.WEEKLY) {
       pageDates = weeklyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
+    } else {
+      log.error("Unsupported timeframe for fetching recent price dates: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
 
     if (pageDates.isEmpty()) {
@@ -98,11 +101,14 @@ public class IndicatorService {
     List<Long> indicatorIds =
         definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
 
-    List<? extends Indicator> rows = List.of();
+    List<? extends Indicator> rows;
     if (timeframe == Timeframe.DAILY) {
       rows = dailyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
     } else if (timeframe == Timeframe.WEEKLY) {
       rows = weeklyIndicatorRepository.findSeriesBetween(ticker, indicatorIds, start, end);
+    } else {
+      log.error("Unsupported timeframe for fetching indicator series: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
     return IndicatorMapper.toSeries(rows);
   }

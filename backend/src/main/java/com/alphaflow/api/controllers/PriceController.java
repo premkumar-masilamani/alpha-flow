@@ -48,15 +48,18 @@ public class PriceController {
         page,
         finalSize);
 
-    if (timeframe == Timeframe.WEEKLY) {
+    if (timeframe == Timeframe.DAILY) {
+      Ticker ticker =
+          tickerRepository
+              .findByTickerSymbolIgnoreCase(symbol)
+              .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
+
+      return dailyPriceService.getDailyPrice(ticker, page, finalSize);
+    } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPriceByTickerName(symbol, page, finalSize);
+    } else {
+      log.error("Unsupported timeframe for price data: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-
-    Ticker ticker =
-        tickerRepository
-            .findByTickerSymbolIgnoreCase(symbol)
-            .orElseThrow(() -> new ResourceNotFoundException("Ticker not found: " + symbol));
-
-    return dailyPriceService.getDailyPrice(ticker, page, finalSize);
   }
 }

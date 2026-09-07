@@ -233,4 +233,11 @@ class IndicatorServiceTest {
     verify(dailyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
     verify(weeklyIndicatorRepository, never()).findSeriesBetween(any(), any(), any(), any());
   }
+
+  @Test
+  void seriesThrowsOnUnsupportedTimeframe() {
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> indicatorService.getIndicatorSeries(ticker, null, 0, 250));
+  }
 }

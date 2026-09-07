@@ -50,5 +50,9 @@ class PriceControllerTest {
     when(weeklyPriceService.getWeeklyPriceByTickerName("AAPL", 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class,
+        () -> controller.getPriceDataForTicker("AAPL", null, 0, 250));
   }
 }
