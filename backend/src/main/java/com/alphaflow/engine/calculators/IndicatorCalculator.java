@@ -7,13 +7,21 @@ import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
 import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
-import com.alphaflow.persistence.repositories.*;
+import com.alphaflow.persistence.entities.WeeklyPrice;
+import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
+import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -77,6 +85,24 @@ public class IndicatorCalculator {
     log.info("Indicators computed.");
   }
 
+  private Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computeIndicators(
+      List<PriceBar> bars, List<IndicatorDefinition> definitions) {
+    if (bars.isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> results =
+        new LinkedHashMap<>();
+    for (IndicatorDefinition definition : definitions) {
+      Indicator indicator = indicatorRegistry.get(definition.getType());
+      IndicatorParams params = IndicatorParams.of(definition.getParams());
+      Map<LocalDate, Map<String, BigDecimal>> computed =
+          indicator.compute(bars, params, definition.getSource());
+      results.put(definition, computed);
+    }
+    return results;
+  }
+
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
     log.info("{}: Computing indicators...", ticker.getTickerSymbol());
@@ -87,94 +113,19 @@ public class IndicatorCalculator {
       return;
     }
 
-    int dailySaved = 0;
-    int weeklySaved = 0;
+    // Step 1: Load the bars (daily and weekly)
+    List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
+    List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
 
-    for (Timeframe timeframe : Timeframe.values()) {
-      List<PriceBar> bars;
-      if (timeframe == Timeframe.DAILY) {
-        bars = loadDailyBars(ticker);
-      } else if (timeframe == Timeframe.WEEKLY) {
-        bars = loadWeeklyBars(ticker);
-      } else {
-        log.error("Unsupported timeframe for loading bars: {}", timeframe);
-        throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-      }
-      if (bars.isEmpty()) {
-        continue;
-      }
+    // Step 2: Compute the indicators (common)
+    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> dailyIndicators =
+        computeIndicators(dailyBars, indicatorDefinitions);
+    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> weeklyIndicators =
+        computeIndicators(weeklyBars, indicatorDefinitions);
 
-      if (timeframe == Timeframe.DAILY) {
-        List<DailyIndicator> toInsert = new ArrayList<>();
-        for (IndicatorDefinition definition : indicatorDefinitions) {
-          Indicator indicator = indicatorRegistry.get(definition.getType());
-          IndicatorParams params = IndicatorParams.of(definition.getParams());
-
-          Map<LocalDate, Map<String, BigDecimal>> computed =
-              indicator.compute(bars, params, definition.getSource());
-
-          LocalDate lastDate =
-              dailyIndicatorRepository
-                  .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(ticker, definition)
-                  .map(com.alphaflow.persistence.entities.Indicator::getPriceDate)
-                  .orElse(null);
-
-          for (Map.Entry<LocalDate, Map<String, BigDecimal>> entry : computed.entrySet()) {
-            LocalDate date = entry.getKey();
-            if (lastDate == null || date.isAfter(lastDate)) {
-              toInsert.add(
-                  DailyIndicator.builder()
-                      .ticker(ticker)
-                      .indicatorDefinition(definition)
-                      .priceDate(date)
-                      .values(entry.getValue())
-                      .build());
-            }
-          }
-        }
-
-        if (!toInsert.isEmpty()) {
-          dailyIndicatorRepository.saveAll(toInsert);
-          dailySaved = toInsert.size();
-        }
-      } else if (timeframe == Timeframe.WEEKLY) {
-        List<WeeklyIndicator> toInsert = new ArrayList<>();
-        for (IndicatorDefinition definition : indicatorDefinitions) {
-          Indicator indicator = indicatorRegistry.get(definition.getType());
-          IndicatorParams params = IndicatorParams.of(definition.getParams());
-
-          Map<LocalDate, Map<String, BigDecimal>> computed =
-              indicator.compute(bars, params, definition.getSource());
-
-          LocalDate lastDate =
-              weeklyIndicatorRepository
-                  .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(ticker, definition)
-                  .map(com.alphaflow.persistence.entities.Indicator::getPriceDate)
-                  .orElse(null);
-
-          for (Map.Entry<LocalDate, Map<String, BigDecimal>> entry : computed.entrySet()) {
-            LocalDate date = entry.getKey();
-            if (lastDate == null || date.isAfter(lastDate)) {
-              toInsert.add(
-                  WeeklyIndicator.builder()
-                      .ticker(ticker)
-                      .indicatorDefinition(definition)
-                      .priceDate(date)
-                      .values(entry.getValue())
-                      .build());
-            }
-          }
-        }
-
-        if (!toInsert.isEmpty()) {
-          weeklyIndicatorRepository.saveAll(toInsert);
-          weeklySaved = toInsert.size();
-        }
-      } else {
-        log.error("Unsupported timeframe for computing indicators: {}", timeframe);
-        throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-      }
-    }
+    // Step 3: Save the computed indicators (daily and weekly)
+    int dailySaved = saveIndicators(ticker, Timeframe.DAILY, dailyIndicators);
+    int weeklySaved = saveIndicators(ticker, Timeframe.WEEKLY, weeklyIndicators);
 
     log.info(
         "Ticker {}: Saved {} daily and {} weekly indicators.",
@@ -183,31 +134,122 @@ public class IndicatorCalculator {
         weeklySaved);
   }
 
-  private List<PriceBar> loadDailyBars(Ticker ticker) {
-    return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-        .map(
-            d ->
-                new PriceBar(
-                    d.getPriceDate(),
-                    d.getPriceOpen(),
-                    d.getPriceHigh(),
-                    d.getPriceLow(),
-                    d.getPriceClose(),
-                    d.getVolume()))
-        .toList();
+  private int saveIndicators(
+      Ticker ticker,
+      Timeframe timeframe,
+      Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computedIndicators) {
+    if (computedIndicators.isEmpty()) {
+      return 0;
+    }
+
+    if (timeframe == Timeframe.DAILY) {
+      List<DailyIndicator> toInsert = new ArrayList<>();
+      for (Map.Entry<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> entry :
+          computedIndicators.entrySet()) {
+        IndicatorDefinition definition = entry.getKey();
+        LocalDate lastDate = getLastComputedDate(ticker, definition, Timeframe.DAILY);
+
+        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : entry.getValue().entrySet()) {
+          LocalDate date = point.getKey();
+          if (lastDate == null || date.isAfter(lastDate)) {
+            toInsert.add(
+                DailyIndicator.builder()
+                    .ticker(ticker)
+                    .indicatorDefinition(definition)
+                    .priceDate(date)
+                    .values(point.getValue())
+                    .build());
+          }
+        }
+      }
+
+      if (!toInsert.isEmpty()) {
+        dailyIndicatorRepository.saveAll(toInsert);
+        return toInsert.size();
+      }
+      return 0;
+    } else if (timeframe == Timeframe.WEEKLY) {
+      List<WeeklyIndicator> toInsert = new ArrayList<>();
+      for (Map.Entry<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> entry :
+          computedIndicators.entrySet()) {
+        IndicatorDefinition definition = entry.getKey();
+        LocalDate lastDate = getLastComputedDate(ticker, definition, Timeframe.WEEKLY);
+
+        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : entry.getValue().entrySet()) {
+          LocalDate date = point.getKey();
+          if (lastDate == null || date.isAfter(lastDate)) {
+            toInsert.add(
+                WeeklyIndicator.builder()
+                    .ticker(ticker)
+                    .indicatorDefinition(definition)
+                    .priceDate(date)
+                    .values(point.getValue())
+                    .build());
+          }
+        }
+      }
+
+      if (!toInsert.isEmpty()) {
+        weeklyIndicatorRepository.saveAll(toInsert);
+        return toInsert.size();
+      }
+      return 0;
+    }
+
+    log.error("Unsupported timeframe for saving indicators: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
-  private List<PriceBar> loadWeeklyBars(Ticker ticker) {
-    return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-        .map(
-            w ->
-                new PriceBar(
-                    w.getPriceDate(),
-                    w.getPriceOpen(),
-                    w.getPriceHigh(),
-                    w.getPriceLow(),
-                    w.getPriceClose(),
-                    w.getVolume()))
-        .toList();
+  private LocalDate getLastComputedDate(
+      Ticker ticker, IndicatorDefinition definition, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyIndicatorRepository
+          .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(ticker, definition)
+          .map(com.alphaflow.persistence.entities.Indicator::getPriceDate)
+          .orElse(null);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyIndicatorRepository
+          .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(ticker, definition)
+          .map(com.alphaflow.persistence.entities.Indicator::getPriceDate)
+          .orElse(null);
+    }
+
+    log.error("Unsupported timeframe for fetching last computed date: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  }
+
+  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
+          .map(this::toPriceBar)
+          .toList();
+    }
+
+    log.error("Unsupported timeframe for loading bars: {}", timeframe);
+    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  }
+
+  private PriceBar toPriceBar(DailyPrice d) {
+    return new PriceBar(
+        d.getPriceDate(),
+        d.getPriceOpen(),
+        d.getPriceHigh(),
+        d.getPriceLow(),
+        d.getPriceClose(),
+        d.getVolume());
+  }
+
+  private PriceBar toPriceBar(WeeklyPrice w) {
+    return new PriceBar(
+        w.getPriceDate(),
+        w.getPriceOpen(),
+        w.getPriceHigh(),
+        w.getPriceLow(),
+        w.getPriceClose(),
+        w.getVolume());
   }
 }
