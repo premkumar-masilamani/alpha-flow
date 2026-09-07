@@ -20,7 +20,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -87,137 +86,129 @@ public class CandlestickPatternCalculator {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeCandleStickPatternsForTicker(Ticker ticker) {
     log.info("Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.DAILY);
-    computeDailyPatternsForTicker(ticker);
-    log.info(
-        "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.WEEKLY);
-    computeWeeklyPatternsForTicker(ticker);
-  }
-
-  private void computeDailyPatternsForTicker(Ticker ticker) {
-    List<PriceBar> bars = loadDailyBars(ticker);
-    if (bars.size() < MIN_BARS) {
+    List<PriceBar> dailyBars = loadDailyBars(ticker);
+    if (dailyBars.size() < MIN_BARS) {
       log.debug(
           "Ticker {}: Insufficient daily data points (found {}) to compute patterns.",
           ticker.getTickerSymbol(),
-          bars.size());
-      return;
+          dailyBars.size());
+    } else {
+      LocalDate lastDailyDate =
+          dailyCandlestickPatternRepository
+              .findFirstByTickerOrderByPriceDateDesc(ticker)
+              .map(DailyCandlestickPattern::getPriceDate)
+              .orElse(null);
+      LocalDate dailyRecomputeStartDate = calculateRecomputeStartDate(dailyBars, lastDailyDate);
+      List<PatternMatch> dailyMatches = computePatterns(dailyBars, lastDailyDate);
+      savePatterns(ticker, Timeframe.DAILY, dailyMatches, dailyRecomputeStartDate);
     }
 
-    Optional<DailyCandlestickPattern> lastPattern =
-        dailyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker);
-    LocalDate lastComputedDate =
-        lastPattern.map(DailyCandlestickPattern::getPriceDate).orElse(null);
-
-    LocalDate recomputeStartDate = null;
-    int startIndex = 2;
-
-    if (lastComputedDate != null) {
-      int lastIndex = -1;
-      for (int k = 0; k < bars.size(); k++) {
-        if (bars.get(k).date().equals(lastComputedDate)) {
-          lastIndex = k;
-          break;
-        }
-      }
-      if (lastIndex != -1) {
-        startIndex = Math.max(2, lastIndex - 4);
-        recomputeStartDate = bars.get(startIndex).date();
-      }
-    }
-
-    List<PatternMatch> matches = findMatches(bars, startIndex);
-
-    if (recomputeStartDate != null) {
-      dailyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
-          ticker, recomputeStartDate);
-      dailyCandlestickPatternRepository.flush();
-      log.info(
-          "Ticker {}: Cleaned up daily patterns on or after {} for recomputation.",
-          ticker.getTickerSymbol(),
-          recomputeStartDate);
-    }
-
-    if (!matches.isEmpty()) {
-      List<DailyCandlestickPattern> newPatterns =
-          matches.stream()
-              .map(
-                  m ->
-                      DailyCandlestickPattern.builder()
-                          .ticker(ticker)
-                          .priceDate(m.date())
-                          .pattern(m.pattern())
-                          .sentiment(m.pattern().getSentiment())
-                          .build())
-              .toList();
-      dailyCandlestickPatternRepository.saveAll(newPatterns);
-      log.info(
-          "Ticker {}: Saved {} daily candlestick patterns (including recomputed window).",
-          ticker.getTickerSymbol(),
-          newPatterns.size());
-    }
-  }
-
-  private void computeWeeklyPatternsForTicker(Ticker ticker) {
-    List<PriceBar> bars = loadWeeklyBars(ticker);
-    if (bars.size() < MIN_BARS) {
+    log.info(
+        "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.WEEKLY);
+    List<PriceBar> weeklyBars = loadWeeklyBars(ticker);
+    if (weeklyBars.size() < MIN_BARS) {
       log.debug(
           "Ticker {}: Insufficient weekly data points (found {}) to compute patterns.",
           ticker.getTickerSymbol(),
-          bars.size());
-      return;
+          weeklyBars.size());
+    } else {
+      LocalDate lastWeeklyDate =
+          weeklyCandlestickPatternRepository
+              .findFirstByTickerOrderByPriceDateDesc(ticker)
+              .map(WeeklyCandlestickPattern::getPriceDate)
+              .orElse(null);
+      LocalDate weeklyRecomputeStartDate = calculateRecomputeStartDate(weeklyBars, lastWeeklyDate);
+      List<PatternMatch> weeklyMatches = computePatterns(weeklyBars, lastWeeklyDate);
+      savePatterns(ticker, Timeframe.WEEKLY, weeklyMatches, weeklyRecomputeStartDate);
     }
+  }
 
-    Optional<WeeklyCandlestickPattern> lastPattern =
-        weeklyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker);
-    LocalDate lastComputedDate =
-        lastPattern.map(WeeklyCandlestickPattern::getPriceDate).orElse(null);
+  private List<PatternMatch> computePatterns(List<PriceBar> bars, LocalDate lastComputedDate) {
+    if (bars.size() < MIN_BARS) {
+      return Collections.emptyList();
+    }
+    int startIndex = calculateStartIndex(bars, lastComputedDate);
+    return findMatches(bars, startIndex);
+  }
 
-    LocalDate recomputeStartDate = null;
-    int startIndex = 2;
-
+  private int calculateStartIndex(List<PriceBar> bars, LocalDate lastComputedDate) {
     if (lastComputedDate != null) {
-      int lastIndex = -1;
       for (int k = 0; k < bars.size(); k++) {
         if (bars.get(k).date().equals(lastComputedDate)) {
-          lastIndex = k;
-          break;
+          return Math.max(2, k - 4);
         }
       }
-      if (lastIndex != -1) {
-        startIndex = Math.max(2, lastIndex - 4);
-        recomputeStartDate = bars.get(startIndex).date();
+    }
+    return 2;
+  }
+
+  private LocalDate calculateRecomputeStartDate(List<PriceBar> bars, LocalDate lastComputedDate) {
+    if (lastComputedDate != null) {
+      for (int k = 0; k < bars.size(); k++) {
+        if (bars.get(k).date().equals(lastComputedDate)) {
+          int startIndex = Math.max(2, k - 4);
+          return bars.get(startIndex).date();
+        }
       }
     }
+    return null;
+  }
 
-    List<PatternMatch> matches = findMatches(bars, startIndex);
-
+  private void savePatterns(
+      Ticker ticker,
+      Timeframe timeframe,
+      List<PatternMatch> matches,
+      LocalDate recomputeStartDate) {
     if (recomputeStartDate != null) {
-      weeklyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
-          ticker, recomputeStartDate);
-      weeklyCandlestickPatternRepository.flush();
+      if (timeframe == Timeframe.DAILY) {
+        dailyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
+            ticker, recomputeStartDate);
+        dailyCandlestickPatternRepository.flush();
+      } else {
+        weeklyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
+            ticker, recomputeStartDate);
+        weeklyCandlestickPatternRepository.flush();
+      }
       log.info(
-          "Ticker {}: Cleaned up weekly patterns on or after {} for recomputation.",
+          "Ticker {}: Cleaned up {} patterns on or after {} for recomputation.",
           ticker.getTickerSymbol(),
+          timeframe.name().toLowerCase(),
           recomputeStartDate);
     }
 
     if (!matches.isEmpty()) {
-      List<WeeklyCandlestickPattern> newPatterns =
-          matches.stream()
-              .map(
-                  m ->
-                      WeeklyCandlestickPattern.builder()
-                          .ticker(ticker)
-                          .priceDate(m.date())
-                          .pattern(m.pattern())
-                          .sentiment(m.pattern().getSentiment())
-                          .build())
-              .toList();
-      weeklyCandlestickPatternRepository.saveAll(newPatterns);
+      if (timeframe == Timeframe.DAILY) {
+        List<DailyCandlestickPattern> newPatterns =
+            matches.stream()
+                .map(
+                    m ->
+                        DailyCandlestickPattern.builder()
+                            .ticker(ticker)
+                            .priceDate(m.date())
+                            .pattern(m.pattern())
+                            .sentiment(m.pattern().getSentiment())
+                            .build())
+                .toList();
+        dailyCandlestickPatternRepository.saveAll(newPatterns);
+      } else {
+        List<WeeklyCandlestickPattern> newPatterns =
+            matches.stream()
+                .map(
+                    m ->
+                        WeeklyCandlestickPattern.builder()
+                            .ticker(ticker)
+                            .priceDate(m.date())
+                            .pattern(m.pattern())
+                            .sentiment(m.pattern().getSentiment())
+                            .build())
+                .toList();
+        weeklyCandlestickPatternRepository.saveAll(newPatterns);
+      }
       log.info(
-          "Ticker {}: Saved {} weekly candlestick patterns (including recomputed window).",
+          "Ticker {}: Saved {} {} candlestick patterns (including recomputed window).",
           ticker.getTickerSymbol(),
-          newPatterns.size());
+          matches.size(),
+          timeframe.name().toLowerCase());
     }
   }
 

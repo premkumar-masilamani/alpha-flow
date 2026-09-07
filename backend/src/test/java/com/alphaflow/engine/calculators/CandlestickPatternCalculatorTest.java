@@ -394,6 +394,36 @@ class CandlestickPatternCalculatorTest {
   }
 
   @Test
+  void testWeeklyIncrementalCalculationWithLastDate() {
+    List<WeeklyPrice> prices = new ArrayList<>();
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    for (int j = 0; j < 14; j++) {
+      prices.add(weekly(base.plusDays(j * 7), "100", "101", "99", "100"));
+    }
+    prices.add(weekly(base.plusDays(14 * 7), "100", "110", "100", "110"));
+
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+    WeeklyCandlestickPattern lastPat =
+        WeeklyCandlestickPattern.builder().priceDate(base.plusDays(14 * 7)).build();
+    when(weeklyCandlestickPatternRepository.findFirstByTickerOrderByPriceDateDesc(ticker))
+        .thenReturn(Optional.of(lastPat));
+
+    calculator.computeCandleStickPatternsForTicker(ticker);
+
+    verify(weeklyCandlestickPatternRepository)
+        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusDays(10 * 7));
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<WeeklyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
+    verify(weeklyCandlestickPatternRepository).saveAll(captor.capture());
+    assertThat(captor.getValue())
+        .anyMatch(
+            p ->
+                p.getPriceDate().equals(base.plusDays(14 * 7))
+                    && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+  }
+
+  @Test
   @SuppressWarnings("unchecked")
   void testNewlyImplementedPatterns() {
     List<DailyPrice> base = new ArrayList<>();
