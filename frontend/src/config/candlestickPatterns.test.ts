@@ -41,4 +41,31 @@ describe('candlestickPatterns', () => {
         expect(getCandlestickPatternDetails(undefined)).toBeNull();
         expect(getCandlestickPatternDetails({ longName: 'NonExistentPattern' })).toBeNull();
     });
+
+    it('has accurate definitions and visuals for Bullish Meeting Lines, Concealing Swallow, and Upside Gap Two Crows', () => {
+        const meetingLines = CANDLESTICK_PATTERNS.find(p => p.id === 'bullish-meeting-lines');
+        expect(meetingLines).toBeDefined();
+        expect(meetingLines?.psychology).toContain('Bulls counter-attack the gap-down');
+        expect(meetingLines?.psychology).toContain('to close level with Day 1');
+
+        const concealingSwallow = CANDLESTICK_PATTERNS.find(p => p.id === 'concealing-swallow');
+        expect(concealingSwallow).toBeDefined();
+        expect(concealingSwallow?.structure).toContain('Four red candles');
+        expect(concealingSwallow?.structure).toContain('fourth red engulfing candle');
+        expect(concealingSwallow?.svgMarkup).not.toContain('#2ecc71');
+        expect(concealingSwallow?.svgMarkup).toContain('#e74c3c');
+
+        const upsideGapTwoCrows = CANDLESTICK_PATTERNS.find(p => p.id === 'upside-gap-two-crows');
+        expect(upsideGapTwoCrows).toBeDefined();
+        // Day 1 has green rect at y=45 (close=45). Day 3 has red rect at y=18 height=24 (close=42), closing above Day 1 close.
+        expect(upsideGapTwoCrows?.svgMarkup).toContain('height="24"');
+    });
+
+    it('avoids the usage of black and white candles in descriptions, using green and red instead', () => {
+        for (const pattern of CANDLESTICK_PATTERNS) {
+            expect(pattern.structure.toLowerCase()).not.toMatch(/\b(black|white)\s+(candle|body|marubozu)/);
+            expect(pattern.psychology.toLowerCase()).not.toMatch(/\b(black|white)\s+(candle|body|marubozu)/);
+            expect(pattern.outcome.toLowerCase()).not.toMatch(/\b(black|white)\s+(candle|body|marubozu)/);
+        }
+    });
 });
