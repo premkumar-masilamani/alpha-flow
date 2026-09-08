@@ -4,6 +4,8 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Chart from "./components/Chart";
 import IndicatorControls from "./components/IndicatorControls";
+import CandlestickPatternModal from "./components/CandlestickPatternModal";
+import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
 import {
   type DailyCandleData,
   getCandleData,
@@ -30,6 +32,7 @@ import {
   AlertCircle,
   TrendingUp,
   TrendingDown,
+  BookOpen,
 } from "lucide-react";
 
 // Percentage change relative to a base price. Returns 0 when the base is zero or
@@ -83,6 +86,13 @@ function App() {
   // Layout states
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "charts">("overview");
+  const [isCspModalOpen, setIsCspModalOpen] = useState(false);
+  const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
+
+  const openCspModal = (patternId?: string | null) => {
+    setSelectedPatternId(patternId || null);
+    setIsCspModalOpen(true);
+  };
 
   const selectedTickerRef = useRef(selectedTicker);
   const timeframeRef = useRef(timeframe);
@@ -426,9 +436,18 @@ function App() {
           <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
             <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
-              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                {candle?.date || "N/A"}
-              </span>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => openCspModal()}
+                  className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+                >
+                  <BookOpen size={14} />
+                  All Candlestick Patterns
+                </button>
+                <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                  {candle?.date || "N/A"}
+                </span>
+              </div>
             </div>
             <div className="p-6 text-center text-slate-500 text-sm italic">
               No candlestick patterns detected recently.
@@ -460,18 +479,28 @@ function App() {
       }
 
       const dateText = relativeTime || latestPattern.date;
+      const details = getCandlestickPatternDetails(latestPattern);
 
       return (
         <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
           <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
-            <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-              {candle?.date || "N/A"}
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => openCspModal(details?.id)}
+                className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+              >
+                <BookOpen size={14} />
+                All Candlestick Patterns
+              </button>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                {candle?.date || "N/A"}
+              </span>
+            </div>
           </div>
           <div className="p-6">
             <div
-              className={`relative overflow-hidden p-6 rounded-xl border transition-all duration-300 hover:scale-[1.01] ${
+              className={`relative overflow-hidden p-5 rounded-xl border transition-all duration-300 ${
                 isBullish
                   ? "bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-800/50 hover:bg-emerald-950/20"
                   : "bg-rose-950/10 border-rose-900/30 hover:border-rose-800/50 hover:bg-rose-950/20"
@@ -479,49 +508,87 @@ function App() {
             >
               {/* Ambient Glow effect */}
               <div
-                className={`absolute top-0 right-0 w-32 h-32 -mr-6 -mt-6 rounded-full blur-3xl opacity-15 ${
+                className={`absolute top-0 right-0 w-32 h-32 -mr-6 -mt-6 rounded-full blur-3xl opacity-15 pointer-events-none ${
                   isBullish ? "bg-emerald-500" : "bg-rose-500"
                 }`}
               />
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-14 h-14 flex items-center justify-center rounded-xl font-mono font-black text-lg ${
-                      isBullish
-                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-                        : "bg-rose-500/15 text-rose-400 border border-rose-500/20"
-                    }`}
-                  >
-                    {latestPattern.shortName}
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <h4 className="font-extrabold text-white text-lg leading-none">
-                        {latestPattern.longName}
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 flex-1 min-w-0">
+                  {/* Visual SVG Schematic */}
+                  {details ? (
+                    <div className="shrink-0 flex items-center justify-center">
+                      <svg
+                        className="w-[150px] h-[130px] rounded-lg shadow-lg border border-slate-800 shrink-0"
+                        style={{ background: "#1e1e24" }}
+                        viewBox="0 0 150 130"
+                        dangerouslySetInnerHTML={{ __html: details.svgMarkup }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      className={`w-14 h-14 shrink-0 flex items-center justify-center rounded-xl font-mono font-black text-lg ${
+                        isBullish
+                          ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+                          : "bg-rose-500/15 text-rose-400 border border-rose-500/20"
+                      }`}
+                    >
+                      {latestPattern.shortName}
+                    </div>
+                  )}
+
+                  {/* Pattern Details Column */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <h4 className="font-extrabold text-white text-base md:text-lg leading-tight">
+                        {details ? details.title : latestPattern.longName}
                       </h4>
                       <span
-                        className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                        className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider flex items-center gap-1 border ${
                           isBullish
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/10"
-                            : "bg-rose-500/10 text-rose-400 border border-rose-500/10"
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                         }`}
                       >
-                        {isBullish ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                        {isBullish ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                         {latestPattern.sentiment.replace("_", " ")}
                       </span>
+                      {details && (
+                        <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[10px] font-mono font-medium border border-slate-700">
+                          {details.bars} {details.bars === 1 ? "Bar" : "Bars"}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-slate-400">
-                      {isReversal ? "Potential trend reversal signal" : "Potential trend continuation signal"}
-                    </p>
+
+                    {details ? (
+                      <div className="text-xs text-slate-300 space-y-1.5 leading-relaxed">
+                        <div>
+                          <span className="font-semibold text-slate-100 mr-1.5">Structure:</span>
+                          <span className="text-slate-300">{details.structure}</span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-100 mr-1.5">Psychology:</span>
+                          <span className="text-slate-400">{details.psychology}</span>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-slate-100 mr-1.5">Outcome:</span>
+                          <span className="text-slate-300">{details.outcome}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400">
+                        {isReversal ? "Potential trend reversal signal" : "Potential trend continuation signal"}
+                      </p>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:items-end text-sm">
-                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">
+                {/* Right: Detected Indicator */}
+                <div className="shrink-0 flex flex-col items-start sm:items-end justify-center self-start sm:self-center lg:self-center">
+                  <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider mb-1">
                     Detected
                   </span>
-                  <span className="font-mono text-slate-200 font-semibold bg-slate-950/60 px-3 py-1.5 rounded-lg border border-slate-800/60 shadow-inner">
+                  <span className="font-mono text-slate-200 font-semibold text-xs bg-slate-950/80 px-3 py-1.5 rounded-lg border border-slate-800/80 shadow-inner">
                     {dateText}
                   </span>
                 </div>
@@ -900,6 +967,11 @@ function App() {
           {renderContent()}
         </main>
       </div>
+      <CandlestickPatternModal
+        isOpen={isCspModalOpen}
+        onClose={() => setIsCspModalOpen(false)}
+        initialPatternId={selectedPatternId}
+      />
     </div>
   );
 }
