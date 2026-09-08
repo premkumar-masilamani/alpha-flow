@@ -10,16 +10,15 @@ describe('CandlestickPatternModal', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    it('renders modal dialog and iframe when isOpen is true', () => {
+    it('renders modal dialog and native encyclopedia when isOpen is true', () => {
         render(
             <CandlestickPatternModal isOpen={true} onClose={vi.fn()} initialPatternId="hammer" />
         );
 
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(screen.getByText('Candlestick Patterns Encyclopedia')).toBeInTheDocument();
-        const iframe = screen.getByTitle('Candlestick Patterns Encyclopedia');
-        expect(iframe).toBeInTheDocument();
-        expect(iframe).toHaveAttribute('src', '/csp.html#pattern-hammer');
+        expect(screen.getByPlaceholderText(/Search patterns/i)).toBeInTheDocument();
+        expect(screen.getByText('Hammer (1)')).toBeInTheDocument();
     });
 
     it('calls onClose when close button is clicked', () => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { BookOpen, X } from 'lucide-react';
+import CandlestickPatternEncyclopedia from './CandlestickPatternEncyclopedia';
 
 interface CandlestickPatternModalProps {
     isOpen: boolean;
@@ -42,8 +43,6 @@ const CandlestickPatternModal: React.FC<CandlestickPatternModalProps> = ({
 
     if (!isOpen) return null;
 
-    const iframeSrc = initialPatternId ? `/csp.html#pattern-${initialPatternId}` : '/csp.html';
-
     return (
         <div
             role="dialog"
@@ -77,18 +76,14 @@ const CandlestickPatternModal: React.FC<CandlestickPatternModalProps> = ({
                         <button
                             onClick={onClose}
                             aria-label="Close modal"
-                            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                         >
                             <X size={18} />
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 w-full h-full bg-slate-950 overflow-hidden relative">
-                    <iframe
-                        src={iframeSrc}
-                        title="Candlestick Patterns Encyclopedia"
-                        className="w-full h-full border-none"
-                    />
+                <div className="flex-1 w-full h-full bg-slate-950 overflow-hidden relative flex flex-col min-h-0">
+                    <CandlestickPatternEncyclopedia initialPatternId={initialPatternId} />
                 </div>
             </div>
         </div>

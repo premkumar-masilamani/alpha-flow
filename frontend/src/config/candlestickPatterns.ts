@@ -762,6 +762,40 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
     },
 ];
 
+export interface CandlestickGroup {
+    id: 'bullish-reversals' | 'bearish-reversals' | 'bullish-continuations' | 'bearish-continuations';
+    title: string;
+    subtitle: string;
+    badgeClass: string;
+}
+
+export const CANDLESTICK_GROUPS: CandlestickGroup[] = [
+    {
+        id: 'bullish-reversals',
+        title: 'Part I: Bullish Reversals',
+        subtitle: 'Appears at the bottom of a downtrend; signals sellers are exhausted and buyers are taking control.',
+        badgeClass: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+    },
+    {
+        id: 'bearish-reversals',
+        title: 'Part II: Bearish Reversals',
+        subtitle: 'Appears at the peak of an uptrend; signals buyers are exhausted and distribution is underway.',
+        badgeClass: 'bg-rose-500/15 text-rose-400 border border-rose-500/20',
+    },
+    {
+        id: 'bullish-continuations',
+        title: 'Part III: Bullish Continuations',
+        subtitle: 'Appears during an uptrend; represents consolidation before upward resumption.',
+        badgeClass: 'bg-blue-500/15 text-blue-400 border border-blue-500/20',
+    },
+    {
+        id: 'bearish-continuations',
+        title: 'Part IV: Bearish Continuations',
+        subtitle: 'Appears during a downtrend; represents temporary pause or pullback before downward resumption.',
+        badgeClass: 'bg-amber-500/15 text-amber-400 border border-amber-500/20',
+    },
+];
+
 const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const LOOKUP_MAP = new Map<string, CandlestickPatternDetail>();
@@ -772,92 +806,29 @@ for (const p of CANDLESTICK_PATTERNS) {
     LOOKUP_MAP.set(norm(p.title), p);
     const titleWithoutBars = p.title.replace(/\s*\(\d+\)/, '');
     LOOKUP_MAP.set(norm(titleWithoutBars), p);
-    const cleanPrefix = norm(titleWithoutBars).replace(/^bullish/, '').replace(/^bearish/, '');
-    if (cleanPrefix) {
-        if (!LOOKUP_MAP.has(cleanPrefix)) LOOKUP_MAP.set(cleanPrefix, p);
+    // Explicit full names with prefix
+    if (p.group.startsWith('bullish')) {
+        LOOKUP_MAP.set('bullish' + norm(titleWithoutBars), p);
+    } else if (p.group.startsWith('bearish')) {
+        LOOKUP_MAP.set('bearish' + norm(titleWithoutBars), p);
     }
 }
 
-// Aliases for backend enum longNames
-LOOKUP_MAP.set(norm('Long White Body'), LOOKUP_MAP.get('long-white-body')!);
-LOOKUP_MAP.set(norm('Hammer'), LOOKUP_MAP.get('hammer')!);
-LOOKUP_MAP.set(norm('Inverted Hammer'), LOOKUP_MAP.get('inverted-hammer')!);
-LOOKUP_MAP.set(norm('Bullish Belt Hold'), LOOKUP_MAP.get('bullish-belt-hold')!);
-LOOKUP_MAP.set(norm('Bullish Engulfing'), LOOKUP_MAP.get('bullish-engulfing')!);
-LOOKUP_MAP.set(norm('Bullish Harami'), LOOKUP_MAP.get('bullish-harami')!);
-LOOKUP_MAP.set(norm('Bullish Harami Cross'), LOOKUP_MAP.get('bullish-harami-cross')!);
-LOOKUP_MAP.set(norm('Piercing Line'), LOOKUP_MAP.get('piercing-line')!);
-LOOKUP_MAP.set(norm('Bullish Doji Star'), LOOKUP_MAP.get('bullish-doji-star')!);
-LOOKUP_MAP.set(norm('Bullish Meeting Lines'), LOOKUP_MAP.get('bullish-meeting-lines')!);
-LOOKUP_MAP.set(norm('Three White Soldiers'), LOOKUP_MAP.get('three-white-soldiers')!);
-LOOKUP_MAP.set(norm('Morning Star'), LOOKUP_MAP.get('morning-star')!);
-LOOKUP_MAP.set(norm('Morning Doji Star'), LOOKUP_MAP.get('morning-doji-star')!);
-LOOKUP_MAP.set(norm('Bullish Abandoned Baby'), LOOKUP_MAP.get('bullish-abandoned-baby')!);
-LOOKUP_MAP.set(norm('Bullish Tri-Star'), LOOKUP_MAP.get('bullish-tri-star')!);
-LOOKUP_MAP.set(norm('Bullish Breakaway'), LOOKUP_MAP.get('bullish-breakaway')!);
-LOOKUP_MAP.set(norm('Three Inside Up'), LOOKUP_MAP.get('three-inside-up')!);
-LOOKUP_MAP.set(norm('Three Outside Up'), LOOKUP_MAP.get('three-outside-up')!);
-LOOKUP_MAP.set(norm('Bullish Kicking'), LOOKUP_MAP.get('bullish-kicking')!);
-LOOKUP_MAP.set(norm('Unique Three Rivers Bottom'), LOOKUP_MAP.get('unique-three-rivers-bottom')!);
-LOOKUP_MAP.set(norm('Three Stars in the South'), LOOKUP_MAP.get('three-stars-in-the-south')!);
-LOOKUP_MAP.set(norm('Concealing Swallow'), LOOKUP_MAP.get('concealing-swallow')!);
-LOOKUP_MAP.set(norm('Bullish Stick Sandwich'), LOOKUP_MAP.get('bullish-stick-sandwich')!);
-LOOKUP_MAP.set(norm('Homing Pigeon'), LOOKUP_MAP.get('homing-pigeon')!);
-LOOKUP_MAP.set(norm('Ladder Bottom'), LOOKUP_MAP.get('ladder-bottom')!);
-LOOKUP_MAP.set(norm('Matching Low'), LOOKUP_MAP.get('matching-low')!);
-LOOKUP_MAP.set(norm('Long Black Body'), LOOKUP_MAP.get('long-black-body')!);
-LOOKUP_MAP.set(norm('Hanging Man'), LOOKUP_MAP.get('hanging-man')!);
-LOOKUP_MAP.set(norm('Shooting Star'), LOOKUP_MAP.get('shooting-star')!);
-LOOKUP_MAP.set(norm('Bearish Belt Hold'), LOOKUP_MAP.get('bullish-belt-hold')!);
-LOOKUP_MAP.set(norm('Bearish Engulfing'), LOOKUP_MAP.get('bullish-engulfing')!);
-LOOKUP_MAP.set(norm('Bearish Harami'), LOOKUP_MAP.get('bullish-harami')!);
-LOOKUP_MAP.set(norm('Bearish Harami Cross'), LOOKUP_MAP.get('bullish-harami-cross')!);
-LOOKUP_MAP.set(norm('Dark Cloud Cover'), LOOKUP_MAP.get('dark-cloud-cover')!);
-LOOKUP_MAP.set(norm('Bearish Doji Star'), LOOKUP_MAP.get('bullish-doji-star')!);
-LOOKUP_MAP.set(norm('Bearish Meeting Lines'), LOOKUP_MAP.get('bullish-meeting-lines')!);
-LOOKUP_MAP.set(norm('Three Black Crows'), LOOKUP_MAP.get('three-black-crows')!);
-LOOKUP_MAP.set(norm('Evening Star'), LOOKUP_MAP.get('evening-star')!);
-LOOKUP_MAP.set(norm('Evening Doji Star'), LOOKUP_MAP.get('evening-doji-star')!);
-LOOKUP_MAP.set(norm('Bearish Abandoned Baby'), LOOKUP_MAP.get('bullish-abandoned-baby')!);
-LOOKUP_MAP.set(norm('Bearish Tri-Star'), LOOKUP_MAP.get('bullish-tri-star')!);
-LOOKUP_MAP.set(norm('Bearish Breakaway'), LOOKUP_MAP.get('bullish-breakaway')!);
-LOOKUP_MAP.set(norm('Three Inside Down'), LOOKUP_MAP.get('three-inside-down')!);
-LOOKUP_MAP.set(norm('Three Outside Down'), LOOKUP_MAP.get('three-outside-down')!);
-LOOKUP_MAP.set(norm('Bearish Kicking'), LOOKUP_MAP.get('bullish-kicking')!);
-LOOKUP_MAP.set(norm('Latter Top'), LOOKUP_MAP.get('latter-top')!);
-LOOKUP_MAP.set(norm('Matching High'), LOOKUP_MAP.get('matching-high')!);
-LOOKUP_MAP.set(norm('Upside Gap Two Crows'), LOOKUP_MAP.get('upside-gap-two-crows')!);
-LOOKUP_MAP.set(norm('Identical Three Crows'), LOOKUP_MAP.get('identical-three-crows')!);
-LOOKUP_MAP.set(norm('Deliberation'), LOOKUP_MAP.get('deliberation')!);
-LOOKUP_MAP.set(norm('Advance Block'), LOOKUP_MAP.get('advance-block')!);
-LOOKUP_MAP.set(norm('Two Crows'), LOOKUP_MAP.get('two-crows')!);
-LOOKUP_MAP.set(norm('Bullish Separating Lines'), LOOKUP_MAP.get('bullish-separating-lines')!);
-LOOKUP_MAP.set(norm('Rising Three Methods'), LOOKUP_MAP.get('rising-three-methods')!);
-LOOKUP_MAP.set(norm('Upside Tasuki Gap'), LOOKUP_MAP.get('upside-tasuki-gap')!);
-LOOKUP_MAP.set(norm('Bullish Side-by-Side White Lines'), LOOKUP_MAP.get('bullish-side-by-side-white-lines')!);
-LOOKUP_MAP.set(norm('Bullish Three Line Strike'), LOOKUP_MAP.get('bullish-three-line-strike')!);
-LOOKUP_MAP.set(norm('Upside Gap Three Methods'), LOOKUP_MAP.get('upside-gap-three-methods')!);
-LOOKUP_MAP.set(norm('Bullish On Neck Line'), LOOKUP_MAP.get('bullish-on-neck-line')!);
-LOOKUP_MAP.set(norm('Bullish In Neck Line'), LOOKUP_MAP.get('bullish-in-neck-line')!);
-LOOKUP_MAP.set(norm('Bearish Separating Lines'), LOOKUP_MAP.get('bullish-separating-lines')!);
-LOOKUP_MAP.set(norm('Falling Three Methods'), LOOKUP_MAP.get('falling-three-methods')!);
-LOOKUP_MAP.set(norm('Downside Tasuki Gap'), LOOKUP_MAP.get('downside-tasuki-gap')!);
-LOOKUP_MAP.set(norm('Bearish Side-by-Side White Lines'), LOOKUP_MAP.get('bullish-side-by-side-white-lines')!);
-LOOKUP_MAP.set(norm('Bearish Three Line Strike'), LOOKUP_MAP.get('bullish-three-line-strike')!);
-LOOKUP_MAP.set(norm('Downside Gap Three Methods'), LOOKUP_MAP.get('downside-gap-three-methods')!);
-LOOKUP_MAP.set(norm('Bearish On Neck Line'), LOOKUP_MAP.get('bullish-on-neck-line')!);
-LOOKUP_MAP.set(norm('Bearish In Neck Line'), LOOKUP_MAP.get('bullish-in-neck-line')!);
-
 export function getCandlestickPatternDetails(
-    pattern: { longName?: string; shortName?: string } | null | undefined
+    pattern: { longName?: string; shortName?: string; sentiment?: string } | null | undefined
 ): CandlestickPatternDetail | null {
     if (!pattern) return null;
     if (pattern.longName) {
         const direct = LOOKUP_MAP.get(norm(pattern.longName));
         if (direct) return direct;
+        if (pattern.sentiment) {
+            const prefix = pattern.sentiment.toLowerCase().startsWith('bullish') ? 'bullish' : 'bearish';
+            const withPrefix = LOOKUP_MAP.get(prefix + norm(pattern.longName));
+            if (withPrefix) return withPrefix;
+        }
         const clean = norm(pattern.longName).replace(/^bullish/, '').replace(/^bearish/, '');
-        const prefix = LOOKUP_MAP.get(clean);
-        if (prefix) return prefix;
+        const fallback = LOOKUP_MAP.get(clean);
+        if (fallback) return fallback;
     }
     return null;
 }
