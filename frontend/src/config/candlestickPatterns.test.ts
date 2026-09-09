@@ -68,4 +68,42 @@ describe('candlestickPatterns', () => {
             expect(pattern.outcome.toLowerCase()).not.toMatch(/\b(black|white)\s+(candle|body|marubozu)/);
         }
     });
+
+    it('correctly defines Ladder Top and does not retain Latter Top alias', () => {
+        const ladderTop = getCandlestickPatternDetails({ longName: 'Ladder Top' });
+        expect(ladderTop).not.toBeNull();
+        expect(ladderTop?.id).toBe('ladder-top');
+        expect(ladderTop?.title).toBe('Ladder Top (5)');
+        expect(ladderTop?.bars).toBe(5);
+
+        // Confirm Latter Top is not retained
+        const latterTop = getCandlestickPatternDetails({ longName: 'Latter Top' });
+        expect(latterTop).toBeNull();
+    });
+
+    it('has authentic classical red-to-green visuals for Bearish On Neck and Bearish In Neck lines', () => {
+        const onNeck = CANDLESTICK_PATTERNS.find(p => p.id === 'bearish-on-neck-line');
+        expect(onNeck).toBeDefined();
+        // First candle red, second candle green
+        expect(onNeck?.svgMarkup).toContain('fill="#e74c3c"');
+        expect(onNeck?.svgMarkup).toContain('fill="#2ecc71"');
+
+        const inNeck = CANDLESTICK_PATTERNS.find(p => p.id === 'bearish-in-neck-line');
+        expect(inNeck).toBeDefined();
+        expect(inNeck?.svgMarkup).toContain('fill="#e74c3c"');
+        expect(inNeck?.svgMarkup).toContain('fill="#2ecc71"');
+    });
+
+    it('avoids "real body" and "real bodies" across all pattern descriptions, using clean "body" instead', () => {
+        for (const pattern of CANDLESTICK_PATTERNS) {
+            expect(pattern.structure.toLowerCase()).not.toContain('real body');
+            expect(pattern.structure.toLowerCase()).not.toContain('real bodies');
+            expect(pattern.psychology.toLowerCase()).not.toContain('real body');
+            expect(pattern.psychology.toLowerCase()).not.toContain('real bodies');
+            expect(pattern.outcome.toLowerCase()).not.toContain('real body');
+            expect(pattern.outcome.toLowerCase()).not.toContain('real bodies');
+        }
+    });
 });
+
+

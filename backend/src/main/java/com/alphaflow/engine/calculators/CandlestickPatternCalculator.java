@@ -748,7 +748,7 @@ public class CandlestickPatternCalculator {
             && curBody.compareTo(avgBody) >= 0
             && cur.open().compareTo(prev.open()) < 0;
 
-      case LATTER_TOP:
+      case LADDER_TOP:
         return prev4 != null
             && prev4Green
             && prev3Green
