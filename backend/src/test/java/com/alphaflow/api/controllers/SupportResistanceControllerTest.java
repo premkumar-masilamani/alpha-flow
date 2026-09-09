@@ -35,11 +35,15 @@ class SupportResistanceControllerTest {
   @Test
   void testGetSupportResistancesDaily() {
     LocalDate date = LocalDate.of(2026, 5, 29);
+    LocalDate firstTouch = LocalDate.of(2026, 1, 10);
+    LocalDate lastTouch = LocalDate.of(2026, 5, 20);
     when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     SupportResistanceDto dto =
         SupportResistanceDto.builder()
             .priceDate(date)
+            .firstTouchDate(firstTouch)
+            .lastTouchDate(lastTouch)
             .zoneBottom(new BigDecimal("100.00"))
             .zoneTop(new BigDecimal("105.00"))
             .zoneMidpoint(new BigDecimal("102.50"))
@@ -53,16 +57,22 @@ class SupportResistanceControllerTest {
         controller.getSupportResistances("AAPL", Timeframe.DAILY, date);
     assertEquals(1, result.size());
     assertEquals("SUPPORT", result.getFirst().getLevelType());
+    assertEquals(firstTouch, result.getFirst().getFirstTouchDate());
+    assertEquals(lastTouch, result.getFirst().getLastTouchDate());
   }
 
   @Test
   void testGetSupportResistancesWeekly() {
     LocalDate date = LocalDate.of(2026, 5, 29);
+    LocalDate firstTouch = LocalDate.of(2026, 2, 5);
+    LocalDate lastTouch = LocalDate.of(2026, 5, 12);
     when(tickerService.getTicker("AAPL")).thenReturn(ticker);
 
     SupportResistanceDto dto =
         SupportResistanceDto.builder()
             .priceDate(date)
+            .firstTouchDate(firstTouch)
+            .lastTouchDate(lastTouch)
             .zoneBottom(new BigDecimal("90.00"))
             .zoneTop(new BigDecimal("95.00"))
             .zoneMidpoint(new BigDecimal("92.50"))
@@ -76,6 +86,8 @@ class SupportResistanceControllerTest {
         controller.getSupportResistances("AAPL", Timeframe.WEEKLY, date);
     assertEquals(1, result.size());
     assertEquals("RESISTANCE", result.getFirst().getLevelType());
+    assertEquals(firstTouch, result.getFirst().getFirstTouchDate());
+    assertEquals(lastTouch, result.getFirst().getLastTouchDate());
   }
 
   @Test

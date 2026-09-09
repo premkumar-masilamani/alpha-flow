@@ -2,15 +2,12 @@
 
 ## Commands
 ```bash
-# Rebuild Postgres container, run migrations + seed scripts
-make run_database
-
-# Apply new migrations without rebuilding container
-make migrate_database
-
 # Connect to psql shell on active container
 make connect_database
 ```
+
+> [!CAUTION]
+> **NEVER apply migrations**: Agents must NEVER run `make migrate_database`, `make run_database`, or any command that applies migrations. All migrations are strictly manual.
 
 ## Boundaries
 
@@ -19,11 +16,13 @@ make connect_database
 - Ensure down scripts are exact reversals (`DROP TABLE IF EXISTS ... CASCADE`).
 - Use `IF EXISTS` / `IF NOT EXISTS` guards for idempotency.
 - Use DB migrations strictly for DDL only (schema changes).
+- Author migration files only; leave execution entirely to the user (all migrations are manual).
 
 ### Ask first
 - Any structural schema changes to historical price tables or indicator structures.
 
 ### Never do
+- Apply migrations (never run `make migrate_database`, `make run_database`, `migrate`, or any automated migration execution). All migrations are manual—never ever apply them.
 - Drop tables without `CASCADE`.
 - Use PostgreSQL reserved keywords (`user`, `type`, `order`, etc.) for column names.
 

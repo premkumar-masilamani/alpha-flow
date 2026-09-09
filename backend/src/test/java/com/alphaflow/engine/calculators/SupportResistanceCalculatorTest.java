@@ -1,5 +1,6 @@
 package com.alphaflow.engine.calculators;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -197,6 +198,40 @@ class SupportResistanceCalculatorTest {
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
     verify(dailySrRepo).saveAll(captor.capture());
     assertFalse(captor.getValue().isEmpty());
+    DailySupportResistance saved = captor.getValue().getFirst();
+    org.junit.jupiter.api.Assertions.assertNotNull(saved.getFirstTouchDate());
+    org.junit.jupiter.api.Assertions.assertNotNull(saved.getLastTouchDate());
+  }
+
+  @Test
+  void testBucketTouchDatesTrackingAndReset() {
+    Bucket bucket =
+        new Bucket(EPOCH, BigDecimal.valueOf(100), BigDecimal.valueOf(105), LevelType.SUPPORT);
+    org.junit.jupiter.api.Assertions.assertNull(bucket.getFirstTouchDate());
+    org.junit.jupiter.api.Assertions.assertNull(bucket.getLastTouchDate());
+
+    LocalDate d1 = LocalDate.of(2026, 1, 10);
+    bucket.incrementTouchCount(d1);
+    assertEquals(1, bucket.getTouchCount());
+    assertEquals(d1, bucket.getFirstTouchDate());
+    assertEquals(d1, bucket.getLastTouchDate());
+
+    LocalDate d2 = LocalDate.of(2026, 1, 15);
+    bucket.incrementTouchCount(d2);
+    assertEquals(2, bucket.getTouchCount());
+    assertEquals(d1, bucket.getFirstTouchDate());
+    assertEquals(d2, bucket.getLastTouchDate());
+
+    LocalDate d3 = LocalDate.of(2026, 1, 20);
+    bucket.incrementTouchCount(d3);
+    assertEquals(3, bucket.getTouchCount());
+    assertEquals(d1, bucket.getFirstTouchDate());
+    assertEquals(d3, bucket.getLastTouchDate());
+
+    bucket.resetTouchCount();
+    assertEquals(0, bucket.getTouchCount());
+    org.junit.jupiter.api.Assertions.assertNull(bucket.getFirstTouchDate());
+    org.junit.jupiter.api.Assertions.assertNull(bucket.getLastTouchDate());
   }
 
   @Test

@@ -17,6 +17,8 @@ public class Bucket {
   private final BigDecimal midpoint;
   private LevelType levelType;
   private int touchCount;
+  private LocalDate firstTouchDate;
+  private LocalDate lastTouchDate;
 
   public Bucket(LocalDate priceDate, BigDecimal bottom, BigDecimal top, LevelType levelType) {
     this.priceDate = priceDate;
@@ -25,13 +27,25 @@ public class Bucket {
     this.midpoint = bottom.add(top).divide(BigDecimal.valueOf(2), 18, RoundingMode.HALF_UP);
     this.levelType = levelType;
     this.touchCount = 0;
+    this.firstTouchDate = null;
+    this.lastTouchDate = null;
   }
 
   public void incrementTouchCount() {
     this.touchCount++;
   }
 
+  public void incrementTouchCount(LocalDate barDate) {
+    this.touchCount++;
+    if (this.firstTouchDate == null) {
+      this.firstTouchDate = barDate;
+    }
+    this.lastTouchDate = barDate;
+  }
+
   public void resetTouchCount() {
     this.touchCount = 0;
+    this.firstTouchDate = null;
+    this.lastTouchDate = null;
   }
 }

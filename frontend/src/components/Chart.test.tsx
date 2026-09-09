@@ -16,6 +16,9 @@ vi.mock('lightweight-charts', () => {
                 }),
                 createPriceLine: vi.fn(),
                 setMarkers: vi.fn(),
+                attachPrimitive: vi.fn(),
+                detachPrimitive: vi.fn(),
+                priceToCoordinate: vi.fn().mockReturnValue(100),
             }),
             remove: vi.fn(),
             applyOptions: vi.fn(),
@@ -25,6 +28,7 @@ vi.mock('lightweight-charts', () => {
                 setVisibleLogicalRange: vi.fn(),
                 subscribeVisibleTimeRangeChange: vi.fn(),
                 subscribeVisibleLogicalRangeChange: vi.fn(),
+                timeToCoordinate: vi.fn().mockReturnValue(100),
             }),
             panes: vi.fn().mockReturnValue([]),
         }),
@@ -173,6 +177,9 @@ describe('Chart Component', () => {
                     }),
                     createPriceLine: vi.fn(),
                     setMarkers: vi.fn(),
+                    attachPrimitive: vi.fn(),
+                    detachPrimitive: vi.fn(),
+                    priceToCoordinate: vi.fn().mockReturnValue(100),
                 }),
                 remove: vi.fn(),
                 applyOptions: vi.fn(),
@@ -184,6 +191,7 @@ describe('Chart Component', () => {
                     subscribeVisibleLogicalRangeChange: (cb: (logicalRange: { from: number; to: number } | null) => void) => {
                         capturedCallback = cb;
                     },
+                    timeToCoordinate: vi.fn().mockReturnValue(100),
                 }),
                 panes: vi.fn().mockReturnValue([]),
             } as unknown as ReturnType<typeof createChart>;
@@ -293,5 +301,96 @@ describe('Chart Component', () => {
         ]);
 
         unmountDup();
+    });
+
+    it('attaches SupportResistancePrimitive to candlestick series when showSupportResistance is true', () => {
+        const mockSrData = [
+            {
+                priceDate: '2026-06-03',
+                firstTouchDate: '2026-06-01',
+                lastTouchDate: '2026-06-02',
+                zoneBottom: 100,
+                zoneTop: 105,
+                zoneMidpoint: 102.5,
+                levelType: 'SUPPORT' as const,
+                touchCount: 3,
+            }
+        ];
+
+        // 1. S&R enabled
+        const { unmount } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                supportResistances={mockSrData}
+                showSupportResistance={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMock = chartInstance.addSeries.mock.results[0].value;
+        expect(candlestickSeriesMock.attachPrimitive).toHaveBeenCalledTimes(1);
+
+        unmount();
+        vi.clearAllMocks();
+
+        // 2. S&R disabled
+        const { unmount: unmountDisabled } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                supportResistances={mockSrData}
+                showSupportResistance={false}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstanceDisabled = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMockDisabled = chartInstanceDisabled.addSeries.mock.results[0].value;
+        expect(candlestickSeriesMockDisabled.attachPrimitive).not.toHaveBeenCalled();
+
+        unmountDisabled();
+        vi.clearAllMocks();
+
+        // 3. S&R without firstTouchDate does not attach primitive (no fallback to full horizontal line)
+        const mockSrDataNoTouchDate = [
+            {
+                priceDate: '2026-06-03',
+                zoneBottom: 100,
+                zoneTop: 105,
+                zoneMidpoint: 102.5,
+                levelType: 'SUPPORT' as const,
+                touchCount: 3,
+            }
+        ];
+
+        const { unmount: unmountNoTouch } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                supportResistances={mockSrDataNoTouchDate}
+                showSupportResistance={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstanceNoTouch = vi.mocked(createChart).mock.results[0].value;
+        const candleMockNoTouch = chartInstanceNoTouch.addSeries.mock.results[0].value;
+        expect(candleMockNoTouch.attachPrimitive).not.toHaveBeenCalled();
+
+        unmountNoTouch();
     });
 });

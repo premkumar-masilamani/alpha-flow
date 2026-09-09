@@ -38,10 +38,14 @@ class SupportResistanceServiceTest {
   @Test
   void testGetSupportResistancesDaily() {
     LocalDate date = LocalDate.of(2026, 5, 29);
+    LocalDate firstTouch = LocalDate.of(2026, 1, 10);
+    LocalDate lastTouch = LocalDate.of(2026, 5, 20);
     DailySupportResistance dsr =
         DailySupportResistance.builder()
             .ticker(ticker)
             .priceDate(date)
+            .firstTouchDate(firstTouch)
+            .lastTouchDate(lastTouch)
             .zoneBottom(new BigDecimal("100.0000"))
             .zoneTop(new BigDecimal("105.0000"))
             .zoneMidpoint(new BigDecimal("102.5000"))
@@ -56,15 +60,21 @@ class SupportResistanceServiceTest {
     assertEquals(1, result.size());
     assertEquals("SUPPORT", result.getFirst().getLevelType());
     assertEquals(4, result.getFirst().getTouchCount());
+    assertEquals(firstTouch, result.getFirst().getFirstTouchDate());
+    assertEquals(lastTouch, result.getFirst().getLastTouchDate());
   }
 
   @Test
   void testGetSupportResistancesWeekly() {
     LocalDate date = LocalDate.of(2026, 5, 29);
+    LocalDate firstTouch = LocalDate.of(2026, 2, 5);
+    LocalDate lastTouch = LocalDate.of(2026, 5, 12);
     WeeklySupportResistance wsr =
         WeeklySupportResistance.builder()
             .ticker(ticker)
             .priceDate(date)
+            .firstTouchDate(firstTouch)
+            .lastTouchDate(lastTouch)
             .zoneBottom(new BigDecimal("90.0000"))
             .zoneTop(new BigDecimal("95.0000"))
             .zoneMidpoint(new BigDecimal("92.5000"))
@@ -78,6 +88,8 @@ class SupportResistanceServiceTest {
         service.getSupportResistances(ticker, Timeframe.WEEKLY, date);
     assertEquals(1, result.size());
     assertEquals("RESISTANCE", result.getFirst().getLevelType());
+    assertEquals(firstTouch, result.getFirst().getFirstTouchDate());
+    assertEquals(lastTouch, result.getFirst().getLastTouchDate());
   }
 
   @Test

@@ -43,6 +43,12 @@ public class DailySupportResistance {
   @Column(name = "touch_count", nullable = false)
   private Integer touchCount;
 
+  @Column(name = "first_touch_date")
+  private LocalDate firstTouchDate;
+
+  @Column(name = "last_touch_date")
+  private LocalDate lastTouchDate;
+
   @Column(name = "level_type", nullable = false, length = 20)
   private String levelType;
 }

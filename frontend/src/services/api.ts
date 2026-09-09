@@ -201,6 +201,8 @@ export type LevelType = typeof LEVEL_TYPES[keyof typeof LEVEL_TYPES];
 
 export interface SupportResistanceData {
     priceDate: string;
+    firstTouchDate?: string;
+    lastTouchDate?: string;
     zoneBottom: number;
     zoneTop: number;
     zoneMidpoint: number;
