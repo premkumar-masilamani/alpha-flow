@@ -29,6 +29,7 @@ make lint
 
 ### Never do
 - Commit secrets, private API keys, or `.env` files.
+- Apply database migrations (all migrations are strictly manual—never ever apply them).
 
 ## Project Structure
 ```text
