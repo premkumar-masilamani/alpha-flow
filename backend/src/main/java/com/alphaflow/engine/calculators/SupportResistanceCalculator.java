@@ -149,13 +149,13 @@ public class SupportResistanceCalculator {
         if (b.getLevelType() == LevelType.SUPPORT) {
           // If Daily Low >= Z_bottom AND Daily Low <= Z_top
           if (bar.low().compareTo(b.getBottom()) >= 0 && bar.low().compareTo(b.getTop()) <= 0) {
-            b.incrementTouchCount();
+            b.incrementTouchCount(bar.date());
           }
         } else {
           // RESISTANCE
           // If Daily High >= Z_bottom AND Daily High <= Z_top
           if (bar.high().compareTo(b.getBottom()) >= 0 && bar.high().compareTo(b.getTop()) <= 0) {
-            b.incrementTouchCount();
+            b.incrementTouchCount(bar.date());
           }
         }
 
@@ -214,6 +214,8 @@ public class SupportResistanceCalculator {
                 .zoneTop(b.getTop())
                 .zoneMidpoint(b.getMidpoint())
                 .touchCount(b.getTouchCount())
+                .firstTouchDate(b.getFirstTouchDate())
+                .lastTouchDate(b.getLastTouchDate())
                 .levelType(b.getLevelType().name())
                 .build());
       }
@@ -229,6 +231,8 @@ public class SupportResistanceCalculator {
                 .zoneTop(b.getTop())
                 .zoneMidpoint(b.getMidpoint())
                 .touchCount(b.getTouchCount())
+                .firstTouchDate(b.getFirstTouchDate())
+                .lastTouchDate(b.getLastTouchDate())
                 .levelType(b.getLevelType().name())
                 .build());
       }

@@ -9,6 +9,8 @@ import lombok.Data;
 @Builder
 public class SupportResistanceDto {
   private LocalDate priceDate;
+  private LocalDate firstTouchDate;
+  private LocalDate lastTouchDate;
   private BigDecimal zoneBottom;
   private BigDecimal zoneTop;
   private BigDecimal zoneMidpoint;

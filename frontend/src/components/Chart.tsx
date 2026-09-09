@@ -5,6 +5,7 @@ import type {
     ISeriesPrimitive,
     IPrimitivePaneView,
     IPrimitivePaneRenderer,
+    ISeriesPrimitiveAxisView,
     LogicalRange,
     Logical
 } from 'lightweight-charts';
@@ -88,6 +89,175 @@ class HorizontalBandRenderer implements IPrimitivePaneRenderer {
         });
     }
 }
+
+interface SupportResistanceSegmentItem {
+    price: number;
+    startDate: string;
+    endDate: string;
+    color: string;
+    levelType: LevelType;
+    zoneTop?: number;
+    zoneBottom?: number;
+    touchCount: number;
+}
+
+class SupportResistancePrimitive implements ISeriesPrimitive {
+    private _series: ISeriesApi<any> | null = null;
+    private _chart: any;
+    private _segments: SupportResistanceSegmentItem[];
+
+    constructor(chart: any, segments: SupportResistanceSegmentItem[]) {
+        this._chart = chart;
+        this._segments = segments;
+    }
+
+    attached(param: { series: ISeriesApi<any>; chart?: any }) {
+        this._series = param.series;
+        if (param.chart) {
+            this._chart = param.chart;
+        }
+    }
+
+    detached() {
+        this._series = null;
+    }
+
+    paneViews() {
+        return [new SupportResistancePaneView(this)];
+    }
+
+    priceAxisViews() {
+        return this._segments.map(seg => new SupportResistanceAxisView(this, seg));
+    }
+
+    getSeries() { return this._series; }
+    getChart() { return this._chart; }
+    getSegments() { return this._segments; }
+}
+
+class SupportResistancePaneView implements IPrimitivePaneView {
+    private _primitive: SupportResistancePrimitive;
+
+    constructor(primitive: SupportResistancePrimitive) {
+        this._primitive = primitive;
+    }
+
+    zOrder() {
+        return 'normal' as const;
+    }
+
+    renderer() {
+        return new SupportResistanceRenderer(this._primitive);
+    }
+}
+
+class SupportResistanceRenderer implements IPrimitivePaneRenderer {
+    private _primitive: SupportResistancePrimitive;
+
+    constructor(primitive: SupportResistancePrimitive) {
+        this._primitive = primitive;
+    }
+
+    draw(target: any) {
+        const series = this._primitive.getSeries();
+        const chart = this._primitive.getChart();
+        if (!series || !chart) return;
+
+        const timeScale = chart.timeScale();
+        const segments = this._primitive.getSegments();
+        if (!segments || segments.length === 0) return;
+
+        target.useBitmapCoordinateSpace((scope: any) => {
+            const ctx = scope.context;
+            const hRatio = scope.horizontalPixelRatio;
+            const vRatio = scope.verticalPixelRatio;
+            const width = scope.bitmapSize.width;
+
+            for (const seg of segments) {
+                const y = series.priceToCoordinate(seg.price);
+                if (y === null) continue;
+
+                let xStart = timeScale.timeToCoordinate(seg.startDate as Time);
+                let xEnd = timeScale.timeToCoordinate(seg.endDate as Time);
+
+                if (xStart === null) {
+                    xStart = 0;
+                }
+                if (xEnd === null) {
+                    xEnd = width / hRatio;
+                }
+
+                const renderX1 = Math.min(xStart, xEnd) * hRatio;
+                const renderX2 = Math.max(xStart, xEnd) * hRatio;
+                const renderY = y * vRatio;
+
+                if (seg.zoneTop !== undefined && seg.zoneBottom !== undefined) {
+                    const topY = series.priceToCoordinate(seg.zoneTop);
+                    const bottomY = series.priceToCoordinate(seg.zoneBottom);
+                    if (topY !== null && bottomY !== null) {
+                        const rTop = Math.min(topY, bottomY) * vRatio;
+                        const rHeight = Math.abs(bottomY - topY) * vRatio;
+                        ctx.fillStyle = seg.levelType === 'SUPPORT'
+                            ? 'rgba(34, 197, 94, 0.08)'
+                            : 'rgba(239, 68, 68, 0.08)';
+                        ctx.fillRect(renderX1, rTop, renderX2 - renderX1, rHeight);
+                    }
+                }
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = seg.color;
+                ctx.lineWidth = 1.5 * vRatio;
+                ctx.moveTo(renderX1, renderY);
+                ctx.lineTo(renderX2, renderY);
+                ctx.stroke();
+
+                if (renderX1 >= 0 && renderX1 <= width) {
+                    ctx.fillStyle = seg.color;
+                    ctx.beginPath();
+                    ctx.arc(renderX1, renderY, 3 * vRatio, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        });
+    }
+}
+
+class SupportResistanceAxisView implements ISeriesPrimitiveAxisView {
+    private _primitive: SupportResistancePrimitive;
+    private _seg: SupportResistanceSegmentItem;
+
+    constructor(primitive: SupportResistancePrimitive, seg: SupportResistanceSegmentItem) {
+        this._primitive = primitive;
+        this._seg = seg;
+    }
+
+    coordinate(): number {
+        const series = this._primitive.getSeries();
+        if (!series) return -1;
+        const y = series.priceToCoordinate(this._seg.price);
+        return y !== null ? y : -1;
+    }
+
+    text(): string {
+        return this._seg.price.toFixed(2);
+    }
+
+    textColor(): string {
+        return '#ffffff';
+    }
+
+    backColor(): string {
+        return this._seg.color;
+    }
+
+    visible(): boolean {
+        const series = this._primitive.getSeries();
+        if (!series) return false;
+        return series.priceToCoordinate(this._seg.price) !== null;
+    }
+}
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 
@@ -117,7 +287,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -332,16 +502,24 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
         }
 
         if (showSupportResistance && supportResistances.length > 0) {
-            supportResistances.forEach((sr) => {
-                candlestickSeries.createPriceLine({
-                    price: sr.zoneMidpoint,
+            const latestCandleDate = sortedData.length > 0 ? sortedData[sortedData.length - 1].date : '';
+            const segments: SupportResistanceSegmentItem[] = supportResistances.map((sr) => {
+                const startDate = sr.firstTouchDate || (sortedData.length > 0 ? sortedData[0].date : sr.priceDate);
+                const endDate = latestCandleDate || sr.priceDate;
+                return {
+                    price: Number(sr.zoneMidpoint),
+                    startDate,
+                    endDate,
                     color: sr.levelType === 'SUPPORT' ? '#22c55e' : '#ef4444',
-                    lineWidth: 1,
-                    lineStyle: LineStyle.Solid,
-                    axisLabelVisible: true,
-                    title: '',
-                });
+                    levelType: sr.levelType,
+                    zoneTop: Number(sr.zoneTop),
+                    zoneBottom: Number(sr.zoneBottom),
+                    touchCount: sr.touchCount,
+                };
             });
+
+            const srPrimitive = new SupportResistancePrimitive(chart, segments);
+            candlestickSeries.attachPrimitive(srPrimitive);
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {

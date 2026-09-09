@@ -68,6 +68,8 @@ public class SupportResistanceService {
   private SupportResistanceDto toDto(DailySupportResistance dsr) {
     return SupportResistanceDto.builder()
         .priceDate(dsr.getPriceDate())
+        .firstTouchDate(dsr.getFirstTouchDate())
+        .lastTouchDate(dsr.getLastTouchDate())
         .zoneBottom(dsr.getZoneBottom())
         .zoneTop(dsr.getZoneTop())
         .zoneMidpoint(dsr.getZoneMidpoint())
@@ -79,6 +81,8 @@ public class SupportResistanceService {
   private SupportResistanceDto toDto(WeeklySupportResistance wsr) {
     return SupportResistanceDto.builder()
         .priceDate(wsr.getPriceDate())
+        .firstTouchDate(wsr.getFirstTouchDate())
+        .lastTouchDate(wsr.getLastTouchDate())
         .zoneBottom(wsr.getZoneBottom())
         .zoneTop(wsr.getZoneTop())
         .zoneMidpoint(wsr.getZoneMidpoint())

@@ -176,5 +176,23 @@ describe('API Service Layer Tests', () => {
                 { params: { timeframe: 'weekly', date: '2026-06-01' } }
             );
         });
+
+        it('should return support resistances with touch dates', async () => {
+            const mockData = [
+                {
+                    priceDate: '2026-06-01',
+                    firstTouchDate: '2026-01-15',
+                    lastTouchDate: '2026-05-20',
+                    zoneBottom: 100,
+                    zoneTop: 105,
+                    zoneMidpoint: 102.5,
+                    levelType: 'SUPPORT' as const,
+                    touchCount: 3,
+                }
+            ];
+            mockedAxios.get.mockResolvedValueOnce({ data: mockData });
+            const result = await getSupportResistances('AAPL', 'DAILY', '2026-06-01');
+            expect(result).toEqual(mockData);
+        });
     });
 });

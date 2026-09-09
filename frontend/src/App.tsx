@@ -729,7 +729,7 @@ function App() {
                   {supportResistances.filter(sr => sr.levelType === 'SUPPORT').map((sr, idx) => (
                     <div key={idx} className="flex justify-between items-center text-slate-300 font-mono bg-emerald-950/20 px-3 py-1.5 rounded border border-emerald-900/30">
                       <span>{Number(sr.zoneBottom).toFixed(2)} - {Number(sr.zoneTop).toFixed(2)}</span>
-                      <span className="text-xs text-slate-500">Touch: {sr.touchCount}</span>
+                      <span className="text-xs text-slate-500">{sr.firstTouchDate ? `Since ${sr.firstTouchDate} · ` : ''}Touch: {sr.touchCount}</span>
                     </div>
                   ))}
                   {supportResistances.filter(sr => sr.levelType === 'SUPPORT').length === 0 && (
@@ -743,7 +743,7 @@ function App() {
                   {supportResistances.filter(sr => sr.levelType === 'RESISTANCE').map((sr, idx) => (
                     <div key={idx} className="flex justify-between items-center text-slate-300 font-mono bg-rose-950/20 px-3 py-1.5 rounded border border-rose-900/30">
                       <span>{Number(sr.zoneBottom).toFixed(2)} - {Number(sr.zoneTop).toFixed(2)}</span>
-                      <span className="text-xs text-slate-500">Touch: {sr.touchCount}</span>
+                      <span className="text-xs text-slate-500">{sr.firstTouchDate ? `Since ${sr.firstTouchDate} · ` : ''}Touch: {sr.touchCount}</span>
                     </div>
                   ))}
                   {supportResistances.filter(sr => sr.levelType === 'RESISTANCE').length === 0 && (
