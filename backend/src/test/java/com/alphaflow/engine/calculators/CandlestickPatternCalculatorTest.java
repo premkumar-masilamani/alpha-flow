@@ -714,7 +714,7 @@ class CandlestickPatternCalculatorTest {
               }
             },
             new Object[] {
-              CandlestickPattern.LATTER_TOP,
+              CandlestickPattern.LADDER_TOP,
               new DailyPrice[] {
                 daily(start.plusDays(14), "100", "110", "100", "110"),
                 daily(start.plusDays(15), "110", "120", "110", "120"),

@@ -50,7 +50,7 @@ public enum CandlestickPattern {
   THREE_INSIDE_DOWN("TID", "Three Inside Down", PatternSentiment.BEARISH_REVERSAL),
   THREE_OUTSIDE_DOWN("TOD", "Three Outside Down", PatternSentiment.BEARISH_REVERSAL),
   BEARISH_KICKING("KCK", "Bearish Kicking", PatternSentiment.BEARISH_REVERSAL),
-  LATTER_TOP("LTP", "Latter Top", PatternSentiment.BEARISH_REVERSAL),
+  LADDER_TOP("LDT", "Ladder Top", PatternSentiment.BEARISH_REVERSAL),
   MATCHING_HIGH("MTH", "Matching High", PatternSentiment.BEARISH_REVERSAL),
   UPSIDE_GAP_TWO_CROWS("UGT", "Upside Gap Two Crows", PatternSentiment.BEARISH_REVERSAL),
   IDENTICAL_THREE_CROWS("ITC", "Identical Three Crows", PatternSentiment.BEARISH_REVERSAL),
