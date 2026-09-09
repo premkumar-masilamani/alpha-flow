@@ -359,5 +359,38 @@ describe('Chart Component', () => {
         expect(candlestickSeriesMockDisabled.attachPrimitive).not.toHaveBeenCalled();
 
         unmountDisabled();
+        vi.clearAllMocks();
+
+        // 3. S&R without firstTouchDate does not attach primitive (no fallback to full horizontal line)
+        const mockSrDataNoTouchDate = [
+            {
+                priceDate: '2026-06-03',
+                zoneBottom: 100,
+                zoneTop: 105,
+                zoneMidpoint: 102.5,
+                levelType: 'SUPPORT' as const,
+                touchCount: 3,
+            }
+        ];
+
+        const { unmount: unmountNoTouch } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                supportResistances={mockSrDataNoTouchDate}
+                showSupportResistance={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstanceNoTouch = vi.mocked(createChart).mock.results[0].value;
+        const candleMockNoTouch = chartInstanceNoTouch.addSeries.mock.results[0].value;
+        expect(candleMockNoTouch.attachPrimitive).not.toHaveBeenCalled();
+
+        unmountNoTouch();
     });
 });

@@ -177,18 +177,22 @@ class SupportResistanceRenderer implements IPrimitivePaneRenderer {
                 const y = series.priceToCoordinate(seg.price);
                 if (y === null) continue;
 
-                let xStart = timeScale.timeToCoordinate(seg.startDate as Time);
-                let xEnd = timeScale.timeToCoordinate(seg.endDate as Time);
-
+                const xStart = timeScale.timeToCoordinate(seg.startDate as Time);
                 if (xStart === null) {
-                    xStart = 0;
+                    continue;
                 }
+
+                let xEnd = timeScale.timeToCoordinate(seg.endDate as Time);
                 if (xEnd === null) {
                     xEnd = width / hRatio;
                 }
 
-                const renderX1 = Math.min(xStart, xEnd) * hRatio;
-                const renderX2 = Math.max(xStart, xEnd) * hRatio;
+                if (xStart > xEnd) {
+                    continue;
+                }
+
+                const renderX1 = xStart * hRatio;
+                const renderX2 = xEnd * hRatio;
                 const renderY = y * vRatio;
 
                 if (seg.zoneTop !== undefined && seg.zoneBottom !== undefined) {
@@ -503,23 +507,27 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
 
         if (showSupportResistance && supportResistances.length > 0) {
             const latestCandleDate = sortedData.length > 0 ? sortedData[sortedData.length - 1].date : '';
-            const segments: SupportResistanceSegmentItem[] = supportResistances.map((sr) => {
-                const startDate = sr.firstTouchDate || (sortedData.length > 0 ? sortedData[0].date : sr.priceDate);
-                const endDate = latestCandleDate || sr.priceDate;
-                return {
-                    price: Number(sr.zoneMidpoint),
-                    startDate,
-                    endDate,
-                    color: sr.levelType === 'SUPPORT' ? '#22c55e' : '#ef4444',
-                    levelType: sr.levelType,
-                    zoneTop: Number(sr.zoneTop),
-                    zoneBottom: Number(sr.zoneBottom),
-                    touchCount: sr.touchCount,
-                };
-            });
+            const segments: SupportResistanceSegmentItem[] = supportResistances
+                .filter((sr) => Boolean(sr.firstTouchDate))
+                .map((sr) => {
+                    const startDate = sr.firstTouchDate!;
+                    const endDate = latestCandleDate || sr.priceDate;
+                    return {
+                        price: Number(sr.zoneMidpoint),
+                        startDate,
+                        endDate,
+                        color: sr.levelType === 'SUPPORT' ? '#22c55e' : '#ef4444',
+                        levelType: sr.levelType,
+                        zoneTop: Number(sr.zoneTop),
+                        zoneBottom: Number(sr.zoneBottom),
+                        touchCount: sr.touchCount,
+                    };
+                });
 
-            const srPrimitive = new SupportResistancePrimitive(chart, segments);
-            candlestickSeries.attachPrimitive(srPrimitive);
+            if (segments.length > 0) {
+                const srPrimitive = new SupportResistancePrimitive(chart, segments);
+                candlestickSeries.attachPrimitive(srPrimitive);
+            }
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
