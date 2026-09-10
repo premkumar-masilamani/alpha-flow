@@ -19,6 +19,8 @@ public class Bucket {
   private int touchCount;
   private LocalDate firstTouchDate;
   private LocalDate lastTouchDate;
+  private int consecutiveBreachCount;
+  private int falseBreakoutCount;
 
   public Bucket(LocalDate priceDate, BigDecimal bottom, BigDecimal top, LevelType levelType) {
     this.priceDate = priceDate;
@@ -29,6 +31,8 @@ public class Bucket {
     this.touchCount = 0;
     this.firstTouchDate = null;
     this.lastTouchDate = null;
+    this.consecutiveBreachCount = 0;
+    this.falseBreakoutCount = 0;
   }
 
   public void incrementTouchCount() {
@@ -43,9 +47,27 @@ public class Bucket {
     this.lastTouchDate = barDate;
   }
 
+  public void incrementConsecutiveBreachCount() {
+    this.consecutiveBreachCount++;
+  }
+
+  public void resetConsecutiveBreachCount() {
+    this.consecutiveBreachCount = 0;
+  }
+
+  public void incrementFalseBreakoutCount() {
+    this.falseBreakoutCount++;
+  }
+
+  public void resetFalseBreakoutCount() {
+    this.falseBreakoutCount = 0;
+  }
+
   public void resetTouchCount() {
     this.touchCount = 0;
     this.firstTouchDate = null;
     this.lastTouchDate = null;
+    this.consecutiveBreachCount = 0;
+    this.falseBreakoutCount = 0;
   }
 }
