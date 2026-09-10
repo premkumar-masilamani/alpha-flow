@@ -3,6 +3,7 @@ package com.alphaflow.engine.calculators;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -276,6 +277,263 @@ class SupportResistanceCalculatorTest {
             InvocationTargetException.class,
             () -> isAlreadyComputedMethod.invoke(calculator, ticker, EPOCH, (Timeframe) null));
     assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+  }
+
+  @Test
+  void testBucketConsecutiveBreachCountTrackingAndReset() {
+    Bucket bucket =
+        new Bucket(EPOCH, BigDecimal.valueOf(100), BigDecimal.valueOf(105), LevelType.SUPPORT);
+    assertEquals(0, bucket.getConsecutiveBreachCount());
+
+    bucket.incrementConsecutiveBreachCount();
+    assertEquals(1, bucket.getConsecutiveBreachCount());
+
+    bucket.incrementConsecutiveBreachCount();
+    assertEquals(2, bucket.getConsecutiveBreachCount());
+
+    bucket.resetConsecutiveBreachCount();
+    assertEquals(0, bucket.getConsecutiveBreachCount());
+
+    bucket.incrementConsecutiveBreachCount();
+    assertEquals(1, bucket.getConsecutiveBreachCount());
+    bucket.resetTouchCount();
+    assertEquals(0, bucket.getConsecutiveBreachCount());
+  }
+
+  @Test
+  void testSupportFalseBreakoutPreservesBucketAndAwardsTouch() {
+    List<DailyPrice> bars = new ArrayList<>();
+    // Day 0: Touch 1 (Support [99.00, 100.00])
+    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
+    // Day 2: False breakout breach (close < 99.00), breachCount becomes 1 <= 2
+    bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
+    // Day 3: Reclaim and Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
+    // Close >= 99.00, breachCount resets, credited as Touch 3
+    bars.add(createBar(3, "99.50", "100.80", "99.20", "100.00"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+    assertFalse(saved.isEmpty());
+
+    DailySupportResistance sr =
+        saved.stream()
+            .filter(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0)
+            .findFirst()
+            .orElse(null);
+
+    assertNotNull(sr, "Support bucket [99.00, 100.00] should be proven and saved");
+    assertEquals(3, sr.getTouchCount());
+    assertEquals(EPOCH, sr.getFirstTouchDate());
+    assertEquals(EPOCH.plusDays(3), sr.getLastTouchDate());
+  }
+
+  @Test
+  void testSupportConfirmedBreakdownResetsBucket() {
+    List<DailyPrice> bars = new ArrayList<>();
+    // Day 0: Touch 1
+    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
+    // Day 2: Breach 1 (close < 99.00) -> breachCount = 1
+    bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
+    // Day 3: Breach 2 (close < 99.00) -> breachCount = 2 >= 2 -> resetTouchCount()!
+    bars.add(createBar(3, "98.50", "98.80", "97.50", "98.00"));
+    // Day 4: Anchor bar (P = 100.00, W = 1.00)
+    bars.add(createBar(4, "100.00", "100.00", "100.00", "100.00"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+
+    boolean hasProvenLevel =
+        saved.stream()
+            .anyMatch(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0);
+    assertFalse(hasProvenLevel, "Broken support bucket should NOT be saved as proven");
+  }
+
+  @Test
+  void testResistanceFalseBreakoutPreservesBucketAndAwardsTouch() {
+    List<DailyPrice> bars = new ArrayList<>();
+    // Day 0: Touch 1 (Resistance [100.00, 101.00])
+    bars.add(createBar(0, "99.50", "100.50", "99.00", "99.80"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "99.50", "100.80", "99.00", "99.70"));
+    // Day 2: False breakout breach above (close > 101.00) -> breachCount = 1
+    bars.add(createBar(2, "100.50", "102.50", "100.20", "101.80"));
+    // Day 3: Reclaim and Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
+    // Close <= 101.00, breachCount resets, credited as Touch 3
+    bars.add(createBar(3, "100.50", "100.80", "99.20", "100.00"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+    assertFalse(saved.isEmpty());
+
+    DailySupportResistance sr =
+        saved.stream()
+            .filter(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("100.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("100")) == 0)
+            .findFirst()
+            .orElse(null);
+
+    assertNotNull(sr, "Resistance bucket [100.00, 101.00] should be proven and saved");
+    assertEquals(3, sr.getTouchCount());
+    assertEquals(EPOCH, sr.getFirstTouchDate());
+    assertEquals(EPOCH.plusDays(3), sr.getLastTouchDate());
+  }
+
+  @Test
+  void testResistanceConfirmedBreakoutResetsBucket() {
+    List<DailyPrice> bars = new ArrayList<>();
+    // Day 0: Touch 1
+    bars.add(createBar(0, "99.50", "100.50", "99.00", "99.80"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "99.50", "100.80", "99.00", "99.70"));
+    // Day 2: Breach 1 (close > 101.00) -> breachCount = 1
+    bars.add(createBar(2, "100.50", "102.50", "100.20", "101.80"));
+    // Day 3: Breach 2 (close > 101.00) -> breachCount = 2 >= 2 -> resetTouchCount()!
+    bars.add(createBar(3, "101.50", "103.00", "101.20", "102.50"));
+    // Day 4: Anchor bar (P = 100.00, W = 1.00)
+    bars.add(createBar(4, "100.00", "100.00", "100.00", "100.00"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+
+    boolean hasProvenLevel =
+        saved.stream()
+            .anyMatch(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("100.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("100")) == 0);
+    assertFalse(hasProvenLevel, "Broken resistance bucket should NOT be saved as proven");
+  }
+
+  @Test
+  void testIntraBarWickSweepOverlapRegistersTouch() {
+    List<DailyPrice> bars = new ArrayList<>();
+    // Low dips down to 98.20 (< 99.00), but close defends at 99.50 (>= 99.00) -> Touch 1
+    bars.add(createBar(0, "100.20", "100.50", "98.20", "99.50"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "100.20", "100.50", "98.50", "99.60"));
+    // Day 2: Touch 3 & Anchor Bar (P = (100.80 + 98.50 + 100.70) / 3 = 100.00, W = 1.00)
+    bars.add(createBar(2, "100.20", "100.80", "98.50", "100.70"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+
+    DailySupportResistance sr =
+        saved.stream()
+            .filter(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0)
+            .findFirst()
+            .orElse(null);
+
+    assertNotNull(sr, "Support bucket [99.00, 100.00] should register wick sweep touches");
+    assertEquals(3, sr.getTouchCount());
+    assertEquals(EPOCH, sr.getFirstTouchDate());
+    assertEquals(EPOCH.plusDays(2), sr.getLastTouchDate());
+  }
+
+  @Test
+  void testLegacyBehaviorWhenConfirmationBarsIsOne() throws Exception {
+    Field field = SupportResistanceCalculator.class.getDeclaredField("breakoutConfirmationBars");
+    field.setAccessible(true);
+    field.set(calculator, 1);
+
+    List<DailyPrice> bars = new ArrayList<>();
+    // Day 0: Touch 1
+    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
+    // Day 2: Single breach (close < 99.00) -> immediately invalidates when confirmation bars = 1
+    bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
+    // Day 3: Reclaim! Touch 1
+    bars.add(createBar(3, "99.00", "100.50", "99.20", "100.20"));
+    // Day 4: Anchor bar (P = 100.00, W = 1.00)
+    bars.add(createBar(4, "100.00", "100.00", "100.00", "100.00"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+
+    boolean hasProvenLevel =
+        saved.stream()
+            .anyMatch(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0);
+    assertFalse(
+        hasProvenLevel,
+        "Support bucket should have been invalidated by single breach when confirmation bars = 1");
+  }
+
+  private DailyPrice createBar(int dayOffset, String open, String high, String low, String close) {
+    return DailyPrice.builder()
+        .ticker(ticker)
+        .priceDate(EPOCH.plusDays(dayOffset))
+        .priceOpen(new BigDecimal(open))
+        .priceHigh(new BigDecimal(high))
+        .priceLow(new BigDecimal(low))
+        .priceClose(new BigDecimal(close))
+        .volume(BigDecimal.TEN)
+        .build();
   }
 
   private List<DailyPrice> createDailyBars(int count) {

@@ -44,6 +44,9 @@ public class SupportResistanceCalculator {
   @Value("${alphaflow.indicators.support-resistance.max-buckets:20}")
   private int maxBuckets = 20;
 
+  @Value("${alphaflow.indicators.support-resistance.breakout-confirmation-bars:2}")
+  private int breakoutConfirmationBars = 2;
+
   @Autowired @Lazy private SupportResistanceCalculator self;
 
   public SupportResistanceCalculator(
@@ -143,33 +146,48 @@ public class SupportResistanceCalculator {
     }
 
     // Scan sequentially through historical candles
+    int confirmationThreshold = Math.max(1, breakoutConfirmationBars);
     for (PriceBar bar : bars) {
       for (Bucket b : buckets) {
-        // STEP 1: Touch
+        // STEP 1: Touch Detection (including intra-bar wick sweep overlap with defended close)
+        boolean isTouch = false;
         if (b.getLevelType() == LevelType.SUPPORT) {
-          // If Daily Low >= Z_bottom AND Daily Low <= Z_top
-          if (bar.low().compareTo(b.getBottom()) >= 0 && bar.low().compareTo(b.getTop()) <= 0) {
+          if (bar.low().compareTo(b.getTop()) <= 0
+              && bar.high().compareTo(b.getBottom()) >= 0
+              && bar.close().compareTo(b.getBottom()) >= 0) {
             b.incrementTouchCount(bar.date());
+            isTouch = true;
           }
         } else {
-          // RESISTANCE
-          // If Daily High >= Z_bottom AND Daily High <= Z_top
-          if (bar.high().compareTo(b.getBottom()) >= 0 && bar.high().compareTo(b.getTop()) <= 0) {
+          if (bar.high().compareTo(b.getBottom()) >= 0
+              && bar.low().compareTo(b.getTop()) <= 0
+              && bar.close().compareTo(b.getTop()) <= 0) {
             b.incrementTouchCount(bar.date());
+            isTouch = true;
           }
         }
 
-        // STEP 2: Slice
+        // STEP 2: Slice with False Breakout Detection
+        boolean isBreach;
         if (b.getLevelType() == LevelType.SUPPORT) {
-          // If Daily Close < Z_bottom
-          if (bar.close().compareTo(b.getBottom()) < 0) {
-            b.resetTouchCount();
+          isBreach = bar.close().compareTo(b.getBottom()) < 0;
+        } else {
+          isBreach = bar.close().compareTo(b.getTop()) > 0;
+        }
+
+        if (isBreach) {
+          if (b.getTouchCount() > 0) {
+            b.incrementConsecutiveBreachCount();
+            if (b.getConsecutiveBreachCount() >= confirmationThreshold) {
+              b.resetTouchCount();
+            }
           }
         } else {
-          // RESISTANCE
-          // If Daily Close > Z_top
-          if (bar.close().compareTo(b.getTop()) > 0) {
-            b.resetTouchCount();
+          if (b.getConsecutiveBreachCount() > 0) {
+            if (!isTouch) {
+              b.incrementTouchCount(bar.date());
+            }
+            b.resetConsecutiveBreachCount();
           }
         }
       }
