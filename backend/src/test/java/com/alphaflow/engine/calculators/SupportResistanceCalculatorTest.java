@@ -284,6 +284,7 @@ class SupportResistanceCalculatorTest {
     Bucket bucket =
         new Bucket(EPOCH, BigDecimal.valueOf(100), BigDecimal.valueOf(105), LevelType.SUPPORT);
     assertEquals(0, bucket.getConsecutiveBreachCount());
+    assertEquals(0, bucket.getFalseBreakoutCount());
 
     bucket.incrementConsecutiveBreachCount();
     assertEquals(1, bucket.getConsecutiveBreachCount());
@@ -294,14 +295,23 @@ class SupportResistanceCalculatorTest {
     bucket.resetConsecutiveBreachCount();
     assertEquals(0, bucket.getConsecutiveBreachCount());
 
+    bucket.incrementFalseBreakoutCount();
+    assertEquals(1, bucket.getFalseBreakoutCount());
+    bucket.resetFalseBreakoutCount();
+    assertEquals(0, bucket.getFalseBreakoutCount());
+
     bucket.incrementConsecutiveBreachCount();
+    bucket.incrementFalseBreakoutCount();
     assertEquals(1, bucket.getConsecutiveBreachCount());
+    assertEquals(1, bucket.getFalseBreakoutCount());
+
     bucket.resetTouchCount();
     assertEquals(0, bucket.getConsecutiveBreachCount());
+    assertEquals(0, bucket.getFalseBreakoutCount());
   }
 
   @Test
-  void testSupportFalseBreakoutPreservesBucketAndAwardsTouch() {
+  void testSupportFalseBreakoutPreservesBucketWithoutAwardingTouch() {
     List<DailyPrice> bars = new ArrayList<>();
     // Day 0: Touch 1 (Support [99.00, 100.00])
     bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
@@ -309,9 +319,11 @@ class SupportResistanceCalculatorTest {
     bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
     // Day 2: False breakout breach (close < 99.00), breachCount becomes 1 <= 2
     bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
-    // Day 3: Reclaim and Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
-    // Close >= 99.00, breachCount resets, credited as Touch 3
-    bars.add(createBar(3, "99.50", "100.80", "99.20", "100.00"));
+    // Day 3: Reclaim! Close >= 99.00, breachCount resets, but NO touch awarded (touchCount remains
+    // 2)
+    bars.add(createBar(3, "101.00", "101.50", "100.20", "101.20"));
+    // Day 4: Clean Touch 3 & Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
+    bars.add(createBar(4, "99.50", "100.80", "99.20", "100.00"));
 
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
@@ -337,7 +349,50 @@ class SupportResistanceCalculatorTest {
     assertNotNull(sr, "Support bucket [99.00, 100.00] should be proven and saved");
     assertEquals(3, sr.getTouchCount());
     assertEquals(EPOCH, sr.getFirstTouchDate());
-    assertEquals(EPOCH.plusDays(3), sr.getLastTouchDate());
+    assertEquals(EPOCH.plusDays(4), sr.getLastTouchDate());
+  }
+
+  @Test
+  void testSecondFalseBreakoutInvalidatesLevelWhenMaxFalseBreakoutsIsOne() {
+    List<DailyPrice> bars = new ArrayList<>();
+    // Day 0: Touch 1
+    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
+    // Day 1: Touch 2
+    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
+    // Day 2: Touch 3
+    bars.add(createBar(2, "100.20", "100.50", "99.30", "99.60"));
+    // Day 3: False breakout 1 breach (close < 99.00)
+    bars.add(createBar(3, "99.50", "99.50", "98.00", "98.50"));
+    // Day 4: Reclaim 1 (close >= 99.00) -> falseBreakoutCount becomes 1
+    bars.add(createBar(4, "101.00", "101.50", "100.20", "101.20"));
+    // Day 5: Clean Touch 4
+    bars.add(createBar(5, "100.20", "100.50", "99.40", "99.80"));
+    // Day 6: False breakout 2 breach (close < 99.00) -> falseBreakoutCount is already 1 >= max (1)
+    // -> resets!
+    bars.add(createBar(6, "99.50", "99.50", "98.00", "98.50"));
+    // Day 7: Anchor bar (P = 100.00, W = 1.00)
+    bars.add(createBar(7, "100.00", "100.00", "100.00", "100.00"));
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
+    verify(dailySrRepo).saveAll(captor.capture());
+    List<DailySupportResistance> saved = captor.getValue();
+
+    boolean hasProvenLevel =
+        saved.stream()
+            .anyMatch(
+                s ->
+                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
+                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0);
+    assertFalse(
+        hasProvenLevel,
+        "Support bucket should be invalidated when false breakout count exceeds max allowed");
   }
 
   @Test
@@ -375,7 +430,7 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
-  void testResistanceFalseBreakoutPreservesBucketAndAwardsTouch() {
+  void testResistanceFalseBreakoutPreservesBucketWithoutAwardingTouch() {
     List<DailyPrice> bars = new ArrayList<>();
     // Day 0: Touch 1 (Resistance [100.00, 101.00])
     bars.add(createBar(0, "99.50", "100.50", "99.00", "99.80"));
@@ -383,9 +438,10 @@ class SupportResistanceCalculatorTest {
     bars.add(createBar(1, "99.50", "100.80", "99.00", "99.70"));
     // Day 2: False breakout breach above (close > 101.00) -> breachCount = 1
     bars.add(createBar(2, "100.50", "102.50", "100.20", "101.80"));
-    // Day 3: Reclaim and Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
-    // Close <= 101.00, breachCount resets, credited as Touch 3
-    bars.add(createBar(3, "100.50", "100.80", "99.20", "100.00"));
+    // Day 3: Reclaim below, but away from zone (close <= 101.00) -> no touch awarded
+    bars.add(createBar(3, "99.00", "99.50", "98.50", "99.20"));
+    // Day 4: Clean Touch 3 & Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
+    bars.add(createBar(4, "99.50", "100.80", "99.20", "100.00"));
 
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
@@ -411,7 +467,7 @@ class SupportResistanceCalculatorTest {
     assertNotNull(sr, "Resistance bucket [100.00, 101.00] should be proven and saved");
     assertEquals(3, sr.getTouchCount());
     assertEquals(EPOCH, sr.getFirstTouchDate());
-    assertEquals(EPOCH.plusDays(3), sr.getLastTouchDate());
+    assertEquals(EPOCH.plusDays(4), sr.getLastTouchDate());
   }
 
   @Test
@@ -446,42 +502,6 @@ class SupportResistanceCalculatorTest {
                     s.getZoneBottom().compareTo(new BigDecimal("100.0000")) == 0
                         || s.getZoneBottom().compareTo(new BigDecimal("100")) == 0);
     assertFalse(hasProvenLevel, "Broken resistance bucket should NOT be saved as proven");
-  }
-
-  @Test
-  void testIntraBarWickSweepOverlapRegistersTouch() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // Low dips down to 98.20 (< 99.00), but close defends at 99.50 (>= 99.00) -> Touch 1
-    bars.add(createBar(0, "100.20", "100.50", "98.20", "99.50"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "100.20", "100.50", "98.50", "99.60"));
-    // Day 2: Touch 3 & Anchor Bar (P = (100.80 + 98.50 + 100.70) / 3 = 100.00, W = 1.00)
-    bars.add(createBar(2, "100.20", "100.80", "98.50", "100.70"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    DailySupportResistance sr =
-        saved.stream()
-            .filter(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0)
-            .findFirst()
-            .orElse(null);
-
-    assertNotNull(sr, "Support bucket [99.00, 100.00] should register wick sweep touches");
-    assertEquals(3, sr.getTouchCount());
-    assertEquals(EPOCH, sr.getFirstTouchDate());
-    assertEquals(EPOCH.plusDays(2), sr.getLastTouchDate());
   }
 
   @Test

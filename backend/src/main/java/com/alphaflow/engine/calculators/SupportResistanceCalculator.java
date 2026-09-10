@@ -47,6 +47,9 @@ public class SupportResistanceCalculator {
   @Value("${alphaflow.indicators.support-resistance.breakout-confirmation-bars:2}")
   private int breakoutConfirmationBars = 2;
 
+  @Value("${alphaflow.indicators.support-resistance.max-false-breakouts:1}")
+  private int maxFalseBreakouts = 1;
+
   @Autowired @Lazy private SupportResistanceCalculator self;
 
   public SupportResistanceCalculator(
@@ -147,23 +150,25 @@ public class SupportResistanceCalculator {
 
     // Scan sequentially through historical candles
     int confirmationThreshold = Math.max(1, breakoutConfirmationBars);
+    int allowedFalseBreakouts = Math.max(0, maxFalseBreakouts);
+
     for (PriceBar bar : bars) {
       for (Bucket b : buckets) {
-        // STEP 1: Touch Detection (including intra-bar wick sweep overlap with defended close)
-        boolean isTouch = false;
-        if (b.getLevelType() == LevelType.SUPPORT) {
-          if (bar.low().compareTo(b.getTop()) <= 0
-              && bar.high().compareTo(b.getBottom()) >= 0
-              && bar.close().compareTo(b.getBottom()) >= 0) {
-            b.incrementTouchCount(bar.date());
-            isTouch = true;
-          }
-        } else {
-          if (bar.high().compareTo(b.getBottom()) >= 0
-              && bar.low().compareTo(b.getTop()) <= 0
-              && bar.close().compareTo(b.getTop()) <= 0) {
-            b.incrementTouchCount(bar.date());
-            isTouch = true;
+        // STEP 1: Touch Detection
+        // Only register touches if the level is not currently in a breach state
+        if (b.getConsecutiveBreachCount() == 0) {
+          if (b.getLevelType() == LevelType.SUPPORT) {
+            if (bar.low().compareTo(b.getBottom()) >= 0
+                && bar.low().compareTo(b.getTop()) <= 0
+                && bar.close().compareTo(b.getBottom()) >= 0) {
+              b.incrementTouchCount(bar.date());
+            }
+          } else {
+            if (bar.high().compareTo(b.getBottom()) >= 0
+                && bar.high().compareTo(b.getTop()) <= 0
+                && bar.close().compareTo(b.getTop()) <= 0) {
+              b.incrementTouchCount(bar.date());
+            }
           }
         }
 
@@ -178,15 +183,16 @@ public class SupportResistanceCalculator {
         if (isBreach) {
           if (b.getTouchCount() > 0) {
             b.incrementConsecutiveBreachCount();
-            if (b.getConsecutiveBreachCount() >= confirmationThreshold) {
+            if (b.getConsecutiveBreachCount() >= confirmationThreshold
+                || b.getFalseBreakoutCount() >= allowedFalseBreakouts) {
               b.resetTouchCount();
             }
           }
         } else {
           if (b.getConsecutiveBreachCount() > 0) {
-            if (!isTouch) {
-              b.incrementTouchCount(bar.date());
-            }
+            // Reclaim from false breakout: preserve level, record the false breakout event,
+            // but do NOT credit a touch point for the false breakout
+            b.incrementFalseBreakoutCount();
             b.resetConsecutiveBreachCount();
           }
         }
