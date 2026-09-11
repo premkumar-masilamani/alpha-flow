@@ -48,6 +48,12 @@ scripts/           # Initialization scripts (import_seed_data.sh)
   - Indicator definitions: `UNIQUE (indicator_type, source, params)`
   - Indicator values: `UNIQUE (ticker_id, indicator_id, price_date)`
 
+### Business Rules (Multi-Market)
+- US equities: `ticker_type = 'US-EQUITY'`, `currency = 'USD'`, `timezone = 'America/New_York'`.
+- Indian equities: `ticker_type = 'IN-EQUITY'`, `currency = 'INR'`, `timezone = 'Asia/Kolkata'`. (Suffix `.NS` for NSE).
+- Crypto: `ticker_type = 'CRYPTO'`, `currency = 'USD'`, `timezone = 'UTC'`.
+- Commodities: `ticker_type = 'COMMODITY'`, `currency = 'USD'`, `timezone = 'America/New_York'`.
+
 ### Code Style
 ```sql
 -- Uppercase keywords, snake_case identifiers, 4-space indent

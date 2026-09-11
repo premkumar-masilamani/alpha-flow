@@ -121,7 +121,7 @@ public class SupportResistanceCalculator {
     LocalDate priceDate = latest.date();
 
     // 1. Calculate Center Anchor (P)
-    BigDecimal p =
+    BigDecimal pivot =
         latest
             .high()
             .add(latest.low())
@@ -129,22 +129,22 @@ public class SupportResistanceCalculator {
             .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
     // 2. Calculate Linear Bucket Width (W)
-    BigDecimal w = p.multiply(BigDecimal.valueOf(bucketWidthPct));
+    BigDecimal bucketWidth = pivot.multiply(BigDecimal.valueOf(bucketWidthPct));
 
     // 3. Construct Fixed Linear Buckets
     List<Bucket> buckets = new ArrayList<>();
 
     // Resistance Buckets (k = 0 to maxBuckets - 1, above P)
     for (int k = 0; k < maxBuckets; k++) {
-      BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
+      BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
     }
 
     // Support Buckets (k = -1 to -maxBuckets, below P)
     for (int k = -1; k >= -maxBuckets; k--) {
-      BigDecimal bottom = p.add(w.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = p.add(w.multiply(BigDecimal.valueOf(k + 1)));
+      BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
     }
 
@@ -153,47 +153,47 @@ public class SupportResistanceCalculator {
     int allowedFalseBreakouts = Math.max(0, maxFalseBreakouts);
 
     for (PriceBar bar : bars) {
-      for (Bucket b : buckets) {
+      for (Bucket bucket : buckets) {
         // STEP 1: Touch Detection
         // Only register touches if the level is not currently in a breach state
-        if (b.getConsecutiveBreachCount() == 0) {
-          if (b.getLevelType() == LevelType.SUPPORT) {
-            if (bar.low().compareTo(b.getBottom()) >= 0
-                && bar.low().compareTo(b.getTop()) <= 0
-                && bar.close().compareTo(b.getBottom()) >= 0) {
-              b.incrementTouchCount(bar.date());
+        if (bucket.getConsecutiveBreachCount() == 0) {
+          if (bucket.getLevelType() == LevelType.SUPPORT) {
+            if (bar.low().compareTo(bucket.getBottom()) >= 0
+                && bar.low().compareTo(bucket.getTop()) <= 0
+                && bar.close().compareTo(bucket.getBottom()) >= 0) {
+              bucket.incrementTouchCount(bar.date());
             }
-          } else {
-            if (bar.high().compareTo(b.getBottom()) >= 0
-                && bar.high().compareTo(b.getTop()) <= 0
-                && bar.close().compareTo(b.getTop()) <= 0) {
-              b.incrementTouchCount(bar.date());
+          } else if (bucket.getLevelType() == LevelType.RESISTANCE) {
+            if (bar.high().compareTo(bucket.getBottom()) >= 0
+                && bar.high().compareTo(bucket.getTop()) <= 0
+                && bar.close().compareTo(bucket.getTop()) <= 0) {
+              bucket.incrementTouchCount(bar.date());
             }
           }
         }
 
         // STEP 2: Slice with False Breakout Detection
-        boolean isBreach;
-        if (b.getLevelType() == LevelType.SUPPORT) {
-          isBreach = bar.close().compareTo(b.getBottom()) < 0;
-        } else {
-          isBreach = bar.close().compareTo(b.getTop()) > 0;
+        boolean isBreach = false;
+        if (bucket.getLevelType() == LevelType.SUPPORT) {
+          isBreach = bar.close().compareTo(bucket.getBottom()) < 0;
+        } else if (bucket.getLevelType() == LevelType.RESISTANCE) {
+          isBreach = bar.close().compareTo(bucket.getTop()) > 0;
         }
 
         if (isBreach) {
-          if (b.getTouchCount() > 0) {
-            b.incrementConsecutiveBreachCount();
-            if (b.getConsecutiveBreachCount() >= confirmationThreshold
-                || b.getFalseBreakoutCount() >= allowedFalseBreakouts) {
-              b.resetTouchCount();
+          if (bucket.getTouchCount() > 0) {
+            bucket.incrementConsecutiveBreachCount();
+            if (bucket.getConsecutiveBreachCount() >= confirmationThreshold
+                || bucket.getFalseBreakoutCount() >= allowedFalseBreakouts) {
+              bucket.resetTouchCount();
             }
           }
         } else {
-          if (b.getConsecutiveBreachCount() > 0) {
+          if (bucket.getConsecutiveBreachCount() > 0) {
             // Reclaim from false breakout: preserve level, record the false breakout event,
             // but do NOT credit a touch point for the false breakout
-            b.incrementFalseBreakoutCount();
-            b.resetConsecutiveBreachCount();
+            bucket.incrementFalseBreakoutCount();
+            bucket.resetConsecutiveBreachCount();
           }
         }
       }
@@ -201,16 +201,16 @@ public class SupportResistanceCalculator {
 
     // Filter proven buckets
     List<Bucket> proven = new ArrayList<>();
-    for (Bucket b : buckets) {
-      if (b.getTouchCount() >= 3) {
+    for (Bucket bucket : buckets) {
+      if (bucket.getTouchCount() >= 3) {
         // Role Reversal Check - strictly based on final Pivot P
         // If mid is below P -> SUPPORT, if above -> RESISTANCE
-        if (b.getMidpoint().compareTo(p) < 0) {
-          b.setLevelType(LevelType.SUPPORT);
+        if (bucket.getMidpoint().compareTo(pivot) < 0) {
+          bucket.setLevelType(LevelType.SUPPORT);
         } else {
-          b.setLevelType(LevelType.RESISTANCE);
+          bucket.setLevelType(LevelType.RESISTANCE);
         }
-        proven.add(b);
+        proven.add(bucket);
       }
     }
 
@@ -229,35 +229,35 @@ public class SupportResistanceCalculator {
 
     if (timeframe == Timeframe.DAILY) {
       List<DailySupportResistance> toSave = new ArrayList<>();
-      for (Bucket b : buckets) {
+      for (Bucket bucket : buckets) {
         toSave.add(
             DailySupportResistance.builder()
                 .ticker(ticker)
-                .priceDate(b.getPriceDate())
-                .zoneBottom(b.getBottom())
-                .zoneTop(b.getTop())
-                .zoneMidpoint(b.getMidpoint())
-                .touchCount(b.getTouchCount())
-                .firstTouchDate(b.getFirstTouchDate())
-                .lastTouchDate(b.getLastTouchDate())
-                .levelType(b.getLevelType().name())
+                .priceDate(bucket.getPriceDate())
+                .zoneBottom(bucket.getBottom())
+                .zoneTop(bucket.getTop())
+                .zoneMidpoint(bucket.getMidpoint())
+                .touchCount(bucket.getTouchCount())
+                .firstTouchDate(bucket.getFirstTouchDate())
+                .lastTouchDate(bucket.getLastTouchDate())
+                .levelType(bucket.getLevelType().name())
                 .build());
       }
       dailySupportResistanceRepository.saveAll(toSave);
     } else if (timeframe == Timeframe.WEEKLY) {
       List<WeeklySupportResistance> toSave = new ArrayList<>();
-      for (Bucket b : buckets) {
+      for (Bucket bucket : buckets) {
         toSave.add(
             WeeklySupportResistance.builder()
                 .ticker(ticker)
-                .priceDate(b.getPriceDate())
-                .zoneBottom(b.getBottom())
-                .zoneTop(b.getTop())
-                .zoneMidpoint(b.getMidpoint())
-                .touchCount(b.getTouchCount())
-                .firstTouchDate(b.getFirstTouchDate())
-                .lastTouchDate(b.getLastTouchDate())
-                .levelType(b.getLevelType().name())
+                .priceDate(bucket.getPriceDate())
+                .zoneBottom(bucket.getBottom())
+                .zoneTop(bucket.getTop())
+                .zoneMidpoint(bucket.getMidpoint())
+                .touchCount(bucket.getTouchCount())
+                .firstTouchDate(bucket.getFirstTouchDate())
+                .lastTouchDate(bucket.getLastTouchDate())
+                .levelType(bucket.getLevelType().name())
                 .build());
       }
       weeklySupportResistanceRepository.saveAll(toSave);
@@ -281,23 +281,23 @@ public class SupportResistanceCalculator {
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
-  private PriceBar toPriceBar(DailyPrice d) {
+  private PriceBar toPriceBar(DailyPrice dailyPrice) {
     return new PriceBar(
-        d.getPriceDate(),
-        d.getPriceOpen(),
-        d.getPriceHigh(),
-        d.getPriceLow(),
-        d.getPriceClose(),
-        d.getVolume());
+        dailyPrice.getPriceDate(),
+        dailyPrice.getPriceOpen(),
+        dailyPrice.getPriceHigh(),
+        dailyPrice.getPriceLow(),
+        dailyPrice.getPriceClose(),
+        dailyPrice.getVolume());
   }
 
-  private PriceBar toPriceBar(WeeklyPrice w) {
+  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
     return new PriceBar(
-        w.getPriceDate(),
-        w.getPriceOpen(),
-        w.getPriceHigh(),
-        w.getPriceLow(),
-        w.getPriceClose(),
-        w.getVolume());
+        weeklyPrice.getPriceDate(),
+        weeklyPrice.getPriceOpen(),
+        weeklyPrice.getPriceHigh(),
+        weeklyPrice.getPriceLow(),
+        weeklyPrice.getPriceClose(),
+        weeklyPrice.getVolume());
   }
 }

@@ -233,23 +233,23 @@ public class IndicatorCalculator {
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
-  private PriceBar toPriceBar(DailyPrice d) {
+  private PriceBar toPriceBar(DailyPrice dailyPrice) {
     return new PriceBar(
-        d.getPriceDate(),
-        d.getPriceOpen(),
-        d.getPriceHigh(),
-        d.getPriceLow(),
-        d.getPriceClose(),
-        d.getVolume());
+        dailyPrice.getPriceDate(),
+        dailyPrice.getPriceOpen(),
+        dailyPrice.getPriceHigh(),
+        dailyPrice.getPriceLow(),
+        dailyPrice.getPriceClose(),
+        dailyPrice.getVolume());
   }
 
-  private PriceBar toPriceBar(WeeklyPrice w) {
+  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
     return new PriceBar(
-        w.getPriceDate(),
-        w.getPriceOpen(),
-        w.getPriceHigh(),
-        w.getPriceLow(),
-        w.getPriceClose(),
-        w.getVolume());
+        weeklyPrice.getPriceDate(),
+        weeklyPrice.getPriceOpen(),
+        weeklyPrice.getPriceHigh(),
+        weeklyPrice.getPriceLow(),
+        weeklyPrice.getPriceClose(),
+        weeklyPrice.getVolume());
   }
 }

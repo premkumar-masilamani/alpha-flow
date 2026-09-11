@@ -36,13 +36,13 @@ class IndicatorAaplTest {
   @Test
   void testAaplSma() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new SmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
     LocalDate latestDate = LocalDate.of(2026, 5, 29);
-    BigDecimal latestVal = IndicatorTestHelper.plot(r, latestDate, "value");
+    BigDecimal latestVal = IndicatorTestHelper.plot(result, latestDate, "value");
 
     System.out.println("[AAPL-SMA-20] Latest point: Date=" + latestDate + ", Value=" + latestVal);
 
@@ -52,13 +52,13 @@ class IndicatorAaplTest {
   @Test
   void testAaplEma() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new EmaIndicator().compute(aaplBars, IndicatorParams.parse("period=20"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
     LocalDate latestDate = LocalDate.of(2026, 5, 29);
-    BigDecimal latestVal = IndicatorTestHelper.plot(r, latestDate, "value");
+    BigDecimal latestVal = IndicatorTestHelper.plot(result, latestDate, "value");
 
     System.out.println("[AAPL-EMA-20] Latest point: Date=" + latestDate + ", Value=" + latestVal);
 
@@ -68,13 +68,13 @@ class IndicatorAaplTest {
   @Test
   void testAaplRsi() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new RsiIndicator().compute(aaplBars, IndicatorParams.parse("period=14"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
     LocalDate latestDate = LocalDate.of(2026, 5, 29);
-    BigDecimal latestVal = IndicatorTestHelper.plot(r, latestDate, "value");
+    BigDecimal latestVal = IndicatorTestHelper.plot(result, latestDate, "value");
 
     System.out.println("[AAPL-RSI-14] Latest point: Date=" + latestDate + ", Value=" + latestVal);
 
@@ -84,20 +84,20 @@ class IndicatorAaplTest {
   @Test
   void testAaplMacd() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new MacdIndicator()
             .compute(
                 aaplBars, IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
     LocalDate latestDate = LocalDate.of(2026, 5, 29);
 
-    BigDecimal macd = IndicatorTestHelper.plot(r, latestDate, "macd");
+    BigDecimal macd = IndicatorTestHelper.plot(result, latestDate, "macd");
 
-    BigDecimal signal = IndicatorTestHelper.plot(r, latestDate, "signal");
+    BigDecimal signal = IndicatorTestHelper.plot(result, latestDate, "signal");
 
-    BigDecimal hist = IndicatorTestHelper.plot(r, latestDate, "histogram");
+    BigDecimal hist = IndicatorTestHelper.plot(result, latestDate, "histogram");
 
     System.out.println(
         "[AAPL-MACD] Latest point: MACD=" + macd + ", Signal=" + signal + ", Hist=" + hist);
@@ -112,18 +112,18 @@ class IndicatorAaplTest {
   @Test
   void testAaplStochastic() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new StochasticIndicator()
             .compute(
                 aaplBars, IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
     LocalDate latestDate = LocalDate.of(2026, 5, 29);
 
-    BigDecimal stochK = IndicatorTestHelper.plot(r, latestDate, "k");
+    BigDecimal stochK = IndicatorTestHelper.plot(result, latestDate, "k");
 
-    BigDecimal stochD = IndicatorTestHelper.plot(r, latestDate, "d");
+    BigDecimal stochD = IndicatorTestHelper.plot(result, latestDate, "d");
 
     System.out.println("[AAPL-STOCHASTIC] Latest point: %K=" + stochK + ", %D=" + stochD);
 

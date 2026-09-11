@@ -63,7 +63,7 @@ class IndicatorServiceTest {
             .build();
 
     Map<String, BigDecimal> decimalValues = new LinkedHashMap<>();
-    values.forEach((k, v) -> decimalValues.put(k, new BigDecimal(v)));
+    values.forEach((key, value) -> decimalValues.put(key, new BigDecimal(value)));
 
     return DailyIndicator.builder()
         .indicatorDefinition(indicatorDef)

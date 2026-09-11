@@ -224,12 +224,12 @@ public class CandlestickPatternCalculator {
         List<DailyCandlestickPattern> newPatterns =
             matches.stream()
                 .map(
-                    m ->
+                    match ->
                         DailyCandlestickPattern.builder()
                             .ticker(ticker)
-                            .priceDate(m.date())
-                            .pattern(m.pattern())
-                            .sentiment(m.pattern().getSentiment())
+                            .priceDate(match.date())
+                            .pattern(match.pattern())
+                            .sentiment(match.pattern().getSentiment())
                             .build())
                 .toList();
         dailyCandlestickPatternRepository.saveAll(newPatterns);
@@ -237,12 +237,12 @@ public class CandlestickPatternCalculator {
         List<WeeklyCandlestickPattern> newPatterns =
             matches.stream()
                 .map(
-                    m ->
+                    match ->
                         WeeklyCandlestickPattern.builder()
                             .ticker(ticker)
-                            .priceDate(m.date())
-                            .pattern(m.pattern())
-                            .sentiment(m.pattern().getSentiment())
+                            .priceDate(match.date())
+                            .pattern(match.pattern())
+                            .sentiment(match.pattern().getSentiment())
                             .build())
                 .toList();
         weeklyCandlestickPatternRepository.saveAll(newPatterns);
@@ -1067,23 +1067,23 @@ public class CandlestickPatternCalculator {
     return ma;
   }
 
-  private PriceBar toPriceBar(DailyPrice d) {
+  private PriceBar toPriceBar(DailyPrice dailyPrice) {
     return new PriceBar(
-        d.getPriceDate(),
-        d.getPriceOpen(),
-        d.getPriceHigh(),
-        d.getPriceLow(),
-        d.getPriceClose(),
-        d.getVolume());
+        dailyPrice.getPriceDate(),
+        dailyPrice.getPriceOpen(),
+        dailyPrice.getPriceHigh(),
+        dailyPrice.getPriceLow(),
+        dailyPrice.getPriceClose(),
+        dailyPrice.getVolume());
   }
 
-  private PriceBar toPriceBar(WeeklyPrice w) {
+  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
     return new PriceBar(
-        w.getPriceDate(),
-        w.getPriceOpen(),
-        w.getPriceHigh(),
-        w.getPriceLow(),
-        w.getPriceClose(),
-        w.getVolume());
+        weeklyPrice.getPriceDate(),
+        weeklyPrice.getPriceOpen(),
+        weeklyPrice.getPriceHigh(),
+        weeklyPrice.getPriceLow(),
+        weeklyPrice.getPriceClose(),
+        weeklyPrice.getVolume());
   }
 }

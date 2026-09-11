@@ -36,7 +36,7 @@ public class IndicatorMapper {
 
     Map<String, List<Indicator>> byCombo = new LinkedHashMap<>();
     for (Indicator row : rows) {
-      byCombo.computeIfAbsent(comboKey(row), k -> new ArrayList<>()).add(row);
+      byCombo.computeIfAbsent(comboKey(row), key -> new ArrayList<>()).add(row);
     }
 
     List<IndicatorSeriesDto> series = new ArrayList<>();

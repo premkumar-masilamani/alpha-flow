@@ -103,7 +103,7 @@ public class YahooFinanceDownloader {
         if (!dailyPriceList.isEmpty()) {
           List<DailyPrice> newDailyPriceData =
               dailyPriceList.stream()
-                  .filter(c -> c.getPriceDate().isAfter(actualLatestDate))
+                  .filter(candle -> candle.getPriceDate().isAfter(actualLatestDate))
                   .collect(Collectors.toList());
 
           if (!newDailyPriceData.isEmpty()) {

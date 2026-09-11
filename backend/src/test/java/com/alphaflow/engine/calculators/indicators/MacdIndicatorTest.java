@@ -26,28 +26,29 @@ class MacdIndicatorTest {
 
     java.util.Arrays.fill(flat, 50.0);
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new MacdIndicator()
             .compute(
                 closes(flat), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
-    r.values()
+    result
+        .values()
         .forEach(
-            m ->
-                m.forEach(
-                    (k, val) ->
+            barMap ->
+                barMap.forEach(
+                    (key, val) ->
                         assertEquals(
                             0,
                             val.compareTo(bd(0)),
-                            "constant series must give zero macd/signal/histogram (" + k + ")")));
+                            "constant series must give zero macd/signal/histogram (" + key + ")")));
   }
 
   @Test
   void macdEmitsThreePlotsOnceDefined() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new MacdIndicator()
             .compute(
                 walk(80), IndicatorParams.parse("fast=12,slow=26,signal=9"), PriceSource.CLOSE);
@@ -56,19 +57,19 @@ class MacdIndicatorTest {
 
     LocalDate last = EPOCH.plusDays(79);
 
-    assertNotNull(plot(r, last, "macd"));
+    assertNotNull(plot(result, last, "macd"));
 
-    assertNotNull(plot(r, last, "signal"));
+    assertNotNull(plot(result, last, "signal"));
 
-    assertNotNull(plot(r, last, "histogram"));
+    assertNotNull(plot(result, last, "histogram"));
 
     // histogram == macd - signal at that bar.
 
-    BigDecimal macd = plot(r, last, "macd");
+    BigDecimal macd = plot(result, last, "macd");
 
-    BigDecimal signal = plot(r, last, "signal");
+    BigDecimal signal = plot(result, last, "signal");
 
-    BigDecimal hist = plot(r, last, "histogram");
+    BigDecimal hist = plot(result, last, "histogram");
 
     assertEquals(0, hist.compareTo(macd.subtract(signal)));
   }
@@ -76,10 +77,10 @@ class MacdIndicatorTest {
   @Test
   void macdDefaultSignalPeriod() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new MacdIndicator()
             .compute(walk(50), IndicatorParams.parse("fast=12,slow=26"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
   }
 }

@@ -21,17 +21,19 @@ class StochasticIndicatorTest {
   @Test
   void stochasticStaysInRange() {
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new StochasticIndicator()
             .compute(
                 walk(100), IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"), PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
-    r.values()
+    result
+        .values()
         .forEach(
-            m ->
-                m.values()
+            barMap ->
+                barMap
+                    .values()
                     .forEach(
                         val -> {
                           assertTrue(val.compareTo(BigDecimal.ZERO) >= 0);
@@ -46,7 +48,7 @@ class StochasticIndicatorTest {
     // Flat price series (highestHigh == lowestLow) should result in %K and %D being 0, not throwing
     // ArithmeticException
 
-    Map<LocalDate, Map<String, BigDecimal>> r =
+    Map<LocalDate, Map<String, BigDecimal>> result =
         new StochasticIndicator()
             .compute(
                 closes(
@@ -55,12 +57,14 @@ class StochasticIndicatorTest {
                 IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"),
                 PriceSource.CLOSE);
 
-    assertFalse(r.isEmpty());
+    assertFalse(result.isEmpty());
 
-    r.values()
+    result
+        .values()
         .forEach(
-            m ->
-                m.values()
+            barMap ->
+                barMap
+                    .values()
                     .forEach(
                         val ->
                             assertEquals(

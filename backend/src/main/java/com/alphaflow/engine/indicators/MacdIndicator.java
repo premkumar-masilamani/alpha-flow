@@ -50,10 +50,10 @@ public class MacdIndicator implements Indicator {
     Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
 
     for (PriceBar bar : bars) {
-      BigDecimal v = bar.valueFor(source);
+      BigDecimal value = bar.valueFor(source);
       // Feed values to fast and slow EMAs
-      fast.next(v);
-      slow.next(v);
+      fast.next(value);
+      slow.next(value);
 
       // 2. Seeding stage: wait until both fast & slow EMAs are seeded (usually limited by slow
       // period)

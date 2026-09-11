@@ -27,6 +27,7 @@ make format
 - Ensure all Java files contain exactly one Java type definition (only one class, record, interface, or enum per file) with no nested or extra package-private helper type definitions.
 - Ensure all code (including tests and newly generated files) fully conforms to Checkstyle, PMD, and Spotless formatting rules. Fix code quality warnings in the source code rather than suppressing them.
 - Explicitly branch on `Timeframe`: always use `if (timeframe == Timeframe.DAILY)` followed by `else if (timeframe == Timeframe.WEEKLY)`. The terminal `else` block must explicitly log an error (`log.error(...)`) and throw `new IllegalArgumentException("Unsupported timeframe: " + timeframe)`.
+- Use descriptive variable and parameter names: Always use full, readable domain names (e.g. `bucket` instead of `b`, `bar` instead of `b`, `dailyPrice` / `weeklyPrice` instead of `d` / `w`, `pivot` instead of `p`, `bucketWidth` instead of `w`, and descriptive lambda parameters like `match`, `candle`, `record`). Standard loop counters (`i`, `j`, `k`) are permitted for indexed loops.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.
@@ -36,6 +37,7 @@ make format
 - Use JPA `ddl-auto` to generate schemas.
 - Omit `@Column(length = N)` on Strings or `precision` / `scale` on BigDecimals.
 - Use a fallback `else` or ternary default for `Timeframe` branches without explicit validation.
+- Use cryptic or single-letter variable names (such as `b`, `d`, `w`, `p`, `v`, `r`) for domain models, method parameters, or stream/lambda expressions.
 
 ## Project Structure
 ```text
@@ -85,6 +87,22 @@ if (timeframe == Timeframe.DAILY) {
     log.error("Unsupported timeframe: {}", timeframe);
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
 }
+
+// Descriptive Variable Naming Conventions
+for (Bucket bucket : buckets) {
+    // 'bucket' instead of 'b'
+}
+for (PriceBar bar : bars) {
+    // 'bar' instead of 'b'
+}
+// Descriptive lambda parameters
+dailyBars.stream().map(dailyBar -> ...);
+matches.stream().map(match -> ...);
+
+// Standard loop counters permitted for indexed loops
+for (int i = 0; i < bars.size(); i++) {
+    // 'i', 'j', 'k' permitted
+}
 ```
 
 ## Testing
@@ -114,3 +132,13 @@ if (timeframe == Timeframe.DAILY) {
 ## Build & Tooling
 - **Stale Gradle Configuration Cache**: Spotless or other Gradle linting plugins might throw stale cache errors when local JVM parameters, toolchain configurations, or Gradle versions change. If a `Spotless JVM-local cache is stale` error is encountered, delete `.gradle/configuration-cache/` to resolve the cache corruption.
 - **Java Toolchains Version Alignment**: Ensure the local system JDK aligns with the toolchain version configured in `build.gradle` (e.g., `JavaLanguageVersion.of(...)`). This avoids compiler/toolchain resolution errors during automated builds or static analysis.
+
+## Business Rules (Multi-Market)
+- US equities: `ticker_type = 'US-EQUITY'`, `currency = 'USD'`, `timezone = 'America/New_York'`.
+- Indian equities: `ticker_type = 'IN-EQUITY'`, `currency = 'INR'`, `timezone = 'Asia/Kolkata'`. (Suffix `.NS` for NSE).
+- Crypto: `ticker_type = 'CRYPTO'`, `currency = 'USD'`, `timezone = 'UTC'`.
+- Commodities: `ticker_type = 'COMMODITY'`, `currency = 'USD'`, `timezone = 'America/New_York'`.
+
+## Technical Analysis & S&R Engine
+- **Decoupling False Breakout Forgiveness from Touch Scoring**: Forgiving a temporary breach (preventing premature invalidation) must not conflate with validating support/resistance strength. Reclaims should never award touch credits, and false breakouts must be capped per level lifecycle (`max-false-breakouts`) to prevent whipsawed chop ranges from persisting indefinitely.
+- **Sequential Candle Boundary Anchoring**: In `computeBuckets`, the latest price candle (`bars.getLast()`) defines both the pivot anchor $P$ and linear bucket intervals $[Z_{\text{bottom}}, Z_{\text{top}}]$. Because the latest candle is also scanned during historical candle iteration, its price bounds evaluate against the computed zone boundaries.
