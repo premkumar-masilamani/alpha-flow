@@ -61,11 +61,11 @@ public class CandlestickPatternService {
 
     if (timeframe == Timeframe.DAILY) {
       return dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
+          .map(record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
           .toList();
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(r -> toDto(r.getPriceDate(), r.getPattern(), r.getSentiment()))
+          .map(record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
           .toList();
     } else {
       log.error("Unsupported timeframe for fetching candlestick patterns: {}", timeframe);

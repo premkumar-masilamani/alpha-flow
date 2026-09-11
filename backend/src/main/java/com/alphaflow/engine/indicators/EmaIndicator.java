@@ -42,10 +42,10 @@ public class EmaIndicator implements Indicator {
 
       // 3. If the accumulator is seeded, save the published value (4 decimal places)
       ema.ifPresent(
-          v ->
+          emaVal ->
               values.put(
                   bar.date(),
-                  Map.of(IndicatorOutputKey.VALUE.getValue(), IndicatorMath.publish(v))));
+                  Map.of(IndicatorOutputKey.VALUE.getValue(), IndicatorMath.publish(emaVal))));
     }
 
     return values;

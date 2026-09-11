@@ -104,20 +104,20 @@ class CoreSchedulerTest {
             patternCalculator);
 
     // Start thread for first invocation
-    Thread t = new Thread(scheduler::runScheduledUpdate);
-    t.start();
+    Thread updateThread = new Thread(scheduler::runScheduledUpdate);
+    updateThread.start();
 
     // Wait for first invocation to start and block
     startLatch.await(2, TimeUnit.SECONDS);
 
-    // Call scheduler again in main thread — should skip since t is still running
+    // Call scheduler again in main thread — should skip since updateThread is still running
     scheduler.runOnStartup();
 
     // Release first thread
     finishLatch.countDown();
-    t.join(2000);
+    updateThread.join(2000);
 
-    // Verify t executed download, but second call skipped it
+    // Verify updateThread executed download, but second call skipped it
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();

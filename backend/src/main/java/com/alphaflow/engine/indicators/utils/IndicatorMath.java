@@ -31,29 +31,29 @@ public final class IndicatorMath {
 
   public static BigDecimal average(List<BigDecimal> values) {
     BigDecimal sum = BigDecimal.ZERO;
-    for (BigDecimal v : values) {
-      sum = sum.add(v);
+    for (BigDecimal value : values) {
+      sum = sum.add(value);
     }
     return divide(sum, BigDecimal.valueOf(values.size()));
   }
 
   public static BigDecimal max(Collection<BigDecimal> values) {
-    BigDecimal m = null;
-    for (BigDecimal v : values) {
-      if (m == null || v.compareTo(m) > 0) {
-        m = v;
+    BigDecimal maxVal = null;
+    for (BigDecimal value : values) {
+      if (maxVal == null || value.compareTo(maxVal) > 0) {
+        maxVal = value;
       }
     }
-    return m;
+    return maxVal;
   }
 
   public static BigDecimal min(Collection<BigDecimal> values) {
-    BigDecimal m = null;
-    for (BigDecimal v : values) {
-      if (m == null || v.compareTo(m) < 0) {
-        m = v;
+    BigDecimal minVal = null;
+    for (BigDecimal value : values) {
+      if (minVal == null || value.compareTo(minVal) < 0) {
+        minVal = value;
       }
     }
-    return m;
+    return minVal;
   }
 }

@@ -114,3 +114,13 @@ if (timeframe == Timeframe.DAILY) {
 ## Build & Tooling
 - **Stale Gradle Configuration Cache**: Spotless or other Gradle linting plugins might throw stale cache errors when local JVM parameters, toolchain configurations, or Gradle versions change. If a `Spotless JVM-local cache is stale` error is encountered, delete `.gradle/configuration-cache/` to resolve the cache corruption.
 - **Java Toolchains Version Alignment**: Ensure the local system JDK aligns with the toolchain version configured in `build.gradle` (e.g., `JavaLanguageVersion.of(...)`). This avoids compiler/toolchain resolution errors during automated builds or static analysis.
+
+## Business Rules (Multi-Market)
+- US equities: `ticker_type = 'US-EQUITY'`, `currency = 'USD'`, `timezone = 'America/New_York'`.
+- Indian equities: `ticker_type = 'IN-EQUITY'`, `currency = 'INR'`, `timezone = 'Asia/Kolkata'`. (Suffix `.NS` for NSE).
+- Crypto: `ticker_type = 'CRYPTO'`, `currency = 'USD'`, `timezone = 'UTC'`.
+- Commodities: `ticker_type = 'COMMODITY'`, `currency = 'USD'`, `timezone = 'America/New_York'`.
+
+## Technical Analysis & S&R Engine
+- **Decoupling False Breakout Forgiveness from Touch Scoring**: Forgiving a temporary breach (preventing premature invalidation) must not conflate with validating support/resistance strength. Reclaims should never award touch credits, and false breakouts must be capped per level lifecycle (`max-false-breakouts`) to prevent whipsawed chop ranges from persisting indefinitely.
+- **Sequential Candle Boundary Anchoring**: In `computeBuckets`, the latest price candle (`bars.getLast()`) defines both the pivot anchor $P$ and linear bucket intervals $[Z_{\text{bottom}}, Z_{\text{top}}]$. Because the latest candle is also scanned during historical candle iteration, its price bounds evaluate against the computed zone boundaries.

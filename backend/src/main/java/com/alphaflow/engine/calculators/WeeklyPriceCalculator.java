@@ -143,8 +143,10 @@ public class WeeklyPriceCalculator {
         dailyBars.stream()
             .collect(
                 Collectors.groupingBy(
-                    c ->
-                        c.getPriceDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))));
+                    dailyBar ->
+                        dailyBar
+                            .getPriceDate()
+                            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))));
 
     List<WeeklyPrice> weeklyPrices = new ArrayList<>();
     for (Map.Entry<LocalDate, List<DailyPrice>> entry : dailyPricesByWeek.entrySet()) {

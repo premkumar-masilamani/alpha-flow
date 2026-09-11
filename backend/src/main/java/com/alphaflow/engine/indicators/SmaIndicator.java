@@ -42,11 +42,11 @@ public class SmaIndicator implements Indicator {
     // 2. Loop chronologically through all bars
     for (PriceBar bar : bars) {
       // Extract the target value based on PriceSource (CLOSE or VOLUME)
-      BigDecimal v = bar.valueFor(source);
+      BigDecimal value = bar.valueFor(source);
 
       // Add value to sliding window and running sum
-      window.addLast(v);
-      sum = sum.add(v);
+      window.addLast(value);
+      sum = sum.add(value);
 
       // Slide window: if window size is larger than period, drop the oldest value
       if (window.size() > period) {

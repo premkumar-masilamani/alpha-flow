@@ -34,11 +34,11 @@ public final class IndicatorParams {
   }
 
   public int getInt(String name) {
-    Integer v = values.get(name);
-    if (v == null) {
+    Integer val = values.get(name);
+    if (val == null) {
       throw new IllegalArgumentException("Missing required param '" + name + "' in " + canonical());
     }
-    return v;
+    return val;
   }
 
   public int getInt(IndicatorParamKey key) {
@@ -55,11 +55,11 @@ public final class IndicatorParams {
 
   public String canonical() {
     StringBuilder sb = new StringBuilder();
-    for (Map.Entry<String, Integer> e : values.entrySet()) {
+    for (Map.Entry<String, Integer> entry : values.entrySet()) {
       if (!sb.isEmpty()) {
         sb.append(',');
       }
-      sb.append(e.getKey()).append('=').append(e.getValue());
+      sb.append(entry.getKey()).append('=').append(entry.getValue());
     }
     return sb.toString();
   }

@@ -907,8 +907,8 @@ class CandlestickPatternCalculatorTest {
       DailyPrice[] adds = (DailyPrice[]) spec[1];
 
       List<DailyPrice> testPrices = new ArrayList<>(base);
-      for (DailyPrice p : adds) {
-        testPrices.add(p);
+      for (DailyPrice dailyPrice : adds) {
+        testPrices.add(dailyPrice);
       }
 
       when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(testPrices);
