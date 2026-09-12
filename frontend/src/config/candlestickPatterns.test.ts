@@ -87,11 +87,27 @@ describe('candlestickPatterns', () => {
         // First candle red, second candle green
         expect(onNeck?.svgMarkup).toContain('fill="#e74c3c"');
         expect(onNeck?.svgMarkup).toContain('fill="#2ecc71"');
+        // On-neck closes at Day 1 low (y=85)
+        expect(onNeck?.svgMarkup).toContain('y="85" width="22" height="20"');
 
         const inNeck = CANDLESTICK_PATTERNS.find(p => p.id === 'bearish-in-neck-line');
         expect(inNeck).toBeDefined();
         expect(inNeck?.svgMarkup).toContain('fill="#e74c3c"');
         expect(inNeck?.svgMarkup).toContain('fill="#2ecc71"');
+        // In-neck closes slightly inside Day 1 body (y=78)
+        expect(inNeck?.svgMarkup).toContain('y="78" width="22" height="25"');
+    });
+
+    it('has authentic unfilled gap visuals for Upside and Downside Tasuki Gaps', () => {
+        const upside = CANDLESTICK_PATTERNS.find(p => p.id === 'upside-tasuki-gap');
+        expect(upside).toBeDefined();
+        // Day 3 red candle lower wick stays within the gap above Day 1 close (y2=58 < 60)
+        expect(upside?.svgMarkup).toContain('y2="58"');
+
+        const downside = CANDLESTICK_PATTERNS.find(p => p.id === 'downside-tasuki-gap');
+        expect(downside).toBeDefined();
+        // Day 3 green candle closes at y=63, remaining below Day 1 close (y=57)
+        expect(downside?.svgMarkup).toContain('y="63" width="18" height="17"');
     });
 
     it('avoids "real body" and "real bodies" across all pattern descriptions, using clean "body" instead', () => {

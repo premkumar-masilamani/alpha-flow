@@ -615,7 +615,7 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
         structure: 'Green candle, followed by an upward-gapping green candle, and a red candle that closes partially into the gap without filling it completely.',
         psychology: 'A mild pullback tests the gap zone as support, where buyers step in before the gap is closed.',
         outcome: 'The pullback tests the gap as support; if the gap remains open and price resumes higher, the uptrend is likely to continue.',
-        svgMarkup: '<line x1="40" y1="55" x2="40" y2="105" stroke="#2ecc71" stroke-width="2"/> <rect x="31" y="60" width="18" height="35" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/> <line x1="75" y1="18" x2="75" y2="55" stroke="#2ecc71" stroke-width="2"/> <rect x="66" y="22" width="18" height="28" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/> <line x1="110" y1="28" x2="110" y2="70" stroke="#e74c3c" stroke-width="2"/> <rect x="101" y="32" width="18" height="25" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/>',
+        svgMarkup: '<line x1="40" y1="55" x2="40" y2="105" stroke="#2ecc71" stroke-width="2"/> <rect x="31" y="60" width="18" height="35" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/> <line x1="75" y1="18" x2="75" y2="55" stroke="#2ecc71" stroke-width="2"/> <rect x="66" y="22" width="18" height="28" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/> <line x1="110" y1="28" x2="110" y2="58" stroke="#e74c3c" stroke-width="2"/> <rect x="101" y="32" width="18" height="25" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/>',
     },
     {
         id: 'bullish-side-by-side-white-lines',
@@ -659,7 +659,7 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
         structure: 'In an uptrend, a red candle is followed by a green candle that opens lower and closes precisely at Day 1\'s low, testing support.',
         psychology: 'A pullback tests prior support without breaking down; buyers absorb the dip and defend the neckline.',
         outcome: 'Modern uptrend continuation variant; upside follow-through above the pattern high confirms trend resumption.',
-        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="75" x2="95" y2="110" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="80" width="22" height="22" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
+        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="85" x2="95" y2="110" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="85" width="22" height="20" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
     },
     {
         id: 'bullish-in-neck-line',
@@ -670,7 +670,7 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
         structure: 'In an uptrend, a red candle is followed by a green candle that opens lower and closes slightly inside Day 1\'s body.',
         psychology: 'A pullback encounters buying interest that recovers slightly into the prior body, reflecting absorption of supply.',
         outcome: 'Modern uptrend continuation variant; confirmation above the pattern high supports bullish resumption.',
-        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="65" x2="95" y2="110" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="70" width="22" height="30" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
+        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="75" x2="95" y2="108" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="78" width="22" height="25" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
     },
     {
         id: 'bearish-separating-lines',
@@ -703,7 +703,7 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
         structure: 'Red candle, followed by a downward-gapping red candle, and a green candle that closes partially into the gap without filling it completely.',
         psychology: 'A corrective rebound pauses within the gap zone, where selling interest halts further upside.',
         outcome: 'The corrective rally stalls within the gap, leaving the gap as resistance and favoring continuation lower.',
-        svgMarkup: '<line x1="40" y1="18" x2="40" y2="65" stroke="#e74c3c" stroke-width="2"/> <rect x="31" y="22" width="18" height="35" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="75" y1="65" x2="75" y2="105" stroke="#e74c3c" stroke-width="2"/> <rect x="66" y="70" width="18" height="28" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="110" y1="50" x2="110" y2="90" stroke="#2ecc71" stroke-width="2"/> <rect x="101" y="55" width="18" height="25" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
+        svgMarkup: '<line x1="40" y1="18" x2="40" y2="65" stroke="#e74c3c" stroke-width="2"/> <rect x="31" y="22" width="18" height="35" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="75" y1="65" x2="75" y2="105" stroke="#e74c3c" stroke-width="2"/> <rect x="66" y="70" width="18" height="28" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="110" y1="60" x2="110" y2="85" stroke="#2ecc71" stroke-width="2"/> <rect x="101" y="63" width="18" height="17" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
     },
     {
         id: 'bearish-side-by-side-white-lines',
@@ -747,7 +747,7 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
         structure: 'In a downtrend, a long red candle is followed by a smaller green candle that opens below Day 1\'s low and closes near Day 1\'s low.',
         psychology: 'A minor rebound after a gap-down fails to make meaningful progress into the prior session\'s body, stalling at the neckline.',
         outcome: 'Failure of buyers to push price into the previous candle\'s body indicates persistent weakness, favoring downtrend continuation.',
-        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="75" x2="95" y2="110" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="80" width="22" height="22" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
+        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="85" x2="95" y2="110" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="85" width="22" height="20" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
     },
     {
         id: 'bearish-in-neck-line',
@@ -758,7 +758,7 @@ export const CANDLESTICK_PATTERNS: CandlestickPatternDetail[] = [
         structure: 'In a downtrend, a long red candle is followed by a smaller green candle that opens below Day 1\'s low and closes slightly inside Day 1\'s body.',
         psychology: 'Buyers attempt a rebound after a gap-down but fail to penetrate significantly into the prior session\'s range.',
         outcome: 'Weak penetration into the prior candle reflects insufficient demand to reverse the decline, favoring downtrend continuation.',
-        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="65" x2="95" y2="110" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="70" width="22" height="30" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
+        svgMarkup: '<line x1="55" y1="25" x2="55" y2="85" stroke="#e74c3c" stroke-width="2"/> <rect x="44" y="35" width="22" height="45" fill="#e74c3c" rx="1" stroke="#b30000" stroke-width="1"/> <line x1="95" y1="75" x2="95" y2="108" stroke="#2ecc71" stroke-width="2"/> <rect x="84" y="78" width="22" height="25" fill="#2ecc71" rx="1" stroke="#1b7a43" stroke-width="1"/>',
     },
 ];
 
