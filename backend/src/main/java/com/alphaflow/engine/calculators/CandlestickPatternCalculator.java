@@ -100,7 +100,7 @@ public class CandlestickPatternCalculator {
           "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.DAILY);
       LocalDate lastDailyDate = getLastComputedDate(ticker, Timeframe.DAILY);
       dailyRecomputeStartDate = calculateRecomputeStartDate(dailyBars, lastDailyDate);
-      dailyMatches = computePatterns(dailyBars, lastDailyDate);
+      dailyMatches = computePatterns(dailyBars, dailyRecomputeStartDate);
     } else {
       log.debug(
           "Ticker {}: Insufficient daily data points (found {}) to compute patterns.",
@@ -115,7 +115,7 @@ public class CandlestickPatternCalculator {
           "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.WEEKLY);
       LocalDate lastWeeklyDate = getLastComputedDate(ticker, Timeframe.WEEKLY);
       weeklyRecomputeStartDate = calculateRecomputeStartDate(weeklyBars, lastWeeklyDate);
-      weeklyMatches = computePatterns(weeklyBars, lastWeeklyDate);
+      weeklyMatches = computePatterns(weeklyBars, weeklyRecomputeStartDate);
     } else {
       log.debug(
           "Ticker {}: Insufficient weekly data points (found {}) to compute patterns.",
@@ -162,17 +162,14 @@ public class CandlestickPatternCalculator {
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
-  private List<PatternMatch> computePatterns(List<PriceBar> bars, LocalDate lastComputedDate) {
-    if (bars.size() < MIN_BARS) {
-      return Collections.emptyList();
-    }
-    int startIndex = calculateStartIndex(bars, lastComputedDate);
+  private List<PatternMatch> computePatterns(List<PriceBar> bars, LocalDate recomputeStartDate) {
+    int startIndex = calculateStartIndex(bars, recomputeStartDate);
     return findMatches(bars, startIndex);
   }
 
-  private int calculateStartIndex(List<PriceBar> bars, LocalDate lastComputedDate) {
-    int lastIndex = findDateIndex(bars, lastComputedDate);
-    return lastIndex != -1 ? Math.max(LOOKBACK_BARS, lastIndex - LOOKBACK_BARS) : LOOKBACK_BARS;
+  private int calculateStartIndex(List<PriceBar> bars, LocalDate recomputeStartDate) {
+    int startIndex = findDateIndex(bars, recomputeStartDate);
+    return startIndex != -1 ? Math.max(LOOKBACK_BARS, startIndex) : LOOKBACK_BARS;
   }
 
   private LocalDate calculateRecomputeStartDate(List<PriceBar> bars, LocalDate lastComputedDate) {
