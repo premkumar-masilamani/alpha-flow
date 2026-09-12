@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
@@ -32,23 +31,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SupportResistanceCalculator {
 
+  private static final double BUCKET_WIDTH_PCT = 0.01;
+  private static final int MAX_BUCKETS = 20;
+  private static final int BREAKOUT_CONFIRMATION_BARS = 2;
+  private static final int MAX_FALSE_BREAKOUTS = 1;
+
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
-
-  @Value("${alphaflow.indicators.support-resistance.bucket-width-pct:0.01}")
-  private double bucketWidthPct = 0.01;
-
-  @Value("${alphaflow.indicators.support-resistance.max-buckets:20}")
-  private int maxBuckets = 20;
-
-  @Value("${alphaflow.indicators.support-resistance.breakout-confirmation-bars:2}")
-  private int breakoutConfirmationBars = 2;
-
-  @Value("${alphaflow.indicators.support-resistance.max-false-breakouts:1}")
-  private int maxFalseBreakouts = 1;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
 
@@ -129,28 +121,28 @@ public class SupportResistanceCalculator {
             .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
     // 2. Calculate Linear Bucket Width (W)
-    BigDecimal bucketWidth = pivot.multiply(BigDecimal.valueOf(bucketWidthPct));
+    BigDecimal bucketWidth = pivot.multiply(BigDecimal.valueOf(BUCKET_WIDTH_PCT));
 
     // 3. Construct Fixed Linear Buckets
     List<Bucket> buckets = new ArrayList<>();
 
-    // Resistance Buckets (k = 0 to maxBuckets - 1, above P)
-    for (int k = 0; k < maxBuckets; k++) {
+    // Resistance Buckets (k = 0 to MAX_BUCKETS - 1, above P)
+    for (int k = 0; k < MAX_BUCKETS; k++) {
       BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
     }
 
-    // Support Buckets (k = -1 to -maxBuckets, below P)
-    for (int k = -1; k >= -maxBuckets; k--) {
+    // Support Buckets (k = -1 to -MAX_BUCKETS, below P)
+    for (int k = -1; k >= -MAX_BUCKETS; k--) {
       BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
       BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
     }
 
     // Scan sequentially through historical candles
-    int confirmationThreshold = Math.max(1, breakoutConfirmationBars);
-    int allowedFalseBreakouts = Math.max(0, maxFalseBreakouts);
+    int confirmationThreshold = Math.max(1, BREAKOUT_CONFIRMATION_BARS);
+    int allowedFalseBreakouts = Math.max(0, MAX_FALSE_BREAKOUTS);
 
     for (PriceBar bar : bars) {
       for (Bucket bucket : buckets) {
