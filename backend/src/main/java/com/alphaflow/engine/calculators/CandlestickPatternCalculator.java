@@ -257,8 +257,7 @@ public class CandlestickPatternCalculator {
 
   private List<PatternMatch> findMatches(List<PriceBar> bars, int startIndex) {
     List<PatternMatch> matches = new ArrayList<>();
-    List<BigDecimal> bodies = computeAbsoluteBodies(bars);
-    List<BigDecimal> avgBodies = computeMovingAverages(bodies, PERIOD_BODY_MA);
+    List<BigDecimal> avgBodies = computeMovingAverages(bars, PERIOD_BODY_MA);
 
     for (int i = startIndex; i < bars.size(); i++) {
       PriceBar bar = bars.get(i);
@@ -1045,23 +1044,20 @@ public class CandlestickPatternCalculator {
     return bodyMin.subtract(bar.low(), MC);
   }
 
-  private List<BigDecimal> computeAbsoluteBodies(List<PriceBar> bars) {
-    return bars.stream().map(this::body).toList();
-  }
-
-  private List<BigDecimal> computeMovingAverages(List<BigDecimal> values, int period) {
-    List<BigDecimal> ma = new ArrayList<>(Collections.nCopies(values.size(), BigDecimal.ZERO));
+  private List<BigDecimal> computeMovingAverages(List<PriceBar> bars, int period) {
+    List<BigDecimal> movingAverages =
+        new ArrayList<>(Collections.nCopies(bars.size(), BigDecimal.ZERO));
     BigDecimal sum = BigDecimal.ZERO;
 
-    for (int i = 0; i < values.size(); i++) {
-      sum = sum.add(values.get(i));
+    for (int i = 0; i < bars.size(); i++) {
+      sum = sum.add(body(bars.get(i)));
       if (i >= period) {
-        sum = sum.subtract(values.get(i - period));
+        sum = sum.subtract(body(bars.get(i - period)));
       }
       int count = Math.min(i + 1, period);
-      ma.set(i, IndicatorMath.divide(sum, BigDecimal.valueOf(count)));
+      movingAverages.set(i, IndicatorMath.divide(sum, BigDecimal.valueOf(count)));
     }
-    return ma;
+    return movingAverages;
   }
 
   private PriceBar toPriceBar(DailyPrice dailyPrice) {
