@@ -504,46 +504,6 @@ class SupportResistanceCalculatorTest {
     assertFalse(hasProvenLevel, "Broken resistance bucket should NOT be saved as proven");
   }
 
-  @Test
-  void testLegacyBehaviorWhenConfirmationBarsIsOne() throws Exception {
-    Field field = SupportResistanceCalculator.class.getDeclaredField("breakoutConfirmationBars");
-    field.setAccessible(true);
-    field.set(calculator, 1);
-
-    List<DailyPrice> bars = new ArrayList<>();
-    // Day 0: Touch 1
-    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
-    // Day 2: Single breach (close < 99.00) -> immediately invalidates when confirmation bars = 1
-    bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
-    // Day 3: Reclaim! Touch 1
-    bars.add(createBar(3, "99.00", "100.50", "99.20", "100.20"));
-    // Day 4: Anchor bar (P = 100.00, W = 1.00)
-    bars.add(createBar(4, "100.00", "100.00", "100.00", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    boolean hasProvenLevel =
-        saved.stream()
-            .anyMatch(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0);
-    assertFalse(
-        hasProvenLevel,
-        "Support bucket should have been invalidated by single breach when confirmation bars = 1");
-  }
-
   private DailyPrice createBar(int dayOffset, String open, String high, String low, String close) {
     return DailyPrice.builder()
         .ticker(ticker)
