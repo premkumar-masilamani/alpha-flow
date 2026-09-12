@@ -111,7 +111,7 @@ if (dailyBars.size() >= MIN_BARS) {
     log.info("Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.DAILY);
     LocalDate lastDailyDate = getLastComputedDate(ticker, Timeframe.DAILY);
     dailyRecomputeStartDate = calculateRecomputeStartDate(dailyBars, lastDailyDate);
-    dailyMatches = computePatterns(dailyBars, lastDailyDate);
+    dailyMatches = computePatterns(dailyBars, dailyRecomputeStartDate);
 } else {
     log.debug(
         "Ticker {}: Insufficient daily data points (found {}) to compute patterns.",
