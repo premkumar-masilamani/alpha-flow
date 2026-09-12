@@ -141,9 +141,6 @@ public class SupportResistanceCalculator {
     }
 
     // Scan sequentially through historical candles
-    int confirmationThreshold = Math.max(1, BREAKOUT_CONFIRMATION_BARS);
-    int allowedFalseBreakouts = Math.max(0, MAX_FALSE_BREAKOUTS);
-
     for (PriceBar bar : bars) {
       for (Bucket bucket : buckets) {
         // STEP 1: Touch Detection
@@ -175,8 +172,8 @@ public class SupportResistanceCalculator {
         if (isBreach) {
           if (bucket.getTouchCount() > 0) {
             bucket.incrementConsecutiveBreachCount();
-            if (bucket.getConsecutiveBreachCount() >= confirmationThreshold
-                || bucket.getFalseBreakoutCount() >= allowedFalseBreakouts) {
+            if (bucket.getConsecutiveBreachCount() >= BREAKOUT_CONFIRMATION_BARS
+                || bucket.getFalseBreakoutCount() >= MAX_FALSE_BREAKOUTS) {
               bucket.resetTouchCount();
             }
           }
