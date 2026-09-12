@@ -542,7 +542,7 @@ class CandlestickPatternCalculatorTest {
             new Object[] {
               CandlestickPattern.BULLISH_KICKING,
               new DailyPrice[] {
-                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(14), "100", "100", "90", "90"),
                 daily(start.plusDays(15), "101", "111", "101", "111")
               }
             },
@@ -735,7 +735,7 @@ class CandlestickPatternCalculatorTest {
               new DailyPrice[] {
                 daily(start.plusDays(14), "90", "100", "90", "100"),
                 daily(start.plusDays(15), "105", "105", "102", "102"),
-                daily(start.plusDays(16), "106", "106", "95", "95")
+                daily(start.plusDays(16), "106", "106", "101", "101")
               }
             },
             new Object[] {
@@ -767,7 +767,7 @@ class CandlestickPatternCalculatorTest {
               new DailyPrice[] {
                 daily(start.plusDays(14), "90", "100", "90", "100"),
                 daily(start.plusDays(15), "105", "105", "102", "102"),
-                daily(start.plusDays(16), "101.5", "101.5", "95", "95")
+                daily(start.plusDays(16), "103", "103", "95", "95")
               }
             },
 
@@ -891,15 +891,15 @@ class CandlestickPatternCalculatorTest {
             new Object[] {
               CandlestickPattern.BEARISH_ON_NECK_LINE,
               new DailyPrice[] {
-                daily(start.plusDays(14), "90", "100", "90", "100"),
-                daily(start.plusDays(15), "105", "105", "100", "100")
+                daily(start.plusDays(14), "100", "101", "90", "90"),
+                daily(start.plusDays(15), "85", "90", "85", "90")
               }
             },
             new Object[] {
               CandlestickPattern.BEARISH_IN_NECK_LINE,
               new DailyPrice[] {
-                daily(start.plusDays(14), "90", "100", "90", "100"),
-                daily(start.plusDays(15), "105", "105", "100", "100")
+                daily(start.plusDays(14), "100", "101", "88", "90"),
+                daily(start.plusDays(15), "85", "90.01", "85", "90.01")
               }
             });
 

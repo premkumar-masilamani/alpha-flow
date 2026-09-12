@@ -337,6 +337,8 @@ public class CandlestickPatternCalculator {
       case BULLISH_HARAMI:
         return prev != null
             && prevRed
+            && prevBody.compareTo(avgBody) >= 0
+            && curGreen
             && curBody.compareTo(prevBody) < 0
             && cur.open().compareTo(prev.close()) >= 0
             && cur.close().compareTo(prev.open()) <= 0;
@@ -344,7 +346,8 @@ public class CandlestickPatternCalculator {
       case BULLISH_HARAMI_CROSS:
         return prev != null
             && prevRed
-            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && prevBody.compareTo(avgBody) >= 0
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_DOJI, MC)) <= 0
             && cur.open().compareTo(prev.close()) >= 0
             && cur.close().compareTo(prev.open()) <= 0;
 
@@ -354,7 +357,7 @@ public class CandlestickPatternCalculator {
         }
         BigDecimal midpointPiercingLine =
             prev.close().add(prev.open()).divide(DIVISOR_MIDPOINT, MC);
-        return cur.open().compareTo(prev.close()) < 0
+        return cur.open().compareTo(prev.low()) < 0
             && cur.close().compareTo(midpointPiercingLine) > 0
             && cur.close().compareTo(prev.open()) <= 0;
 
@@ -362,7 +365,7 @@ public class CandlestickPatternCalculator {
         return prev != null
             && prevRed
             && prevBody.compareTo(avgBody) >= 0
-            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_DOJI, MC)) <= 0
             && cur.open().compareTo(prev.close()) < 0
             && cur.close().compareTo(prev.close()) < 0;
 
@@ -376,7 +379,7 @@ public class CandlestickPatternCalculator {
             && cur.close()
                     .subtract(prev.close())
                     .abs()
-                    .compareTo(avgBody.multiply(THRESHOLD_MINIMAL, MC))
+                    .compareTo(avgBody.multiply(THRESHOLD_TINY, MC))
                 <= 0;
 
       case THREE_WHITE_SOLDIERS:
@@ -470,7 +473,7 @@ public class CandlestickPatternCalculator {
             && prev.open().compareTo(prev2.close()) >= 0
             && prev.close().compareTo(prev2.open()) <= 0
             && curGreen
-            && cur.close().compareTo(prev2.open()) > 0;
+            && cur.close().compareTo(prev.high()) > 0;
 
       case THREE_OUTSIDE_UP:
         return prev2 != null
@@ -485,8 +488,12 @@ public class CandlestickPatternCalculator {
         return prev != null
             && prevRed
             && prevBody.compareTo(avgBody) >= 0
+            && lowerShadow(prev).compareTo(prevBody.multiply(THRESHOLD_TINY, MC)) <= 0
+            && upperShadow(prev).compareTo(prevBody.multiply(THRESHOLD_TINY, MC)) <= 0
             && curGreen
             && curBody.compareTo(avgBody) >= 0
+            && lowerShadow(cur).compareTo(curBody.multiply(THRESHOLD_TINY, MC)) <= 0
+            && upperShadow(cur).compareTo(curBody.multiply(THRESHOLD_TINY, MC)) <= 0
             && cur.open().compareTo(prev.open()) > 0;
 
       case UNIQUE_THREE_RIVERS_BOTTOM:
@@ -496,9 +503,11 @@ public class CandlestickPatternCalculator {
             && prevRed
             && prev.close().compareTo(prev2.close()) > 0
             && prev.low().compareTo(prev2.low()) < 0
-            && curBody.compareTo(avgBody) < 0
-            && lowerShadow(cur).compareTo(curBody.multiply(THRESHOLD_MINIMAL, MC)) <= 0
-            && cur.close().compareTo(prev.low()) > 0;
+            && lowerShadow(prev).compareTo(prevBody) >= 0
+            && curGreen
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_HALF, MC)) <= 0
+            && cur.low().compareTo(prev.low()) > 0
+            && cur.close().compareTo(prev.open()) <= 0;
 
       case THREE_STARS_IN_SOUTH:
         return prev2 != null
@@ -537,7 +546,7 @@ public class CandlestickPatternCalculator {
             && cur.close()
                     .subtract(prev2.close())
                     .abs()
-                    .compareTo(avgBody.multiply(THRESHOLD_MINIMAL, MC))
+                    .compareTo(avgBody.multiply(THRESHOLD_TINY, MC))
                 <= 0;
 
       case HOMING_PIGEON:
@@ -603,6 +612,8 @@ public class CandlestickPatternCalculator {
       case BEARISH_HARAMI:
         return prev != null
             && prevGreen
+            && prevBody.compareTo(avgBody) >= 0
+            && curRed
             && curBody.compareTo(prevBody) < 0
             && cur.open().compareTo(prev.close()) <= 0
             && cur.close().compareTo(prev.open()) >= 0;
@@ -610,7 +621,8 @@ public class CandlestickPatternCalculator {
       case BEARISH_HARAMI_CROSS:
         return prev != null
             && prevGreen
-            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && prevBody.compareTo(avgBody) >= 0
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_DOJI, MC)) <= 0
             && cur.open().compareTo(prev.close()) <= 0
             && cur.close().compareTo(prev.open()) >= 0;
 
@@ -620,7 +632,7 @@ public class CandlestickPatternCalculator {
         }
         BigDecimal darkCloudCoverMidpoint =
             prev.close().add(prev.open()).divide(DIVISOR_MIDPOINT, MC);
-        return cur.open().compareTo(prev.close()) > 0
+        return cur.open().compareTo(prev.high()) > 0
             && cur.close().compareTo(darkCloudCoverMidpoint) < 0
             && cur.close().compareTo(prev.open()) >= 0;
 
@@ -628,7 +640,7 @@ public class CandlestickPatternCalculator {
         return prev != null
             && prevGreen
             && prevBody.compareTo(avgBody) >= 0
-            && curBody.compareTo(avgBody.multiply(THRESHOLD_SMALL, MC)) <= 0
+            && curBody.compareTo(avgBody.multiply(THRESHOLD_DOJI, MC)) <= 0
             && cur.open().compareTo(prev.close()) > 0
             && cur.close().compareTo(prev.close()) > 0;
 
@@ -642,7 +654,7 @@ public class CandlestickPatternCalculator {
             && cur.close()
                     .subtract(prev.close())
                     .abs()
-                    .compareTo(avgBody.multiply(THRESHOLD_MINIMAL, MC))
+                    .compareTo(avgBody.multiply(THRESHOLD_TINY, MC))
                 <= 0;
 
       case THREE_BLACK_CROWS:
@@ -736,7 +748,7 @@ public class CandlestickPatternCalculator {
             && prev.open().compareTo(prev2.close()) <= 0
             && prev.close().compareTo(prev2.open()) >= 0
             && curRed
-            && cur.close().compareTo(prev2.open()) < 0;
+            && cur.close().compareTo(prev.low()) < 0;
 
       case THREE_OUTSIDE_DOWN:
         return prev2 != null
@@ -751,8 +763,12 @@ public class CandlestickPatternCalculator {
         return prev != null
             && prevGreen
             && prevBody.compareTo(avgBody) >= 0
+            && lowerShadow(prev).compareTo(prevBody.multiply(THRESHOLD_TINY, MC)) <= 0
+            && upperShadow(prev).compareTo(prevBody.multiply(THRESHOLD_TINY, MC)) <= 0
             && curRed
             && curBody.compareTo(avgBody) >= 0
+            && lowerShadow(cur).compareTo(curBody.multiply(THRESHOLD_TINY, MC)) <= 0
+            && upperShadow(cur).compareTo(curBody.multiply(THRESHOLD_TINY, MC)) <= 0
             && cur.open().compareTo(prev.open()) < 0;
 
       case LADDER_TOP:
@@ -782,11 +798,11 @@ public class CandlestickPatternCalculator {
             && prev2Green
             && prev2Body.compareTo(avgBody) >= 0
             && prevRed
-            && prev.low().compareTo(prev2.high()) > 0
+            && prev.open().min(prev.close()).compareTo(prev2.close()) > 0
             && curRed
             && cur.open().compareTo(prev.open()) > 0
-            && cur.close().compareTo(prev2.close()) < 0
-            && cur.close().compareTo(prev2.open()) > 0;
+            && cur.close().compareTo(prev.close()) < 0
+            && cur.close().compareTo(prev2.close()) > 0;
 
       case IDENTICAL_THREE_CROWS:
         return prev2 != null
@@ -827,12 +843,14 @@ public class CandlestickPatternCalculator {
       case TWO_CROWS:
         return prev2 != null
             && prev2Green
+            && prev2Body.compareTo(avgBody) >= 0
             && isRed(prev)
             && prev.low().compareTo(prev2.high()) > 0
             && curRed
+            && cur.open().compareTo(prev.close()) >= 0
+            && cur.open().compareTo(prev.open()) <= 0
             && cur.close().compareTo(prev2.close()) < 0
-            && cur.close().compareTo(prev2.open()) > 0
-            && cur.open().compareTo(prev.close()) < 0;
+            && cur.close().compareTo(prev2.open()) > 0;
 
       // C. Bullish Continuation
       case BULLISH_SEPARATING_LINES:
@@ -860,7 +878,7 @@ public class CandlestickPatternCalculator {
             && prev2.low().compareTo(prev4.low()) > 0
             && prev.high().compareTo(prev4.high()) < 0
             && prev.low().compareTo(prev4.low()) > 0
-            && cur.close().compareTo(prev4.close()) > 0;
+            && cur.close().compareTo(prev4.high()) > 0;
 
       case UPSIDE_TASUKI_GAP:
         return prev2 != null
@@ -896,6 +914,8 @@ public class CandlestickPatternCalculator {
             && prev3Green
             && prev2Green
             && prevGreen
+            && prev2.close().compareTo(prev3.close()) > 0
+            && prev.close().compareTo(prev2.close()) > 0
             && curRed
             && cur.open().compareTo(prev.close()) >= 0
             && cur.close().compareTo(prev3.open()) <= 0;
@@ -957,7 +977,7 @@ public class CandlestickPatternCalculator {
             && prev2.low().compareTo(prev4.low()) > 0
             && prev.high().compareTo(prev4.high()) < 0
             && prev.low().compareTo(prev4.low()) > 0
-            && cur.close().compareTo(prev4.close()) < 0;
+            && cur.close().compareTo(prev4.low()) < 0;
 
       case DOWNSIDE_TASUKI_GAP:
         return prev2 != null
@@ -993,6 +1013,8 @@ public class CandlestickPatternCalculator {
             && prev3Red
             && prev2Red
             && prevRed
+            && prev2.close().compareTo(prev3.close()) < 0
+            && prev.close().compareTo(prev2.close()) < 0
             && curGreen
             && cur.open().compareTo(prev.close()) <= 0
             && cur.close().compareTo(prev3.open()) >= 0;
@@ -1008,20 +1030,23 @@ public class CandlestickPatternCalculator {
 
       case BEARISH_ON_NECK_LINE:
         return prev != null
-            && prevGreen
-            && curRed
-            && cur.open().compareTo(prev.high()) > 0
+            && prevRed
+            && prevBody.compareTo(avgBody) >= 0
+            && curGreen
+            && cur.open().compareTo(prev.low()) < 0
             && cur.close()
-                    .subtract(prev.high())
+                    .subtract(prev.low())
                     .abs()
                     .compareTo(avgBody.multiply(THRESHOLD_TINY, MC))
                 <= 0;
 
       case BEARISH_IN_NECK_LINE:
         return prev != null
-            && prevGreen
-            && curRed
-            && cur.open().compareTo(prev.high()) > 0
+            && prevRed
+            && prevBody.compareTo(avgBody) >= 0
+            && curGreen
+            && cur.open().compareTo(prev.low()) < 0
+            && cur.close().compareTo(prev.close()) >= 0
             && cur.close()
                     .subtract(prev.close())
                     .abs()
