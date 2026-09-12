@@ -93,10 +93,10 @@ public class BollingerBandsIndicator implements Indicator {
         BigDecimal lower = sma.subtract(devOffset);
 
         BigDecimal bandwidth;
-        if (sma.compareTo(BigDecimal.ZERO) == 0) {
-          bandwidth = BigDecimal.ZERO;
-        } else {
+        if (sma.compareTo(BigDecimal.ZERO) != 0) {
           bandwidth = IndicatorMath.divide(upper.subtract(lower), sma);
+        } else {
+          bandwidth = BigDecimal.ZERO;
         }
 
         values.put(
