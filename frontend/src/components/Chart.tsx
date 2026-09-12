@@ -262,9 +262,181 @@ class SupportResistanceAxisView implements ISeriesPrimitiveAxisView {
         return series.priceToCoordinate(this._seg.price) !== null;
     }
 }
+
+class ChartPatternPrimitive implements ISeriesPrimitive {
+    private _series: ISeriesApi<any> | null = null;
+    private _chart: any;
+    private _patterns: ChartPatternData[];
+
+    constructor(chart: any, patterns: ChartPatternData[]) {
+        this._chart = chart;
+        this._patterns = patterns;
+    }
+
+    attached(param: { series: ISeriesApi<any>; chart?: any }) {
+        this._series = param.series;
+        if (param.chart) {
+            this._chart = param.chart;
+        }
+    }
+
+    detached() {
+        this._series = null;
+    }
+
+    paneViews() {
+        return [new ChartPatternPaneView(this)];
+    }
+
+    priceAxisViews() {
+        return [];
+    }
+
+    getSeries() { return this._series; }
+    getChart() { return this._chart; }
+    getPatterns() { return this._patterns; }
+}
+
+class ChartPatternPaneView implements IPrimitivePaneView {
+    private _primitive: ChartPatternPrimitive;
+
+    constructor(primitive: ChartPatternPrimitive) {
+        this._primitive = primitive;
+    }
+
+    zOrder() {
+        return 'normal' as const;
+    }
+
+    renderer() {
+        return new ChartPatternRenderer(this._primitive);
+    }
+}
+
+class ChartPatternRenderer implements IPrimitivePaneRenderer {
+    private _primitive: ChartPatternPrimitive;
+
+    constructor(primitive: ChartPatternPrimitive) {
+        this._primitive = primitive;
+    }
+
+    draw(target: any) {
+        const series = this._primitive.getSeries();
+        const chart = this._primitive.getChart();
+        if (!series || !chart) return;
+
+        const timeScale = chart.timeScale();
+        const patterns = this._primitive.getPatterns();
+        if (!patterns || patterns.length === 0) return;
+
+        target.useBitmapCoordinateSpace((scope: any) => {
+            const ctx = scope.context;
+            const hRatio = scope.horizontalPixelRatio;
+            const vRatio = scope.verticalPixelRatio;
+
+            for (const pattern of patterns) {
+                const isBullish = pattern.sentiment.startsWith('BULLISH');
+                const baseColor = isBullish ? '#22c55e' : '#ef4444';
+                const statusColor =
+                    pattern.status === 'TARGET_REACHED'
+                        ? '#10b981'
+                        : pattern.status === 'COMPLETED'
+                        ? '#3b82f6'
+                        : pattern.status === 'INVALIDATED'
+                        ? '#94a3b8'
+                        : '#f59e0b';
+
+                // 1. Draw trendlines connecting pivot points
+                if (pattern.pivotPoints && pattern.pivotPoints.length > 1) {
+                    ctx.save();
+                    ctx.strokeStyle = baseColor;
+                    ctx.lineWidth = 1.5 * vRatio;
+                    ctx.beginPath();
+
+                    let started = false;
+                    for (const pivot of pattern.pivotPoints) {
+                        const x = timeScale.timeToCoordinate(pivot.date as Time);
+                        const y = series.priceToCoordinate(pivot.price);
+                        if (x !== null && y !== null) {
+                            const renderX = x * hRatio;
+                            const renderY = y * vRatio;
+                            if (!started) {
+                                ctx.moveTo(renderX, renderY);
+                                started = true;
+                            } else {
+                                ctx.lineTo(renderX, renderY);
+                            }
+                        }
+                    }
+                    if (started) {
+                        ctx.stroke();
+                    }
+
+                    // Draw markers at each pivot vertex
+                    for (const pivot of pattern.pivotPoints) {
+                        const x = timeScale.timeToCoordinate(pivot.date as Time);
+                        const y = series.priceToCoordinate(pivot.price);
+                        if (x !== null && y !== null) {
+                            ctx.fillStyle = baseColor;
+                            ctx.beginPath();
+                            ctx.arc(x * hRatio, y * vRatio, 3.5 * vRatio, 0, 2 * Math.PI);
+                            ctx.fill();
+                        }
+                    }
+                    ctx.restore();
+                }
+
+                // 2. Draw neckline if present
+                if (pattern.necklinePrice !== null && pattern.necklinePrice !== undefined) {
+                    const xStart = timeScale.timeToCoordinate(pattern.startDate as Time);
+                    const xEnd = timeScale.timeToCoordinate(pattern.endDate as Time);
+                    const yNeck = series.priceToCoordinate(pattern.necklinePrice);
+
+                    if (xStart !== null && xEnd !== null && yNeck !== null) {
+                        ctx.save();
+                        ctx.strokeStyle = statusColor;
+                        ctx.lineWidth = 1.5 * vRatio;
+                        ctx.setLineDash([4 * hRatio, 3 * hRatio]);
+                        ctx.beginPath();
+                        ctx.moveTo(xStart * hRatio, yNeck * vRatio);
+                        ctx.lineTo(xEnd * hRatio, yNeck * vRatio);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+
+                // 3. Draw pattern label/badge near the end of formation
+                const xEnd = timeScale.timeToCoordinate(pattern.endDate as Time);
+                if (xEnd !== null && pattern.pivotPoints && pattern.pivotPoints.length > 0) {
+                    const lastPivot = pattern.pivotPoints[pattern.pivotPoints.length - 1];
+                    const y = series.priceToCoordinate(lastPivot.price);
+                    if (y !== null) {
+                        ctx.save();
+                        const labelText = `${pattern.shortName} (${pattern.status})`;
+                        ctx.font = `bold ${Math.max(10, Math.round(11 * vRatio))}px sans-serif`;
+                        const textWidth = ctx.measureText(labelText).width;
+                        const badgeX = xEnd * hRatio + 6 * hRatio;
+                        const badgeY = y * vRatio - 8 * vRatio;
+                        const padding = 4 * vRatio;
+
+                        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                        ctx.strokeStyle = statusColor;
+                        ctx.lineWidth = 1 * vRatio;
+                        ctx.beginPath();
+                        ctx.rect(badgeX, badgeY - 10 * vRatio, textWidth + padding * 2, 14 * vRatio + padding);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.fillStyle = statusColor;
+                        ctx.fillText(labelText, badgeX + padding, badgeY + 2 * vRatio);
+                        ctx.restore();
+                    }
+                }
+            }
+        });
+    }
+}
 /* eslint-enable @typescript-eslint/no-explicit-any */
-
-
 
 // Hardcoded indicator color mapping from configuration
 const getIndicatorColor = (type: string, source: string, params: string, outputName: string): string | null => {
@@ -291,7 +463,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface ChartProps {
@@ -305,6 +477,8 @@ interface ChartProps {
     showCandlestickPatterns?: boolean;
     supportResistances?: SupportResistanceData[];
     showSupportResistance?: boolean;
+    chartPatterns?: ChartPatternData[];
+    showChartPatterns?: boolean;
     onLoadOlderData: () => void;
 }
 
@@ -402,8 +576,23 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
 
 const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
 const EMPTY_SUPPORT_RESISTANCES: SupportResistanceData[] = [];
+const EMPTY_CHART_PATTERNS: ChartPatternData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, showCandlestickPatterns = false, supportResistances = EMPTY_SUPPORT_RESISTANCES, showSupportResistance = false, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({
+    data,
+    indicators,
+    enabled,
+    configs,
+    symbol,
+    timeframe,
+    candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS,
+    showCandlestickPatterns = false,
+    supportResistances = EMPTY_SUPPORT_RESISTANCES,
+    showSupportResistance = false,
+    chartPatterns = EMPTY_CHART_PATTERNS,
+    showChartPatterns = false,
+    onLoadOlderData,
+}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
@@ -528,6 +717,11 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                 const srPrimitive = new SupportResistancePrimitive(chart, segments);
                 candlestickSeries.attachPrimitive(srPrimitive);
             }
+        }
+
+        if (showChartPatterns && chartPatterns.length > 0) {
+            const cpPrimitive = new ChartPatternPrimitive(chart, chartPatterns);
+            candlestickSeries.attachPrimitive(cpPrimitive);
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -787,7 +981,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, chartPatterns, showChartPatterns, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;

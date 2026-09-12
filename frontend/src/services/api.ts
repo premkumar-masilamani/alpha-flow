@@ -219,3 +219,52 @@ export const getSupportResistances = async (
     const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), date } });
     return response.data;
 };
+
+export const CHART_PATTERN_STATUSES = {
+    IN_PROGRESS: 'IN_PROGRESS',
+    COMPLETED: 'COMPLETED',
+    TARGET_REACHED: 'TARGET_REACHED',
+    INVALIDATED: 'INVALIDATED',
+} as const;
+
+export type ChartPatternStatus = typeof CHART_PATTERN_STATUSES[keyof typeof CHART_PATTERN_STATUSES];
+
+export interface ChartPatternPivotData {
+    date: string;
+    price: number;
+    type: 'HIGH' | 'LOW';
+    role: string;
+}
+
+export interface ChartPatternData {
+    id: number;
+    patternType: string;
+    shortName: string;
+    displayName: string;
+    sentiment: SentimentType;
+    status: ChartPatternStatus;
+    startDate: string;
+    endDate: string;
+    breakoutDate?: string | null;
+    necklineSlope?: number | null;
+    necklinePrice?: number | null;
+    targetPrice?: number | null;
+    invalidationPrice?: number | null;
+    pivotPoints: ChartPatternPivotData[];
+}
+
+export const getChartPatterns = async (
+    symbol: string,
+    timeframe: Timeframe = 'DAILY',
+    status?: ChartPatternStatus,
+    page: number = 0
+): Promise<ChartPatternData[]> => {
+    const url = `${API_BASE_URL}/tickers/${symbol}/chart-patterns`;
+    const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page };
+    if (status) {
+        params.status = status;
+    }
+    const response = await axios.get(url, { params });
+    return response.data;
+};
+

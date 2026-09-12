@@ -393,4 +393,70 @@ describe('Chart Component', () => {
 
         unmountNoTouch();
     });
+
+    it('attaches ChartPatternPrimitive to candlestick series when showChartPatterns is true and patterns exist', () => {
+        const mockChartPatterns = [
+            {
+                id: 1,
+                patternType: 'DOUBLE_TOP',
+                shortName: 'DT',
+                displayName: 'Double Top',
+                sentiment: 'BEARISH_REVERSAL' as const,
+                status: 'IN_PROGRESS' as const,
+                startDate: '2026-06-01',
+                endDate: '2026-06-03',
+                necklinePrice: 100,
+                targetPrice: 90,
+                invalidationPrice: 110,
+                pivotPoints: [
+                    { date: '2026-06-01', price: 105, type: 'HIGH' as const, role: 'PEAK_1' },
+                    { date: '2026-06-02', price: 100, type: 'LOW' as const, role: 'NECKLINE' },
+                    { date: '2026-06-03', price: 105, type: 'HIGH' as const, role: 'PEAK_2' }
+                ]
+            }
+        ];
+
+        // 1. Chart Patterns enabled
+        const { unmount } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                chartPatterns={mockChartPatterns}
+                showChartPatterns={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMock = chartInstance.addSeries.mock.results[0].value;
+        expect(candlestickSeriesMock.attachPrimitive).toHaveBeenCalledTimes(1);
+
+        unmount();
+        vi.clearAllMocks();
+
+        // 2. Chart Patterns disabled
+        const { unmount: unmountDisabled } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                chartPatterns={mockChartPatterns}
+                showChartPatterns={false}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstanceDisabled = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMockDisabled = chartInstanceDisabled.addSeries.mock.results[0].value;
+        expect(candlestickSeriesMockDisabled.attachPrimitive).not.toHaveBeenCalled();
+
+        unmountDisabled();
+    });
 });

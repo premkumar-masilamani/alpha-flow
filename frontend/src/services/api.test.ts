@@ -7,6 +7,7 @@ import {
     getIndicatorSeries,
     getTechnicalAnalysis,
     getSupportResistances,
+    getChartPatterns,
     indicatorKey,
     type Ticker,
     type DailyCandleData,
@@ -193,6 +194,42 @@ describe('API Service Layer Tests', () => {
             mockedAxios.get.mockResolvedValueOnce({ data: mockData });
             const result = await getSupportResistances('AAPL', 'DAILY', '2026-06-01');
             expect(result).toEqual(mockData);
+        });
+    });
+
+    describe('getChartPatterns', () => {
+        it('should fetch chart patterns with default parameters', async () => {
+            const mockPatterns = [
+                {
+                    id: 1,
+                    patternType: 'DOUBLE_TOP',
+                    shortName: 'DT',
+                    displayName: 'Double Top',
+                    sentiment: 'BEARISH_REVERSAL',
+                    status: 'COMPLETED',
+                    startDate: '2026-01-01',
+                    endDate: '2026-01-10',
+                    pivotPoints: []
+                }
+            ];
+            mockedAxios.get.mockResolvedValueOnce({ data: mockPatterns });
+
+            const result = await getChartPatterns('AAPL');
+            expect(result).toEqual(mockPatterns);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/AAPL/chart-patterns'),
+                { params: { timeframe: 'daily', page: 0 } }
+            );
+        });
+
+        it('should fetch chart patterns with explicit status and weekly timeframe', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+
+            await getChartPatterns('AAPL', 'WEEKLY', 'IN_PROGRESS', 1);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/AAPL/chart-patterns'),
+                { params: { timeframe: 'weekly', page: 1, status: 'IN_PROGRESS' } }
+            );
         });
     });
 });
