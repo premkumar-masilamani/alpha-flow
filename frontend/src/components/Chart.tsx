@@ -973,53 +973,33 @@ const Chart: React.FC<ChartProps> = ({
             if (showChartPatterns && chartPatterns.length > 0) {
                 const activePatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'COMPLETED');
                 const timeScale = chart.timeScale();
-                let closestDistance = Number.POSITIVE_INFINITY;
 
                 for (const cp of activePatterns) {
-                    let isXMatch = false;
-                    if (dateStr) {
-                        isXMatch = dateStr >= cp.startDate && dateStr <= cp.endDate;
-                    } else {
-                        const startX = timeScale.timeToCoordinate(cp.startDate as Time);
-                        const endX = timeScale.timeToCoordinate(cp.endDate as Time);
-                        if (startX !== null && endX !== null) {
-                            const minX = Math.min(startX, endX) - 10;
-                            const maxX = Math.max(startX, endX) + 80;
-                            if (param.point.x >= minX && param.point.x <= maxX) {
-                                isXMatch = true;
-                            }
-                        }
-                    }
+                    if (!cp.pivotPoints || cp.pivotPoints.length === 0) continue;
 
-                    if (!isXMatch) continue;
+                    const xEnd = timeScale.timeToCoordinate(cp.endDate as Time);
+                    const lastPivot = cp.pivotPoints[cp.pivotPoints.length - 1];
+                    const yPivot = candlestickSeries.priceToCoordinate(lastPivot.price);
 
-                    const prices: number[] = cp.pivotPoints ? cp.pivotPoints.map((p) => p.price) : [];
-                    if (cp.necklinePrice != null) prices.push(cp.necklinePrice);
-                    if (cp.targetPrice != null) prices.push(cp.targetPrice);
-                    if (cp.stopLossPrice != null) prices.push(cp.stopLossPrice);
+                    if (xEnd === null || yPivot === null) continue;
 
-                    let isYMatch = true;
-                    let distance = 0;
+                    // The short form label badge is drawn at:
+                    // x: xEnd + 6, with width ~35-55px depending on label text
+                    // y: yPivot - 18, with height ~18px
+                    const badgeWidth = Math.max(35, cp.shortName.length * 9 + 12);
+                    const badgeLeft = xEnd + 2;
+                    const badgeRight = xEnd + 6 + badgeWidth + 4;
+                    const badgeTop = yPivot - 22;
+                    const badgeBottom = yPivot + 6;
 
-                    if (prices.length > 0) {
-                        const yCoords = prices
-                            .map((price) => candlestickSeries.priceToCoordinate(price))
-                            .filter((y): y is number => y !== null);
-
-                        if (yCoords.length > 0) {
-                            const minY = Math.min(...yCoords);
-                            const maxY = Math.max(...yCoords);
-                            const midY = (minY + maxY) / 2;
-                            isYMatch = param.point.y >= minY - 40 && param.point.y <= maxY + 40;
-                            distance = Math.abs(param.point.y - midY);
-                        }
-                    }
-
-                    if (isXMatch && isYMatch) {
-                        if (distance < closestDistance) {
-                            closestDistance = distance;
-                            matchedChartPattern = cp;
-                        }
+                    if (
+                        param.point.x >= badgeLeft &&
+                        param.point.x <= badgeRight &&
+                        param.point.y >= badgeTop &&
+                        param.point.y <= badgeBottom
+                    ) {
+                        matchedChartPattern = cp;
+                        break;
                     }
                 }
             }

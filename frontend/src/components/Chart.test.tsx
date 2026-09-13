@@ -531,11 +531,20 @@ describe('Chart Component', () => {
 
         expect(crosshairCallback).not.toBeNull();
 
-        // Simulate crosshair move over the pattern date range
+        // 1. Move crosshair over another candle in the pattern - tooltip should NOT appear
         act(() => {
             crosshairCallback!({
                 time: '2026-06-02',
-                point: { x: 100, y: 100 },
+                point: { x: 50, y: 100 },
+            });
+        });
+        expect(screen.queryByText('Double Bottom')).not.toBeInTheDocument();
+
+        // 2. Move crosshair over the short form label badge (x: 120, y: 90) - tooltip should appear
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-03',
+                point: { x: 120, y: 90 },
             });
         });
 
@@ -613,10 +622,20 @@ describe('Chart Component', () => {
 
         expect(crosshairCallback).not.toBeNull();
 
+        // 1. Move crosshair over earlier candle - tooltip should NOT appear
         act(() => {
             crosshairCallback!({
                 time: '2026-06-02',
-                point: { x: 100, y: 100 },
+                point: { x: 50, y: 100 },
+            });
+        });
+        expect(screen.queryByText('Head and Shoulders')).not.toBeInTheDocument();
+
+        // 2. Move crosshair over short form label badge (x: 120, y: 90)
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-03',
+                point: { x: 120, y: 90 },
             });
         });
 
@@ -697,28 +716,35 @@ describe('Chart Component', () => {
             />
         );
 
+        // 1. Hover on candlestick pattern date (x: 50, y: 100) -> Candlestick tooltip appears, chart pattern does NOT
         act(() => {
             crosshairCallback!({
                 time: '2026-06-02',
-                point: { x: 100, y: 100 },
+                point: { x: 50, y: 100 },
             });
         });
-
-        // Candlestick pattern
         expect(screen.getByText('Hammer')).toBeInTheDocument();
         expect(screen.getByText('HAM')).toBeInTheDocument();
-        // Chart pattern
+        expect(screen.queryByText('Double Bottom')).not.toBeInTheDocument();
+
+        // 2. Hover on chart pattern short form label (x: 120, y: 90) -> Chart pattern tooltip appears
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-03',
+                point: { x: 120, y: 90 },
+            });
+        });
         expect(screen.getByText('Double Bottom')).toBeInTheDocument();
         expect(screen.getByText('DB')).toBeInTheDocument();
         expect(screen.getByText('COMPLETED')).toBeInTheDocument();
         expect(screen.getByText('$130.00')).toBeInTheDocument();
         expect(screen.getByText('$90.00')).toBeInTheDocument();
 
-        // Move crosshair to date with no patterns
+        // 3. Move crosshair away
         act(() => {
             crosshairCallback!({
                 time: '2026-06-10',
-                point: { x: 100, y: 100 },
+                point: { x: 300, y: 300 },
             });
         });
         expect(screen.queryByText('Double Bottom')).not.toBeInTheDocument();
