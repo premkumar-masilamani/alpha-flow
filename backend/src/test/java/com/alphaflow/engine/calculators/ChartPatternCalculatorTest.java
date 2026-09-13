@@ -201,7 +201,7 @@ class ChartPatternCalculatorTest {
     // 2. Daily update existing
     DailyChartPattern existingDaily =
         DailyChartPattern.builder()
-            .id(1L)
+            .dailyChartPatternId(1L)
             .ticker(ticker)
             .patternType(ChartPatternType.DOUBLE_TOP)
             .status(ChartPatternStatus.IN_PROGRESS)
@@ -224,7 +224,7 @@ class ChartPatternCalculatorTest {
     // 4. Weekly update existing
     WeeklyChartPattern existingWeekly =
         WeeklyChartPattern.builder()
-            .id(2L)
+            .weeklyChartPatternId(2L)
             .ticker(ticker)
             .patternType(ChartPatternType.DOUBLE_TOP)
             .status(ChartPatternStatus.IN_PROGRESS)

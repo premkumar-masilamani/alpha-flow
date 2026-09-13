@@ -263,7 +263,7 @@ export const getChartPatterns = async (
     const url = `${API_BASE_URL}/tickers/${symbol}/chart-patterns`;
     const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page };
     if (statuses) {
-        params.status = Array.isArray(statuses) ? statuses.join(',') : statuses;
+        params.statuses = Array.isArray(statuses) ? statuses.join(',') : statuses;
     }
     const response = await axios.get(url, { params });
     return response.data;

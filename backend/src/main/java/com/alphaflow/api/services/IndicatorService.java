@@ -95,7 +95,7 @@ public class IndicatorService {
       return List.of();
     }
     List<Long> indicatorIds =
-        definitions.stream().map(IndicatorDefinition::getIndicatorId).toList();
+        definitions.stream().map(IndicatorDefinition::getIndicatorDefinitionId).toList();
 
     List<? extends Indicator> rows;
     if (timeframe == Timeframe.DAILY) {

@@ -24,8 +24,8 @@ public class DailyChartPattern {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(name = "id")
-  private Long id;
+  @Column(name = "daily_chart_pattern_id")
+  private Long dailyChartPatternId;
 
   @EqualsAndHashCode.Include
   @ManyToOne(fetch = FetchType.LAZY)

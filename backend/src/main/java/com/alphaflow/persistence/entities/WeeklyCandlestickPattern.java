@@ -19,8 +19,8 @@ public class WeeklyCandlestickPattern {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(name = "id")
-  private Long id;
+  @Column(name = "weekly_candlestick_pattern_id")
+  private Long weeklyCandlestickPatternId;
 
   @EqualsAndHashCode.Include
   @ManyToOne(fetch = FetchType.LAZY)

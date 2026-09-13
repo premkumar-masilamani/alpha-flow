@@ -18,7 +18,8 @@ public class DailySupportResistance {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @Column(name = "daily_support_resistance_id")
+  private Long dailySupportResistanceId;
 
   @EqualsAndHashCode.Include
   @ManyToOne(fetch = FetchType.LAZY)

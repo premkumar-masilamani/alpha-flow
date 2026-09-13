@@ -134,6 +134,8 @@ if (dailyBars.size() >= MIN_BARS) {
 ## Backend Architecture & Package Structure
 - **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
 - **Algorithm Configurability & Clean Architecture**: Avoid littering with `@Value` annotations inside the core engine classes; instead, use a config class and inject it.
+- **JPA Property Paths in JPQL**: Always use exact Java entity field names (e.g. `iv.indicatorDefinition.indicatorDefinitionId`) in `@Query` JPQL definitions rather than DB column names to avoid `QueryCreationException` on context startup.
+- **DTO Isolation from Schema Renames**: When refactoring entity primary keys to `<entity>_id` formats, maintain existing DTO property names (e.g. `ChartPatternDto.id`) to avoid breaking frontend REST clients.
 
 ## Technical Indicators & Mathematical Calculations
 - **BigDecimal Math Precision & Stability**: When computing standard deviation or variance over sliding windows:

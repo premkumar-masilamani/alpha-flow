@@ -27,7 +27,7 @@ public abstract class Indicator {
 
   @EqualsAndHashCode.Include
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "indicator_id", nullable = false)
+  @JoinColumn(name = "indicator_definition_id", nullable = false)
   private IndicatorDefinition indicatorDefinition;
 
   @EqualsAndHashCode.Include
