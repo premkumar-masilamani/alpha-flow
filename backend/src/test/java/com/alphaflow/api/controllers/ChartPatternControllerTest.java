@@ -47,7 +47,7 @@ class ChartPatternControllerTest {
 
     List<ChartPatternDto> result =
         controller.getChartPatterns(
-            "AAPL", Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), null, 0, 20);
+            "AAPL", Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), 0, 20);
 
     assertEquals(1, result.size());
     assertEquals("DBM", result.getFirst().shortName());
@@ -67,7 +67,7 @@ class ChartPatternControllerTest {
     ChartPatternController controller = new ChartPatternController(service, tickerService);
 
     List<ChartPatternDto> result =
-        controller.getChartPatterns("AAPL", Timeframe.WEEKLY, null, null, 0, 500);
+        controller.getChartPatterns("AAPL", Timeframe.WEEKLY, null, 0, 500);
 
     assertEquals(0, result.size());
   }
@@ -84,7 +84,7 @@ class ChartPatternControllerTest {
 
     assertThrows(
         ResourceNotFoundException.class,
-        () -> controller.getChartPatterns("UNKNOWN", Timeframe.DAILY, null, null, 0, 20));
+        () -> controller.getChartPatterns("UNKNOWN", Timeframe.DAILY, null, 0, 20));
   }
 
   @Test
@@ -109,7 +109,6 @@ class ChartPatternControllerTest {
         controller.getChartPatterns(
             "AAPL",
             Timeframe.DAILY,
-            null,
             List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED),
             0,
             20);

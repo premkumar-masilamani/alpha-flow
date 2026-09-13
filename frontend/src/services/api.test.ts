@@ -228,7 +228,7 @@ describe('API Service Layer Tests', () => {
             await getChartPatterns('AAPL', 'WEEKLY', 'IN_PROGRESS', 1);
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
-                { params: { timeframe: 'weekly', page: 1, status: 'IN_PROGRESS' } }
+                { params: { timeframe: 'weekly', page: 1, statuses: 'IN_PROGRESS' } }
             );
         });
 
@@ -238,7 +238,7 @@ describe('API Service Layer Tests', () => {
             await getChartPatterns('AAPL', 'DAILY', ['IN_PROGRESS', 'COMPLETED'], 0);
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
-                { params: { timeframe: 'daily', page: 0, status: 'IN_PROGRESS,COMPLETED' } }
+                { params: { timeframe: 'daily', page: 0, statuses: 'IN_PROGRESS,COMPLETED' } }
             );
         });
     });
