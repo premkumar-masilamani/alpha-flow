@@ -262,9 +262,183 @@ class SupportResistanceAxisView implements ISeriesPrimitiveAxisView {
         return series.priceToCoordinate(this._seg.price) !== null;
     }
 }
+
+class ChartPatternPrimitive implements ISeriesPrimitive {
+    private _series: ISeriesApi<any> | null = null;
+    private _chart: any;
+    private _patterns: ChartPatternData[];
+
+    constructor(chart: any, patterns: ChartPatternData[]) {
+        this._chart = chart;
+        this._patterns = patterns;
+    }
+
+    attached(param: { series: ISeriesApi<any>; chart?: any }) {
+        this._series = param.series;
+        if (param.chart) {
+            this._chart = param.chart;
+        }
+    }
+
+    detached() {
+        this._series = null;
+    }
+
+    paneViews() {
+        return [new ChartPatternPaneView(this)];
+    }
+
+    priceAxisViews() {
+        return [];
+    }
+
+    getSeries() { return this._series; }
+    getChart() { return this._chart; }
+    getPatterns() { return this._patterns; }
+}
+
+class ChartPatternPaneView implements IPrimitivePaneView {
+    private _primitive: ChartPatternPrimitive;
+
+    constructor(primitive: ChartPatternPrimitive) {
+        this._primitive = primitive;
+    }
+
+    zOrder() {
+        return 'normal' as const;
+    }
+
+    renderer() {
+        return new ChartPatternRenderer(this._primitive);
+    }
+}
+
+class ChartPatternRenderer implements IPrimitivePaneRenderer {
+    private _primitive: ChartPatternPrimitive;
+
+    constructor(primitive: ChartPatternPrimitive) {
+        this._primitive = primitive;
+    }
+
+    draw(target: any) {
+        const series = this._primitive.getSeries();
+        const chart = this._primitive.getChart();
+        if (!series || !chart) return;
+
+        const timeScale = chart.timeScale();
+        const rawPatterns = this._primitive.getPatterns();
+        if (!rawPatterns || rawPatterns.length === 0) return;
+        const patterns = rawPatterns.filter((pattern) => pattern.status === 'IN_PROGRESS' || pattern.status === 'COMPLETED');
+        if (patterns.length === 0) return;
+
+        target.useBitmapCoordinateSpace((scope: any) => {
+            const ctx = scope.context;
+            const hRatio = scope.horizontalPixelRatio;
+            const vRatio = scope.verticalPixelRatio;
+
+            for (const pattern of patterns) {
+                const isBullish = pattern.sentiment.startsWith('BULLISH');
+                const baseColor = isBullish ? '#22c55e' : '#ef4444';
+                const statusColor =
+                    pattern.status === 'TARGET_REACHED'
+                        ? '#10b981'
+                        : pattern.status === 'COMPLETED'
+                        ? '#3b82f6'
+                        : pattern.status === 'INVALIDATED'
+                        ? '#94a3b8'
+                        : '#f59e0b';
+
+                // 1. Draw trendlines connecting pivot points
+                if (pattern.pivotPoints && pattern.pivotPoints.length > 1) {
+                    ctx.save();
+                    ctx.strokeStyle = baseColor;
+                    ctx.lineWidth = 1.5 * vRatio;
+                    ctx.beginPath();
+
+                    let started = false;
+                    for (const pivot of pattern.pivotPoints) {
+                        const x = timeScale.timeToCoordinate(pivot.date as Time);
+                        const y = series.priceToCoordinate(pivot.price);
+                        if (x !== null && y !== null) {
+                            const renderX = x * hRatio;
+                            const renderY = y * vRatio;
+                            if (!started) {
+                                ctx.moveTo(renderX, renderY);
+                                started = true;
+                            } else {
+                                ctx.lineTo(renderX, renderY);
+                            }
+                        }
+                    }
+                    if (started) {
+                        ctx.stroke();
+                    }
+
+                    // Draw markers at each pivot vertex
+                    for (const pivot of pattern.pivotPoints) {
+                        const x = timeScale.timeToCoordinate(pivot.date as Time);
+                        const y = series.priceToCoordinate(pivot.price);
+                        if (x !== null && y !== null) {
+                            ctx.fillStyle = baseColor;
+                            ctx.beginPath();
+                            ctx.arc(x * hRatio, y * vRatio, 3.5 * vRatio, 0, 2 * Math.PI);
+                            ctx.fill();
+                        }
+                    }
+                    ctx.restore();
+                }
+
+                // 2. Draw neckline if present
+                if (pattern.necklinePrice !== null && pattern.necklinePrice !== undefined) {
+                    const xStart = timeScale.timeToCoordinate(pattern.startDate as Time);
+                    const xEnd = timeScale.timeToCoordinate(pattern.endDate as Time);
+                    const yNeck = series.priceToCoordinate(pattern.necklinePrice);
+
+                    if (xStart !== null && xEnd !== null && yNeck !== null) {
+                        ctx.save();
+                        ctx.strokeStyle = statusColor;
+                        ctx.lineWidth = 1.5 * vRatio;
+                        ctx.setLineDash([4 * hRatio, 3 * hRatio]);
+                        ctx.beginPath();
+                        ctx.moveTo(xStart * hRatio, yNeck * vRatio);
+                        ctx.lineTo(xEnd * hRatio, yNeck * vRatio);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
+
+                // 3. Draw pattern label/badge near the end of formation
+                const xEnd = timeScale.timeToCoordinate(pattern.endDate as Time);
+                if (xEnd !== null && pattern.pivotPoints && pattern.pivotPoints.length > 0) {
+                    const lastPivot = pattern.pivotPoints[pattern.pivotPoints.length - 1];
+                    const y = series.priceToCoordinate(lastPivot.price);
+                    if (y !== null) {
+                        ctx.save();
+                        const labelText = pattern.shortName;
+                        ctx.font = `bold ${Math.max(10, Math.round(11 * vRatio))}px sans-serif`;
+                        const textWidth = ctx.measureText(labelText).width;
+                        const badgeX = xEnd * hRatio + 6 * hRatio;
+                        const badgeY = y * vRatio - 8 * vRatio;
+                        const padding = 4 * vRatio;
+
+                        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+                        ctx.strokeStyle = statusColor;
+                        ctx.lineWidth = 1 * vRatio;
+                        ctx.beginPath();
+                        ctx.rect(badgeX, badgeY - 10 * vRatio, textWidth + padding * 2, 14 * vRatio + padding);
+                        ctx.fill();
+                        ctx.stroke();
+
+                        ctx.fillStyle = statusColor;
+                        ctx.fillText(labelText, badgeX + padding, badgeY + 2 * vRatio);
+                        ctx.restore();
+                    }
+                }
+            }
+        });
+    }
+}
 /* eslint-enable @typescript-eslint/no-explicit-any */
-
-
 
 // Hardcoded indicator color mapping from configuration
 const getIndicatorColor = (type: string, source: string, params: string, outputName: string): string | null => {
@@ -291,8 +465,34 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData, type ChartPatternStatus} from '../services/api';
 import {RefreshCw} from 'lucide-react';
+
+interface CandlestickTooltipInfo {
+    longName: string;
+    shortName: string;
+    sentiment: string;
+}
+
+interface ChartPatternTooltipInfo {
+    displayName: string;
+    shortName: string;
+    sentiment: string;
+    status: ChartPatternStatus;
+    targetPrice?: number | null;
+    stopLossPrice?: number | null;
+}
+
+interface TooltipData {
+    visible: boolean;
+    x: number;
+    y: number;
+    candlestickPattern?: CandlestickTooltipInfo;
+    chartPattern?: ChartPatternTooltipInfo;
+    longName?: string;
+    shortName?: string;
+    sentiment?: string;
+}
 
 interface ChartProps {
     data: DailyCandleData[];
@@ -305,6 +505,8 @@ interface ChartProps {
     showCandlestickPatterns?: boolean;
     supportResistances?: SupportResistanceData[];
     showSupportResistance?: boolean;
+    chartPatterns?: ChartPatternData[];
+    showChartPatterns?: boolean;
     onLoadOlderData: () => void;
 }
 
@@ -402,19 +604,27 @@ const getLatestValuesString = (series: IndicatorSeries): string => {
 
 const EMPTY_CANDLESTICK_PATTERNS: CandlestickPatternData[] = [];
 const EMPTY_SUPPORT_RESISTANCES: SupportResistanceData[] = [];
+const EMPTY_CHART_PATTERNS: ChartPatternData[] = [];
 
-const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS, showCandlestickPatterns = false, supportResistances = EMPTY_SUPPORT_RESISTANCES, showSupportResistance = false, onLoadOlderData}) => {
+const Chart: React.FC<ChartProps> = ({
+    data,
+    indicators,
+    enabled,
+    configs,
+    symbol,
+    timeframe,
+    candlestickPatterns = EMPTY_CANDLESTICK_PATTERNS,
+    showCandlestickPatterns = false,
+    supportResistances = EMPTY_SUPPORT_RESISTANCES,
+    showSupportResistance = false,
+    chartPatterns = EMPTY_CHART_PATTERNS,
+    showChartPatterns = false,
+    onLoadOlderData,
+}) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
-    const [tooltip, setTooltip] = useState<{
-        visible: boolean;
-        x: number;
-        y: number;
-        longName: string;
-        shortName: string;
-        sentiment: string;
-    } | null>(null);
+    const [tooltip, setTooltip] = useState<TooltipData | null>(null);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
     const visibleLogicalRangeRef = useRef<LogicalRange | null>(null);
     const prevDataLengthRef = useRef<number>(0);
@@ -527,6 +737,14 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             if (segments.length > 0) {
                 const srPrimitive = new SupportResistancePrimitive(chart, segments);
                 candlestickSeries.attachPrimitive(srPrimitive);
+            }
+        }
+
+        if (showChartPatterns && chartPatterns.length > 0) {
+            const activePatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'COMPLETED');
+            if (activePatterns.length > 0) {
+                const cpPrimitive = new ChartPatternPrimitive(chart, activePatterns);
+                candlestickSeries.attachPrimitive(cpPrimitive);
             }
         }
 
@@ -723,10 +941,9 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             }
         });
 
-        // Subscribe to crosshair move events to show the pattern long name tooltip on hover
+        // Subscribe to crosshair move events to show pattern tooltips on hover
         chart.subscribeCrosshairMove((param) => {
             if (
-                !param.time ||
                 !param.point ||
                 param.point.x < 0 ||
                 param.point.y < 0
@@ -748,38 +965,88 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
                 }
             }
 
-            if (!dateStr) {
+            const matchedCandlestickPattern = (showCandlestickPatterns && dateStr)
+                ? deduplicatedCandlestickPatterns.find((p) => p.date === dateStr)
+                : null;
+
+            let matchedChartPattern: ChartPatternData | null = null;
+            if (showChartPatterns && chartPatterns.length > 0) {
+                const activePatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'COMPLETED');
+                const timeScale = chart.timeScale();
+
+                for (const cp of activePatterns) {
+                    if (!cp.pivotPoints || cp.pivotPoints.length === 0) continue;
+
+                    const xEnd = timeScale.timeToCoordinate(cp.endDate as Time);
+                    const lastPivot = cp.pivotPoints[cp.pivotPoints.length - 1];
+                    const yPivot = candlestickSeries.priceToCoordinate(lastPivot.price);
+
+                    if (xEnd === null || yPivot === null) continue;
+
+                    // The short form label badge is drawn at:
+                    // x: xEnd + 6, with width ~35-55px depending on label text
+                    // y: yPivot - 18, with height ~18px
+                    const badgeWidth = Math.max(35, cp.shortName.length * 9 + 12);
+                    const badgeLeft = xEnd + 2;
+                    const badgeRight = xEnd + 6 + badgeWidth + 4;
+                    const badgeTop = yPivot - 22;
+                    const badgeBottom = yPivot + 6;
+
+                    if (
+                        param.point.x >= badgeLeft &&
+                        param.point.x <= badgeRight &&
+                        param.point.y >= badgeTop &&
+                        param.point.y <= badgeBottom
+                    ) {
+                        matchedChartPattern = cp;
+                        break;
+                    }
+                }
+            }
+
+            if (!matchedCandlestickPattern && !matchedChartPattern) {
                 setTooltip(null);
                 return;
             }
 
-            const pattern = deduplicatedCandlestickPatterns.find((p) => p.date === dateStr);
+            let tooltipX = param.point.x + 15;
+            let tooltipY = param.point.y + 15;
 
-            if (pattern) {
-                let tooltipX = param.point.x + 15;
-                let tooltipY = param.point.y + 15;
-                
-                const containerWidth = chartContainerRef.current?.clientWidth || 0;
-                const containerHeight = chartContainerRef.current?.clientHeight || 0;
-                
-                if (tooltipX + 220 > containerWidth) {
-                    tooltipX = param.point.x - 235;
-                }
-                if (tooltipY + 80 > containerHeight) {
-                    tooltipY = param.point.y - 95;
-                }
+            const containerWidth = chartContainerRef.current?.clientWidth || 0;
+            const containerHeight = chartContainerRef.current?.clientHeight || 0;
+            const tooltipWidth = 260;
+            const tooltipHeight = 140;
 
-                setTooltip({
-                    visible: true,
-                    x: tooltipX,
-                    y: tooltipY,
-                    longName: pattern.longName,
-                    shortName: pattern.shortName,
-                    sentiment: pattern.sentiment,
-                });
-            } else {
-                setTooltip(null);
+            if (tooltipX + tooltipWidth > containerWidth) {
+                tooltipX = param.point.x - tooltipWidth - 15;
             }
+            if (tooltipY + tooltipHeight > containerHeight) {
+                tooltipY = param.point.y - tooltipHeight - 15;
+            }
+            if (tooltipX < 10) tooltipX = 10;
+            if (tooltipY < 10) tooltipY = 10;
+
+            setTooltip({
+                visible: true,
+                x: tooltipX,
+                y: tooltipY,
+                candlestickPattern: matchedCandlestickPattern ? {
+                    longName: matchedCandlestickPattern.longName,
+                    shortName: matchedCandlestickPattern.shortName,
+                    sentiment: matchedCandlestickPattern.sentiment,
+                } : undefined,
+                chartPattern: matchedChartPattern ? {
+                    displayName: matchedChartPattern.displayName,
+                    shortName: matchedChartPattern.shortName,
+                    sentiment: matchedChartPattern.sentiment,
+                    status: matchedChartPattern.status,
+                    targetPrice: matchedChartPattern.targetPrice,
+                    stopLossPrice: matchedChartPattern.stopLossPrice,
+                } : undefined,
+                longName: matchedCandlestickPattern?.longName ?? matchedChartPattern?.displayName ?? '',
+                shortName: matchedCandlestickPattern?.shortName ?? matchedChartPattern?.shortName ?? '',
+                sentiment: matchedCandlestickPattern?.sentiment ?? matchedChartPattern?.sentiment ?? '',
+            });
         });
 
         return () => {
@@ -787,7 +1054,7 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, chartPatterns, showChartPatterns, onLoadOlderData]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
@@ -860,20 +1127,80 @@ const Chart: React.FC<ChartProps> = ({data, indicators, enabled, configs, symbol
 
             {tooltip && tooltip.visible && (
                 <div
-                    className="absolute z-30 pointer-events-none bg-slate-900/90 border border-slate-700 text-white text-xs rounded-lg p-3 shadow-xl shadow-black/50 backdrop-blur-sm flex flex-col gap-1 transition-all duration-100 ease-out"
+                    className="absolute z-30 pointer-events-none bg-slate-900/95 border border-slate-700 text-white text-xs rounded-lg p-3 shadow-xl shadow-black/50 backdrop-blur-sm flex flex-col gap-2 min-w-[200px] max-w-[280px] transition-all duration-100 ease-out"
                     style={{
                         left: `${tooltip.x}px`,
                         top: `${tooltip.y}px`,
                     }}
                 >
-                    <div className="font-bold flex items-center gap-1.5 text-sm">
-                        <span className={`w-2.5 h-2.5 rounded-full ${tooltip.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
-                        <span className="text-white">{tooltip.longName}</span>
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider">{tooltip.shortName}</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider pl-4">
-                        {tooltip.sentiment.replace(/_/g, ' ')}
-                    </div>
+                    {tooltip.candlestickPattern && (
+                        <div className="flex flex-col gap-1">
+                            <div className="font-bold flex items-center justify-between gap-2 text-sm">
+                                <div className="flex items-center gap-1.5 truncate">
+                                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${tooltip.candlestickPattern.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
+                                    <span className="text-white truncate">{tooltip.candlestickPattern.longName}</span>
+                                </div>
+                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0">
+                                    {tooltip.candlestickPattern.shortName}
+                                </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider pl-4">
+                                {tooltip.candlestickPattern.sentiment.replace(/_/g, ' ')}
+                            </div>
+                        </div>
+                    )}
+
+                    {tooltip.candlestickPattern && tooltip.chartPattern && (
+                        <div className="border-t border-slate-700/80 my-0.5" />
+                    )}
+
+                    {tooltip.chartPattern && (
+                        <div className="flex flex-col gap-1.5">
+                            <div className="font-bold flex items-center justify-between gap-2 text-sm">
+                                <div className="flex items-center gap-1.5 truncate">
+                                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${tooltip.chartPattern.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
+                                    <span className="text-white truncate">{tooltip.chartPattern.displayName}</span>
+                                </div>
+                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0">
+                                    {tooltip.chartPattern.shortName}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 pl-4 text-[10px]">
+                                <span className={`px-1.5 py-0.5 rounded font-semibold border ${
+                                    tooltip.chartPattern.status === 'COMPLETED'
+                                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                                        : tooltip.chartPattern.status === 'TARGET_REACHED'
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                        : tooltip.chartPattern.status === 'INVALIDATED'
+                                        ? 'bg-slate-700/50 text-slate-400 border-slate-600'
+                                        : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                }`}>
+                                    {tooltip.chartPattern.status.replace(/_/g, ' ')}
+                                </span>
+                                <span className="text-slate-400 font-semibold uppercase tracking-wider">
+                                    {tooltip.chartPattern.sentiment.replace(/_/g, ' ')}
+                                </span>
+                            </div>
+
+                            {tooltip.chartPattern.status === 'COMPLETED' && (tooltip.chartPattern.targetPrice != null || tooltip.chartPattern.stopLossPrice != null) && (
+                                <div className="mt-1 pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px] pl-4">
+                                    {tooltip.chartPattern.targetPrice != null && (
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-medium">Target</span>
+                                            <span className="text-emerald-400 font-mono font-semibold">${Number(tooltip.chartPattern.targetPrice).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {tooltip.chartPattern.stopLossPrice != null && (
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-medium">Stop Loss</span>
+                                            <span className="text-rose-400 font-mono font-semibold">${Number(tooltip.chartPattern.stopLossPrice).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

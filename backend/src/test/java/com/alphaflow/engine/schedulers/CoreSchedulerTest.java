@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
+import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
@@ -26,6 +27,7 @@ class CoreSchedulerTest {
     SupportResistanceCalculator supportResistanceCalculator =
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
+    ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
     CoreScheduler scheduler =
         new CoreScheduler(
@@ -33,7 +35,8 @@ class CoreSchedulerTest {
             weeklyPriceCalculator,
             indicatorCalculator,
             supportResistanceCalculator,
-            patternCalculator);
+            patternCalculator,
+            chartPatternCalculator);
 
     scheduler.runScheduledUpdate();
 
@@ -42,6 +45,7 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, times(1)).computeIndicators();
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();
     verify(patternCalculator, times(1)).computeCandleStickPatterns();
+    verify(chartPatternCalculator, times(1)).computeChartPatterns();
   }
 
   @Test
@@ -52,6 +56,7 @@ class CoreSchedulerTest {
     SupportResistanceCalculator supportResistanceCalculator =
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
+    ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
     doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadDailyPrices();
 
@@ -61,7 +66,8 @@ class CoreSchedulerTest {
             weeklyPriceCalculator,
             indicatorCalculator,
             supportResistanceCalculator,
-            patternCalculator);
+            patternCalculator,
+            chartPatternCalculator);
 
     scheduler.runOnStartup();
 
@@ -71,6 +77,7 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, never()).computeIndicators();
     verify(supportResistanceCalculator, never()).computeSupportResistances();
     verify(patternCalculator, never()).computeCandleStickPatterns();
+    verify(chartPatternCalculator, never()).computeChartPatterns();
   }
 
   @Test
@@ -81,6 +88,7 @@ class CoreSchedulerTest {
     SupportResistanceCalculator supportResistanceCalculator =
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
+    ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
@@ -101,7 +109,8 @@ class CoreSchedulerTest {
             weeklyPriceCalculator,
             indicatorCalculator,
             supportResistanceCalculator,
-            patternCalculator);
+            patternCalculator,
+            chartPatternCalculator);
 
     // Start thread for first invocation
     Thread updateThread = new Thread(scheduler::runScheduledUpdate);
@@ -123,5 +132,6 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, times(1)).computeIndicators();
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();
     verify(patternCalculator, times(1)).computeCandleStickPatterns();
+    verify(chartPatternCalculator, times(1)).computeChartPatterns();
   }
 }

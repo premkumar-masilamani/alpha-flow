@@ -17,12 +17,14 @@ make connect_database
 - Use `IF EXISTS` / `IF NOT EXISTS` guards for idempotency.
 - Use DB migrations strictly for DDL only (schema changes).
 - Author migration files only; leave execution entirely to the user (all migrations are manual).
+- Author any schema updates, new columns, or alterations in a new, separately numbered migration script pair (`XXX_...up.sql` / `XXX_...down.sql`). DB migrations are executed only for new scripts; existing/already-authored migration files must never be retroactively modified.
 
 ### Ask first
 - Any structural schema changes to historical price tables or indicator structures.
 
 ### Never do
 - Apply migrations (never run `make migrate_database`, `make run_database`, `migrate`, or any automated migration execution). All migrations are manual—never ever apply them.
+- Edit, retroactively update, or alter existing/already-authored migration files. All schema additions must be created in a new, separate migration script.
 - Drop tables without `CASCADE`.
 - Use PostgreSQL reserved keywords (`user`, `type`, `order`, etc.) for column names.
 
