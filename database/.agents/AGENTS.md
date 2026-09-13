@@ -21,6 +21,7 @@ make connect_database
 
 - Name primary keys using the `<singular_table_name>_id` convention (e.g. `ticker_id`, `daily_price_id`, `indicator_definition_id`), never a generic `id`.
 - Ensure all daily_* and weekly_* child tables enforce foreign keys with `ON DELETE CASCADE` from `tickers(ticker_id)`.
+- Reorder columns by table recreation or swap; PostgreSQL does not support `ALTER TABLE ... MODIFY COLUMN ... FIRST/AFTER`.
 
 ### Ask first
 - Any structural schema changes to historical price tables or indicator structures.
