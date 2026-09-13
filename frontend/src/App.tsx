@@ -23,6 +23,8 @@ import {
   type CandlestickPatternData,
   type SupportResistanceData,
   getSupportResistances,
+  getChartPatterns,
+  type ChartPatternData,
 } from "./services/api";
 import {
   Loader2,
@@ -61,6 +63,8 @@ function App() {
   const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
   const [showSupportResistance, setShowSupportResistance] = useState(false);
   const [supportResistances, setSupportResistances] = useState<SupportResistanceData[]>([]);
+  const [showChartPatterns, setShowChartPatterns] = useState(false);
+  const [chartPatterns, setChartPatterns] = useState<ChartPatternData[]>([]);
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [overviewPatterns, setOverviewPatterns] = useState<CandlestickPatternData[]>([]);
@@ -299,6 +303,29 @@ function App() {
       active = false;
     };
   }, [selectedTicker, timeframe, showCandlestickPatterns]);
+
+  // Fetch chart patterns when selectedTicker, timeframe, or showChartPatterns changes
+  useEffect(() => {
+    let active = true;
+    const fetchChartPatterns = async () => {
+      if (!selectedTicker || !showChartPatterns) {
+        setChartPatterns([]);
+        return;
+      }
+      try {
+        const patterns = await getChartPatterns(selectedTicker, timeframe);
+        if (active) {
+          setChartPatterns(patterns);
+        }
+      } catch (error) {
+        console.error("Failed to fetch chart patterns:", error);
+      }
+    };
+    fetchChartPatterns();
+    return () => {
+      active = false;
+    };
+  }, [selectedTicker, timeframe, showChartPatterns]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -892,6 +919,17 @@ function App() {
                     >
                       S/R
                     </button>
+                    <button
+                      onClick={() => setShowChartPatterns(!showChartPatterns)}
+                      aria-pressed={showChartPatterns}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-md border transition-colors ${
+                        showChartPatterns
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
+                      }`}
+                    >
+                      CP
+                    </button>
                   </IndicatorControls>
                   <div className="flex bg-slate-950 border border-slate-800 p-0.5 rounded-lg self-start sm:self-auto">
                     <button
@@ -931,6 +969,8 @@ function App() {
                   showCandlestickPatterns={showCandlestickPatterns}
                   supportResistances={supportResistances}
                   showSupportResistance={showSupportResistance}
+                  chartPatterns={chartPatterns}
+                  showChartPatterns={showChartPatterns}
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (
