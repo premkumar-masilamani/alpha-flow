@@ -11,7 +11,7 @@ export interface ChartPatternConfig {
 export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     DOUBLE_TOP: {
         patternType: 'DOUBLE_TOP',
-        shortName: 'DT',
+        shortName: 'DTP',
         displayName: 'Double Top',
         category: 'reversal',
         sentiment: 'bearish',
@@ -20,7 +20,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     DOUBLE_BOTTOM: {
         patternType: 'DOUBLE_BOTTOM',
-        shortName: 'DB',
+        shortName: 'DBM',
         displayName: 'Double Bottom',
         category: 'reversal',
         sentiment: 'bullish',
@@ -29,7 +29,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     TRIPLE_TOP: {
         patternType: 'TRIPLE_TOP',
-        shortName: 'TT',
+        shortName: 'TTP',
         displayName: 'Triple Top',
         category: 'reversal',
         sentiment: 'bearish',
@@ -38,7 +38,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     TRIPLE_BOTTOM: {
         patternType: 'TRIPLE_BOTTOM',
-        shortName: 'TB',
+        shortName: 'TBM',
         displayName: 'Triple Bottom',
         category: 'reversal',
         sentiment: 'bullish',
@@ -56,7 +56,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     INVERSE_HEAD_AND_SHOULDERS: {
         patternType: 'INVERSE_HEAD_AND_SHOULDERS',
-        shortName: 'IHNS',
+        shortName: 'IHS',
         displayName: 'Inverse Head and Shoulders',
         category: 'reversal',
         sentiment: 'bullish',
@@ -65,7 +65,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     RISING_WEDGE: {
         patternType: 'RISING_WEDGE',
-        shortName: 'RW',
+        shortName: 'RWG',
         displayName: 'Rising Wedge',
         category: 'reversal',
         sentiment: 'bearish',
@@ -74,7 +74,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     FALLING_WEDGE: {
         patternType: 'FALLING_WEDGE',
-        shortName: 'FW',
+        shortName: 'FWG',
         displayName: 'Falling Wedge',
         category: 'reversal',
         sentiment: 'bullish',
@@ -83,7 +83,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     ASCENDING_TRIANGLE: {
         patternType: 'ASCENDING_TRIANGLE',
-        shortName: 'AT',
+        shortName: 'AST',
         displayName: 'Ascending Triangle',
         category: 'continuation',
         sentiment: 'bullish',
@@ -101,7 +101,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     SYMMETRICAL_TRIANGLE: {
         patternType: 'SYMMETRICAL_TRIANGLE',
-        shortName: 'ST',
+        shortName: 'SYT',
         displayName: 'Symmetrical Triangle',
         category: 'continuation',
         sentiment: 'bullish',
@@ -110,7 +110,7 @@ export const CHART_PATTERNS_CONFIG: Record<string, ChartPatternConfig> = {
     },
     CUP_AND_HANDLE: {
         patternType: 'CUP_AND_HANDLE',
-        shortName: 'CH',
+        shortName: 'CPH',
         displayName: 'Cup and Handle',
         category: 'continuation',
         sentiment: 'bullish',

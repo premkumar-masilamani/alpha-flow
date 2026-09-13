@@ -112,7 +112,7 @@ class ChartPatternServiceTest {
 
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
-    assertEquals("DT", dto.shortName());
+    assertEquals("DTP", dto.shortName());
     assertEquals(new BigDecimal("105.0000"), dto.stopLossPrice());
     assertNotNull(dto.pivotPoints());
     assertEquals(0, dto.pivotPoints().size());
@@ -149,7 +149,7 @@ class ChartPatternServiceTest {
             ticker, Timeframe.WEEKLY, List.of(ChartPatternStatus.TARGET_REACHED), 0, 10);
 
     assertEquals(1, result.size());
-    assertEquals("DB", result.getFirst().shortName());
+    assertEquals("DBM", result.getFirst().shortName());
     assertEquals(new BigDecimal("98.0000"), result.getFirst().stopLossPrice());
   }
 
@@ -177,7 +177,7 @@ class ChartPatternServiceTest {
     List<ChartPatternDto> result = service.getPatterns(ticker, Timeframe.WEEKLY, null, 0, 10);
 
     assertEquals(1, result.size());
-    assertEquals("AT", result.getFirst().shortName());
+    assertEquals("AST", result.getFirst().shortName());
     assertEquals(new BigDecimal("112.0000"), result.getFirst().stopLossPrice());
     assertEquals(0, result.getFirst().pivotPoints().size());
   }

@@ -498,7 +498,7 @@ describe('Chart Component', () => {
             {
                 id: 1,
                 patternType: 'DOUBLE_BOTTOM',
-                shortName: 'DB',
+                shortName: 'DBM',
                 displayName: 'Double Bottom',
                 sentiment: 'BULLISH_REVERSAL' as const,
                 status: 'COMPLETED' as const,
@@ -550,7 +550,7 @@ describe('Chart Component', () => {
 
         // Verify tooltip rendered with long name, short name, status, target, and stop loss
         expect(screen.getByText('Double Bottom')).toBeInTheDocument();
-        expect(screen.getByText('DB')).toBeInTheDocument();
+        expect(screen.getByText('DBM')).toBeInTheDocument();
         expect(screen.getByText('COMPLETED')).toBeInTheDocument();
         expect(screen.getByText('$125.50')).toBeInTheDocument();
         expect(screen.getByText('$95.25')).toBeInTheDocument();
@@ -589,7 +589,7 @@ describe('Chart Component', () => {
             {
                 id: 2,
                 patternType: 'HEAD_AND_SHOULDERS',
-                shortName: 'H&S',
+                shortName: 'HNS',
                 displayName: 'Head and Shoulders',
                 sentiment: 'BEARISH_REVERSAL' as const,
                 status: 'IN_PROGRESS' as const,
@@ -640,7 +640,7 @@ describe('Chart Component', () => {
         });
 
         expect(screen.getByText('Head and Shoulders')).toBeInTheDocument();
-        expect(screen.getByText('H&S')).toBeInTheDocument();
+        expect(screen.getByText('HNS')).toBeInTheDocument();
         expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
         expect(screen.queryByText('$85.00')).not.toBeInTheDocument();
         expect(screen.queryByText('$108.00')).not.toBeInTheDocument();
@@ -683,7 +683,7 @@ describe('Chart Component', () => {
             {
                 id: 1,
                 patternType: 'DOUBLE_BOTTOM',
-                shortName: 'DB',
+                shortName: 'DBM',
                 displayName: 'Double Bottom',
                 sentiment: 'BULLISH_REVERSAL' as const,
                 status: 'COMPLETED' as const,
@@ -735,7 +735,7 @@ describe('Chart Component', () => {
             });
         });
         expect(screen.getByText('Double Bottom')).toBeInTheDocument();
-        expect(screen.getByText('DB')).toBeInTheDocument();
+        expect(screen.getByText('DBM')).toBeInTheDocument();
         expect(screen.getByText('COMPLETED')).toBeInTheDocument();
         expect(screen.getByText('$130.00')).toBeInTheDocument();
         expect(screen.getByText('$90.00')).toBeInTheDocument();

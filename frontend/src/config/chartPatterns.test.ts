@@ -21,6 +21,7 @@ describe('chartPatterns config', () => {
         for (const key of expectedPatterns) {
             expect(CHART_PATTERNS_CONFIG[key]).toBeDefined();
             expect(CHART_PATTERNS_CONFIG[key].shortName).toBeTruthy();
+            expect(CHART_PATTERNS_CONFIG[key].shortName).toHaveLength(3);
             expect(CHART_PATTERNS_CONFIG[key].displayName).toBeTruthy();
             expect(CHART_PATTERNS_CONFIG[key].description).toBeTruthy();
         }

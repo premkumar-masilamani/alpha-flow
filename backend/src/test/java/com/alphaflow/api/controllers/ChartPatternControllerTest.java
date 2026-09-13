@@ -30,7 +30,7 @@ class ChartPatternControllerTest {
         ChartPatternDto.builder()
             .id(1L)
             .patternType(ChartPatternType.DOUBLE_BOTTOM)
-            .shortName("DB")
+            .shortName("DBM")
             .displayName("Double Bottom")
             .sentiment(ChartPatternType.DOUBLE_BOTTOM.getSentiment())
             .status(ChartPatternStatus.IN_PROGRESS)
@@ -50,7 +50,7 @@ class ChartPatternControllerTest {
             "AAPL", Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), null, 0, 20);
 
     assertEquals(1, result.size());
-    assertEquals("DB", result.getFirst().shortName());
+    assertEquals("DBM", result.getFirst().shortName());
     assertEquals(ChartPatternStatus.IN_PROGRESS, result.getFirst().status());
   }
 
