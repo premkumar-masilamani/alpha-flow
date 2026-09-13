@@ -67,7 +67,7 @@ public class ChartPatternService {
             : List.of();
 
     return ChartPatternDto.builder()
-        .id(dailyPattern.getId())
+        .id(dailyPattern.getDailyChartPatternId())
         .patternType(dailyPattern.getPatternType())
         .shortName(dailyPattern.getPatternType().getShortName())
         .displayName(dailyPattern.getPatternType().getDisplayName())
@@ -92,7 +92,7 @@ public class ChartPatternService {
             : List.of();
 
     return ChartPatternDto.builder()
-        .id(weeklyPattern.getId())
+        .id(weeklyPattern.getWeeklyChartPatternId())
         .patternType(weeklyPattern.getPatternType())
         .shortName(weeklyPattern.getPatternType().getShortName())
         .displayName(weeklyPattern.getPatternType().getDisplayName())

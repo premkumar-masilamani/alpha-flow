@@ -45,7 +45,7 @@ class ChartPatternServiceTest {
   void testGetPatternsDailyWithStatus() {
     DailyChartPattern pattern =
         DailyChartPattern.builder()
-            .id(10L)
+            .dailyChartPatternId(10L)
             .ticker(ticker)
             .patternType(ChartPatternType.HEAD_AND_SHOULDERS)
             .sentiment(ChartPatternType.HEAD_AND_SHOULDERS.getSentiment())
@@ -77,6 +77,7 @@ class ChartPatternServiceTest {
 
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
+    assertEquals(10L, dto.id());
     assertEquals("HNS", dto.shortName());
     assertEquals("Head and Shoulders", dto.displayName());
     assertEquals(ChartPatternStatus.COMPLETED, dto.status());
@@ -90,7 +91,7 @@ class ChartPatternServiceTest {
   void testGetPatternsDailyWithoutStatusDefaultsToInProgressAndCompleted() {
     DailyChartPattern pattern =
         DailyChartPattern.builder()
-            .id(11L)
+            .dailyChartPatternId(11L)
             .ticker(ticker)
             .patternType(ChartPatternType.DOUBLE_TOP)
             .sentiment(ChartPatternType.DOUBLE_TOP.getSentiment())
@@ -112,6 +113,7 @@ class ChartPatternServiceTest {
 
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
+    assertEquals(11L, dto.id());
     assertEquals("DTP", dto.shortName());
     assertEquals(new BigDecimal("105.0000"), dto.stopLossPrice());
     assertNotNull(dto.pivotPoints());
@@ -122,7 +124,7 @@ class ChartPatternServiceTest {
   void testGetPatternsWeeklyWithStatus() {
     WeeklyChartPattern pattern =
         WeeklyChartPattern.builder()
-            .id(20L)
+            .weeklyChartPatternId(20L)
             .ticker(ticker)
             .patternType(ChartPatternType.DOUBLE_BOTTOM)
             .sentiment(ChartPatternType.DOUBLE_BOTTOM.getSentiment())
@@ -149,6 +151,7 @@ class ChartPatternServiceTest {
             ticker, Timeframe.WEEKLY, List.of(ChartPatternStatus.TARGET_REACHED), 0, 10);
 
     assertEquals(1, result.size());
+    assertEquals(20L, result.getFirst().id());
     assertEquals("DBM", result.getFirst().shortName());
     assertEquals(new BigDecimal("98.0000"), result.getFirst().stopLossPrice());
   }
@@ -157,7 +160,7 @@ class ChartPatternServiceTest {
   void testGetPatternsWeeklyWithoutStatusDefaultsToInProgressAndCompleted() {
     WeeklyChartPattern pattern =
         WeeklyChartPattern.builder()
-            .id(21L)
+            .weeklyChartPatternId(21L)
             .ticker(ticker)
             .patternType(ChartPatternType.ASCENDING_TRIANGLE)
             .sentiment(ChartPatternType.ASCENDING_TRIANGLE.getSentiment())

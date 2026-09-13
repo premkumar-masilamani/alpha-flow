@@ -21,8 +21,8 @@ public class IndicatorDefinition {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(name = "indicator_id")
-  private Long indicatorId;
+  @Column(name = "indicator_definition_id")
+  private Long indicatorDefinitionId;
 
   @EqualsAndHashCode.Include
   @Enumerated(EnumType.STRING)

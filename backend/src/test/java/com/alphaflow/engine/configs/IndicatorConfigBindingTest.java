@@ -29,7 +29,7 @@ class IndicatorConfigBindingTest {
   void mapsAllDefinitionsFromDatabase() {
     IndicatorDefinition ema =
         IndicatorDefinition.builder()
-            .indicatorId(101L)
+            .indicatorDefinitionId(101L)
             .indicatorType(IndicatorType.EMA)
             .source(PriceSource.CLOSE)
             .params(Map.of("period", 5))
@@ -37,7 +37,7 @@ class IndicatorConfigBindingTest {
 
     IndicatorDefinition macd =
         IndicatorDefinition.builder()
-            .indicatorId(202L)
+            .indicatorDefinitionId(202L)
             .indicatorType(IndicatorType.MACD)
             .source(PriceSource.CLOSE)
             .params(Map.of("fast", 12, "slow", 26, "signal", 9))
