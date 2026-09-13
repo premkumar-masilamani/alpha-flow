@@ -328,7 +328,7 @@ class ChartPatternRenderer implements IPrimitivePaneRenderer {
         const timeScale = chart.timeScale();
         const rawPatterns = this._primitive.getPatterns();
         if (!rawPatterns || rawPatterns.length === 0) return;
-        const patterns = rawPatterns.filter((pattern) => pattern.status === 'IN_PROGRESS');
+        const patterns = rawPatterns.filter((pattern) => pattern.status === 'IN_PROGRESS' || pattern.status === 'COMPLETED');
         if (patterns.length === 0) return;
 
         target.useBitmapCoordinateSpace((scope: any) => {
@@ -465,8 +465,34 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData, type ChartPatternStatus} from '../services/api';
 import {RefreshCw} from 'lucide-react';
+
+interface CandlestickTooltipInfo {
+    longName: string;
+    shortName: string;
+    sentiment: string;
+}
+
+interface ChartPatternTooltipInfo {
+    displayName: string;
+    shortName: string;
+    sentiment: string;
+    status: ChartPatternStatus;
+    targetPrice?: number | null;
+    stopLossPrice?: number | null;
+}
+
+interface TooltipData {
+    visible: boolean;
+    x: number;
+    y: number;
+    candlestickPattern?: CandlestickTooltipInfo;
+    chartPattern?: ChartPatternTooltipInfo;
+    longName?: string;
+    shortName?: string;
+    sentiment?: string;
+}
 
 interface ChartProps {
     data: DailyCandleData[];
@@ -598,14 +624,7 @@ const Chart: React.FC<ChartProps> = ({
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
     const [chartHeight, setChartHeight] = useState(600);
-    const [tooltip, setTooltip] = useState<{
-        visible: boolean;
-        x: number;
-        y: number;
-        longName: string;
-        shortName: string;
-        sentiment: string;
-    } | null>(null);
+    const [tooltip, setTooltip] = useState<TooltipData | null>(null);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
     const visibleLogicalRangeRef = useRef<LogicalRange | null>(null);
     const prevDataLengthRef = useRef<number>(0);
@@ -722,9 +741,9 @@ const Chart: React.FC<ChartProps> = ({
         }
 
         if (showChartPatterns && chartPatterns.length > 0) {
-            const inProgressPatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS');
-            if (inProgressPatterns.length > 0) {
-                const cpPrimitive = new ChartPatternPrimitive(chart, inProgressPatterns);
+            const activePatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'COMPLETED');
+            if (activePatterns.length > 0) {
+                const cpPrimitive = new ChartPatternPrimitive(chart, activePatterns);
                 candlestickSeries.attachPrimitive(cpPrimitive);
             }
         }
@@ -922,10 +941,9 @@ const Chart: React.FC<ChartProps> = ({
             }
         });
 
-        // Subscribe to crosshair move events to show the pattern long name tooltip on hover
+        // Subscribe to crosshair move events to show pattern tooltips on hover
         chart.subscribeCrosshairMove((param) => {
             if (
-                !param.time ||
                 !param.point ||
                 param.point.x < 0 ||
                 param.point.y < 0
@@ -947,38 +965,108 @@ const Chart: React.FC<ChartProps> = ({
                 }
             }
 
-            if (!dateStr) {
+            const matchedCandlestickPattern = (showCandlestickPatterns && dateStr)
+                ? deduplicatedCandlestickPatterns.find((p) => p.date === dateStr)
+                : null;
+
+            let matchedChartPattern: ChartPatternData | null = null;
+            if (showChartPatterns && chartPatterns.length > 0) {
+                const activePatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS' || p.status === 'COMPLETED');
+                const timeScale = chart.timeScale();
+                let closestDistance = Number.POSITIVE_INFINITY;
+
+                for (const cp of activePatterns) {
+                    let isXMatch = false;
+                    if (dateStr) {
+                        isXMatch = dateStr >= cp.startDate && dateStr <= cp.endDate;
+                    } else {
+                        const startX = timeScale.timeToCoordinate(cp.startDate as Time);
+                        const endX = timeScale.timeToCoordinate(cp.endDate as Time);
+                        if (startX !== null && endX !== null) {
+                            const minX = Math.min(startX, endX) - 10;
+                            const maxX = Math.max(startX, endX) + 80;
+                            if (param.point.x >= minX && param.point.x <= maxX) {
+                                isXMatch = true;
+                            }
+                        }
+                    }
+
+                    if (!isXMatch) continue;
+
+                    const prices: number[] = cp.pivotPoints ? cp.pivotPoints.map((p) => p.price) : [];
+                    if (cp.necklinePrice != null) prices.push(cp.necklinePrice);
+                    if (cp.targetPrice != null) prices.push(cp.targetPrice);
+                    if (cp.stopLossPrice != null) prices.push(cp.stopLossPrice);
+
+                    let isYMatch = true;
+                    let distance = 0;
+
+                    if (prices.length > 0) {
+                        const yCoords = prices
+                            .map((price) => candlestickSeries.priceToCoordinate(price))
+                            .filter((y): y is number => y !== null);
+
+                        if (yCoords.length > 0) {
+                            const minY = Math.min(...yCoords);
+                            const maxY = Math.max(...yCoords);
+                            const midY = (minY + maxY) / 2;
+                            isYMatch = param.point.y >= minY - 40 && param.point.y <= maxY + 40;
+                            distance = Math.abs(param.point.y - midY);
+                        }
+                    }
+
+                    if (isXMatch && isYMatch) {
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            matchedChartPattern = cp;
+                        }
+                    }
+                }
+            }
+
+            if (!matchedCandlestickPattern && !matchedChartPattern) {
                 setTooltip(null);
                 return;
             }
 
-            const pattern = deduplicatedCandlestickPatterns.find((p) => p.date === dateStr);
+            let tooltipX = param.point.x + 15;
+            let tooltipY = param.point.y + 15;
 
-            if (pattern) {
-                let tooltipX = param.point.x + 15;
-                let tooltipY = param.point.y + 15;
-                
-                const containerWidth = chartContainerRef.current?.clientWidth || 0;
-                const containerHeight = chartContainerRef.current?.clientHeight || 0;
-                
-                if (tooltipX + 220 > containerWidth) {
-                    tooltipX = param.point.x - 235;
-                }
-                if (tooltipY + 80 > containerHeight) {
-                    tooltipY = param.point.y - 95;
-                }
+            const containerWidth = chartContainerRef.current?.clientWidth || 0;
+            const containerHeight = chartContainerRef.current?.clientHeight || 0;
+            const tooltipWidth = 260;
+            const tooltipHeight = 140;
 
-                setTooltip({
-                    visible: true,
-                    x: tooltipX,
-                    y: tooltipY,
-                    longName: pattern.longName,
-                    shortName: pattern.shortName,
-                    sentiment: pattern.sentiment,
-                });
-            } else {
-                setTooltip(null);
+            if (tooltipX + tooltipWidth > containerWidth) {
+                tooltipX = param.point.x - tooltipWidth - 15;
             }
+            if (tooltipY + tooltipHeight > containerHeight) {
+                tooltipY = param.point.y - tooltipHeight - 15;
+            }
+            if (tooltipX < 10) tooltipX = 10;
+            if (tooltipY < 10) tooltipY = 10;
+
+            setTooltip({
+                visible: true,
+                x: tooltipX,
+                y: tooltipY,
+                candlestickPattern: matchedCandlestickPattern ? {
+                    longName: matchedCandlestickPattern.longName,
+                    shortName: matchedCandlestickPattern.shortName,
+                    sentiment: matchedCandlestickPattern.sentiment,
+                } : undefined,
+                chartPattern: matchedChartPattern ? {
+                    displayName: matchedChartPattern.displayName,
+                    shortName: matchedChartPattern.shortName,
+                    sentiment: matchedChartPattern.sentiment,
+                    status: matchedChartPattern.status,
+                    targetPrice: matchedChartPattern.targetPrice,
+                    stopLossPrice: matchedChartPattern.stopLossPrice,
+                } : undefined,
+                longName: matchedCandlestickPattern?.longName ?? matchedChartPattern?.displayName ?? '',
+                shortName: matchedCandlestickPattern?.shortName ?? matchedChartPattern?.shortName ?? '',
+                sentiment: matchedCandlestickPattern?.sentiment ?? matchedChartPattern?.sentiment ?? '',
+            });
         });
 
         return () => {
@@ -1059,20 +1147,80 @@ const Chart: React.FC<ChartProps> = ({
 
             {tooltip && tooltip.visible && (
                 <div
-                    className="absolute z-30 pointer-events-none bg-slate-900/90 border border-slate-700 text-white text-xs rounded-lg p-3 shadow-xl shadow-black/50 backdrop-blur-sm flex flex-col gap-1 transition-all duration-100 ease-out"
+                    className="absolute z-30 pointer-events-none bg-slate-900/95 border border-slate-700 text-white text-xs rounded-lg p-3 shadow-xl shadow-black/50 backdrop-blur-sm flex flex-col gap-2 min-w-[200px] max-w-[280px] transition-all duration-100 ease-out"
                     style={{
                         left: `${tooltip.x}px`,
                         top: `${tooltip.y}px`,
                     }}
                 >
-                    <div className="font-bold flex items-center gap-1.5 text-sm">
-                        <span className={`w-2.5 h-2.5 rounded-full ${tooltip.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
-                        <span className="text-white">{tooltip.longName}</span>
-                        <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider">{tooltip.shortName}</span>
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider pl-4">
-                        {tooltip.sentiment.replace(/_/g, ' ')}
-                    </div>
+                    {tooltip.candlestickPattern && (
+                        <div className="flex flex-col gap-1">
+                            <div className="font-bold flex items-center justify-between gap-2 text-sm">
+                                <div className="flex items-center gap-1.5 truncate">
+                                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${tooltip.candlestickPattern.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
+                                    <span className="text-white truncate">{tooltip.candlestickPattern.longName}</span>
+                                </div>
+                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0">
+                                    {tooltip.candlestickPattern.shortName}
+                                </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider pl-4">
+                                {tooltip.candlestickPattern.sentiment.replace(/_/g, ' ')}
+                            </div>
+                        </div>
+                    )}
+
+                    {tooltip.candlestickPattern && tooltip.chartPattern && (
+                        <div className="border-t border-slate-700/80 my-0.5" />
+                    )}
+
+                    {tooltip.chartPattern && (
+                        <div className="flex flex-col gap-1.5">
+                            <div className="font-bold flex items-center justify-between gap-2 text-sm">
+                                <div className="flex items-center gap-1.5 truncate">
+                                    <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${tooltip.chartPattern.sentiment.startsWith('BULLISH') ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50' : 'bg-rose-500 shadow-lg shadow-rose-500/50'}`} />
+                                    <span className="text-white truncate">{tooltip.chartPattern.displayName}</span>
+                                </div>
+                                <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider flex-shrink-0">
+                                    {tooltip.chartPattern.shortName}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 pl-4 text-[10px]">
+                                <span className={`px-1.5 py-0.5 rounded font-semibold border ${
+                                    tooltip.chartPattern.status === 'COMPLETED'
+                                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
+                                        : tooltip.chartPattern.status === 'TARGET_REACHED'
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                        : tooltip.chartPattern.status === 'INVALIDATED'
+                                        ? 'bg-slate-700/50 text-slate-400 border-slate-600'
+                                        : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                                }`}>
+                                    {tooltip.chartPattern.status.replace(/_/g, ' ')}
+                                </span>
+                                <span className="text-slate-400 font-semibold uppercase tracking-wider">
+                                    {tooltip.chartPattern.sentiment.replace(/_/g, ' ')}
+                                </span>
+                            </div>
+
+                            {tooltip.chartPattern.status === 'COMPLETED' && (tooltip.chartPattern.targetPrice != null || tooltip.chartPattern.stopLossPrice != null) && (
+                                <div className="mt-1 pt-1.5 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px] pl-4">
+                                    {tooltip.chartPattern.targetPrice != null && (
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-medium">Target</span>
+                                            <span className="text-emerald-400 font-mono font-semibold">${Number(tooltip.chartPattern.targetPrice).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {tooltip.chartPattern.stopLossPrice != null && (
+                                        <div>
+                                            <span className="text-slate-400 block text-[9px] uppercase font-medium">Stop Loss</span>
+                                            <span className="text-rose-400 font-mono font-semibold">${Number(tooltip.chartPattern.stopLossPrice).toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

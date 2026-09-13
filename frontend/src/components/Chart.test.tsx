@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
@@ -458,5 +458,270 @@ describe('Chart Component', () => {
         expect(candlestickSeriesMockDisabled.attachPrimitive).not.toHaveBeenCalled();
 
         unmountDisabled();
+    });
+
+    interface MockCrosshairParam {
+        time?: string;
+        point?: { x: number; y: number };
+    }
+
+    it('renders tooltip with chart pattern details including target and stop-loss on hover', () => {
+        let crosshairCallback: ((param: MockCrosshairParam) => void) | null = null;
+        vi.mocked(createChart).mockImplementationOnce(() => {
+            return {
+                addSeries: vi.fn().mockReturnValue({
+                    setData: vi.fn(),
+                    priceScale: vi.fn().mockReturnValue({ applyOptions: vi.fn() }),
+                    createPriceLine: vi.fn(),
+                    setMarkers: vi.fn(),
+                    attachPrimitive: vi.fn(),
+                    detachPrimitive: vi.fn(),
+                    priceToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                remove: vi.fn(),
+                applyOptions: vi.fn(),
+                subscribeCrosshairMove: (cb: (param: MockCrosshairParam) => void) => {
+                    crosshairCallback = cb;
+                },
+                timeScale: vi.fn().mockReturnValue({
+                    setVisibleRange: vi.fn(),
+                    setVisibleLogicalRange: vi.fn(),
+                    subscribeVisibleTimeRangeChange: vi.fn(),
+                    subscribeVisibleLogicalRangeChange: vi.fn(),
+                    timeToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                panes: vi.fn().mockReturnValue([]),
+            } as unknown as ReturnType<typeof createChart>;
+        });
+
+        const mockChartPatterns = [
+            {
+                id: 1,
+                patternType: 'DOUBLE_BOTTOM',
+                shortName: 'DB',
+                displayName: 'Double Bottom',
+                sentiment: 'BULLISH_REVERSAL' as const,
+                status: 'COMPLETED' as const,
+                startDate: '2026-06-01',
+                endDate: '2026-06-03',
+                necklinePrice: 100,
+                targetPrice: 125.5,
+                stopLossPrice: 95.25,
+                pivotPoints: [
+                    { date: '2026-06-01', price: 95, type: 'LOW' as const, role: 'TROUGH_1' },
+                    { date: '2026-06-02', price: 100, type: 'HIGH' as const, role: 'PEAK' },
+                    { date: '2026-06-03', price: 95, type: 'LOW' as const, role: 'TROUGH_2' },
+                ],
+            },
+        ];
+
+        render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                chartPatterns={mockChartPatterns}
+                showChartPatterns={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        expect(crosshairCallback).not.toBeNull();
+
+        // Simulate crosshair move over the pattern date range
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-02',
+                point: { x: 100, y: 100 },
+            });
+        });
+
+        // Verify tooltip rendered with long name, short name, status, target, and stop loss
+        expect(screen.getByText('Double Bottom')).toBeInTheDocument();
+        expect(screen.getByText('DB')).toBeInTheDocument();
+        expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+        expect(screen.getByText('$125.50')).toBeInTheDocument();
+        expect(screen.getByText('$95.25')).toBeInTheDocument();
+    });
+
+    it('renders tooltip with in-progress chart pattern details without target and stop loss', () => {
+        let crosshairCallback: ((param: MockCrosshairParam) => void) | null = null;
+        vi.mocked(createChart).mockImplementationOnce(() => {
+            return {
+                addSeries: vi.fn().mockReturnValue({
+                    setData: vi.fn(),
+                    priceScale: vi.fn().mockReturnValue({ applyOptions: vi.fn() }),
+                    createPriceLine: vi.fn(),
+                    setMarkers: vi.fn(),
+                    attachPrimitive: vi.fn(),
+                    detachPrimitive: vi.fn(),
+                    priceToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                remove: vi.fn(),
+                applyOptions: vi.fn(),
+                subscribeCrosshairMove: (cb: (param: MockCrosshairParam) => void) => {
+                    crosshairCallback = cb;
+                },
+                timeScale: vi.fn().mockReturnValue({
+                    setVisibleRange: vi.fn(),
+                    setVisibleLogicalRange: vi.fn(),
+                    subscribeVisibleTimeRangeChange: vi.fn(),
+                    subscribeVisibleLogicalRangeChange: vi.fn(),
+                    timeToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                panes: vi.fn().mockReturnValue([]),
+            } as unknown as ReturnType<typeof createChart>;
+        });
+
+        const mockChartPatterns = [
+            {
+                id: 2,
+                patternType: 'HEAD_AND_SHOULDERS',
+                shortName: 'H&S',
+                displayName: 'Head and Shoulders',
+                sentiment: 'BEARISH_REVERSAL' as const,
+                status: 'IN_PROGRESS' as const,
+                startDate: '2026-06-01',
+                endDate: '2026-06-03',
+                necklinePrice: 100,
+                targetPrice: 85,
+                stopLossPrice: 108,
+                pivotPoints: [
+                    { date: '2026-06-01', price: 105, type: 'HIGH' as const, role: 'LEFT_SHOULDER' },
+                    { date: '2026-06-02', price: 115, type: 'HIGH' as const, role: 'HEAD' },
+                    { date: '2026-06-03', price: 106, type: 'HIGH' as const, role: 'RIGHT_SHOULDER' },
+                ],
+            },
+        ];
+
+        render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                chartPatterns={mockChartPatterns}
+                showChartPatterns={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        expect(crosshairCallback).not.toBeNull();
+
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-02',
+                point: { x: 100, y: 100 },
+            });
+        });
+
+        expect(screen.getByText('Head and Shoulders')).toBeInTheDocument();
+        expect(screen.getByText('H&S')).toBeInTheDocument();
+        expect(screen.getByText('IN PROGRESS')).toBeInTheDocument();
+        expect(screen.queryByText('$85.00')).not.toBeInTheDocument();
+        expect(screen.queryByText('$108.00')).not.toBeInTheDocument();
+    });
+
+    it('renders combined tooltip when candlestick pattern and chart pattern coincide', () => {
+        let crosshairCallback: ((param: MockCrosshairParam) => void) | null = null;
+        vi.mocked(createChart).mockImplementationOnce(() => {
+            return {
+                addSeries: vi.fn().mockReturnValue({
+                    setData: vi.fn(),
+                    priceScale: vi.fn().mockReturnValue({ applyOptions: vi.fn() }),
+                    createPriceLine: vi.fn(),
+                    setMarkers: vi.fn(),
+                    attachPrimitive: vi.fn(),
+                    detachPrimitive: vi.fn(),
+                    priceToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                remove: vi.fn(),
+                applyOptions: vi.fn(),
+                subscribeCrosshairMove: (cb: (param: MockCrosshairParam) => void) => {
+                    crosshairCallback = cb;
+                },
+                timeScale: vi.fn().mockReturnValue({
+                    setVisibleRange: vi.fn(),
+                    setVisibleLogicalRange: vi.fn(),
+                    subscribeVisibleTimeRangeChange: vi.fn(),
+                    subscribeVisibleLogicalRangeChange: vi.fn(),
+                    timeToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                panes: vi.fn().mockReturnValue([]),
+            } as unknown as ReturnType<typeof createChart>;
+        });
+
+        const mockCandlesticks = [
+            { date: '2026-06-02', shortName: 'HAM', longName: 'Hammer', sentiment: SENTIMENT_TYPES.BULLISH_REVERSAL },
+        ];
+
+        const mockChartPatterns = [
+            {
+                id: 1,
+                patternType: 'DOUBLE_BOTTOM',
+                shortName: 'DB',
+                displayName: 'Double Bottom',
+                sentiment: 'BULLISH_REVERSAL' as const,
+                status: 'COMPLETED' as const,
+                startDate: '2026-06-01',
+                endDate: '2026-06-03',
+                necklinePrice: 100,
+                targetPrice: 130,
+                stopLossPrice: 90,
+                pivotPoints: [
+                    { date: '2026-06-01', price: 95, type: 'LOW' as const, role: 'TROUGH_1' },
+                    { date: '2026-06-02', price: 100, type: 'HIGH' as const, role: 'PEAK' },
+                    { date: '2026-06-03', price: 95, type: 'LOW' as const, role: 'TROUGH_2' },
+                ],
+            },
+        ];
+
+        render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                candlestickPatterns={mockCandlesticks}
+                showCandlestickPatterns={true}
+                chartPatterns={mockChartPatterns}
+                showChartPatterns={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-02',
+                point: { x: 100, y: 100 },
+            });
+        });
+
+        // Candlestick pattern
+        expect(screen.getByText('Hammer')).toBeInTheDocument();
+        expect(screen.getByText('HAM')).toBeInTheDocument();
+        // Chart pattern
+        expect(screen.getByText('Double Bottom')).toBeInTheDocument();
+        expect(screen.getByText('DB')).toBeInTheDocument();
+        expect(screen.getByText('COMPLETED')).toBeInTheDocument();
+        expect(screen.getByText('$130.00')).toBeInTheDocument();
+        expect(screen.getByText('$90.00')).toBeInTheDocument();
+
+        // Move crosshair to date with no patterns
+        act(() => {
+            crosshairCallback!({
+                time: '2026-06-10',
+                point: { x: 100, y: 100 },
+            });
+        });
+        expect(screen.queryByText('Double Bottom')).not.toBeInTheDocument();
+        expect(screen.queryByText('Hammer')).not.toBeInTheDocument();
     });
 });
