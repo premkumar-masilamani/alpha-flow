@@ -5,7 +5,9 @@ import Sidebar from "./components/Sidebar";
 import Chart from "./components/Chart";
 import IndicatorControls from "./components/IndicatorControls";
 import CandlestickPatternModal from "./components/CandlestickPatternModal";
+import ChartPatternModal from "./components/ChartPatternModal";
 import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
+import { getChartPatternDetails } from "./config/chartPatterns";
 import {
   type DailyCandleData,
   getCandleData,
@@ -68,6 +70,7 @@ function App() {
   const [analysisData, setAnalysisData] = useState<TechnicalAnalysisData | null>(null);
   const [analysisError, setAnalysisError] = useState<"stale" | "server" | null>(null);
   const [overviewPatterns, setOverviewPatterns] = useState<CandlestickPatternData[]>([]);
+  const [overviewChartPatterns, setOverviewChartPatterns] = useState<ChartPatternData[]>([]);
   const [recentDailyCandles, setRecentDailyCandles] = useState<DailyCandleData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -92,10 +95,17 @@ function App() {
   const [activeTab, setActiveTab] = useState<"overview" | "charts">("overview");
   const [isCspModalOpen, setIsCspModalOpen] = useState(false);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
+  const [isCpModalOpen, setIsCpModalOpen] = useState(false);
+  const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
 
   const openCspModal = (patternId?: string | null) => {
     setSelectedPatternId(patternId || null);
     setIsCspModalOpen(true);
+  };
+
+  const openCpModal = (patternId?: string | null) => {
+    setSelectedCpId(patternId || null);
+    setIsCpModalOpen(true);
   };
 
   const selectedTickerRef = useRef(selectedTicker);
@@ -183,24 +193,31 @@ function App() {
         setAnalysisData(null);
         setAnalysisError(null);
         setOverviewPatterns([]);
+        setOverviewChartPatterns([]);
         setRecentDailyCandles([]);
 
         try {
-          const [analysis, patterns, candles] = await Promise.all([
+          const [analysis, patterns, candles, chartPatternsList] = await Promise.all([
             getTechnicalAnalysis(selectedTicker),
             getCandlestickPatterns(selectedTicker, "DAILY", 0),
             getCandleData(selectedTicker, "DAILY", 0, 100),
+            getChartPatterns(selectedTicker, "DAILY", ["IN_PROGRESS", "COMPLETED"]).catch((err) => {
+              console.error("Failed to fetch overview chart patterns:", err);
+              return [];
+            }),
           ]);
           if (active) {
             setAnalysisData(analysis);
             setOverviewPatterns(patterns);
             setRecentDailyCandles(candles);
+            setOverviewChartPatterns(chartPatternsList || []);
           }
         } catch (error) {
           console.error("Failed to fetch technical analysis data:", error);
           if (active) {
             setAnalysisData(null);
             setOverviewPatterns([]);
+            setOverviewChartPatterns([]);
             setRecentDailyCandles([]);
             const status = axios.isAxiosError(error) ? error.response?.status : undefined;
             setAnalysisError(status === 404 ? "stale" : "server");
@@ -626,6 +643,257 @@ function App() {
       );
     };
 
+    const renderChartPatterns = (patterns: ChartPatternData[], candles: DailyCandleData[]) => {
+      if (patterns.length === 0) {
+        return (
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
+            <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-base font-bold text-white">Chart Patterns</h2>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => openCpModal()}
+                  className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+                >
+                  <BookOpen size={14} />
+                  All Chart Patterns
+                </button>
+                <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                  {candle?.date || "N/A"}
+                </span>
+              </div>
+            </div>
+            <div className="p-6 text-center text-slate-500 text-sm italic">
+              No active or completed chart patterns detected.
+            </div>
+          </div>
+        );
+      }
+
+      // Sort patterns by endDate descending
+      const sortedPatterns = [...patterns].sort((a, b) => b.endDate.localeCompare(a.endDate));
+
+      return (
+        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
+          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+            <h2 className="text-base font-bold text-white">Chart Patterns</h2>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => openCpModal()}
+                className="text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+              >
+                <BookOpen size={14} />
+                All Chart Patterns
+              </button>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                {patterns.length} {patterns.length === 1 ? "Pattern" : "Patterns"} Active
+              </span>
+            </div>
+          </div>
+          <div className="p-6 space-y-4">
+            {sortedPatterns.map((pattern) => {
+              const details = getChartPatternDetails(pattern.patternType) || getChartPatternDetails(pattern.displayName);
+              const isBullish = pattern.sentiment.startsWith("BULLISH");
+              const isCompleted = pattern.status === "COMPLETED";
+
+              // Calculate relative time relative to candles
+              let relativeTime = "";
+              if (candles.length > 0) {
+                const latestCandle = candles[candles.length - 1];
+                const refDate = pattern.breakoutDate || pattern.endDate;
+                if (refDate === latestCandle.date) {
+                  relativeTime = "today";
+                } else {
+                  const candleIndex = candles.findIndex((c) => c.date === refDate);
+                  if (candleIndex !== -1) {
+                    const barsAgo = candles.length - 1 - candleIndex;
+                    relativeTime = `${barsAgo} ${barsAgo === 1 ? "bar" : "bars"} ago`;
+                  }
+                }
+              }
+
+              const dateText = relativeTime || pattern.endDate;
+
+              // Price target and stop loss percentage calculations relative to latest close
+              const currentClose = candle ? candle.close : null;
+              const targetPct =
+                currentClose && pattern.targetPrice != null
+                  ? pctChange(pattern.targetPrice - currentClose, currentClose)
+                  : null;
+              const stopLossVal = pattern.stopLossPrice ?? pattern.invalidationPrice ?? null;
+              const stopLossPct =
+                currentClose && stopLossVal != null
+                  ? pctChange(stopLossVal - currentClose, currentClose)
+                  : null;
+
+              return (
+                <div
+                  key={pattern.id || `${pattern.patternType}-${pattern.startDate}`}
+                  onClick={() => openCpModal(details?.id || pattern.patternType)}
+                  className={`relative overflow-hidden p-5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                    isBullish
+                      ? "bg-emerald-950/10 border-emerald-900/30 hover:border-emerald-800/50 hover:bg-emerald-950/20"
+                      : "bg-rose-950/10 border-rose-900/30 hover:border-rose-800/50 hover:bg-rose-950/20"
+                  }`}
+                >
+                  {/* Ambient Glow */}
+                  <div
+                    className={`absolute top-0 right-0 w-32 h-32 -mr-6 -mt-6 rounded-full blur-3xl opacity-15 pointer-events-none ${
+                      isBullish ? "bg-emerald-500" : "bg-rose-500"
+                    }`}
+                  />
+
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 flex-1 min-w-0">
+                      {/* Visual Schematic */}
+                      {details ? (
+                        <div className="shrink-0 flex items-center justify-center">
+                          <svg
+                            className="w-[150px] h-[130px] rounded-lg shadow-lg border border-slate-800 shrink-0"
+                            style={{ background: "#1e1e24" }}
+                            viewBox="0 0 150 130"
+                            dangerouslySetInnerHTML={{ __html: details.svgMarkup }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className={`w-14 h-14 shrink-0 flex items-center justify-center rounded-xl font-mono font-black text-lg ${
+                            isBullish
+                              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+                              : "bg-rose-500/15 text-rose-400 border border-rose-500/20"
+                          }`}
+                        >
+                          {pattern.shortName}
+                        </div>
+                      )}
+
+                      {/* Pattern Details Column */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <h4 className="font-extrabold text-white text-base md:text-lg leading-tight">
+                            {details ? details.title : pattern.displayName}
+                          </h4>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider flex items-center gap-1 border ${
+                              isBullish
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                            }`}
+                          >
+                            {isBullish ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                            {pattern.sentiment.replace("_", " ")}
+                          </span>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                              isCompleted
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            }`}
+                          >
+                            {isCompleted ? "Breakout Confirmed" : "In Progress"}
+                          </span>
+                          {details && (
+                            <span className="bg-slate-800 text-slate-300 px-2 py-0.5 rounded text-[10px] font-mono font-medium border border-slate-700 capitalize">
+                              {details.category}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Tentative Target & Stop Loss Prices */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 my-1">
+                          <div className="bg-slate-950/70 border border-slate-800 rounded-lg px-3 py-1.5 flex flex-col">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400/80">
+                              Tentative Target
+                            </span>
+                            <div className="flex items-baseline gap-1.5 mt-0.5">
+                              <span className="text-sm font-bold font-mono text-emerald-400">
+                                {pattern.targetPrice != null
+                                  ? `$${Number(pattern.targetPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                  : "N/A"}
+                              </span>
+                              {targetPct != null && (
+                                <span className="text-[10px] font-bold text-emerald-400/90 font-mono">
+                                  ({targetPct >= 0 ? "+" : ""}{targetPct.toFixed(1)}%)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-950/70 border border-slate-800 rounded-lg px-3 py-1.5 flex flex-col">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400/80">
+                              Stop Loss
+                            </span>
+                            <div className="flex items-baseline gap-1.5 mt-0.5">
+                              <span className="text-sm font-bold font-mono text-rose-400">
+                                {stopLossVal != null
+                                  ? `$${Number(stopLossVal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                  : "N/A"}
+                              </span>
+                              {stopLossPct != null && (
+                                <span className="text-[10px] font-bold text-rose-400/90 font-mono">
+                                  ({stopLossPct >= 0 ? "+" : ""}{stopLossPct.toFixed(1)}%)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-950/70 border border-slate-800 rounded-lg px-3 py-1.5 flex flex-col">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              Neckline Level
+                            </span>
+                            <div className="flex items-baseline gap-1.5 mt-0.5">
+                              <span className="text-sm font-bold font-mono text-slate-200">
+                                {pattern.necklinePrice != null
+                                  ? `$${Number(pattern.necklinePrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                  : "Pending"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {details ? (
+                          <div className="text-xs text-slate-300 space-y-1 leading-relaxed">
+                            <div>
+                              <span className="font-semibold text-slate-100 mr-1.5">Structure:</span>
+                              <span className="text-slate-300">{details.structure}</span>
+                            </div>
+                            <div>
+                              <span className="font-semibold text-slate-100 mr-1.5">Target Rule:</span>
+                              <span className="text-slate-400">{details.targetRule}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400">{pattern.displayName}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right: Formation Period & Status */}
+                    <div className="shrink-0 flex flex-col items-start sm:items-end justify-center self-start sm:self-center lg:self-center gap-1">
+                      <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider">
+                        Formation
+                      </span>
+                      <span className="font-mono text-slate-300 font-medium text-xs bg-slate-950/80 px-2.5 py-1 rounded border border-slate-800">
+                        {pattern.startDate} → {pattern.endDate}
+                      </span>
+                      {pattern.breakoutDate ? (
+                        <span className="text-[11px] text-emerald-400/90 font-mono">
+                          Breakout: {pattern.breakoutDate}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          {dateText}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
     const renderIndicatorTable = (title: string, date: string, indicators: IndicatorSeries[]) => (
       <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
         <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
@@ -784,6 +1052,9 @@ function App() {
 
         {/* Recent Candlestick Patterns */}
         {renderRecentPatterns(overviewPatterns, recentDailyCandles)}
+
+        {/* Chart Patterns */}
+        {renderChartPatterns(overviewChartPatterns, recentDailyCandles)}
 
         {/* Indicators Tables */}
         {renderIndicatorTable("Daily Indicators", dailyDate, dailyIndicators)}
@@ -1011,6 +1282,11 @@ function App() {
         isOpen={isCspModalOpen}
         onClose={() => setIsCspModalOpen(false)}
         initialPatternId={selectedPatternId}
+      />
+      <ChartPatternModal
+        isOpen={isCpModalOpen}
+        onClose={() => setIsCpModalOpen(false)}
+        initialPatternId={selectedCpId}
       />
     </div>
   );
