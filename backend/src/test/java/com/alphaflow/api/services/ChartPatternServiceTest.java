@@ -56,6 +56,7 @@ class ChartPatternServiceTest {
             .necklinePrice(new BigDecimal("150.0000"))
             .necklineSlope(new BigDecimal("0.0000"))
             .targetPrice(new BigDecimal("140.0000"))
+            .stopLossPrice(new BigDecimal("158.0000"))
             .invalidationPrice(new BigDecimal("160.0000"))
             .pivotPoints(
                 List.of(
@@ -67,23 +68,26 @@ class ChartPatternServiceTest {
                         .build()))
             .build();
 
-    when(dailyChartPatternRepository.findByTickerAndStatusOrderByEndDateDesc(
-            eq(ticker), eq(ChartPatternStatus.COMPLETED), any(PageRequest.class)))
+    when(dailyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
+            eq(ticker), eq(List.of(ChartPatternStatus.COMPLETED)), any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
     List<ChartPatternDto> result =
-        service.getPatterns(ticker, Timeframe.DAILY, ChartPatternStatus.COMPLETED, 0, 10);
+        service.getPatterns(ticker, Timeframe.DAILY, List.of(ChartPatternStatus.COMPLETED), 0, 10);
 
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
     assertEquals("HNS", dto.shortName());
     assertEquals("Head and Shoulders", dto.displayName());
     assertEquals(ChartPatternStatus.COMPLETED, dto.status());
+    assertEquals(new BigDecimal("140.0000"), dto.targetPrice());
+    assertEquals(new BigDecimal("158.0000"), dto.stopLossPrice());
+    assertEquals(new BigDecimal("160.0000"), dto.invalidationPrice());
     assertEquals(1, dto.pivotPoints().size());
   }
 
   @Test
-  void testGetPatternsDailyWithoutStatusAndNullPivots() {
+  void testGetPatternsDailyWithoutStatusDefaultsToInProgressAndCompleted() {
     DailyChartPattern pattern =
         DailyChartPattern.builder()
             .id(11L)
@@ -93,11 +97,15 @@ class ChartPatternServiceTest {
             .status(ChartPatternStatus.IN_PROGRESS)
             .startDate(LocalDate.of(2026, 3, 1))
             .endDate(LocalDate.of(2026, 3, 15))
+            .targetPrice(new BigDecimal("90.0000"))
+            .stopLossPrice(new BigDecimal("105.0000"))
             .pivotPoints(null)
             .build();
 
-    when(dailyChartPatternRepository.findByTickerOrderByEndDateDesc(
-            eq(ticker), any(PageRequest.class)))
+    when(dailyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
+            eq(ticker),
+            eq(List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED)),
+            any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
     List<ChartPatternDto> result = service.getPatterns(ticker, Timeframe.DAILY, null, 0, 10);
@@ -105,6 +113,7 @@ class ChartPatternServiceTest {
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
     assertEquals("DT", dto.shortName());
+    assertEquals(new BigDecimal("105.0000"), dto.stopLossPrice());
     assertNotNull(dto.pivotPoints());
     assertEquals(0, dto.pivotPoints().size());
   }
@@ -120,6 +129,7 @@ class ChartPatternServiceTest {
             .status(ChartPatternStatus.TARGET_REACHED)
             .startDate(LocalDate.of(2026, 1, 5))
             .endDate(LocalDate.of(2026, 2, 9))
+            .stopLossPrice(new BigDecimal("98.0000"))
             .pivotPoints(
                 List.of(
                     ChartPatternPivot.builder()
@@ -130,19 +140,21 @@ class ChartPatternServiceTest {
                         .build()))
             .build();
 
-    when(weeklyChartPatternRepository.findByTickerAndStatusOrderByEndDateDesc(
-            eq(ticker), eq(ChartPatternStatus.TARGET_REACHED), any(PageRequest.class)))
+    when(weeklyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
+            eq(ticker), eq(List.of(ChartPatternStatus.TARGET_REACHED)), any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
     List<ChartPatternDto> result =
-        service.getPatterns(ticker, Timeframe.WEEKLY, ChartPatternStatus.TARGET_REACHED, 0, 10);
+        service.getPatterns(
+            ticker, Timeframe.WEEKLY, List.of(ChartPatternStatus.TARGET_REACHED), 0, 10);
 
     assertEquals(1, result.size());
     assertEquals("DB", result.getFirst().shortName());
+    assertEquals(new BigDecimal("98.0000"), result.getFirst().stopLossPrice());
   }
 
   @Test
-  void testGetPatternsWeeklyWithoutStatusAndNullPivots() {
+  void testGetPatternsWeeklyWithoutStatusDefaultsToInProgressAndCompleted() {
     WeeklyChartPattern pattern =
         WeeklyChartPattern.builder()
             .id(21L)
@@ -152,17 +164,21 @@ class ChartPatternServiceTest {
             .status(ChartPatternStatus.IN_PROGRESS)
             .startDate(LocalDate.of(2026, 2, 2))
             .endDate(LocalDate.of(2026, 3, 2))
+            .stopLossPrice(new BigDecimal("112.0000"))
             .pivotPoints(null)
             .build();
 
-    when(weeklyChartPatternRepository.findByTickerOrderByEndDateDesc(
-            eq(ticker), any(PageRequest.class)))
+    when(weeklyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
+            eq(ticker),
+            eq(List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED)),
+            any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
     List<ChartPatternDto> result = service.getPatterns(ticker, Timeframe.WEEKLY, null, 0, 10);
 
     assertEquals(1, result.size());
     assertEquals("AT", result.getFirst().shortName());
+    assertEquals(new BigDecimal("112.0000"), result.getFirst().stopLossPrice());
     assertEquals(0, result.getFirst().pivotPoints().size());
   }
 

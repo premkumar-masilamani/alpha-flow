@@ -34,21 +34,24 @@ public class ChartPatternController {
   public List<ChartPatternDto> getChartPatterns(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
-      @RequestParam(required = false) ChartPatternStatus status,
+      @RequestParam(required = false) List<ChartPatternStatus> status,
+      @RequestParam(required = false) List<ChartPatternStatus> statuses,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
 
     int finalSize = Math.min(size, MAX_PAGE_SIZE);
+    List<ChartPatternStatus> requestedStatuses =
+        (statuses != null && !statuses.isEmpty()) ? statuses : status;
     log.info(
-        "Request to get chart patterns for ticker: {}, timeframe: {}, status: {}, page: {}, size: {}",
+        "Request to get chart patterns for ticker: {}, timeframe: {}, statuses: {}, page: {}, size: {}",
         symbol,
         timeframe,
-        status,
+        requestedStatuses,
         page,
         finalSize);
 
     Ticker ticker = tickerService.getTicker(symbol);
 
-    return chartPatternService.getPatterns(ticker, timeframe, status, page, finalSize);
+    return chartPatternService.getPatterns(ticker, timeframe, requestedStatuses, page, finalSize);
   }
 }

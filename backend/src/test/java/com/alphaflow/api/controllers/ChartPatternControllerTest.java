@@ -39,13 +39,15 @@ class ChartPatternControllerTest {
             .build();
 
     when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(service.getPatterns(ticker, Timeframe.DAILY, ChartPatternStatus.IN_PROGRESS, 0, 20))
+    when(service.getPatterns(
+            ticker, Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), 0, 20))
         .thenReturn(List.of(dto));
 
     ChartPatternController controller = new ChartPatternController(service, tickerService);
 
     List<ChartPatternDto> result =
-        controller.getChartPatterns("AAPL", Timeframe.DAILY, ChartPatternStatus.IN_PROGRESS, 0, 20);
+        controller.getChartPatterns(
+            "AAPL", Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), null, 0, 20);
 
     assertEquals(1, result.size());
     assertEquals("DB", result.getFirst().shortName());
@@ -65,7 +67,7 @@ class ChartPatternControllerTest {
     ChartPatternController controller = new ChartPatternController(service, tickerService);
 
     List<ChartPatternDto> result =
-        controller.getChartPatterns("AAPL", Timeframe.WEEKLY, null, 0, 500);
+        controller.getChartPatterns("AAPL", Timeframe.WEEKLY, null, null, 0, 500);
 
     assertEquals(0, result.size());
   }
@@ -82,6 +84,36 @@ class ChartPatternControllerTest {
 
     assertThrows(
         ResourceNotFoundException.class,
-        () -> controller.getChartPatterns("UNKNOWN", Timeframe.DAILY, null, 0, 20));
+        () -> controller.getChartPatterns("UNKNOWN", Timeframe.DAILY, null, null, 0, 20));
+  }
+
+  @Test
+  void testGetChartPatternsWithStatusesList() {
+    ChartPatternService service = mock(ChartPatternService.class);
+    TickerService tickerService = mock(TickerService.class);
+
+    Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
+
+    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
+    when(service.getPatterns(
+            ticker,
+            Timeframe.DAILY,
+            List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED),
+            0,
+            20))
+        .thenReturn(List.of());
+
+    ChartPatternController controller = new ChartPatternController(service, tickerService);
+
+    List<ChartPatternDto> result =
+        controller.getChartPatterns(
+            "AAPL",
+            Timeframe.DAILY,
+            null,
+            List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED),
+            0,
+            20);
+
+    assertEquals(0, result.size());
   }
 }

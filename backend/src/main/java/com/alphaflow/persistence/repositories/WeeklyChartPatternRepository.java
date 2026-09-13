@@ -5,6 +5,7 @@ import com.alphaflow.persistence.entities.WeeklyChartPattern;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.enums.ChartPatternType;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,9 @@ public interface WeeklyChartPatternRepository extends JpaRepository<WeeklyChartP
 
   Page<WeeklyChartPattern> findByTickerAndStatusOrderByEndDateDesc(
       Ticker ticker, ChartPatternStatus status, Pageable pageable);
+
+  Page<WeeklyChartPattern> findByTickerAndStatusInOrderByEndDateDesc(
+      Ticker ticker, Collection<ChartPatternStatus> statuses, Pageable pageable);
 
   Optional<WeeklyChartPattern> findByTickerAndPatternTypeAndStartDate(
       Ticker ticker, ChartPatternType patternType, LocalDate startDate);

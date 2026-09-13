@@ -231,5 +231,15 @@ describe('API Service Layer Tests', () => {
                 { params: { timeframe: 'weekly', page: 1, status: 'IN_PROGRESS' } }
             );
         });
+
+        it('should fetch chart patterns with array of statuses', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+
+            await getChartPatterns('AAPL', 'DAILY', ['IN_PROGRESS', 'COMPLETED'], 0);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/AAPL/chart-patterns'),
+                { params: { timeframe: 'daily', page: 0, status: 'IN_PROGRESS,COMPLETED' } }
+            );
+        });
     });
 });

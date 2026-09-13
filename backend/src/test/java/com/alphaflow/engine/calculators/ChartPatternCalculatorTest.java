@@ -186,6 +186,7 @@ class ChartPatternCalculatorTest {
             .necklinePrice(new BigDecimal("90.0000"))
             .necklineSlope(new BigDecimal("0.0000"))
             .targetPrice(new BigDecimal("80.0000"))
+            .stopLossPrice(new BigDecimal("99.0000"))
             .invalidationPrice(new BigDecimal("100.0000"))
             .pivotPoints(List.of())
             .build();
@@ -211,6 +212,7 @@ class ChartPatternCalculatorTest {
         .thenReturn(Optional.of(existingDaily));
     savePatternsMethod.invoke(calculator, ticker, Timeframe.DAILY, List.of(match));
     assertEquals(ChartPatternStatus.COMPLETED, existingDaily.getStatus());
+    assertEquals(new BigDecimal("99.0000"), existingDaily.getStopLossPrice());
 
     // 3. Weekly new insert
     when(weeklyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
@@ -233,6 +235,7 @@ class ChartPatternCalculatorTest {
         .thenReturn(Optional.of(existingWeekly));
     savePatternsMethod.invoke(calculator, ticker, Timeframe.WEEKLY, List.of(match));
     assertEquals(ChartPatternStatus.COMPLETED, existingWeekly.getStatus());
+    assertEquals(new BigDecimal("99.0000"), existingWeekly.getStopLossPrice());
   }
 
   @Test
@@ -296,6 +299,13 @@ class ChartPatternCalculatorTest {
     List<ChartPatternMatch> matches = calculator.detectAllPatterns(bars);
     boolean found = matches.stream().anyMatch(m -> m.patternType() == ChartPatternType.DOUBLE_TOP);
     assertTrue(found);
+    ChartPatternMatch dtMatch =
+        matches.stream()
+            .filter(m -> m.patternType() == ChartPatternType.DOUBLE_TOP)
+            .findFirst()
+            .orElseThrow();
+    assertNotNull(dtMatch.stopLossPrice());
+    assertNotNull(dtMatch.targetPrice());
   }
 
   @Test

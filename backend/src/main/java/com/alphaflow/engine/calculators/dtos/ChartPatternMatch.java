@@ -20,5 +20,6 @@ public record ChartPatternMatch(
     BigDecimal necklineSlope,
     BigDecimal necklinePrice,
     BigDecimal targetPrice,
+    BigDecimal stopLossPrice,
     BigDecimal invalidationPrice,
     List<ChartPatternPivot> pivotPoints) {}

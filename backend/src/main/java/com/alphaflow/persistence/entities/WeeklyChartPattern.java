@@ -64,6 +64,9 @@ public class WeeklyChartPattern {
   @Column(name = "target_price", precision = 18, scale = 4)
   private BigDecimal targetPrice;
 
+  @Column(name = "stop_loss_price", precision = 18, scale = 4)
+  private BigDecimal stopLossPrice;
+
   @Column(name = "invalidation_price", precision = 18, scale = 4)
   private BigDecimal invalidationPrice;
 

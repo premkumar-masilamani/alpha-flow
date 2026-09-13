@@ -23,5 +23,6 @@ public record ChartPatternDto(
     @JsonProperty("necklineSlope") BigDecimal necklineSlope,
     @JsonProperty("necklinePrice") BigDecimal necklinePrice,
     @JsonProperty("targetPrice") BigDecimal targetPrice,
+    @JsonProperty("stopLossPrice") BigDecimal stopLossPrice,
     @JsonProperty("invalidationPrice") BigDecimal invalidationPrice,
     @JsonProperty("pivotPoints") List<ChartPatternPivotDto> pivotPoints) {}

@@ -249,6 +249,7 @@ export interface ChartPatternData {
     necklineSlope?: number | null;
     necklinePrice?: number | null;
     targetPrice?: number | null;
+    stopLossPrice?: number | null;
     invalidationPrice?: number | null;
     pivotPoints: ChartPatternPivotData[];
 }
@@ -256,13 +257,13 @@ export interface ChartPatternData {
 export const getChartPatterns = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
-    status?: ChartPatternStatus,
+    statuses?: ChartPatternStatus | ChartPatternStatus[],
     page: number = 0
 ): Promise<ChartPatternData[]> => {
     const url = `${API_BASE_URL}/tickers/${symbol}/chart-patterns`;
     const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page };
-    if (status) {
-        params.status = status;
+    if (statuses) {
+        params.status = Array.isArray(statuses) ? statuses.join(',') : statuses;
     }
     const response = await axios.get(url, { params });
     return response.data;

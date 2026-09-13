@@ -152,6 +152,7 @@ public class ChartPatternCalculator {
           pattern.setNecklinePrice(match.necklinePrice());
           pattern.setNecklineSlope(match.necklineSlope());
           pattern.setTargetPrice(match.targetPrice());
+          pattern.setStopLossPrice(match.stopLossPrice());
           pattern.setInvalidationPrice(match.invalidationPrice());
           pattern.setPivotPoints(match.pivotPoints());
           dailyChartPatternRepository.save(pattern);
@@ -168,6 +169,7 @@ public class ChartPatternCalculator {
                   .necklineSlope(match.necklineSlope())
                   .necklinePrice(match.necklinePrice())
                   .targetPrice(match.targetPrice())
+                  .stopLossPrice(match.stopLossPrice())
                   .invalidationPrice(match.invalidationPrice())
                   .pivotPoints(match.pivotPoints())
                   .build();
@@ -187,6 +189,7 @@ public class ChartPatternCalculator {
           pattern.setNecklinePrice(match.necklinePrice());
           pattern.setNecklineSlope(match.necklineSlope());
           pattern.setTargetPrice(match.targetPrice());
+          pattern.setStopLossPrice(match.stopLossPrice());
           pattern.setInvalidationPrice(match.invalidationPrice());
           pattern.setPivotPoints(match.pivotPoints());
           weeklyChartPatternRepository.save(pattern);
@@ -203,6 +206,7 @@ public class ChartPatternCalculator {
                   .necklineSlope(match.necklineSlope())
                   .necklinePrice(match.necklinePrice())
                   .targetPrice(match.targetPrice())
+                  .stopLossPrice(match.stopLossPrice())
                   .invalidationPrice(match.invalidationPrice())
                   .pivotPoints(match.pivotPoints())
                   .build();
@@ -313,6 +317,7 @@ public class ChartPatternCalculator {
           BigDecimal neckline = pivot2.price();
           BigDecimal target = neckline.subtract(depth).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = maxHigh.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = pivot3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, pivot3.index(), neckline, target, invalidation, false);
@@ -335,6 +340,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -356,6 +362,7 @@ public class ChartPatternCalculator {
           BigDecimal target = neckline.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation =
               pivot1.price().min(pivot3.price()).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = pivot3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, pivot3.index(), neckline, target, invalidation, true);
@@ -378,6 +385,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -408,6 +416,7 @@ public class ChartPatternCalculator {
             && height.divide(maxHigh, MATH_CONTEXT).compareTo(MIN_DEPTH_RATIO) >= 0) {
           BigDecimal target = neckline.subtract(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = maxHigh.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, false);
@@ -431,6 +440,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -450,6 +460,7 @@ public class ChartPatternCalculator {
             && height.divide(neckline, MATH_CONTEXT).compareTo(MIN_DEPTH_RATIO) >= 0) {
           BigDecimal target = neckline.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = minLow.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, true);
@@ -473,6 +484,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -502,6 +514,7 @@ public class ChartPatternCalculator {
           BigDecimal height = p3.price().subtract(neckline);
           BigDecimal target = neckline.subtract(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = p3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, false);
@@ -525,6 +538,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -543,6 +557,7 @@ public class ChartPatternCalculator {
           BigDecimal height = neckline.subtract(p3.price());
           BigDecimal target = neckline.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = p3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, true);
@@ -566,6 +581,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -594,6 +610,7 @@ public class ChartPatternCalculator {
           BigDecimal height = resistance.subtract(p2.price());
           BigDecimal target = resistance.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = p2.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p4.index(), resistance, target, invalidation, true);
@@ -616,6 +633,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(resistance.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -626,7 +644,8 @@ public class ChartPatternCalculator {
           BigDecimal height = p1.price().subtract(p2.price());
           BigDecimal trigger = p3.price();
           BigDecimal target = trigger.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal invalidation = p2.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p4.index(), trigger, target, invalidation, true);
@@ -649,6 +668,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(trigger.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -666,6 +686,7 @@ public class ChartPatternCalculator {
           BigDecimal height = p2.price().subtract(support);
           BigDecimal target = support.subtract(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = p2.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p4.index(), support, target, invalidation, false);
@@ -688,6 +709,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(support.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
@@ -716,6 +738,7 @@ public class ChartPatternCalculator {
             BigDecimal trigger = p3.price();
             BigDecimal target = p1.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
             BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+            BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
             ChartPatternStatus status =
                 evaluateStatus(priceBars, p4.index(), trigger, target, invalidation, false);
@@ -738,6 +761,7 @@ public class ChartPatternCalculator {
                     .breakoutDate(breakoutDate)
                     .necklinePrice(trigger.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                     .targetPrice(target)
+                    .stopLossPrice(stopLoss)
                     .invalidationPrice(invalidation)
                     .pivotPoints(patternPivots)
                     .build());
@@ -757,6 +781,7 @@ public class ChartPatternCalculator {
             BigDecimal trigger = p3.price();
             BigDecimal target = p1.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
             BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+            BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
             ChartPatternStatus status =
                 evaluateStatus(priceBars, p4.index(), trigger, target, invalidation, true);
@@ -779,6 +804,7 @@ public class ChartPatternCalculator {
                     .breakoutDate(breakoutDate)
                     .necklinePrice(trigger.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                     .targetPrice(target)
+                    .stopLossPrice(stopLoss)
                     .invalidationPrice(invalidation)
                     .pivotPoints(patternPivots)
                     .build());
@@ -812,6 +838,7 @@ public class ChartPatternCalculator {
           BigDecimal resistance = p3.price();
           BigDecimal target = resistance.add(cupDepth).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
           BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
 
           ChartPatternStatus status =
               evaluateStatus(priceBars, p4.index(), resistance, target, invalidation, true);
@@ -834,6 +861,7 @@ public class ChartPatternCalculator {
                   .breakoutDate(breakoutDate)
                   .necklinePrice(resistance.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
                   .targetPrice(target)
+                  .stopLossPrice(stopLoss)
                   .invalidationPrice(invalidation)
                   .pivotPoints(patternPivots)
                   .build());
