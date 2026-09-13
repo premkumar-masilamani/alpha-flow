@@ -313,7 +313,7 @@ function App() {
         return;
       }
       try {
-        const patterns = await getChartPatterns(selectedTicker, timeframe);
+        const patterns = await getChartPatterns(selectedTicker, timeframe, 'IN_PROGRESS');
         if (active) {
           setChartPatterns(patterns);
         }

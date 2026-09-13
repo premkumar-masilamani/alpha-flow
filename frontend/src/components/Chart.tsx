@@ -326,8 +326,10 @@ class ChartPatternRenderer implements IPrimitivePaneRenderer {
         if (!series || !chart) return;
 
         const timeScale = chart.timeScale();
-        const patterns = this._primitive.getPatterns();
-        if (!patterns || patterns.length === 0) return;
+        const rawPatterns = this._primitive.getPatterns();
+        if (!rawPatterns || rawPatterns.length === 0) return;
+        const patterns = rawPatterns.filter((pattern) => pattern.status === 'IN_PROGRESS');
+        if (patterns.length === 0) return;
 
         target.useBitmapCoordinateSpace((scope: any) => {
             const ctx = scope.context;
@@ -412,7 +414,7 @@ class ChartPatternRenderer implements IPrimitivePaneRenderer {
                     const y = series.priceToCoordinate(lastPivot.price);
                     if (y !== null) {
                         ctx.save();
-                        const labelText = `${pattern.shortName} (${pattern.status})`;
+                        const labelText = pattern.shortName;
                         ctx.font = `bold ${Math.max(10, Math.round(11 * vRatio))}px sans-serif`;
                         const textWidth = ctx.measureText(labelText).width;
                         const badgeX = xEnd * hRatio + 6 * hRatio;
@@ -720,8 +722,11 @@ const Chart: React.FC<ChartProps> = ({
         }
 
         if (showChartPatterns && chartPatterns.length > 0) {
-            const cpPrimitive = new ChartPatternPrimitive(chart, chartPatterns);
-            candlestickSeries.attachPrimitive(cpPrimitive);
+            const inProgressPatterns = chartPatterns.filter((p) => p.status === 'IN_PROGRESS');
+            if (inProgressPatterns.length > 0) {
+                const cpPrimitive = new ChartPatternPrimitive(chart, inProgressPatterns);
+                candlestickSeries.attachPrimitive(cpPrimitive);
+            }
         }
 
         const volumeSeries = chart.addSeries(HistogramSeries, {
