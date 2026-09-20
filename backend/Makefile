@@ -3,6 +3,7 @@ ifneq ($(wildcard ../.env),)
     export $(shell sed 's/=.*//' ../.env)
 endif
 
+
 GRADLE := ./gradlew
 DEV_FLAGS   := --daemon --parallel --build-cache --configuration-cache
 PROD_FLAGS  := --no-daemon --parallel --build-cache --configuration-cache

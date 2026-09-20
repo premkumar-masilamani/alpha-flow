@@ -4,6 +4,7 @@ ifneq ($(wildcard .env),)
     export $(shell sed 's/=.*//' .env)
 endif
 
+
 .PHONY: all run_database connect_database run_backend run_frontend test lint diagrams generate_diagram check_separation
 
 all: run_backend
