@@ -4,6 +4,11 @@ ifneq ($(wildcard .env),)
     export $(shell sed 's/=.*//' .env)
 endif
 
+ifneq ($(wildcard /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home),)
+    export JAVA_HOME := /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
+    export PATH := $(JAVA_HOME)/bin:$(PATH)
+endif
+
 .PHONY: all run_database connect_database run_backend run_frontend test lint diagrams generate_diagram check_separation
 
 all: run_backend

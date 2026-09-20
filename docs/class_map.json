@@ -19,6 +19,24 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "name": "ChartPatternStatus",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/ChartPatternStatus.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.enums.PatternSentiment",
+      "name": "PatternSentiment",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/PatternSentiment.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "name": "IndicatorOutputKey",
       "package": "com.alphaflow.persistence.enums",
@@ -55,12 +73,39 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.persistence.enums.ChartPatternType",
+      "name": "ChartPatternType",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/ChartPatternType.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "name": "CandlestickPattern",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/CandlestickPattern.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.persistence.repositories.TickerRepository",
       "name": "TickerRepository",
       "package": "com.alphaflow.persistence.repositories",
       "component": "persistence",
       "type": "interface",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/TickerRepository.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository",
+      "name": "WeeklySupportResistanceRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/WeeklySupportResistanceRepository.java",
       "violation": false
     },
     {
@@ -73,12 +118,48 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository",
+      "name": "DailyCandlestickPatternRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/DailyCandlestickPatternRepository.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "name": "WeeklyChartPatternRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/WeeklyChartPatternRepository.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.repositories.DailySupportResistanceRepository",
+      "name": "DailySupportResistanceRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/DailySupportResistanceRepository.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.persistence.repositories.IndicatorDefinitionRepository",
       "name": "IndicatorDefinitionRepository",
       "package": "com.alphaflow.persistence.repositories",
       "component": "persistence",
       "type": "interface",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/IndicatorDefinitionRepository.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository",
+      "name": "WeeklyCandlestickPatternRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/WeeklyCandlestickPatternRepository.java",
       "violation": false
     },
     {
@@ -109,6 +190,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "name": "DailyChartPatternRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/DailyChartPatternRepository.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
       "name": "ResourceNotFoundException",
       "package": "com.alphaflow.persistence.exceptions",
@@ -127,6 +217,33 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.persistence.entities.ChartPatternPivot",
+      "name": "ChartPatternPivot",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/ChartPatternPivot.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "name": "WeeklyChartPattern",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/WeeklyChartPattern.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.entities.WeeklyCandlestickPattern",
+      "name": "WeeklyCandlestickPattern",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/WeeklyCandlestickPattern.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.persistence.entities.WeeklyIndicator",
       "name": "WeeklyIndicator",
       "package": "com.alphaflow.persistence.entities",
@@ -142,6 +259,15 @@
       "component": "persistence",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/IndicatorDefinition.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.entities.DailySupportResistance",
+      "name": "DailySupportResistance",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/DailySupportResistance.java",
       "violation": false
     },
     {
@@ -172,6 +298,33 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.persistence.entities.WeeklySupportResistance",
+      "name": "WeeklySupportResistance",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/WeeklySupportResistance.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "name": "DailyChartPattern",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/DailyChartPattern.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.entities.DailyCandlestickPattern",
+      "name": "DailyCandlestickPattern",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/DailyCandlestickPattern.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.persistence.entities.Ticker",
       "name": "Ticker",
       "package": "com.alphaflow.persistence.entities",
@@ -190,57 +343,93 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.dtos.OhlcvDTO",
-      "name": "OhlcvDTO",
+      "id": "com.alphaflow.api.dtos.ChartPatternPivotDto",
+      "name": "ChartPatternPivotDto",
       "package": "com.alphaflow.api.dtos",
       "component": "api",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/OhlcvDTO.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/ChartPatternPivotDto.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.dtos.TickerDTO",
-      "name": "TickerDTO",
+      "id": "com.alphaflow.api.dtos.OhlcvDto",
+      "name": "OhlcvDto",
       "package": "com.alphaflow.api.dtos",
       "component": "api",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TickerDTO.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/OhlcvDto.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.dtos.IndicatorSeriesDTO",
-      "name": "IndicatorSeriesDTO",
+      "id": "com.alphaflow.api.dtos.ChartPatternDto",
+      "name": "ChartPatternDto",
       "package": "com.alphaflow.api.dtos",
       "component": "api",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/IndicatorSeriesDTO.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/ChartPatternDto.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.dtos.IndicatorConfigDTO",
-      "name": "IndicatorConfigDTO",
+      "id": "com.alphaflow.api.dtos.CandlestickPatternDto",
+      "name": "CandlestickPatternDto",
       "package": "com.alphaflow.api.dtos",
       "component": "api",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/IndicatorConfigDTO.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/CandlestickPatternDto.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.dtos.IndicatorPointDTO",
-      "name": "IndicatorPointDTO",
+      "id": "com.alphaflow.api.dtos.TickerDto",
+      "name": "TickerDto",
       "package": "com.alphaflow.api.dtos",
       "component": "api",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/IndicatorPointDTO.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TickerDto.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.api.configs.CORSConfig",
-      "name": "CORSConfig",
+      "id": "com.alphaflow.api.dtos.IndicatorSeriesDto",
+      "name": "IndicatorSeriesDto",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/IndicatorSeriesDto.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.dtos.SupportResistanceDto",
+      "name": "SupportResistanceDto",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/SupportResistanceDto.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.dtos.IndicatorConfigDto",
+      "name": "IndicatorConfigDto",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/IndicatorConfigDto.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.dtos.IndicatorPointDto",
+      "name": "IndicatorPointDto",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/IndicatorPointDto.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.configs.CorsConfig",
+      "name": "CorsConfig",
       "package": "com.alphaflow.api.configs",
       "component": "api",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/api/configs/CORSConfig.java",
+      "filepath": "backend/src/main/java/com/alphaflow/api/configs/CorsConfig.java",
       "violation": false
     },
     {
@@ -271,6 +460,24 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.api.controllers.ChartPatternController",
+      "name": "ChartPatternController",
+      "package": "com.alphaflow.api.controllers",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/ChartPatternController.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.controllers.CandlestickPatternController",
+      "name": "CandlestickPatternController",
+      "package": "com.alphaflow.api.controllers",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/CandlestickPatternController.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.api.controllers.TickerController",
       "name": "TickerController",
       "package": "com.alphaflow.api.controllers",
@@ -295,6 +502,15 @@
       "component": "api",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/api/controllers/IndicatorController.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.controllers.SupportResistanceController",
+      "name": "SupportResistanceController",
+      "package": "com.alphaflow.api.controllers",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/SupportResistanceController.java",
       "violation": false
     },
     {
@@ -334,6 +550,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.api.services.ChartPatternService",
+      "name": "ChartPatternService",
+      "package": "com.alphaflow.api.services",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/ChartPatternService.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.api.services.WeeklyPriceService",
       "name": "WeeklyPriceService",
       "package": "com.alphaflow.api.services",
@@ -352,12 +577,30 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.indicators.SMAIndicator",
-      "name": "SMAIndicator",
+      "id": "com.alphaflow.api.services.CandlestickPatternService",
+      "name": "CandlestickPatternService",
+      "package": "com.alphaflow.api.services",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/CandlestickPatternService.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.services.SupportResistanceService",
+      "name": "SupportResistanceService",
+      "package": "com.alphaflow.api.services",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/SupportResistanceService.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.indicators.SmaIndicator",
+      "name": "SmaIndicator",
       "package": "com.alphaflow.engine.indicators",
       "component": "engine",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/SMAIndicator.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/SmaIndicator.java",
       "violation": false
     },
     {
@@ -370,21 +613,21 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.indicators.RSIIndicator",
-      "name": "RSIIndicator",
+      "id": "com.alphaflow.engine.indicators.RsiIndicator",
+      "name": "RsiIndicator",
       "package": "com.alphaflow.engine.indicators",
       "component": "engine",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/RSIIndicator.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/RsiIndicator.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.indicators.MACDIndicator",
-      "name": "MACDIndicator",
+      "id": "com.alphaflow.engine.indicators.MacdIndicator",
+      "name": "MacdIndicator",
       "package": "com.alphaflow.engine.indicators",
       "component": "engine",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/MACDIndicator.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/MacdIndicator.java",
       "violation": false
     },
     {
@@ -397,21 +640,30 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.indicators.EMAIndicator",
-      "name": "EMAIndicator",
+      "id": "com.alphaflow.engine.indicators.EmaIndicator",
+      "name": "EmaIndicator",
       "package": "com.alphaflow.engine.indicators",
       "component": "engine",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/EMAIndicator.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/EmaIndicator.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.indicators.utils.EMAAccumulator",
-      "name": "EMAAccumulator",
+      "id": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
+      "name": "BollingerBandsIndicator",
+      "package": "com.alphaflow.engine.indicators",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/BollingerBandsIndicator.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.indicators.utils.EmaAccumulator",
+      "name": "EmaAccumulator",
       "package": "com.alphaflow.engine.indicators.utils",
       "component": "engine",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/utils/EMAAccumulator.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/indicators/utils/EmaAccumulator.java",
       "violation": false
     },
     {
@@ -469,6 +721,51 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "name": "YahooResult",
+      "package": "com.alphaflow.engine.downloaders.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooResult.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "name": "YahooQuote",
+      "package": "com.alphaflow.engine.downloaders.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooQuote.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
+      "name": "YahooResponse",
+      "package": "com.alphaflow.engine.downloaders.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooResponse.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "name": "YahooChart",
+      "package": "com.alphaflow.engine.downloaders.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooChart.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "name": "YahooIndicators",
+      "package": "com.alphaflow.engine.downloaders.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooIndicators.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.configs.YahooFinanceConfig",
       "name": "YahooFinanceConfig",
       "package": "com.alphaflow.engine.configs",
@@ -487,6 +784,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "name": "CandlestickPatternCalculator",
+      "package": "com.alphaflow.engine.calculators",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/CandlestickPatternCalculator.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.calculators.WeeklyPriceCalculator",
       "name": "WeeklyPriceCalculator",
       "package": "com.alphaflow.engine.calculators",
@@ -496,12 +802,75 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "name": "ChartPatternCalculator",
+      "package": "com.alphaflow.engine.calculators",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/ChartPatternCalculator.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "name": "SupportResistanceCalculator",
+      "package": "com.alphaflow.engine.calculators",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/SupportResistanceCalculator.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "name": "IndicatorCalculator",
       "package": "com.alphaflow.engine.calculators",
       "component": "engine",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/IndicatorCalculator.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.calculators.enums.LevelType",
+      "name": "LevelType",
+      "package": "com.alphaflow.engine.calculators.enums",
+      "component": "engine",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/enums/LevelType.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.calculators.dtos.ExtremaPoint",
+      "name": "ExtremaPoint",
+      "package": "com.alphaflow.engine.calculators.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/dtos/ExtremaPoint.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.calculators.dtos.PatternMatch",
+      "name": "PatternMatch",
+      "package": "com.alphaflow.engine.calculators.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/dtos/PatternMatch.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.calculators.dtos.ChartPatternMatch",
+      "name": "ChartPatternMatch",
+      "package": "com.alphaflow.engine.calculators.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/dtos/ChartPatternMatch.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.calculators.dtos.Bucket",
+      "name": "Bucket",
+      "package": "com.alphaflow.engine.calculators.dtos",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/dtos/Bucket.java",
       "violation": false
     },
     {
@@ -522,20 +891,92 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.controllers.IndicatorController",
-      "target": "com.alphaflow.api.dtos.IndicatorConfigDTO",
+      "source": "com.alphaflow.api.controllers.CandlestickPatternController",
+      "target": "com.alphaflow.api.dtos.CandlestickPatternDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.CandlestickPatternController",
+      "target": "com.alphaflow.api.services.CandlestickPatternService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.CandlestickPatternController",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.CandlestickPatternController",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.CandlestickPatternController",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.ChartPatternController",
+      "target": "com.alphaflow.api.dtos.ChartPatternDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.ChartPatternController",
+      "target": "com.alphaflow.api.services.ChartPatternService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.ChartPatternController",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.ChartPatternController",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.ChartPatternController",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.ChartPatternController",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.controllers.IndicatorController",
-      "target": "com.alphaflow.api.dtos.IndicatorSeriesDTO",
+      "target": "com.alphaflow.api.dtos.IndicatorConfigDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.IndicatorController",
+      "target": "com.alphaflow.api.dtos.IndicatorSeriesDto",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.controllers.IndicatorController",
       "target": "com.alphaflow.api.services.IndicatorService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.IndicatorController",
+      "target": "com.alphaflow.api.services.TickerService",
       "violation": false,
       "reason": ""
     },
@@ -552,26 +993,20 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.controllers.IndicatorController",
-      "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.controllers.IndicatorController",
-      "target": "com.alphaflow.persistence.repositories.TickerRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
       "source": "com.alphaflow.api.controllers.PriceController",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.services.DailyPriceService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.TickerService",
       "violation": false,
       "reason": ""
     },
@@ -594,20 +1029,38 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.controllers.PriceController",
-      "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
+      "source": "com.alphaflow.api.controllers.SupportResistanceController",
+      "target": "com.alphaflow.api.dtos.SupportResistanceDto",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.controllers.PriceController",
-      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "source": "com.alphaflow.api.controllers.SupportResistanceController",
+      "target": "com.alphaflow.api.services.SupportResistanceService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.SupportResistanceController",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.SupportResistanceController",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.SupportResistanceController",
+      "target": "com.alphaflow.persistence.entities.Ticker",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.controllers.TickerController",
-      "target": "com.alphaflow.api.dtos.TickerDTO",
+      "target": "com.alphaflow.api.dtos.TickerDto",
       "violation": false,
       "reason": ""
     },
@@ -624,32 +1077,62 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.dtos.IndicatorPointDTO",
+      "source": "com.alphaflow.api.dtos.CandlestickPatternDto",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.ChartPatternDto",
+      "target": "com.alphaflow.api.dtos.ChartPatternPivotDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.ChartPatternDto",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.ChartPatternDto",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.ChartPatternDto",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.IndicatorPointDto",
       "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.dtos.IndicatorSeriesDTO",
-      "target": "com.alphaflow.api.dtos.IndicatorPointDTO",
+      "source": "com.alphaflow.api.dtos.IndicatorSeriesDto",
+      "target": "com.alphaflow.api.dtos.IndicatorPointDto",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
-      "target": "com.alphaflow.api.dtos.IndicatorConfigDTO",
+      "target": "com.alphaflow.api.dtos.IndicatorConfigDto",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
-      "target": "com.alphaflow.api.dtos.IndicatorPointDTO",
+      "target": "com.alphaflow.api.dtos.IndicatorPointDto",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
-      "target": "com.alphaflow.api.dtos.IndicatorSeriesDTO",
+      "target": "com.alphaflow.api.dtos.IndicatorSeriesDto",
       "violation": false,
       "reason": ""
     },
@@ -691,7 +1174,7 @@
     },
     {
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
       "violation": false,
       "reason": ""
     },
@@ -709,7 +1192,7 @@
     },
     {
       "source": "com.alphaflow.api.mappers.TickerMapper",
-      "target": "com.alphaflow.api.dtos.TickerDTO",
+      "target": "com.alphaflow.api.dtos.TickerDto",
       "violation": false,
       "reason": ""
     },
@@ -720,8 +1203,122 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.api.dtos.CandlestickPatternDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.CandlestickPatternService",
+      "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.api.dtos.ChartPatternDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.api.dtos.ChartPatternPivotDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.entities.ChartPatternPivot",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.ChartPatternService",
+      "target": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.api.services.DailyPriceService",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
       "violation": false,
       "reason": ""
     },
@@ -751,13 +1348,13 @@
     },
     {
       "source": "com.alphaflow.api.services.IndicatorService",
-      "target": "com.alphaflow.api.dtos.IndicatorConfigDTO",
+      "target": "com.alphaflow.api.dtos.IndicatorConfigDto",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.services.IndicatorService",
-      "target": "com.alphaflow.api.dtos.IndicatorSeriesDTO",
+      "target": "com.alphaflow.api.dtos.IndicatorSeriesDto",
       "violation": false,
       "reason": ""
     },
@@ -811,18 +1408,6 @@
     },
     {
       "source": "com.alphaflow.api.services.IndicatorService",
-      "target": "com.alphaflow.persistence.repositories.IndicatorDefinitionRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.IndicatorService",
-      "target": "com.alphaflow.persistence.repositories.TickerRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.persistence.repositories.WeeklyIndicatorRepository",
       "violation": false,
       "reason": ""
@@ -834,8 +1419,56 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.api.dtos.SupportResistanceDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.persistence.entities.DailySupportResistance",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.persistence.entities.WeeklySupportResistance",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.persistence.repositories.DailySupportResistanceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.SupportResistanceService",
+      "target": "com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.api.services.TickerService",
-      "target": "com.alphaflow.api.dtos.TickerDTO",
+      "target": "com.alphaflow.api.dtos.TickerDto",
       "violation": false,
       "reason": ""
     },
@@ -847,6 +1480,12 @@
     },
     {
       "source": "com.alphaflow.api.services.TickerService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.TickerService",
       "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
       "violation": false,
       "reason": ""
@@ -859,7 +1498,7 @@
     },
     {
       "source": "com.alphaflow.api.services.WeeklyPriceService",
-      "target": "com.alphaflow.api.dtos.OhlcvDTO",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
       "violation": false,
       "reason": ""
     },
@@ -871,24 +1510,216 @@
     },
     {
       "source": "com.alphaflow.api.services.WeeklyPriceService",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.WeeklyPriceService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.WeeklyPriceService",
       "target": "com.alphaflow.persistence.entities.WeeklyPrice",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.services.WeeklyPriceService",
-      "target": "com.alphaflow.persistence.exceptions.ResourceNotFoundException",
+      "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.services.WeeklyPriceService",
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.engine.calculators.dtos.PatternMatch",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.DailyCandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklyCandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
       "target": "com.alphaflow.persistence.repositories.TickerRepository",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.services.WeeklyPriceService",
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.engine.calculators.dtos.ChartPatternMatch",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.engine.calculators.dtos.ExtremaPoint",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.ChartPatternPivot",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "target": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.ChartPatternCalculator",
       "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
       "violation": false,
       "reason": ""
@@ -937,6 +1768,12 @@
     },
     {
       "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "target": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "violation": false,
       "reason": ""
@@ -955,6 +1792,12 @@
     },
     {
       "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "target": "com.alphaflow.persistence.repositories.DailyIndicatorRepository",
       "violation": false,
       "reason": ""
@@ -962,12 +1805,6 @@
     {
       "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
-      "target": "com.alphaflow.persistence.repositories.IndicatorDefinitionRepository",
       "violation": false,
       "reason": ""
     },
@@ -986,6 +1823,90 @@
     {
       "source": "com.alphaflow.engine.calculators.IndicatorCalculator",
       "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.engine.calculators.dtos.Bucket",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.engine.calculators.enums.LevelType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.entities.DailySupportResistance",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.entities.WeeklySupportResistance",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.repositories.DailySupportResistanceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
+      "target": "com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository",
       "violation": false,
       "reason": ""
     },
@@ -1026,8 +1947,38 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.configs.IndicatorConfig",
-      "target": "com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.engine.calculators.dtos.Bucket",
+      "target": "com.alphaflow.engine.calculators.enums.LevelType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.dtos.ChartPatternMatch",
+      "target": "com.alphaflow.persistence.entities.ChartPatternPivot",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.dtos.ChartPatternMatch",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.dtos.ChartPatternMatch",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.dtos.ChartPatternMatch",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calculators.dtos.PatternMatch",
+      "target": "com.alphaflow.persistence.enums.CandlestickPattern",
       "violation": false,
       "reason": ""
     },
@@ -1075,6 +2026,24 @@
     },
     {
       "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
       "target": "com.alphaflow.persistence.entities.DailyPrice",
       "violation": false,
       "reason": ""
@@ -1086,55 +2055,127 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "target": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.engine.indicators.Indicator",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
-      "target": "com.alphaflow.engine.indicators.utils.EMAAccumulator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorParamKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorType",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.EMAIndicator",
+      "source": "com.alphaflow.engine.indicators.BollingerBandsIndicator",
+      "target": "com.alphaflow.persistence.enums.PriceSource",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.engine.indicators.Indicator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.engine.indicators.utils.EmaAccumulator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.persistence.enums.IndicatorParamKey",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
+      "target": "com.alphaflow.persistence.enums.IndicatorType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.indicators.EmaIndicator",
       "target": "com.alphaflow.persistence.enums.PriceSource",
       "violation": false,
       "reason": ""
@@ -1153,12 +2194,6 @@
     },
     {
       "source": "com.alphaflow.engine.indicators.Indicator",
-      "target": "com.alphaflow.engine.indicators.utils.IndicatorRegistry",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.indicators.Indicator",
       "target": "com.alphaflow.persistence.enums.IndicatorType",
       "violation": false,
       "reason": ""
@@ -1170,151 +2205,151 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.engine.indicators.Indicator",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
-      "target": "com.alphaflow.engine.indicators.utils.EMAAccumulator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
+      "target": "com.alphaflow.engine.indicators.utils.EmaAccumulator",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorParamKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorType",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.MACDIndicator",
+      "source": "com.alphaflow.engine.indicators.MacdIndicator",
       "target": "com.alphaflow.persistence.enums.PriceSource",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.engine.indicators.Indicator",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorParamKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorType",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.RSIIndicator",
+      "source": "com.alphaflow.engine.indicators.RsiIndicator",
       "target": "com.alphaflow.persistence.enums.PriceSource",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.engine.indicators.Indicator",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.IndicatorParams",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.engine.indicators.dtos.PriceBar",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorOutputKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorParamKey",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.persistence.enums.IndicatorType",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.SMAIndicator",
+      "source": "com.alphaflow.engine.indicators.SmaIndicator",
       "target": "com.alphaflow.persistence.enums.PriceSource",
       "violation": false,
       "reason": ""
@@ -1380,19 +2415,7 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.indicators.utils.EMAAccumulator",
-      "target": "com.alphaflow.engine.indicators.EMAIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.indicators.utils.EMAAccumulator",
-      "target": "com.alphaflow.engine.indicators.MACDIndicator",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.indicators.utils.EMAAccumulator",
+      "source": "com.alphaflow.engine.indicators.utils.EmaAccumulator",
       "target": "com.alphaflow.engine.indicators.utils.IndicatorMath",
       "violation": false,
       "reason": ""
@@ -1411,7 +2434,25 @@
     },
     {
       "source": "com.alphaflow.engine.schedulers.CoreScheduler",
+      "target": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.schedulers.CoreScheduler",
+      "target": "com.alphaflow.engine.calculators.ChartPatternCalculator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.schedulers.CoreScheduler",
       "target": "com.alphaflow.engine.calculators.IndicatorCalculator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.schedulers.CoreScheduler",
+      "target": "com.alphaflow.engine.calculators.SupportResistanceCalculator",
       "violation": false,
       "reason": ""
     },
@@ -1424,6 +2465,54 @@
     {
       "source": "com.alphaflow.engine.schedulers.CoreScheduler",
       "target": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyCandlestickPattern",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyCandlestickPattern",
+      "target": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyCandlestickPattern",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "target": "com.alphaflow.persistence.entities.ChartPatternPivot",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
       "violation": false,
       "reason": ""
     },
@@ -1452,6 +2541,12 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.persistence.entities.DailySupportResistance",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.persistence.entities.Indicator",
       "target": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "violation": false,
@@ -1484,6 +2579,54 @@
     {
       "source": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "target": "com.alphaflow.persistence.enums.PriceSource",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyCandlestickPattern",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyCandlestickPattern",
+      "target": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyCandlestickPattern",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "target": "com.alphaflow.persistence.entities.ChartPatternPivot",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
       "violation": false,
       "reason": ""
     },
@@ -1508,6 +2651,60 @@
     {
       "source": "com.alphaflow.persistence.entities.WeeklyPrice",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.WeeklySupportResistance",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.enums.ChartPatternType",
+      "target": "com.alphaflow.persistence.enums.PatternSentiment",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository",
+      "target": "com.alphaflow.persistence.entities.DailyCandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "target": "com.alphaflow.persistence.entities.DailyChartPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyChartPatternRepository",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
       "violation": false,
       "reason": ""
     },
@@ -1542,6 +2739,18 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.persistence.repositories.DailySupportResistanceRepository",
+      "target": "com.alphaflow.persistence.entities.DailySupportResistance",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailySupportResistanceRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.persistence.repositories.IndicatorDefinitionRepository",
       "target": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "violation": false,
@@ -1550,6 +2759,42 @@
     {
       "source": "com.alphaflow.persistence.repositories.TickerRepository",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository",
+      "target": "com.alphaflow.persistence.entities.WeeklyCandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "target": "com.alphaflow.persistence.entities.WeeklyChartPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "target": "com.alphaflow.persistence.enums.ChartPatternStatus",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklyChartPatternRepository",
+      "target": "com.alphaflow.persistence.enums.ChartPatternType",
       "violation": false,
       "reason": ""
     },
@@ -1580,6 +2825,18 @@
     {
       "source": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
       "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository",
+      "target": "com.alphaflow.persistence.entities.WeeklySupportResistance",
       "violation": false,
       "reason": ""
     }

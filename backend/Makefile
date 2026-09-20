@@ -3,6 +3,11 @@ ifneq ($(wildcard ../.env),)
     export $(shell sed 's/=.*//' ../.env)
 endif
 
+ifneq ($(wildcard /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home),)
+    export JAVA_HOME := /opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
+    export PATH := $(JAVA_HOME)/bin:$(PATH)
+endif
+
 GRADLE := ./gradlew
 DEV_FLAGS   := --daemon --parallel --build-cache --configuration-cache
 PROD_FLAGS  := --no-daemon --parallel --build-cache --configuration-cache
