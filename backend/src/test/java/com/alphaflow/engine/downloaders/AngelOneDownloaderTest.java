@@ -54,11 +54,7 @@ class AngelOneDownloaderTest {
     config.setDelayMilliseconds(0);
 
     Ticker ticker =
-        Ticker.builder()
-            .tickerSymbol("NIFTY50")
-            .dataProvider(DataProvider.ANGEL_ONE)
-            .instrumentToken("99926000")
-            .build();
+        Ticker.builder().tickerSymbol("NIFTY50").dataProvider(DataProvider.ANGEL_ONE).build();
 
     when(tickerRepo.findByIsActiveTrueAndDataProvider(DataProvider.ANGEL_ONE))
         .thenReturn(List.of(ticker));

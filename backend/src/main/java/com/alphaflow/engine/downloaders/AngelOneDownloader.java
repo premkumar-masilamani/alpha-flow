@@ -94,10 +94,7 @@ public class AngelOneDownloader {
     String toDateStr = now.format(DATE_TIME_FORMATTER);
 
     String exchange = "NSE";
-    String token =
-        (ticker.getInstrumentToken() != null && !ticker.getInstrumentToken().isBlank())
-            ? ticker.getInstrumentToken()
-            : "99926000";
+    String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
 
     log.info(
         "Syncing 15m candles for {} (token: {}) from {} to {}",

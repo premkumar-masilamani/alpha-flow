@@ -1,20 +1,20 @@
-INSERT INTO tickers (ticker_symbol, ticker_name, ticker_type, country, is_active, data_provider, instrument_token)
-VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('LLY', 'Eli Lilly', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('AVGO', 'Broadcom', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('AAPL', 'Apple Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('MSFT', 'Microsoft Corporation', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('GOOGL', 'Alphabet Inc. (Class A)', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('AMZN', 'Amazon.com, Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('META', 'Meta Platforms, Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('NVDA', 'NVIDIA Corporation', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('TSLA', 'Tesla, Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE', null),
-       ('^GSPC', 'S&P 500', 'INDEX', 'US', true, 'YAHOO_FINANCE', null),
-       ('^DJI', 'Dow Jones Industrial Average', 'INDEX', 'US', true, 'YAHOO_FINANCE', null),
-       ('^NDX', 'NASDAQ 100', 'INDEX', 'US', true, 'YAHOO_FINANCE', null),
-       ('^NSEI', 'NIFTY 50', 'INDEX', 'IN', true, 'YAHOO_FINANCE', null),
-       ('^NSEBANK', 'BANK NIFTY', 'INDEX', 'IN', true, 'YAHOO_FINANCE', null),
-       ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE', '99926000');
+INSERT INTO tickers (ticker_symbol, ticker_name, ticker_type, country, is_active, data_provider)
+VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('LLY', 'Eli Lilly', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('AVGO', 'Broadcom', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('AAPL', 'Apple Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('MSFT', 'Microsoft Corporation', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('GOOGL', 'Alphabet Inc. (Class A)', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('AMZN', 'Amazon.com, Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('META', 'Meta Platforms, Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('NVDA', 'NVIDIA Corporation', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('TSLA', 'Tesla, Inc.', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
+       ('^GSPC', 'S&P 500', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
+       ('^DJI', 'Dow Jones Industrial Average', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
+       ('^NDX', 'NASDAQ 100', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
+       ('^NSEI', 'NIFTY 50', 'INDEX', 'IN', true, 'YAHOO_FINANCE'),
+       ('^NSEBANK', 'BANK NIFTY', 'INDEX', 'IN', true, 'YAHOO_FINANCE'),
+       ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE');
 
 INSERT INTO public.indicator_definitions (indicator_type, source, params)
 VALUES ('EMA', 'CLOSE', '{"period": 5}'),

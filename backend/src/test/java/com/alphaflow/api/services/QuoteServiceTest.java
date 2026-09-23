@@ -47,7 +47,6 @@ class QuoteServiceTest {
             .tickerSymbol("NIFTY50")
             .tickerName("NIFTY 50")
             .dataProvider(DataProvider.ANGEL_ONE)
-            .instrumentToken("99926000")
             .build();
 
     AngelOneQuote liveQuote =

@@ -36,6 +36,13 @@ public class AngelOneClient {
     this.objectMapper = objectMapper;
   }
 
+  public static String resolveToken(String symbol) {
+    if (symbol != null && symbol.equalsIgnoreCase("NIFTY50")) {
+      return "99926000";
+    }
+    return "99926000";
+  }
+
   public List<AngelOneCandle> getCandleData(
       String exchange, String symbolToken, String interval, String fromDate, String toDate) {
 

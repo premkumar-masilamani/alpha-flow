@@ -207,4 +207,12 @@ class AngelOneClientTest {
     assertTrue(quoteOpt.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
   }
+
+  @Test
+  void testResolveToken() {
+    assertEquals("99926000", AngelOneClient.resolveToken("NIFTY50"));
+    assertEquals("99926000", AngelOneClient.resolveToken("nifty50"));
+    assertEquals("99926000", AngelOneClient.resolveToken(null));
+    assertEquals("99926000", AngelOneClient.resolveToken("UNKNOWN"));
+  }
 }

@@ -41,10 +41,7 @@ public class QuoteService {
   public QuoteDto getQuote(Ticker ticker) {
     if (ticker.getDataProvider() == DataProvider.ANGEL_ONE) {
       if (angelOneConfig.isEnabled()) {
-        String token =
-            (ticker.getInstrumentToken() != null && !ticker.getInstrumentToken().isBlank())
-                ? ticker.getInstrumentToken()
-                : "99926000";
+        String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
         Optional<AngelOneQuote> quoteOpt = angelOneClient.getMarketQuote("NSE", token);
         if (quoteOpt.isPresent()) {
           AngelOneQuote q = quoteOpt.get();

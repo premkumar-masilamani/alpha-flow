@@ -44,9 +44,6 @@ public class Ticker {
   @Builder.Default
   private DataProvider dataProvider = DataProvider.YAHOO_FINANCE;
 
-  @Column(name = "instrument_token", length = 50)
-  private String instrumentToken;
-
   @Column(name = "is_active", nullable = false)
   @Builder.Default
   private boolean isActive = true;
