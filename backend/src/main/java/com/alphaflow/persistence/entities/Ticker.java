@@ -1,5 +1,7 @@
 package com.alphaflow.persistence.entities;
 
+import com.alphaflow.persistence.enums.Country;
+import com.alphaflow.persistence.enums.TickerType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,6 +27,16 @@ public class Ticker {
 
   @Column(name = "ticker_name", nullable = false)
   private String tickerName;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "ticker_type", nullable = false, length = 20)
+  @Builder.Default
+  private TickerType tickerType = TickerType.STOCK;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "country", nullable = false, length = 10)
+  @Builder.Default
+  private Country country = Country.US;
 
   @Column(name = "is_active", nullable = false)
   @Builder.Default

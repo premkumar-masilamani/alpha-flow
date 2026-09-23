@@ -1,14 +1,19 @@
-INSERT INTO tickers (ticker_symbol, ticker_name, is_active)
-VALUES ('BRK-B', 'Berkshire Hathaway', true),
-       ('LLY', 'Eli Lilly', true),
-       ('AVGO', 'Broadcom', true),
-       ('AAPL', 'Apple Inc.', true),
-       ('MSFT', 'Microsoft Corporation', true),
-       ('GOOGL', 'Alphabet Inc. (Class A)', true),
-       ('AMZN', 'Amazon.com, Inc.', true),
-       ('META', 'Meta Platforms, Inc.', true),
-       ('NVDA', 'NVIDIA Corporation', true),
-       ('TSLA', 'Tesla, Inc.', true);
+INSERT INTO tickers (ticker_symbol, ticker_name, ticker_type, country, is_active)
+VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true),
+       ('LLY', 'Eli Lilly', 'STOCK', 'US', true),
+       ('AVGO', 'Broadcom', 'STOCK', 'US', true),
+       ('AAPL', 'Apple Inc.', 'STOCK', 'US', true),
+       ('MSFT', 'Microsoft Corporation', 'STOCK', 'US', true),
+       ('GOOGL', 'Alphabet Inc. (Class A)', 'STOCK', 'US', true),
+       ('AMZN', 'Amazon.com, Inc.', 'STOCK', 'US', true),
+       ('META', 'Meta Platforms, Inc.', 'STOCK', 'US', true),
+       ('NVDA', 'NVIDIA Corporation', 'STOCK', 'US', true),
+       ('TSLA', 'Tesla, Inc.', 'STOCK', 'US', true),
+       ('^GSPC', 'S&P 500', 'INDEX', 'US', true),
+       ('^DJI', 'Dow Jones Industrial Average', 'INDEX', 'US', true),
+       ('^NDX', 'NASDAQ 100', 'INDEX', 'US', true),
+       ('^NSEI', 'NIFTY 50', 'INDEX', 'IN', true),
+       ('^NSEBANK', 'BANK NIFTY', 'INDEX', 'IN', true);
 
 INSERT INTO public.indicator_definitions (indicator_type, source, params)
 VALUES ('EMA', 'CLOSE', '{"period": 5}'),

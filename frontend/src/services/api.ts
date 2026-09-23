@@ -4,10 +4,15 @@ const API_BASE_URL = `${import.meta.env.NEXT_PUBLIC_API_URL || ''}/api`;
 
 export const CHART_WINDOW = 250;
 
+export type TickerType = 'STOCK' | 'INDEX';
+export type Country = 'US' | 'IN';
+
 export interface Ticker {
     id: number;
     symbol: string;
     name: string;
+    type?: TickerType;
+    country?: Country;
 }
 
 export interface DailyCandleData {
