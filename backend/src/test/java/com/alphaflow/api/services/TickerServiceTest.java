@@ -21,6 +21,8 @@ class TickerServiceTest {
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
     ticker.setTickerName("Apple Inc.");
+    ticker.setTickerType(com.alphaflow.persistence.enums.TickerType.STOCK);
+    ticker.setCountry(com.alphaflow.persistence.enums.Country.US);
     ticker.setActive(true);
 
     TickerRepository repo = mock(TickerRepository.class);
@@ -31,6 +33,8 @@ class TickerServiceTest {
 
     assertEquals("AAPL", result.getTickerSymbol());
     assertEquals("Apple Inc.", result.getTickerName());
+    assertEquals(com.alphaflow.persistence.enums.TickerType.STOCK, result.getTickerType());
+    assertEquals(com.alphaflow.persistence.enums.Country.US, result.getCountry());
   }
 
   @Test
@@ -49,6 +53,8 @@ class TickerServiceTest {
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
     ticker.setTickerName("Apple Inc.");
+    ticker.setTickerType(com.alphaflow.persistence.enums.TickerType.STOCK);
+    ticker.setCountry(com.alphaflow.persistence.enums.Country.US);
     ticker.setActive(true);
 
     TickerRepository repo = mock(TickerRepository.class);
@@ -59,6 +65,8 @@ class TickerServiceTest {
 
     assertEquals("AAPL", dto.tickerSymbol());
     assertEquals("Apple Inc.", dto.tickerName());
+    assertEquals(com.alphaflow.persistence.enums.TickerType.STOCK, dto.tickerType());
+    assertEquals(com.alphaflow.persistence.enums.Country.US, dto.country());
   }
 
   @Test
@@ -73,19 +81,34 @@ class TickerServiceTest {
 
   @Test
   void testGetAllTickers() {
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("AAPL");
-    ticker.setTickerName("Apple Inc.");
-    ticker.setActive(true);
+    Ticker tickerStock = new Ticker();
+    tickerStock.setTickerId(1L);
+    tickerStock.setTickerSymbol("AAPL");
+    tickerStock.setTickerName("Apple Inc.");
+    tickerStock.setTickerType(com.alphaflow.persistence.enums.TickerType.STOCK);
+    tickerStock.setCountry(com.alphaflow.persistence.enums.Country.US);
+    tickerStock.setActive(true);
+
+    Ticker tickerIndex = new Ticker();
+    tickerIndex.setTickerId(2L);
+    tickerIndex.setTickerSymbol("^NSEI");
+    tickerIndex.setTickerName("NIFTY 50");
+    tickerIndex.setTickerType(com.alphaflow.persistence.enums.TickerType.INDEX);
+    tickerIndex.setCountry(com.alphaflow.persistence.enums.Country.IN);
+    tickerIndex.setActive(true);
 
     TickerRepository repo = mock(TickerRepository.class);
-    when(repo.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(repo.findByIsActiveTrue()).thenReturn(List.of(tickerStock, tickerIndex));
 
     TickerService service = new TickerService(repo);
     List<TickerDto> list = service.getAllTickers();
 
-    assertEquals(1, list.size());
+    assertEquals(2, list.size());
     assertEquals("AAPL", list.getFirst().tickerSymbol());
+    assertEquals(com.alphaflow.persistence.enums.TickerType.STOCK, list.getFirst().tickerType());
+    assertEquals(com.alphaflow.persistence.enums.Country.US, list.getFirst().country());
+    assertEquals("^NSEI", list.getLast().tickerSymbol());
+    assertEquals(com.alphaflow.persistence.enums.TickerType.INDEX, list.getLast().tickerType());
+    assertEquals(com.alphaflow.persistence.enums.Country.IN, list.getLast().country());
   }
 }
