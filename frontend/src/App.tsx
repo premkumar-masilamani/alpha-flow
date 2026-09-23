@@ -11,6 +11,8 @@ import { getChartPatternDetails } from "./config/chartPatterns";
 import {
   type DailyCandleData,
   getCandleData,
+  getQuote,
+  type QuoteData,
   getIndicatorConfigs,
   getIndicatorSeries,
   getTickers,
@@ -92,11 +94,17 @@ function App() {
 
   // Layout states
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "charts">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "charts" | "intraday">("overview");
   const [isCspModalOpen, setIsCspModalOpen] = useState(false);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isCpModalOpen, setIsCpModalOpen] = useState(false);
   const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
+
+  // Intraday states
+  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
+  const [intradayCandles, setIntradayCandles] = useState<DailyCandleData[]>([]);
+  const [intradayLoading, setIntradayLoading] = useState(false);
+  const [intradayError, setIntradayError] = useState<string | null>(null);
 
   const openCspModal = (patternId?: string | null) => {
     setSelectedPatternId(patternId || null);
@@ -343,6 +351,50 @@ function App() {
       active = false;
     };
   }, [selectedTicker, timeframe, showChartPatterns]);
+
+  // Fetch intraday candle data and live quote when selectedTicker or activeTab is intraday
+  useEffect(() => {
+    if (activeTab !== "intraday" || !selectedTicker) {
+      return;
+    }
+    let active = true;
+    const fetchIntraday = async () => {
+      setIntradayLoading(true);
+      setIntradayError(null);
+      try {
+        const [candles, quote] = await Promise.all([
+          getCandleData(selectedTicker, "FIFTEEN_MINUTE", 0).catch((err) => {
+            console.warn("Failed to fetch 15m candle data:", err);
+            return [] as DailyCandleData[];
+          }),
+          getQuote(selectedTicker).catch((err) => {
+            console.warn("Failed to fetch live quote:", err);
+            return null as QuoteData | null;
+          }),
+        ]);
+        if (active) {
+          setIntradayCandles(candles);
+          setQuoteData(quote);
+          if (candles.length === 0 && !quote) {
+            setIntradayError("No 15-minute intraday data available for this ticker");
+          }
+        }
+      } catch (err) {
+        if (active) {
+          console.error("Failed to load intraday data:", err);
+          setIntradayError("Failed to load intraday data");
+        }
+      } finally {
+        if (active) {
+          setIntradayLoading(false);
+        }
+      }
+    };
+    fetchIntraday();
+    return () => {
+      active = false;
+    };
+  }, [selectedTicker, activeTab]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
@@ -1063,6 +1115,131 @@ function App() {
     );
   };
 
+  const renderIntradayTab = () => {
+    if (intradayLoading && intradayCandles.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
+          <Loader2 className="animate-spin text-blue-500" size={32} />
+          <p className="text-sm font-semibold text-slate-400">Loading intraday 15-minute data...</p>
+        </div>
+      );
+    }
+
+    if (intradayError || (intradayCandles.length === 0 && !quoteData)) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          <div className="max-w-md p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-xl space-y-4">
+            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 text-blue-400">
+              <Info size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-white">No Intraday Data</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              15-minute intraday candlesticks and live quotes are not available for{" "}
+              <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
+            </p>
+            <p className="text-xs text-slate-500">
+              Intraday streaming is configured for Indian market instruments (e.g. NIFTY50 via Angel One SmartAPI).
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    const latestCandle = intradayCandles.length > 0 ? intradayCandles[intradayCandles.length - 1] : null;
+    const ltp = quoteData?.lastPrice ?? (latestCandle ? latestCandle.close : 0);
+    const openPrice = quoteData?.open ?? (latestCandle ? latestCandle.open : 0);
+    const highPrice = quoteData?.high ?? (latestCandle ? latestCandle.high : 0);
+    const lowPrice = quoteData?.low ?? (latestCandle ? latestCandle.low : 0);
+    const volume = quoteData?.volume ?? (latestCandle ? latestCandle.vol : 0);
+    const change = quoteData?.change ?? (openPrice > 0 ? ltp - openPrice : 0);
+    const pct = quoteData?.changePercent ?? pctChange(change, openPrice);
+    const isPositive = change >= 0;
+
+    return (
+      <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+        {/* Quote / Summary Banner */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-4 shadow-lg backdrop-blur flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last Traded Price</div>
+              <div className="text-2xl font-bold font-mono text-white mt-0.5">
+                {ltp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Change</div>
+              <div
+                className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
+                  isPositive ? "text-emerald-400" : "text-rose-400"
+                }`}
+              >
+                {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                <span>
+                  {isPositive ? "+" : ""}
+                  {change.toFixed(2)} ({isPositive ? "+" : ""}
+                  {pct.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Open:</span>
+              <span className="text-slate-200 font-semibold">{openPrice.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">High:</span>
+              <span className="text-slate-200 font-semibold">{highPrice.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Low:</span>
+              <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Vol:</span>
+              <span className="text-slate-200 font-semibold">{volume.toLocaleString()}</span>
+            </div>
+            {quoteData?.timestamp && (
+              <div className="bg-slate-800/50 px-2.5 py-1.5 rounded text-slate-400 text-[11px]">
+                {new Date(quoteData.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+              </div>
+            )}
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
+              15m Intraday
+            </span>
+          </div>
+        </div>
+
+        {/* 15m Candlestick Chart */}
+        <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+          {intradayCandles.length > 0 ? (
+            <Chart
+              data={intradayCandles}
+              indicators={[]}
+              enabled={new Set()}
+              configs={[]}
+              symbol={selectedTicker!}
+              timeframe="FIFTEEN_MINUTE"
+              onLoadOlderData={() => {}}
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+              {intradayLoading ? (
+                <>
+                  <Loader2 className="animate-spin text-blue-500" size={32} />
+                  <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
+                </>
+              ) : (
+                "No chart candles recorded yet for this session"
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (!selectedTicker) {
       return (
@@ -1122,6 +1299,16 @@ function App() {
               >
                 Technical Chart
               </button>
+              <button
+                onClick={() => setActiveTab("intraday")}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  activeTab === "intraday"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Intra-Day
+              </button>
             </div>
           </div>
 
@@ -1141,7 +1328,7 @@ function App() {
                 : "No data available for this ticker"}
             </div>
           )
-        ) : (
+        ) : activeTab === "charts" ? (
           <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
             {selectedTicker && (
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
@@ -1258,6 +1445,8 @@ function App() {
               )}
             </div>
           </div>
+        ) : (
+          renderIntradayTab()
         )}
       </>
     );

@@ -23,6 +23,10 @@ class PriceControllerTest {
 
     DailyPriceService dailyPriceService = mock(DailyPriceService.class);
     WeeklyPriceService weeklyPriceService = mock(WeeklyPriceService.class);
+    com.alphaflow.api.services.IntradayPriceService intradayPriceService =
+        mock(com.alphaflow.api.services.IntradayPriceService.class);
+    com.alphaflow.api.services.QuoteService quoteService =
+        mock(com.alphaflow.api.services.QuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
@@ -40,16 +44,32 @@ class PriceControllerTest {
     when(dailyPriceService.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
 
     PriceController controller =
-        new PriceController(dailyPriceService, weeklyPriceService, tickerService);
+        new PriceController(
+            dailyPriceService,
+            weeklyPriceService,
+            intradayPriceService,
+            quoteService,
+            tickerService);
 
     List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
-    assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
+    assertEquals("2026-05-29", res.getFirst().priceDate());
 
     when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
+
+    when(intradayPriceService.getIntradayPrice(ticker, 0, 250)).thenReturn(List.of(dto));
+    List<OhlcvDto> intradayRes =
+        controller.getPriceDataForTicker("AAPL", Timeframe.FIFTEEN_MINUTE, 0, 250);
+    assertEquals(1, intradayRes.size());
+
+    com.alphaflow.api.dtos.QuoteDto mockQuote =
+        com.alphaflow.api.dtos.QuoteDto.builder().symbol("AAPL").build();
+    when(quoteService.getQuote(ticker)).thenReturn(mockQuote);
+    com.alphaflow.api.dtos.QuoteDto quoteRes = controller.getQuoteForTicker("AAPL");
+    assertEquals("AAPL", quoteRes.symbol());
 
     org.junit.jupiter.api.Assertions.assertThrows(
         IllegalArgumentException.class,

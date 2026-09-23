@@ -30,10 +30,43 @@ export const getTickers = async (): Promise<Ticker[]> => {
 };
 
 // The backend re-syncs prices hourly, so cache for at most an hour to avoid serving stale data.
+// For intraday 15m data, cache for at most 30 seconds.
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+const INTRADAY_CACHE_DURATION = 30 * 1000; // 30 seconds
 const MAX_CACHE_ENTRIES = 50;
 // Map preserves insertion order, which we use as a simple LRU to bound memory growth.
 const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: number }>();
+
+export type Timeframe = 'DAILY' | 'WEEKLY' | 'FIFTEEN_MINUTE';
+
+export interface QuoteData {
+    symbol: string;
+    name: string;
+    lastPrice: number;
+    change: number;
+    changePercent: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+    timestamp: string;
+}
+
+const quoteDataCache = new Map<string, { data: QuoteData; timestamp: number }>();
+const QUOTE_CACHE_DURATION = 10 * 1000; // 10 seconds
+
+export const getQuote = async (symbol: string): Promise<QuoteData> => {
+    const now = Date.now();
+    const cached = quoteDataCache.get(symbol);
+    if (cached && (now - cached.timestamp < QUOTE_CACHE_DURATION)) {
+        return cached.data;
+    }
+
+    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/quote`);
+    quoteDataCache.set(symbol, { data: response.data, timestamp: now });
+    return response.data;
+};
 
 export const getCandleData = async (
     symbol: string,
@@ -44,7 +77,8 @@ export const getCandleData = async (
     const now = Date.now();
     const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = candleDataCache.get(cacheKey);
-    if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+    const ttl = timeframe === 'FIFTEEN_MINUTE' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
+    if (cached && (now - cached.timestamp < ttl)) {
         // Mark as most-recently-used.
         candleDataCache.delete(cacheKey);
         candleDataCache.set(cacheKey, cached);
@@ -64,8 +98,6 @@ export const getCandleData = async (
 
     return response.data;
 };
-
-export type Timeframe = 'DAILY' | 'WEEKLY';
 
 // One configured (indicator, source, params) combo from the discovery endpoint.
 export interface IndicatorConfig {

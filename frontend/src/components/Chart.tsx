@@ -558,11 +558,22 @@ const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; s
     }
 };
 
+const toChartTime = (dateStr: string): Time => {
+    if (dateStr && (dateStr.includes('T') || dateStr.includes(':') || dateStr.includes(' '))) {
+        return Math.floor(new Date(dateStr).getTime() / 1000) as Time;
+    }
+    return dateStr as Time;
+};
+
 const lineData = (series: IndicatorSeries, output: string) =>
     series.points
         .filter((p) => p.values[output] !== undefined && p.values[output] !== null)
-        .map((p) => ({time: p.date as Time, value: Number(p.values[output])}))
-        .sort((a, b) => String(a.time).localeCompare(String(b.time)));
+        .map((p) => ({time: toChartTime(p.date), value: Number(p.values[output])}))
+        .sort((a, b) =>
+            typeof a.time === 'number' && typeof b.time === 'number'
+                ? a.time - b.time
+                : String(a.time).localeCompare(String(b.time))
+        );
 
 const formatLabel = (label: string): string =>
     label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
@@ -679,7 +690,7 @@ const Chart: React.FC<ChartProps> = ({
             wickDownColor: '#ef4444',
         }, 0);
         candlestickSeries.setData(sortedData.map((d) => ({
-            time: d.date as Time,
+            time: toChartTime(d.date),
             open: Number(d.open),
             high: Number(d.high),
             low: Number(d.low),
@@ -705,7 +716,7 @@ const Chart: React.FC<ChartProps> = ({
             const markers = deduplicatedCandlestickPatterns.map((p) => {
                 const isBullish = p.sentiment.startsWith('BULLISH');
                 return {
-                    time: p.date as Time,
+                    time: toChartTime(p.date),
                     position: isBullish ? 'belowBar' as const : 'aboveBar' as const,
                     color: isBullish ? '#22c55e' : '#ef4444',
                     shape: isBullish ? 'arrowUp' as const : 'arrowDown' as const,
@@ -755,7 +766,7 @@ const Chart: React.FC<ChartProps> = ({
         }, 0);
         volumeSeries.priceScale().applyOptions({scaleMargins: {top: 0.8, bottom: 0}});
         volumeSeries.setData(sortedData.map((d) => ({
-            time: d.date as Time,
+            time: toChartTime(d.date),
             value: Number(d.vol),
             color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
         })));
@@ -955,6 +966,14 @@ const Chart: React.FC<ChartProps> = ({
             let dateStr = '';
             if (typeof param.time === 'string') {
                 dateStr = param.time;
+            } else if (typeof param.time === 'number') {
+                // Find matching candle in sortedData with same epoch second
+                const match = sortedData.find((d) => toChartTime(d.date) === param.time);
+                if (match) {
+                    dateStr = match.date;
+                } else {
+                    dateStr = new Date(param.time * 1000).toISOString();
+                }
             } else if (param.time && typeof param.time === 'object') {
                 const t = param.time as { year?: number; month?: number; day?: number };
                 if (t.year && t.month && t.day) {

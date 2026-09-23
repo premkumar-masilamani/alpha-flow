@@ -1,7 +1,10 @@
 package com.alphaflow.api.controllers;
 
 import com.alphaflow.api.dtos.OhlcvDto;
+import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.DailyPriceService;
+import com.alphaflow.api.services.IntradayPriceService;
+import com.alphaflow.api.services.QuoteService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
@@ -21,14 +24,20 @@ public class PriceController {
 
   private final DailyPriceService dailyPriceService;
   private final WeeklyPriceService weeklyPriceService;
+  private final IntradayPriceService intradayPriceService;
+  private final QuoteService quoteService;
   private final TickerService tickerService;
 
   public PriceController(
       DailyPriceService dailyPriceService,
       WeeklyPriceService weeklyPriceService,
+      IntradayPriceService intradayPriceService,
+      QuoteService quoteService,
       TickerService tickerService) {
     this.dailyPriceService = dailyPriceService;
     this.weeklyPriceService = weeklyPriceService;
+    this.intradayPriceService = intradayPriceService;
+    this.quoteService = quoteService;
     this.tickerService = tickerService;
   }
 
@@ -53,9 +62,18 @@ public class PriceController {
       return dailyPriceService.getDailyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
+    } else if (timeframe == Timeframe.FIFTEEN_MINUTE) {
+      return intradayPriceService.getIntradayPrice(ticker, page, finalSize);
     } else {
       log.error("Unsupported timeframe for price data: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
+  }
+
+  @GetMapping("/tickers/{symbol}/quote")
+  public QuoteDto getQuoteForTicker(@PathVariable String symbol) {
+    log.info("Request to get quote for ticker: {}", symbol);
+    Ticker ticker = tickerService.getTicker(symbol);
+    return quoteService.getQuote(ticker);
   }
 }

@@ -52,8 +52,8 @@ class DailyPriceServiceTest {
     List<OhlcvDto> result = dailyPriceService.getDailyPrice(ticker, 0, 250);
 
     assertEquals(2, result.size());
-    assertEquals(LocalDate.of(2026, 5, 28), result.getFirst().priceDate());
-    assertEquals(LocalDate.of(2026, 5, 29), result.get(1).priceDate());
+    assertEquals("2026-05-28", result.getFirst().priceDate());
+    assertEquals("2026-05-29", result.get(1).priceDate());
   }
 
   @Test
@@ -80,6 +80,6 @@ class DailyPriceServiceTest {
     List<OhlcvDto> result = dailyPriceService.getDailyPrice(ticker, 1, 10);
 
     assertEquals(1, result.size());
-    assertEquals(LocalDate.of(2026, 5, 29), result.getFirst().priceDate());
+    assertEquals("2026-05-29", result.getFirst().priceDate());
   }
 }

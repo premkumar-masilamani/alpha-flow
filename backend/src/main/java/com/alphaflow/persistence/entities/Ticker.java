@@ -1,6 +1,7 @@
 package com.alphaflow.persistence.entities;
 
 import com.alphaflow.persistence.enums.Country;
+import com.alphaflow.persistence.enums.DataProvider;
 import com.alphaflow.persistence.enums.TickerType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -37,6 +38,14 @@ public class Ticker {
   @Column(name = "country", nullable = false, length = 10)
   @Builder.Default
   private Country country = Country.US;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "data_provider", nullable = false, length = 50)
+  @Builder.Default
+  private DataProvider dataProvider = DataProvider.YAHOO_FINANCE;
+
+  @Column(name = "instrument_token", length = 50)
+  private String instrumentToken;
 
   @Column(name = "is_active", nullable = false)
   @Builder.Default

@@ -480,6 +480,22 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone",
+      "label": "engine.downloaders.angelone",
+      "parent": "engine",
+      "is_parent": true
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.dtos",
+      "label": "engine.downloaders.angelone.dtos",
+      "parent": "engine",
+      "is_parent": true
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.dtos",
       "label": "engine.downloaders.dtos",
       "parent": "engine",
@@ -574,6 +590,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.persistence.enums.Country",
+      "label": "Country",
+      "parent": "com.alphaflow.persistence.enums",
+      "type": "enum",
+      "component": "persistence",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/Country.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.persistence.enums.ChartPatternStatus",
       "label": "ChartPatternStatus",
       "parent": "com.alphaflow.persistence.enums",
@@ -591,6 +618,28 @@
       "type": "enum",
       "component": "persistence",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/PatternSentiment.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.enums.DataProvider",
+      "label": "DataProvider",
+      "parent": "com.alphaflow.persistence.enums",
+      "type": "enum",
+      "component": "persistence",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/DataProvider.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.enums.TickerType",
+      "label": "TickerType",
+      "parent": "com.alphaflow.persistence.enums",
+      "type": "enum",
+      "component": "persistence",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/TickerType.java",
       "violation": false
     }
   },
@@ -668,6 +717,17 @@
       "type": "interface",
       "component": "persistence",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/TickerRepository.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "label": "IntradayPriceRepository",
+      "parent": "com.alphaflow.persistence.repositories",
+      "type": "interface",
+      "component": "persistence",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/IntradayPriceRepository.java",
       "violation": false
     }
   },
@@ -822,6 +882,17 @@
       "type": "class",
       "component": "persistence",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/ChartPatternPivot.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.entities.IntradayPrice",
+      "label": "IntradayPrice",
+      "parent": "com.alphaflow.persistence.entities",
+      "type": "class",
+      "component": "persistence",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/IntradayPrice.java",
       "violation": false
     }
   },
@@ -1069,6 +1140,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.dtos.QuoteDto",
+      "label": "QuoteDto",
+      "parent": "com.alphaflow.api.dtos",
+      "type": "record",
+      "component": "api",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/QuoteDto.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.configs.CorsConfig",
       "label": "CorsConfig",
       "parent": "com.alphaflow.api.configs",
@@ -1218,6 +1300,28 @@
       "type": "class",
       "component": "api",
       "filepath": "backend/src/main/java/com/alphaflow/api/services/TickerService.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService",
+      "label": "IntradayPriceService",
+      "parent": "com.alphaflow.api.services",
+      "type": "class",
+      "component": "api",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/IntradayPriceService.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService",
+      "label": "QuoteService",
+      "parent": "com.alphaflow.api.services",
+      "type": "class",
+      "component": "api",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/QuoteService.java",
       "violation": false
     }
   },
@@ -1421,6 +1525,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "label": "AngelOneDownloader",
+      "parent": "com.alphaflow.engine.downloaders",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/AngelOneDownloader.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.YahooResponseParser",
       "label": "YahooResponseParser",
       "parent": "com.alphaflow.engine.downloaders",
@@ -1487,6 +1602,61 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "label": "AngelOneClient",
+      "parent": "com.alphaflow.engine.downloaders.angelone",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneClient.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "label": "TotpGenerator",
+      "parent": "com.alphaflow.engine.downloaders.angelone",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/TotpGenerator.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "label": "AngelOneAuthManager",
+      "parent": "com.alphaflow.engine.downloaders.angelone",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneAuthManager.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "label": "AngelOneCandle",
+      "parent": "com.alphaflow.engine.downloaders.angelone.dtos",
+      "type": "record",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/dtos/AngelOneCandle.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "label": "AngelOneQuote",
+      "parent": "com.alphaflow.engine.downloaders.angelone.dtos",
+      "type": "record",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/dtos/AngelOneQuote.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.configs.YahooFinanceConfig",
       "label": "YahooFinanceConfig",
       "parent": "com.alphaflow.engine.configs",
@@ -1504,6 +1674,17 @@
       "type": "class",
       "component": "engine",
       "filepath": "backend/src/main/java/com/alphaflow/engine/configs/IndicatorConfig.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.configs.AngelOneConfig",
+      "label": "AngelOneConfig",
+      "parent": "com.alphaflow.engine.configs",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/AngelOneConfig.java",
       "violation": false
     }
   },
@@ -1614,6 +1795,17 @@
       "type": "class",
       "component": "engine",
       "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/dtos/Bucket.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.schedulers.AngelOneScheduler",
+      "label": "AngelOneScheduler",
+      "parent": "com.alphaflow.engine.schedulers",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/schedulers/AngelOneScheduler.java",
       "violation": false
     }
   },
@@ -1801,9 +1993,36 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.dtos.QuoteDto",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.dtos.QuoteDto",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.DailyPriceService",
       "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.services.DailyPriceService",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.IntradayPriceService",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.IntradayPriceService",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.QuoteService",
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.QuoteService",
       "violation": false,
       "reason": ""
     }
@@ -1981,6 +2200,24 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.dtos.TickerDto_to_com.alphaflow.persistence.enums.Country",
+      "source": "com.alphaflow.api.dtos.TickerDto",
+      "target": "com.alphaflow.persistence.enums.Country",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.dtos.TickerDto_to_com.alphaflow.persistence.enums.TickerType",
+      "source": "com.alphaflow.api.dtos.TickerDto",
+      "target": "com.alphaflow.persistence.enums.TickerType",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.mappers.IndicatorMapper_to_com.alphaflow.api.dtos.IndicatorConfigDto",
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
       "target": "com.alphaflow.api.dtos.IndicatorConfigDto",
@@ -2074,6 +2311,15 @@
       "id": "com.alphaflow.api.mappers.OhlcvMapper_to_com.alphaflow.persistence.entities.DailyPrice",
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.mappers.OhlcvMapper_to_com.alphaflow.persistence.entities.IntradayPrice",
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
       "violation": false,
       "reason": ""
     }
@@ -2425,6 +2671,141 @@
       "id": "com.alphaflow.api.services.IndicatorService_to_com.alphaflow.persistence.repositories.WeeklyPriceRepository",
       "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.api.dtos.OhlcvDto",
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.api.mappers.OhlcvMapper",
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.api.mappers.OhlcvMapper",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.persistence.entities.IntradayPrice",
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.api.dtos.QuoteDto",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.api.dtos.QuoteDto",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.entities.DailyPrice",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.entities.IntradayPrice",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.enums.DataProvider",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
       "violation": false,
       "reason": ""
     }
@@ -3295,6 +3676,78 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.persistence.entities.IntradayPrice",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.persistence.enums.DataProvider",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.persistence.repositories.TickerRepository",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.YahooFinanceDownloader_to_com.alphaflow.engine.configs.YahooFinanceConfig",
       "source": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
       "target": "com.alphaflow.engine.configs.YahooFinanceConfig",
@@ -3379,6 +3832,60 @@
       "id": "com.alphaflow.engine.downloaders.YahooResponseParser_to_com.alphaflow.persistence.entities.Ticker",
       "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager_to_com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
       "violation": false,
       "reason": ""
     }
@@ -3952,6 +4459,24 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.schedulers.AngelOneScheduler_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "source": "com.alphaflow.engine.schedulers.AngelOneScheduler",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.schedulers.AngelOneScheduler_to_com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "source": "com.alphaflow.engine.schedulers.AngelOneScheduler",
+      "target": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.schedulers.CoreScheduler_to_com.alphaflow.engine.calculators.CandlestickPatternCalculator",
       "source": "com.alphaflow.engine.schedulers.CoreScheduler",
       "target": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
@@ -4171,6 +4696,42 @@
       "id": "com.alphaflow.persistence.entities.IndicatorDefinition_to_com.alphaflow.persistence.enums.PriceSource",
       "source": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "target": "com.alphaflow.persistence.enums.PriceSource",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.entities.IntradayPrice_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.persistence.entities.IntradayPrice",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.entities.Ticker_to_com.alphaflow.persistence.enums.Country",
+      "source": "com.alphaflow.persistence.entities.Ticker",
+      "target": "com.alphaflow.persistence.enums.Country",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.entities.Ticker_to_com.alphaflow.persistence.enums.DataProvider",
+      "source": "com.alphaflow.persistence.entities.Ticker",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.entities.Ticker_to_com.alphaflow.persistence.enums.TickerType",
+      "source": "com.alphaflow.persistence.entities.Ticker",
+      "target": "com.alphaflow.persistence.enums.TickerType",
       "violation": false,
       "reason": ""
     }
@@ -4438,9 +4999,36 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.persistence.repositories.IntradayPriceRepository_to_com.alphaflow.persistence.entities.IntradayPrice",
+      "source": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.repositories.IntradayPriceRepository_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.persistence.repositories.TickerRepository_to_com.alphaflow.persistence.entities.Ticker",
       "source": "com.alphaflow.persistence.repositories.TickerRepository",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.repositories.TickerRepository_to_com.alphaflow.persistence.enums.DataProvider",
+      "source": "com.alphaflow.persistence.repositories.TickerRepository",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
       "violation": false,
       "reason": ""
     }

@@ -22,6 +22,7 @@ flowchart TD
         com_alphaflow_api_dtos_SupportResistanceDto["SupportResistanceDto (class)"]
         com_alphaflow_api_dtos_IndicatorConfigDto["IndicatorConfigDto (record)"]
         com_alphaflow_api_dtos_IndicatorPointDto["IndicatorPointDto (record)"]
+        com_alphaflow_api_dtos_QuoteDto["QuoteDto (record)"]
         com_alphaflow_api_configs_CorsConfig["CorsConfig (class)"]
         com_alphaflow_api_mappers_IndicatorMapper["IndicatorMapper (class)"]
         com_alphaflow_api_mappers_OhlcvMapper["OhlcvMapper (class)"]
@@ -36,6 +37,8 @@ flowchart TD
         com_alphaflow_api_controllers_generic_ApiController["ApiController (class)"]
         com_alphaflow_api_services_DailyPriceService["DailyPriceService (class)"]
         com_alphaflow_api_services_TickerService["TickerService (class)"]
+        com_alphaflow_api_services_IntradayPriceService["IntradayPriceService (class)"]
+        com_alphaflow_api_services_QuoteService["QuoteService (class)"]
         com_alphaflow_api_services_ChartPatternService["ChartPatternService (class)"]
         com_alphaflow_api_services_WeeklyPriceService["WeeklyPriceService (class)"]
         com_alphaflow_api_services_IndicatorService["IndicatorService (class)"]
@@ -57,14 +60,21 @@ flowchart TD
         com_alphaflow_engine_indicators_dtos_IndicatorParams["IndicatorParams (class)"]
         com_alphaflow_engine_indicators_dtos_PriceBar["PriceBar (record)"]
         com_alphaflow_engine_downloaders_YahooFinanceDownloader["YahooFinanceDownloader (class)"]
+        com_alphaflow_engine_downloaders_AngelOneDownloader["AngelOneDownloader (class)"]
         com_alphaflow_engine_downloaders_YahooResponseParser["YahooResponseParser (class)"]
         com_alphaflow_engine_downloaders_dtos_YahooResult["YahooResult (record)"]
         com_alphaflow_engine_downloaders_dtos_YahooQuote["YahooQuote (record)"]
         com_alphaflow_engine_downloaders_dtos_YahooResponse["YahooResponse (record)"]
         com_alphaflow_engine_downloaders_dtos_YahooChart["YahooChart (record)"]
         com_alphaflow_engine_downloaders_dtos_YahooIndicators["YahooIndicators (record)"]
+        com_alphaflow_engine_downloaders_angelone_AngelOneClient["AngelOneClient (class)"]
+        com_alphaflow_engine_downloaders_angelone_TotpGenerator["TotpGenerator (class)"]
+        com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager["AngelOneAuthManager (class)"]
+        com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle["AngelOneCandle (record)"]
+        com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote["AngelOneQuote (record)"]
         com_alphaflow_engine_configs_YahooFinanceConfig["YahooFinanceConfig (class)"]
         com_alphaflow_engine_configs_IndicatorConfig["IndicatorConfig (class)"]
+        com_alphaflow_engine_configs_AngelOneConfig["AngelOneConfig (class)"]
         com_alphaflow_engine_calculators_CandlestickPatternCalculator["CandlestickPatternCalculator (class)"]
         com_alphaflow_engine_calculators_WeeklyPriceCalculator["WeeklyPriceCalculator (class)"]
         com_alphaflow_engine_calculators_ChartPatternCalculator["ChartPatternCalculator (class)"]
@@ -75,12 +85,16 @@ flowchart TD
         com_alphaflow_engine_calculators_dtos_PatternMatch["PatternMatch (record)"]
         com_alphaflow_engine_calculators_dtos_ChartPatternMatch["ChartPatternMatch (record)"]
         com_alphaflow_engine_calculators_dtos_Bucket["Bucket (class)"]
+        com_alphaflow_engine_schedulers_AngelOneScheduler["AngelOneScheduler (class)"]
         com_alphaflow_engine_schedulers_CoreScheduler["CoreScheduler (class)"]
     end
 
     subgraph persistence ["Persistence (Database)"]
+        com_alphaflow_persistence_enums_Country["Country (enum)"]
         com_alphaflow_persistence_enums_ChartPatternStatus["ChartPatternStatus (enum)"]
         com_alphaflow_persistence_enums_PatternSentiment["PatternSentiment (enum)"]
+        com_alphaflow_persistence_enums_DataProvider["DataProvider (enum)"]
+        com_alphaflow_persistence_enums_TickerType["TickerType (enum)"]
         com_alphaflow_persistence_enums_IndicatorOutputKey["IndicatorOutputKey (enum)"]
         com_alphaflow_persistence_enums_IndicatorParamKey["IndicatorParamKey (enum)"]
         com_alphaflow_persistence_enums_IndicatorType["IndicatorType (enum)"]
@@ -88,6 +102,7 @@ flowchart TD
         com_alphaflow_persistence_enums_ChartPatternType["ChartPatternType (enum)"]
         com_alphaflow_persistence_enums_CandlestickPattern["CandlestickPattern (enum)"]
         com_alphaflow_persistence_repositories_TickerRepository["TickerRepository (interface)"]
+        com_alphaflow_persistence_repositories_IntradayPriceRepository["IntradayPriceRepository (interface)"]
         com_alphaflow_persistence_repositories_WeeklySupportResistanceRepository["WeeklySupportResistanceRepository (interface)"]
         com_alphaflow_persistence_repositories_WeeklyPriceRepository["WeeklyPriceRepository (interface)"]
         com_alphaflow_persistence_repositories_DailyCandlestickPatternRepository["DailyCandlestickPatternRepository (interface)"]
@@ -102,6 +117,7 @@ flowchart TD
         com_alphaflow_persistence_exceptions_ResourceNotFoundException["ResourceNotFoundException (class)"]
         com_alphaflow_persistence_entities_DailyIndicator["DailyIndicator (class)"]
         com_alphaflow_persistence_entities_ChartPatternPivot["ChartPatternPivot (class)"]
+        com_alphaflow_persistence_entities_IntradayPrice["IntradayPrice (class)"]
         com_alphaflow_persistence_entities_WeeklyChartPattern["WeeklyChartPattern (class)"]
         com_alphaflow_persistence_entities_WeeklyCandlestickPattern["WeeklyCandlestickPattern (class)"]
         com_alphaflow_persistence_entities_WeeklyIndicator["WeeklyIndicator (class)"]
@@ -139,7 +155,10 @@ flowchart TD
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_dtos_OhlcvDto
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_dtos_QuoteDto
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_DailyPriceService
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_IntradayPriceService
+    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_QuoteService
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_TickerService
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_WeeklyPriceService
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_common_enums_Timeframe
@@ -159,6 +178,8 @@ flowchart TD
     com_alphaflow_api_dtos_ChartPatternDto --> com_alphaflow_persistence_enums_PatternSentiment
     com_alphaflow_api_dtos_IndicatorPointDto --> com_alphaflow_persistence_enums_IndicatorOutputKey
     com_alphaflow_api_dtos_IndicatorSeriesDto --> com_alphaflow_api_dtos_IndicatorPointDto
+    com_alphaflow_api_dtos_TickerDto --> com_alphaflow_persistence_enums_Country
+    com_alphaflow_api_dtos_TickerDto --> com_alphaflow_persistence_enums_TickerType
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorConfigDto
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorPointDto
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorSeriesDto
@@ -170,6 +191,7 @@ flowchart TD
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_enums_PriceSource
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_api_dtos_OhlcvDto
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_DailyPrice
+    com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_IntradayPrice
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_WeeklyPrice
     com_alphaflow_api_mappers_TickerMapper --> com_alphaflow_api_dtos_TickerDto
     com_alphaflow_api_mappers_TickerMapper --> com_alphaflow_persistence_entities_Ticker
@@ -209,6 +231,21 @@ flowchart TD
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_DailyPriceRepository
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_WeeklyIndicatorRepository
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_WeeklyPriceRepository
+    com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_api_dtos_OhlcvDto
+    com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_api_mappers_OhlcvMapper
+    com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_persistence_entities_IntradayPrice
+    com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_persistence_repositories_IntradayPriceRepository
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_api_dtos_QuoteDto
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_DailyPrice
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_IntradayPrice
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_enums_DataProvider
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_repositories_DailyPriceRepository
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_repositories_IntradayPriceRepository
     com_alphaflow_api_services_SupportResistanceService --> com_alphaflow_api_dtos_SupportResistanceDto
     com_alphaflow_api_services_SupportResistanceService --> com_alphaflow_api_services_TickerService
     com_alphaflow_api_services_SupportResistanceService --> com_alphaflow_common_enums_Timeframe
@@ -305,6 +342,14 @@ flowchart TD
     com_alphaflow_engine_calculators_dtos_PatternMatch --> com_alphaflow_persistence_enums_CandlestickPattern
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_entities_IntradayPrice
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_enums_DataProvider
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_IntradayPriceRepository
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_TickerRepository
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_configs_YahooFinanceConfig
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_YahooResponseParser
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_persistence_entities_DailyPrice
@@ -315,6 +360,12 @@ flowchart TD
     com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_engine_downloaders_dtos_YahooResult
     com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_persistence_entities_DailyPrice
     com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_TotpGenerator
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
     com_alphaflow_engine_downloaders_dtos_YahooChart --> com_alphaflow_engine_downloaders_dtos_YahooResult
     com_alphaflow_engine_downloaders_dtos_YahooIndicators --> com_alphaflow_engine_downloaders_dtos_YahooQuote
     com_alphaflow_engine_downloaders_dtos_YahooResponse --> com_alphaflow_engine_downloaders_dtos_YahooChart
@@ -378,6 +429,8 @@ flowchart TD
     com_alphaflow_engine_indicators_utils_EmaAccumulator --> com_alphaflow_engine_indicators_utils_IndicatorMath
     com_alphaflow_engine_indicators_utils_IndicatorRegistry --> com_alphaflow_engine_indicators_Indicator
     com_alphaflow_engine_indicators_utils_IndicatorRegistry --> com_alphaflow_persistence_enums_IndicatorType
+    com_alphaflow_engine_schedulers_AngelOneScheduler --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_engine_schedulers_AngelOneScheduler --> com_alphaflow_engine_downloaders_AngelOneDownloader
     com_alphaflow_engine_schedulers_CoreScheduler --> com_alphaflow_engine_calculators_CandlestickPatternCalculator
     com_alphaflow_engine_schedulers_CoreScheduler --> com_alphaflow_engine_calculators_ChartPatternCalculator
     com_alphaflow_engine_schedulers_CoreScheduler --> com_alphaflow_engine_calculators_IndicatorCalculator
@@ -403,6 +456,10 @@ flowchart TD
     com_alphaflow_persistence_entities_Indicator --> com_alphaflow_persistence_enums_PriceSource
     com_alphaflow_persistence_entities_IndicatorDefinition --> com_alphaflow_persistence_enums_IndicatorType
     com_alphaflow_persistence_entities_IndicatorDefinition --> com_alphaflow_persistence_enums_PriceSource
+    com_alphaflow_persistence_entities_IntradayPrice --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_persistence_entities_Ticker --> com_alphaflow_persistence_enums_Country
+    com_alphaflow_persistence_entities_Ticker --> com_alphaflow_persistence_enums_DataProvider
+    com_alphaflow_persistence_entities_Ticker --> com_alphaflow_persistence_enums_TickerType
     com_alphaflow_persistence_entities_WeeklyCandlestickPattern --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_entities_WeeklyCandlestickPattern --> com_alphaflow_persistence_enums_CandlestickPattern
     com_alphaflow_persistence_entities_WeeklyCandlestickPattern --> com_alphaflow_persistence_enums_PatternSentiment
@@ -432,7 +489,10 @@ flowchart TD
     com_alphaflow_persistence_repositories_DailySupportResistanceRepository --> com_alphaflow_persistence_entities_DailySupportResistance
     com_alphaflow_persistence_repositories_DailySupportResistanceRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_IndicatorDefinitionRepository --> com_alphaflow_persistence_entities_IndicatorDefinition
+    com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_entities_IntradayPrice
+    com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_TickerRepository --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_persistence_repositories_TickerRepository --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_persistence_repositories_WeeklyCandlestickPatternRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_WeeklyCandlestickPatternRepository --> com_alphaflow_persistence_entities_WeeklyCandlestickPattern
     com_alphaflow_persistence_repositories_WeeklyChartPatternRepository --> com_alphaflow_persistence_entities_Ticker
@@ -452,8 +512,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 98
-- **Total Dependencies**: 326
-- **API Layer Classes**: 29
-- **Engine Layer Classes**: 32
-- **Persistence Layer Classes**: 35
+- **Total Classes**: 114
+- **Total Dependencies**: 370
+- **API Layer Classes**: 32
+- **Engine Layer Classes**: 40
+- **Persistence Layer Classes**: 40
