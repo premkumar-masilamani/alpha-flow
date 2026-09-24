@@ -72,6 +72,7 @@ flowchart TD
         com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager["AngelOneAuthManager (class)"]
         com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle["AngelOneCandle (record)"]
         com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote["AngelOneQuote (record)"]
+        com_alphaflow_engine_configs_JacksonConfig["JacksonConfig (class)"]
         com_alphaflow_engine_configs_YahooFinanceConfig["YahooFinanceConfig (class)"]
         com_alphaflow_engine_configs_IndicatorConfig["IndicatorConfig (class)"]
         com_alphaflow_engine_configs_AngelOneConfig["AngelOneConfig (class)"]
@@ -512,8 +513,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 114
+- **Total Classes**: 115
 - **Total Dependencies**: 370
 - **API Layer Classes**: 32
-- **Engine Layer Classes**: 40
+- **Engine Layer Classes**: 41
 - **Persistence Layer Classes**: 40

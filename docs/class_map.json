@@ -892,6 +892,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.configs.JacksonConfig",
+      "name": "JacksonConfig",
+      "package": "com.alphaflow.engine.configs",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/JacksonConfig.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.configs.YahooFinanceConfig",
       "name": "YahooFinanceConfig",
       "package": "com.alphaflow.engine.configs",

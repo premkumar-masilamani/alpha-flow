@@ -12,8 +12,6 @@ VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
        ('^GSPC', 'S&P 500', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
        ('^DJI', 'Dow Jones Industrial Average', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
        ('^NDX', 'NASDAQ 100', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
-       ('^NSEI', 'NIFTY 50', 'INDEX', 'IN', true, 'YAHOO_FINANCE'),
-       ('^NSEBANK', 'BANK NIFTY', 'INDEX', 'IN', true, 'YAHOO_FINANCE'),
        ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE');
 
 INSERT INTO public.indicator_definitions (indicator_type, source, params)
