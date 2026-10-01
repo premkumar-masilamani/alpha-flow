@@ -820,7 +820,7 @@ describe('Chart Component', () => {
         );
     });
 
-    it('creates price lines and legend entries for previous day high and low', () => {
+    it('creates solid price lines and attaches primitive for previous day high and low', () => {
         render(
             <Chart
                 data={mockData}
@@ -840,16 +840,19 @@ describe('Chart Component', () => {
         expect(candlestickSeries.createPriceLine).toHaveBeenCalledWith(
             expect.objectContaining({
                 price: 25100.5,
-                title: 'Prev Day High',
+                lineStyle: 0,
+                title: '',
             })
         );
         expect(candlestickSeries.createPriceLine).toHaveBeenCalledWith(
             expect.objectContaining({
                 price: 24850.25,
-                title: 'Prev Day Low',
+                lineStyle: 0,
+                title: '',
             })
         );
-        expect(screen.getByText('Prev Day High - 25100.50')).toBeInTheDocument();
-        expect(screen.getByText('Prev Day Low - 24850.25')).toBeInTheDocument();
+        expect(candlestickSeries.attachPrimitive).toHaveBeenCalled();
+        expect(screen.queryByText('Prev Day High - 25100.50')).not.toBeInTheDocument();
+        expect(screen.queryByText('Prev Day Low - 24850.25')).not.toBeInTheDocument();
     });
 });

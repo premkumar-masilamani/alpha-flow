@@ -7,7 +7,8 @@ import type {
     IPrimitivePaneRenderer,
     ISeriesPrimitiveAxisView,
     LogicalRange,
-    Logical
+    Logical,
+    AutoscaleInfo
 } from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers} from 'lightweight-charts';
 import { INDICATOR_COLORS } from '../config/indicatorColors';
@@ -86,6 +87,112 @@ class HorizontalBandRenderer implements IPrimitivePaneRenderer {
 
             ctx.fillStyle = this._primitive.getColor();
             ctx.fillRect(0, renderTopY, renderWidth, renderBottomY - renderTopY);
+        });
+    }
+}
+
+class PrevDayLevelsPrimitive implements ISeriesPrimitive {
+    private _series: ISeriesApi<any> | null = null;
+    private _pdh: number | null;
+    private _pdl: number | null;
+
+    constructor(pdh: number | null, pdl: number | null) {
+        this._pdh = pdh;
+        this._pdl = pdl;
+    }
+
+    attached(param: { series: ISeriesApi<any> }) {
+        this._series = param.series;
+    }
+
+    detached() {
+        this._series = null;
+    }
+
+    paneViews() {
+        return [new PrevDayLevelsPaneView(this)];
+    }
+
+    getPdh() { return this._pdh; }
+    getPdl() { return this._pdl; }
+    getSeries() { return this._series; }
+}
+
+class PrevDayLevelsPaneView implements IPrimitivePaneView {
+    private _primitive: PrevDayLevelsPrimitive;
+
+    constructor(primitive: PrevDayLevelsPrimitive) {
+        this._primitive = primitive;
+    }
+
+    zOrder() {
+        return 'top' as const;
+    }
+
+    renderer() {
+        return new PrevDayLevelsRenderer(this._primitive);
+    }
+}
+
+class PrevDayLevelsRenderer implements IPrimitivePaneRenderer {
+    private _primitive: PrevDayLevelsPrimitive;
+
+    constructor(primitive: PrevDayLevelsPrimitive) {
+        this._primitive = primitive;
+    }
+
+    draw(target: any) {
+        const series = this._primitive.getSeries();
+        if (!series) return;
+
+        const pdh = this._primitive.getPdh();
+        const pdl = this._primitive.getPdl();
+        if (pdh == null && pdl == null) return;
+
+        target.useBitmapCoordinateSpace((scope: any) => {
+            const ctx = scope.context;
+            const hRatio = scope.horizontalPixelRatio;
+            const vRatio = scope.verticalPixelRatio;
+
+            const drawLabel = (price: number, label: string, color: string) => {
+                const y = series.priceToCoordinate(price);
+                if (y === null) return;
+
+                ctx.save();
+                ctx.font = `bold ${Math.max(10, Math.round(11 * vRatio))}px sans-serif`;
+                const text = `${label} (${price.toFixed(2)})`;
+                const textWidth = ctx.measureText(text).width;
+                const x = 12 * hRatio;
+                const boxHeight = 16 * vRatio;
+                const boxY = (y - 8) * vRatio;
+                const padding = 5 * hRatio;
+
+                // Draw background pill
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1 * vRatio;
+                ctx.beginPath();
+                if (typeof ctx.roundRect === 'function') {
+                    ctx.roundRect(x, boxY, textWidth + padding * 2, boxHeight, 3 * vRatio);
+                } else {
+                    ctx.rect(x, boxY, textWidth + padding * 2, boxHeight);
+                }
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw text
+                ctx.fillStyle = color;
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, x + padding, y * vRatio);
+                ctx.restore();
+            };
+
+            if (pdh != null && !isNaN(pdh)) {
+                drawLabel(pdh, 'Prev Day High', '#22c55e');
+            }
+            if (pdl != null && !isNaN(pdl)) {
+                drawLabel(pdl, 'Prev Day Low', '#ef4444');
+            }
         });
     }
 }
@@ -705,6 +812,29 @@ const Chart: React.FC<ChartProps> = ({
             borderVisible: false,
             wickUpColor: '#22c55e',
             wickDownColor: '#ef4444',
+            ...(previousDayHigh != null || previousDayLow != null ? {
+                autoscaleInfoProvider: (original: () => AutoscaleInfo | null) => {
+                    const res = original();
+                    if (!res || !res.priceRange) return res;
+                    let min = res.priceRange.minValue;
+                    let max = res.priceRange.maxValue;
+                    if (previousDayLow != null && !isNaN(previousDayLow)) {
+                        min = Math.min(min, previousDayLow);
+                    }
+                    if (previousDayHigh != null && !isNaN(previousDayHigh)) {
+                        max = Math.max(max, previousDayHigh);
+                    }
+                    const span = max - min;
+                    const margin = span > 0 ? span * 0.15 : 10;
+                    return {
+                        ...res,
+                        priceRange: {
+                            minValue: min - margin,
+                            maxValue: max + margin,
+                        },
+                    };
+                }
+            } : {}),
         }, 0);
         candlestickSeries.setData(sortedData.map((d) => ({
             time: toChartTime(d.date),
@@ -719,9 +849,9 @@ const Chart: React.FC<ChartProps> = ({
                 price: previousDayHigh,
                 color: '#22c55e',
                 lineWidth: 1,
-                lineStyle: LineStyle.Dashed,
+                lineStyle: LineStyle.Solid,
                 axisLabelVisible: true,
-                title: 'Prev Day High',
+                title: '',
             });
         }
 
@@ -730,10 +860,14 @@ const Chart: React.FC<ChartProps> = ({
                 price: previousDayLow,
                 color: '#ef4444',
                 lineWidth: 1,
-                lineStyle: LineStyle.Dashed,
+                lineStyle: LineStyle.Solid,
                 axisLabelVisible: true,
-                title: 'Prev Day Low',
+                title: '',
             });
+        }
+
+        if ((previousDayHigh != null && !isNaN(previousDayHigh)) || (previousDayLow != null && !isNaN(previousDayLow))) {
+            candlestickSeries.attachPrimitive(new PrevDayLevelsPrimitive(previousDayHigh, previousDayLow));
         }
 
         let visibleCandlestickPatterns = candlestickPatterns;
@@ -970,13 +1104,6 @@ const Chart: React.FC<ChartProps> = ({
             return index === -1 ? 999 : index;
         };
         legendEntries.sort((a, b) => getOrderIndex(a.label) - getOrderIndex(b.label));
-
-        if (previousDayHigh !== undefined && previousDayHigh !== null && !isNaN(previousDayHigh)) {
-            legendEntries.push({ label: `Prev Day High - ${previousDayHigh.toFixed(2)}`, color: '#22c55e' });
-        }
-        if (previousDayLow !== undefined && previousDayLow !== null && !isNaN(previousDayLow)) {
-            legendEntries.push({ label: `Prev Day Low - ${previousDayLow.toFixed(2)}`, color: '#ef4444' });
-        }
 
         setLegend(legendEntries);
 

@@ -583,12 +583,19 @@ function App() {
     }
 
     if (!analysisData || !analysisData.candle) {
+      if (loading) {
+        return (
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <Loader2 className="animate-spin text-blue-500" size={32} />
+            <p className="text-sm font-semibold text-slate-400">
+              Loading technical analysis...
+            </p>
+          </div>
+        );
+      }
       return (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
-          <Loader2 className="animate-spin text-blue-500" size={32} />
-          <p className="text-sm font-semibold text-slate-400">
-            Fetching technical analysis...
-          </p>
+        <div className="flex-1 flex items-center justify-center text-slate-500">
+          No data available for this ticker
         </div>
       );
     }
@@ -1198,20 +1205,8 @@ function App() {
 
     if (intradayError || (intradayCandles.length === 0 && !quoteData)) {
       return (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <div className="max-w-md p-6 bg-slate-900 border border-slate-800 rounded-xl shadow-xl space-y-4">
-            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 text-blue-400">
-              <Info size={24} />
-            </div>
-            <h3 className="text-lg font-bold text-white">No Intraday Data</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              15-minute intraday candlesticks and live quotes are not available for{" "}
-              <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
-            </p>
-            <p className="text-xs text-slate-500">
-              Intraday streaming is configured for Indian market instruments (e.g. NIFTY50 via Angel One SmartAPI).
-            </p>
-          </div>
+        <div className="flex-1 flex items-center justify-center text-slate-500">
+          No data available for this ticker
         </div>
       );
     }
@@ -1225,6 +1220,15 @@ function App() {
     const pct = quoteData?.changePercent ?? pctChange(change, openPrice);
     const isPositive = change >= 0;
 
+    const chartTimestamp = quoteData?.timestamp || (latestCandle ? latestCandle.date : null);
+    const chartDateTimeFormatted = chartTimestamp ? (() => {
+      const d = new Date(chartTimestamp);
+      if (isNaN(d.getTime())) return chartTimestamp;
+      const datePart = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+      const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      return `${datePart}, ${timePart}`;
+    })() : null;
+
     return (
       <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
         {/* Quote / Summary Banner */}
@@ -1237,7 +1241,9 @@ function App() {
               </div>
             </div>
             <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Change</div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Change <span className="text-[10px] text-slate-500 font-normal lowercase">(vs last day close)</span>
+              </div>
               <div
                 className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
                   isPositive ? "text-emerald-400" : "text-rose-400"
@@ -1266,25 +1272,14 @@ function App() {
               <span className="text-slate-400 mr-1.5">Low:</span>
               <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
             </div>
-            {prevDayHigh != null && (
-              <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-emerald-800/40">
-                <span className="text-slate-400 mr-1.5">PDH:</span>
-                <span className="text-emerald-400 font-semibold">{prevDayHigh.toFixed(2)}</span>
+            {chartDateTimeFormatted && (
+              <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700 text-slate-300">
+                <span className="text-slate-400 mr-1.5">Chart:</span>
+                <span className="font-semibold">{chartDateTimeFormatted}</span>
               </div>
             )}
-            {prevDayLow != null && (
-              <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-rose-800/40">
-                <span className="text-slate-400 mr-1.5">PDL:</span>
-                <span className="text-rose-400 font-semibold">{prevDayLow.toFixed(2)}</span>
-              </div>
-            )}
-            {quoteData?.timestamp && (
-              <div className="bg-slate-800/50 px-2.5 py-1.5 rounded text-slate-400 text-[11px]">
-                {new Date(quoteData.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-              </div>
-            )}
-            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
-              15m Intraday
+            <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
+              15m
             </span>
           </div>
         </div>
@@ -1400,15 +1395,7 @@ function App() {
 
         {/* Dashboard Tab Content */}
         {activeTab === "overview" ? (
-          analysisData ? (
-            renderOverview()
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500">
-              {loading
-                ? "Loading technical analysis..."
-                : "No data available for this ticker"}
-            </div>
-          )
+          renderOverview()
         ) : activeTab === "charts" ? (
           <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
             {selectedTicker && (
