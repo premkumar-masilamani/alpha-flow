@@ -60,9 +60,66 @@ const INDICATOR_ORDER = [
   "MACD (12,26,9)"
 ];
 
+const STORAGE_KEY_TICKER = "alphaflow_selected_ticker";
+const STORAGE_KEY_TAB = "alphaflow_active_tab";
+const STORAGE_KEY_TIMEFRAME = "alphaflow_timeframe";
+
+const getInitialTicker = (): string | null => {
+  try {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTicker = params.get("ticker");
+      if (urlTicker) return urlTicker;
+      const savedTicker = localStorage.getItem(STORAGE_KEY_TICKER);
+      if (savedTicker) return savedTicker;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const getInitialTab = (): "overview" | "charts" | "intraday" => {
+  try {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get("tab");
+      if (urlTab === "overview" || urlTab === "charts" || urlTab === "intraday") {
+        return urlTab;
+      }
+      const savedTab = localStorage.getItem(STORAGE_KEY_TAB);
+      if (savedTab === "overview" || savedTab === "charts" || savedTab === "intraday") {
+        return savedTab;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return "overview";
+};
+
+const getInitialTimeframe = (): Timeframe => {
+  try {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTf = params.get("timeframe")?.toUpperCase();
+      if (urlTf === "DAILY" || urlTf === "WEEKLY") {
+        return urlTf as Timeframe;
+      }
+      const savedTf = localStorage.getItem(STORAGE_KEY_TIMEFRAME);
+      if (savedTf === "DAILY" || savedTf === "WEEKLY") {
+        return savedTf as Timeframe;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return "DAILY";
+};
+
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(getInitialTicker);
   const [showCandlestickPatterns, setShowCandlestickPatterns] = useState(false);
   const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
   const [showSupportResistance, setShowSupportResistance] = useState(false);
@@ -77,7 +134,7 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   // Timeframe and Indicators
-  const [timeframe, setTimeframe] = useState<Timeframe>("DAILY");
+  const [timeframe, setTimeframe] = useState<Timeframe>(getInitialTimeframe);
   const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
     [],
   );
@@ -94,7 +151,7 @@ function App() {
 
   // Layout states
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "charts" | "intraday">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "charts" | "intraday">(getInitialTab);
   const [isCspModalOpen, setIsCspModalOpen] = useState(false);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isCpModalOpen, setIsCpModalOpen] = useState(false);
@@ -129,6 +186,47 @@ function App() {
     timeframeRef.current = timeframe;
   }, [timeframe]);
 
+  useEffect(() => {
+    if (selectedTicker) {
+      try {
+        localStorage.setItem(STORAGE_KEY_TICKER, selectedTicker);
+      } catch {
+        // ignore
+      }
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("ticker", selectedTicker);
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_TAB, activeTab);
+    } catch {
+      // ignore
+    }
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", activeTab);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_TIMEFRAME, timeframe);
+    } catch {
+      // ignore
+    }
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("timeframe", timeframe.toLowerCase());
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [timeframe]);
+
   const toggleIndicator = (key: string) => {
     setEnabledIndicators((prev) => {
       const next = new Set(prev);
@@ -144,8 +242,14 @@ function App() {
         const data = await getTickers();
         setTickers(data);
         if (data.length > 0) {
-          const btcUsd = data.find((t) => t.symbol === "BTC-USD");
-          setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
+          const current = selectedTickerRef.current || getInitialTicker();
+          const match = current ? data.find((t) => t.symbol === current) : null;
+          if (match) {
+            setSelectedTicker(match.symbol);
+          } else {
+            const btcUsd = data.find((t) => t.symbol === "BTC-USD");
+            setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch tickers:", error);

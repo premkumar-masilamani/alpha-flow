@@ -1297,7 +1297,7 @@ const Chart: React.FC<ChartProps> = ({
         >
             <button
                 onClick={handleResetZoom}
-                className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded shadow-lg backdrop-blur text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                className="absolute top-2 right-24 z-10 flex items-center gap-1.5 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded shadow-lg backdrop-blur text-xs font-semibold transition-all hover:scale-105 active:scale-95"
                 title="Reset zoom to default (250 bars)"
             >
                 <RefreshCw size={12} className="animate-hover" />

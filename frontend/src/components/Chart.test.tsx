@@ -117,7 +117,9 @@ describe('Chart Component', () => {
             />
         );
 
-        expect(screen.getByText('Reset Zoom')).toBeInTheDocument();
+        const resetButton = screen.getByText('Reset Zoom').closest('button');
+        expect(resetButton).toBeInTheDocument();
+        expect(resetButton).toHaveClass('right-24');
         expect(screen.getByText('EMA (5) - 105.00')).toBeInTheDocument();
     });
 
