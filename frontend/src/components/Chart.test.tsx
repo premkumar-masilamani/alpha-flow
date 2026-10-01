@@ -765,7 +765,7 @@ describe('Chart Component', () => {
                 enabled={new Set()}
                 configs={[]}
                 symbol="NIFTY50"
-                timeframe="FIFTEEN_MINUTE"
+                timeframe="15M"
                 onLoadOlderData={vi.fn()}
             />
         );
@@ -828,7 +828,7 @@ describe('Chart Component', () => {
                 enabled={new Set()}
                 configs={[]}
                 symbol="NIFTY50"
-                timeframe="FIFTEEN_MINUTE"
+                timeframe="15M"
                 previousDayHigh={25100.5}
                 previousDayLow={24850.25}
                 onLoadOlderData={vi.fn()}

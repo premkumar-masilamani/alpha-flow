@@ -62,8 +62,7 @@ public class QuoteService {
       }
 
       Optional<IntradayPrice> latestIntraday =
-          intradayPriceRepository.findTopByTickerAndTimeframeOrderByPriceTimeDesc(
-              ticker, "FIFTEEN_MINUTE");
+          intradayPriceRepository.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "15M");
       if (latestIntraday.isPresent()) {
         IntradayPrice ip = latestIntraday.get();
         BigDecimal change = ip.getPriceClose().subtract(ip.getPriceOpen());

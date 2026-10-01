@@ -799,7 +799,7 @@ const Chart: React.FC<ChartProps> = ({
                 borderColor: '#334155',
                 timeVisible: true,
                 secondsVisible: false,
-                rightOffset: timeframe === 'FIFTEEN_MINUTE' ? 3 : 10,
+                rightOffset: timeframe === '15M' ? 3 : 10,
             },
         });
         chartRef.current = chart;
@@ -837,7 +837,7 @@ const Chart: React.FC<ChartProps> = ({
             } : {}),
         }, 0);
 
-        if (timeframe === 'FIFTEEN_MINUTE') {
+        if (timeframe === '15M') {
             candlestickSeries.priceScale().applyOptions({
                 scaleMargins: {
                     top: 0.04,
@@ -1093,7 +1093,7 @@ const Chart: React.FC<ChartProps> = ({
         prevDataLengthRef.current = sortedData.length;
 
         // Set visible range (either fit content for intraday, restore saved, or set default 250 bars)
-        if (timeframe === 'FIFTEEN_MINUTE') {
+        if (timeframe === '15M') {
             chart.timeScale().fitContent?.();
         } else if (visibleLogicalRangeRef.current) {
             chart.timeScale().setVisibleLogicalRange(visibleLogicalRangeRef.current);
@@ -1263,7 +1263,7 @@ const Chart: React.FC<ChartProps> = ({
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
-        if (timeframe === 'FIFTEEN_MINUTE') {
+        if (timeframe === '15M') {
             chartRef.current.timeScale().fitContent();
             return;
         }

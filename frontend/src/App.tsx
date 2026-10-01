@@ -376,7 +376,7 @@ function App() {
       }
       try {
         const [rawCandles, quote] = await Promise.all([
-          getCandleData(selectedTicker, "FIFTEEN_MINUTE", 0, 100, !isInitial).catch((err) => {
+          getCandleData(selectedTicker, "15M", 0, 100, !isInitial).catch((err) => {
             console.warn("Failed to fetch 15m candle data:", err);
             return [] as DailyCandleData[];
           }),
@@ -1308,7 +1308,7 @@ function App() {
               enabled={new Set()}
               configs={[]}
               symbol={selectedTicker!}
-              timeframe="FIFTEEN_MINUTE"
+              timeframe="15M"
               showVolume={false}
               previousDayHigh={prevDayHigh}
               previousDayLow={prevDayLow}

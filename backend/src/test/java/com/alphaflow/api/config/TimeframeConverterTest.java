@@ -26,11 +26,12 @@ class TimeframeConverterTest {
 
   @Test
   void testConvertFifteenMinuteVariations() {
-    assertEquals(Timeframe.FIFTEEN_MINUTE, converter.convert("fifteen_minute"));
-    assertEquals(Timeframe.FIFTEEN_MINUTE, converter.convert("FIFTEEN_MINUTE"));
-    assertEquals(Timeframe.FIFTEEN_MINUTE, converter.convert("15m"));
-    assertEquals(Timeframe.FIFTEEN_MINUTE, converter.convert("15M"));
-    assertEquals(Timeframe.FIFTEEN_MINUTE, converter.convert("15min"));
+    assertEquals(Timeframe._15M, converter.convert("fifteen_minute"));
+    assertEquals(Timeframe._15M, converter.convert("FIFTEEN_MINUTE"));
+    assertEquals(Timeframe._15M, converter.convert("15m"));
+    assertEquals(Timeframe._15M, converter.convert("15M"));
+    assertEquals(Timeframe._15M, converter.convert("15min"));
+    assertEquals(Timeframe._15M, converter.convert("_15M"));
   }
 
   @Test

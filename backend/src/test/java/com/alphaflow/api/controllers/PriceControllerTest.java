@@ -61,8 +61,7 @@ class PriceControllerTest {
     assertEquals(1, weeklyRes.size());
 
     when(intradayPriceService.getIntradayPrice(ticker, 0, 250)).thenReturn(List.of(dto));
-    List<OhlcvDto> intradayRes =
-        controller.getPriceDataForTicker("AAPL", Timeframe.FIFTEEN_MINUTE, 0, 250);
+    List<OhlcvDto> intradayRes = controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250);
     assertEquals(1, intradayRes.size());
 
     com.alphaflow.api.dtos.QuoteDto mockQuote =

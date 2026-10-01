@@ -61,13 +61,9 @@ class AngelOneDownloaderTest {
 
     OffsetDateTime latestTime = OffsetDateTime.now(IST_ZONE).minusHours(1);
     IntradayPrice existing =
-        IntradayPrice.builder()
-            .ticker(ticker)
-            .priceTime(latestTime)
-            .timeframe("FIFTEEN_MINUTE")
-            .build();
+        IntradayPrice.builder().ticker(ticker).priceTime(latestTime).timeframe("15M").build();
 
-    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "FIFTEEN_MINUTE"))
+    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "15M"))
         .thenReturn(Optional.of(existing));
 
     OffsetDateTime newCandleTime = latestTime.plusMinutes(15);
@@ -102,13 +98,9 @@ class AngelOneDownloaderTest {
     // Saved time is in the future
     OffsetDateTime futureTime = OffsetDateTime.now(IST_ZONE).plusMinutes(15);
     IntradayPrice existing =
-        IntradayPrice.builder()
-            .ticker(ticker)
-            .priceTime(futureTime)
-            .timeframe("FIFTEEN_MINUTE")
-            .build();
+        IntradayPrice.builder().ticker(ticker).priceTime(futureTime).timeframe("15M").build();
 
-    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "FIFTEEN_MINUTE"))
+    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "15M"))
         .thenReturn(Optional.of(existing));
 
     downloader.downloadIntradayPrices();
@@ -125,7 +117,7 @@ class AngelOneDownloaderTest {
     Ticker ticker =
         Ticker.builder().tickerSymbol("NIFTY50").dataProvider(DataProvider.ANGEL_ONE).build();
 
-    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "FIFTEEN_MINUTE"))
+    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "15M"))
         .thenReturn(Optional.empty());
 
     when(client.getCandleData(any(), any(), any(), any(), any())).thenReturn(List.of());
@@ -145,9 +137,9 @@ class AngelOneDownloaderTest {
 
     OffsetDateTime time = OffsetDateTime.now(IST_ZONE).minusHours(1);
     IntradayPrice existing =
-        IntradayPrice.builder().ticker(ticker).priceTime(time).timeframe("FIFTEEN_MINUTE").build();
+        IntradayPrice.builder().ticker(ticker).priceTime(time).timeframe("15M").build();
 
-    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "FIFTEEN_MINUTE"))
+    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "15M"))
         .thenReturn(Optional.of(existing));
 
     // Candle older than or equal to existing

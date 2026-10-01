@@ -93,7 +93,7 @@ class QuoteServiceTest {
             .volume(BigDecimal.ZERO)
             .build();
 
-    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "FIFTEEN_MINUTE"))
+    when(intradayRepo.findTopByTickerAndTimeframeOrderByPriceTimeDesc(ticker, "15M"))
         .thenReturn(Optional.of(ip));
 
     QuoteDto dto = quoteService.getQuote(ticker);

@@ -37,7 +37,7 @@ const MAX_CACHE_ENTRIES = 50;
 // Map preserves insertion order, which we use as a simple LRU to bound memory growth.
 const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: number }>();
 
-export type Timeframe = 'DAILY' | 'WEEKLY' | 'FIFTEEN_MINUTE';
+export type Timeframe = 'DAILY' | 'WEEKLY' | '15M';
 
 export interface QuoteData {
     symbol: string;
@@ -78,7 +78,7 @@ export const getCandleData = async (
     const now = Date.now();
     const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = candleDataCache.get(cacheKey);
-    const ttl = timeframe === 'FIFTEEN_MINUTE' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
+    const ttl = timeframe === '15M' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
     if (!forceFresh && cached && (now - cached.timestamp < ttl)) {
         // Mark as most-recently-used.
         candleDataCache.delete(cacheKey);

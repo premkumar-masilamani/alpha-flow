@@ -32,7 +32,7 @@ class IntradayPriceServiceTest {
     IntradayPrice p1 =
         IntradayPrice.builder()
             .ticker(ticker)
-            .timeframe("FIFTEEN_MINUTE")
+            .timeframe("15M")
             .priceTime(t1)
             .priceOpen(new BigDecimal("25000.0000"))
             .priceHigh(new BigDecimal("25050.0000"))
@@ -44,7 +44,7 @@ class IntradayPriceServiceTest {
     IntradayPrice p2 =
         IntradayPrice.builder()
             .ticker(ticker)
-            .timeframe("FIFTEEN_MINUTE")
+            .timeframe("15M")
             .priceTime(t2)
             .priceOpen(new BigDecimal("25040.0000"))
             .priceHigh(new BigDecimal("25080.0000"))
@@ -53,7 +53,7 @@ class IntradayPriceServiceTest {
             .volume(BigDecimal.ZERO)
             .build();
 
-    when(repo.findLatestByTickerAndTimeframe(ticker, "FIFTEEN_MINUTE", PageRequest.of(0, 250)))
+    when(repo.findLatestByTickerAndTimeframe(ticker, "15M", PageRequest.of(0, 250)))
         .thenReturn(List.of(p2, p1));
 
     List<OhlcvDto> result = service.getIntradayPrice(ticker, 0, 250);

@@ -62,7 +62,7 @@ public class PriceController {
       return dailyPriceService.getDailyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
-    } else if (timeframe == Timeframe.FIFTEEN_MINUTE) {
+    } else if (timeframe == Timeframe._15M) {
       return intradayPriceService.getIntradayPrice(ticker, page, finalSize);
     } else {
       log.error("Unsupported timeframe for price data: {}", timeframe);

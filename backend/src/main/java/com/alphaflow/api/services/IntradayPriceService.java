@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class IntradayPriceService {
 
-  public static final String DEFAULT_TIMEFRAME = "FIFTEEN_MINUTE";
+  public static final String DEFAULT_TIMEFRAME = "15M";
 
   private final IntradayPriceRepository intradayPriceRepository;
 

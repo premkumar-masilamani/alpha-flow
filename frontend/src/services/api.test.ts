@@ -71,17 +71,17 @@ describe('API Service Layer Tests', () => {
             );
         });
 
-        it('should request 15m data endpoint when timeframe is FIFTEEN_MINUTE', async () => {
+        it('should request 15m data endpoint when timeframe is 15M', async () => {
             const mockCandles: DailyCandleData[] = [
                 { date: '2026-09-23T09:15:00', open: 25000, high: 25050, low: 24980, close: 25020, vol: 150000 }
             ];
             mockedAxios.get.mockResolvedValueOnce({ data: mockCandles });
 
-            const result = await getCandleData('NIFTY50', 'FIFTEEN_MINUTE', 0);
+            const result = await getCandleData('NIFTY50', '15M', 0);
             expect(result).toEqual(mockCandles);
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/NIFTY50/data'),
-                expect.objectContaining({ params: expect.objectContaining({ timeframe: 'fifteen_minute' }) })
+                expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m' }) })
             );
         });
     });
