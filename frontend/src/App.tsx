@@ -551,6 +551,23 @@ function App() {
     return label.replace(/^([A-Za-z]+)\((.*)\)$/, '$1 ($2)');
   };
 
+  const formatSectionDate = (dateStr?: string | null): string => {
+    if (!dateStr || dateStr === "N/A") return "N/A";
+    const parts = dateStr.split("T")[0].split("-");
+    let d: Date;
+    if (parts.length === 3) {
+      d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    } else {
+      d = new Date(dateStr);
+    }
+    if (isNaN(d.getTime())) return dateStr;
+    const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
+    const month = d.toLocaleDateString("en-US", { month: "short" });
+    const day = String(d.getDate()).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${weekday}, ${month} ${day}, ${year}`;
+  };
+
   const renderOverview = () => {
     if (analysisError === "stale") {
       return (
@@ -619,7 +636,7 @@ function App() {
                   All Candlestick Patterns
                 </button>
                 <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                  {candle?.date || "N/A"}
+                  {formatSectionDate(candle?.date)}
                 </span>
               </div>
             </div>
@@ -668,7 +685,7 @@ function App() {
                 All Candlestick Patterns
               </button>
               <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                {candle?.date || "N/A"}
+                {formatSectionDate(candle?.date)}
               </span>
             </div>
           </div>
@@ -788,7 +805,7 @@ function App() {
                   All Chart Patterns
                 </button>
                 <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                  {candle?.date || "N/A"}
+                  {formatSectionDate(candle?.date)}
                 </span>
               </div>
             </div>
@@ -815,7 +832,7 @@ function App() {
                 All Chart Patterns
               </button>
               <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                {patterns.length} {patterns.length === 1 ? "Pattern" : "Patterns"} Active
+                {formatSectionDate(candle?.date)}
               </span>
             </div>
           </div>
@@ -1091,7 +1108,7 @@ function App() {
               OHLCV Technical Analysis
             </div>
             <div className="text-xs px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 font-semibold text-slate-300 font-mono">
-              {candle.date}
+              {formatSectionDate(candle.date)}
             </div>
           </div>
           <div className="flex items-baseline gap-2 mb-6">
@@ -1187,8 +1204,8 @@ function App() {
         {renderChartPatterns(overviewChartPatterns, recentDailyCandles)}
 
         {/* Indicators Tables */}
-        {renderIndicatorTable("Daily Indicators", dailyDate, dailyIndicators)}
-        {renderIndicatorTable("Weekly Indicators", weeklyDate, weeklyIndicators)}
+        {renderIndicatorTable("Daily Indicators", formatSectionDate(dailyDate), dailyIndicators)}
+        {renderIndicatorTable("Weekly Indicators", formatSectionDate(weeklyDate), weeklyIndicators)}
       </div>
     );
   };
@@ -1216,18 +1233,13 @@ function App() {
     const openPrice = quoteData?.open ?? (latestCandle ? latestCandle.open : 0);
     const highPrice = quoteData?.high ?? (latestCandle ? latestCandle.high : 0);
     const lowPrice = quoteData?.low ?? (latestCandle ? latestCandle.low : 0);
+    const closePrice = latestCandle ? latestCandle.close : ltp;
     const change = quoteData?.change ?? (openPrice > 0 ? ltp - openPrice : 0);
     const pct = quoteData?.changePercent ?? pctChange(change, openPrice);
     const isPositive = change >= 0;
 
-    const chartTimestamp = quoteData?.timestamp || (latestCandle ? latestCandle.date : null);
-    const chartDateTimeFormatted = chartTimestamp ? (() => {
-      const d = new Date(chartTimestamp);
-      if (isNaN(d.getTime())) return chartTimestamp;
-      const datePart = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-      const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-      return `${datePart}, ${timePart}`;
-    })() : null;
+    const chartDate = latestCandle?.date || quoteData?.timestamp;
+    const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
 
     return (
       <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
@@ -1272,11 +1284,14 @@ function App() {
               <span className="text-slate-400 mr-1.5">Low:</span>
               <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
             </div>
-            {chartDateTimeFormatted && (
-              <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700 text-slate-300">
-                <span className="text-slate-400 mr-1.5">Chart:</span>
-                <span className="font-semibold">{chartDateTimeFormatted}</span>
-              </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Close:</span>
+              <span className="text-slate-200 font-semibold">{closePrice.toFixed(2)}</span>
+            </div>
+            {chartDateFormatted && chartDateFormatted !== "N/A" && (
+              <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
+                {chartDateFormatted}
+              </span>
             )}
             <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
               15m

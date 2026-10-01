@@ -825,7 +825,7 @@ const Chart: React.FC<ChartProps> = ({
                         max = Math.max(max, previousDayHigh);
                     }
                     const span = max - min;
-                    const margin = span > 0 ? span * 0.15 : 10;
+                    const margin = span > 0 ? span * 0.02 : 5;
                     return {
                         ...res,
                         priceRange: {
@@ -836,6 +836,15 @@ const Chart: React.FC<ChartProps> = ({
                 }
             } : {}),
         }, 0);
+
+        if (timeframe === 'FIFTEEN_MINUTE') {
+            candlestickSeries.priceScale().applyOptions({
+                scaleMargins: {
+                    top: 0.04,
+                    bottom: 0.04,
+                },
+            });
+        }
         candlestickSeries.setData(sortedData.map((d) => ({
             time: toChartTime(d.date),
             open: Number(d.open),
