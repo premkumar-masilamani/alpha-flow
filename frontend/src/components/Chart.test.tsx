@@ -29,6 +29,7 @@ vi.mock('lightweight-charts', () => {
                 subscribeVisibleTimeRangeChange: vi.fn(),
                 subscribeVisibleLogicalRangeChange: vi.fn(),
                 timeToCoordinate: vi.fn().mockReturnValue(100),
+                fitContent: vi.fn(),
             }),
             panes: vi.fn().mockReturnValue([]),
         }),
@@ -769,16 +770,86 @@ describe('Chart Component', () => {
             />
         );
 
+        const d = new Date('2026-09-23T09:15:00Z');
+        const expectedTime = Math.floor(
+            Date.UTC(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                d.getHours(),
+                d.getMinutes(),
+                d.getSeconds()
+            ) / 1000
+        );
+
         const chartInstance = vi.mocked(createChart).mock.results[vi.mocked(createChart).mock.results.length - 1].value;
         const candlestickSeries = chartInstance.addSeries.mock.results[0].value;
         expect(candlestickSeries.setData).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({
-                    time: Math.floor(new Date('2026-09-23T09:15:00Z').getTime() / 1000),
+                    time: expectedTime,
                     open: 25000,
                     close: 25020
                 })
             ])
         );
+        expect(chartInstance.timeScale().fitContent).toHaveBeenCalled();
+    });
+
+    it('does not add volume series when showVolume is false', () => {
+        render(
+            <Chart
+                data={mockData}
+                indicators={[]}
+                enabled={new Set()}
+                configs={[]}
+                symbol="AAPL"
+                timeframe="DAILY"
+                showVolume={false}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[vi.mocked(createChart).mock.results.length - 1].value;
+        // Candlestick series only, no HistogramSeries
+        expect(chartInstance.addSeries).toHaveBeenCalledTimes(1);
+        expect(chartInstance.addSeries).toHaveBeenCalledWith(
+            'CandlestickSeries',
+            expect.anything(),
+            0
+        );
+    });
+
+    it('creates price lines and legend entries for previous day high and low', () => {
+        render(
+            <Chart
+                data={mockData}
+                indicators={[]}
+                enabled={new Set()}
+                configs={[]}
+                symbol="NIFTY50"
+                timeframe="FIFTEEN_MINUTE"
+                previousDayHigh={25100.5}
+                previousDayLow={24850.25}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[vi.mocked(createChart).mock.results.length - 1].value;
+        const candlestickSeries = chartInstance.addSeries.mock.results[0].value;
+        expect(candlestickSeries.createPriceLine).toHaveBeenCalledWith(
+            expect.objectContaining({
+                price: 25100.5,
+                title: 'Prev Day High',
+            })
+        );
+        expect(candlestickSeries.createPriceLine).toHaveBeenCalledWith(
+            expect.objectContaining({
+                price: 24850.25,
+                title: 'Prev Day Low',
+            })
+        );
+        expect(screen.getByText('Prev Day High - 25100.50')).toBeInTheDocument();
+        expect(screen.getByText('Prev Day Low - 24850.25')).toBeInTheDocument();
     });
 });

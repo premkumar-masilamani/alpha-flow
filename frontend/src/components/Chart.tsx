@@ -508,6 +508,9 @@ interface ChartProps {
     chartPatterns?: ChartPatternData[];
     showChartPatterns?: boolean;
     onLoadOlderData: () => void;
+    showVolume?: boolean;
+    previousDayHigh?: number | null;
+    previousDayLow?: number | null;
 }
 
 interface LegendEntry {
@@ -560,7 +563,17 @@ const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; s
 
 const toChartTime = (dateStr: string): Time => {
     if (dateStr && (dateStr.includes('T') || dateStr.includes(':') || dateStr.includes(' '))) {
-        return Math.floor(new Date(dateStr).getTime() / 1000) as Time;
+        const d = new Date(dateStr);
+        return Math.floor(
+            Date.UTC(
+                d.getFullYear(),
+                d.getMonth(),
+                d.getDate(),
+                d.getHours(),
+                d.getMinutes(),
+                d.getSeconds()
+            ) / 1000
+        ) as Time;
     }
     return dateStr as Time;
 };
@@ -631,6 +644,9 @@ const Chart: React.FC<ChartProps> = ({
     chartPatterns = EMPTY_CHART_PATTERNS,
     showChartPatterns = false,
     onLoadOlderData,
+    showVolume = true,
+    previousDayHigh = null,
+    previousDayLow = null,
 }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const [legend, setLegend] = useState<LegendEntry[]>([]);
@@ -675,7 +691,8 @@ const Chart: React.FC<ChartProps> = ({
             timeScale: {
                 borderColor: '#334155',
                 timeVisible: true,
-                rightOffset: 10,
+                secondsVisible: false,
+                rightOffset: timeframe === 'FIFTEEN_MINUTE' ? 3 : 10,
             },
         });
         chartRef.current = chart;
@@ -696,6 +713,28 @@ const Chart: React.FC<ChartProps> = ({
             low: Number(d.low),
             close: Number(d.close),
         })));
+
+        if (previousDayHigh !== undefined && previousDayHigh !== null && !isNaN(previousDayHigh)) {
+            candlestickSeries.createPriceLine({
+                price: previousDayHigh,
+                color: '#22c55e',
+                lineWidth: 1,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: 'Prev Day High',
+            });
+        }
+
+        if (previousDayLow !== undefined && previousDayLow !== null && !isNaN(previousDayLow)) {
+            candlestickSeries.createPriceLine({
+                price: previousDayLow,
+                color: '#ef4444',
+                lineWidth: 1,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: 'Prev Day Low',
+            });
+        }
 
         let visibleCandlestickPatterns = candlestickPatterns;
         if (!showCandlestickPatterns) {
@@ -759,17 +798,19 @@ const Chart: React.FC<ChartProps> = ({
             }
         }
 
-        const volumeSeries = chart.addSeries(HistogramSeries, {
-            color: '#3b82f6',
-            priceFormat: {type: 'volume'},
-            priceScaleId: '',
-        }, 0);
-        volumeSeries.priceScale().applyOptions({scaleMargins: {top: 0.8, bottom: 0}});
-        volumeSeries.setData(sortedData.map((d) => ({
-            time: toChartTime(d.date),
-            value: Number(d.vol),
-            color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
-        })));
+        if (showVolume) {
+            const volumeSeries = chart.addSeries(HistogramSeries, {
+                color: '#3b82f6',
+                priceFormat: {type: 'volume'},
+                priceScaleId: '',
+            }, 0);
+            volumeSeries.priceScale().applyOptions({scaleMargins: {top: 0.8, bottom: 0}});
+            volumeSeries.setData(sortedData.map((d) => ({
+                time: toChartTime(d.date),
+                value: Number(d.vol),
+                color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+            })));
+        }
 
         const legendEntries: LegendEntry[] = [];
         let colorIdx = 0;
@@ -908,8 +949,10 @@ const Chart: React.FC<ChartProps> = ({
         }
         prevDataLengthRef.current = sortedData.length;
 
-        // Set visible range (either restore saved or set default 250 bars)
-        if (visibleLogicalRangeRef.current) {
+        // Set visible range (either fit content for intraday, restore saved, or set default 250 bars)
+        if (timeframe === 'FIFTEEN_MINUTE') {
+            chart.timeScale().fitContent?.();
+        } else if (visibleLogicalRangeRef.current) {
             chart.timeScale().setVisibleLogicalRange(visibleLogicalRangeRef.current);
         } else {
             // Default view: latest 250 bars with 10 bars of empty space on the right
@@ -927,6 +970,13 @@ const Chart: React.FC<ChartProps> = ({
             return index === -1 ? 999 : index;
         };
         legendEntries.sort((a, b) => getOrderIndex(a.label) - getOrderIndex(b.label));
+
+        if (previousDayHigh !== undefined && previousDayHigh !== null && !isNaN(previousDayHigh)) {
+            legendEntries.push({ label: `Prev Day High - ${previousDayHigh.toFixed(2)}`, color: '#22c55e' });
+        }
+        if (previousDayLow !== undefined && previousDayLow !== null && !isNaN(previousDayLow)) {
+            legendEntries.push({ label: `Prev Day Low - ${previousDayLow.toFixed(2)}`, color: '#ef4444' });
+        }
 
         setLegend(legendEntries);
 
@@ -1073,10 +1123,14 @@ const Chart: React.FC<ChartProps> = ({
             chartRef.current = null;
             chart.remove();
         };
-    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, chartPatterns, showChartPatterns, onLoadOlderData]);
+    }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, chartPatterns, showChartPatterns, onLoadOlderData, showVolume, previousDayHigh, previousDayLow]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
+        if (timeframe === 'FIFTEEN_MINUTE') {
+            chartRef.current.timeScale().fitContent();
+            return;
+        }
         const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
 
         const targetRange = {

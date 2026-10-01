@@ -56,10 +56,10 @@ export interface QuoteData {
 const quoteDataCache = new Map<string, { data: QuoteData; timestamp: number }>();
 const QUOTE_CACHE_DURATION = 10 * 1000; // 10 seconds
 
-export const getQuote = async (symbol: string): Promise<QuoteData> => {
+export const getQuote = async (symbol: string, forceFresh = false): Promise<QuoteData> => {
     const now = Date.now();
     const cached = quoteDataCache.get(symbol);
-    if (cached && (now - cached.timestamp < QUOTE_CACHE_DURATION)) {
+    if (!forceFresh && cached && (now - cached.timestamp < QUOTE_CACHE_DURATION)) {
         return cached.data;
     }
 
@@ -72,13 +72,14 @@ export const getCandleData = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
     page: number = 0,
-    size: number = CHART_WINDOW
+    size: number = CHART_WINDOW,
+    forceFresh = false
 ): Promise<DailyCandleData[]> => {
     const now = Date.now();
     const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = candleDataCache.get(cacheKey);
     const ttl = timeframe === 'FIFTEEN_MINUTE' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
-    if (cached && (now - cached.timestamp < ttl)) {
+    if (!forceFresh && cached && (now - cached.timestamp < ttl)) {
         // Mark as most-recently-used.
         candleDataCache.delete(cacheKey);
         candleDataCache.set(cacheKey, cached);

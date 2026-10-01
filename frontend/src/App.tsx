@@ -103,6 +103,8 @@ function App() {
   // Intraday states
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [intradayCandles, setIntradayCandles] = useState<DailyCandleData[]>([]);
+  const [prevDayHigh, setPrevDayHigh] = useState<number | null>(null);
+  const [prevDayLow, setPrevDayLow] = useState<number | null>(null);
   const [intradayLoading, setIntradayLoading] = useState(false);
   const [intradayError, setIntradayError] = useState<string | null>(null);
 
@@ -358,41 +360,110 @@ function App() {
       return;
     }
     let active = true;
-    const fetchIntraday = async () => {
-      setIntradayLoading(true);
-      setIntradayError(null);
+
+    const getLocalDateKey = (dateStr: string): string => {
+      const d = new Date(dateStr);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const fetchIntraday = async (isInitial = false) => {
+      if (isInitial) {
+        setIntradayLoading(true);
+        setIntradayError(null);
+      }
       try {
-        const [candles, quote] = await Promise.all([
-          getCandleData(selectedTicker, "FIFTEEN_MINUTE", 0).catch((err) => {
+        const [rawCandles, quote] = await Promise.all([
+          getCandleData(selectedTicker, "FIFTEEN_MINUTE", 0, 100, !isInitial).catch((err) => {
             console.warn("Failed to fetch 15m candle data:", err);
             return [] as DailyCandleData[];
           }),
-          getQuote(selectedTicker).catch((err) => {
+          getQuote(selectedTicker, true).catch((err) => {
             console.warn("Failed to fetch live quote:", err);
             return null as QuoteData | null;
           }),
         ]);
-        if (active) {
-          setIntradayCandles(candles);
-          setQuoteData(quote);
-          if (candles.length === 0 && !quote) {
+
+        if (!active) return;
+
+        if (rawCandles.length === 0 && !quote) {
+          if (isInitial) {
             setIntradayError("No 15-minute intraday data available for this ticker");
+            setIntradayCandles([]);
+            setQuoteData(null);
+            setPrevDayHigh(null);
+            setPrevDayLow(null);
+          }
+          return;
+        }
+
+        // Sort ascending by timestamp
+        const sortedRawCandles = [...rawCandles].sort((a, b) => a.date.localeCompare(b.date));
+        const distinctDays = Array.from(
+          new Set(sortedRawCandles.map((c) => getLocalDateKey(c.date)))
+        );
+
+        let currentDayCandles: DailyCandleData[] = [];
+        let calculatedPdh: number | null = null;
+        let calculatedPdl: number | null = null;
+
+        if (distinctDays.length > 0) {
+          const latestDay = distinctDays[distinctDays.length - 1];
+          currentDayCandles = sortedRawCandles.filter((c) => getLocalDateKey(c.date) === latestDay);
+
+          if (distinctDays.length >= 2) {
+            const previousDay = distinctDays[distinctDays.length - 2];
+            const previousDayCandles = sortedRawCandles.filter(
+              (c) => getLocalDateKey(c.date) === previousDay
+            );
+            if (previousDayCandles.length > 0) {
+              calculatedPdh = Math.max(...previousDayCandles.map((c) => Number(c.high)));
+              calculatedPdl = Math.min(...previousDayCandles.map((c) => Number(c.low)));
+            }
           }
         }
+
+        // Merge live quote LTP into the latest candle of the current day
+        if (currentDayCandles.length > 0 && quote && quote.lastPrice > 0) {
+          const lastIndex = currentDayCandles.length - 1;
+          const lastCandle = currentDayCandles[lastIndex];
+          const ltp = Number(quote.lastPrice);
+          const updatedLastCandle: DailyCandleData = {
+            ...lastCandle,
+            high: Math.max(Number(lastCandle.high), ltp),
+            low: Math.min(Number(lastCandle.low), ltp),
+            close: ltp,
+          };
+          currentDayCandles[lastIndex] = updatedLastCandle;
+        }
+
+        setIntradayCandles(currentDayCandles);
+        setQuoteData(quote);
+        if (calculatedPdh != null) setPrevDayHigh(calculatedPdh);
+        if (calculatedPdl != null) setPrevDayLow(calculatedPdl);
       } catch (err) {
-        if (active) {
+        if (active && isInitial) {
           console.error("Failed to load intraday data:", err);
           setIntradayError("Failed to load intraday data");
         }
       } finally {
-        if (active) {
+        if (active && isInitial) {
           setIntradayLoading(false);
         }
       }
     };
-    fetchIntraday();
+
+    fetchIntraday(true);
+
+    const intervalTimer = setInterval(() => {
+      fetchIntraday(false);
+    }, 30_000);
+
     return () => {
       active = false;
+      clearInterval(intervalTimer);
     };
   }, [selectedTicker, activeTab]);
 
@@ -1150,7 +1221,6 @@ function App() {
     const openPrice = quoteData?.open ?? (latestCandle ? latestCandle.open : 0);
     const highPrice = quoteData?.high ?? (latestCandle ? latestCandle.high : 0);
     const lowPrice = quoteData?.low ?? (latestCandle ? latestCandle.low : 0);
-    const volume = quoteData?.volume ?? (latestCandle ? latestCandle.vol : 0);
     const change = quoteData?.change ?? (openPrice > 0 ? ltp - openPrice : 0);
     const pct = quoteData?.changePercent ?? pctChange(change, openPrice);
     const isPositive = change >= 0;
@@ -1196,10 +1266,18 @@ function App() {
               <span className="text-slate-400 mr-1.5">Low:</span>
               <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
             </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Vol:</span>
-              <span className="text-slate-200 font-semibold">{volume.toLocaleString()}</span>
-            </div>
+            {prevDayHigh != null && (
+              <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-emerald-800/40">
+                <span className="text-slate-400 mr-1.5">PDH:</span>
+                <span className="text-emerald-400 font-semibold">{prevDayHigh.toFixed(2)}</span>
+              </div>
+            )}
+            {prevDayLow != null && (
+              <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-rose-800/40">
+                <span className="text-slate-400 mr-1.5">PDL:</span>
+                <span className="text-rose-400 font-semibold">{prevDayLow.toFixed(2)}</span>
+              </div>
+            )}
             {quoteData?.timestamp && (
               <div className="bg-slate-800/50 px-2.5 py-1.5 rounded text-slate-400 text-[11px]">
                 {new Date(quoteData.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
@@ -1221,6 +1299,9 @@ function App() {
               configs={[]}
               symbol={selectedTicker!}
               timeframe="FIFTEEN_MINUTE"
+              showVolume={false}
+              previousDayHigh={prevDayHigh}
+              previousDayLow={prevDayLow}
               onLoadOlderData={() => {}}
             />
           ) : (
