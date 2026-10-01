@@ -34,7 +34,8 @@ class AngelOneAuthManagerTest {
 
     totpGenerator = new TotpGenerator();
     objectMapper = new ObjectMapper();
-    authManager = new AngelOneAuthManager(config, totpGenerator, objectMapper);
+    AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper(config);
+    authManager = new AngelOneAuthManager(config, totpGenerator, objectMapper, networkHelper);
   }
 
   @AfterEach
@@ -63,6 +64,13 @@ class AngelOneAuthManagerTest {
     server.createContext(
         "/rest/auth/angelbroking/user/v1/loginByPassword",
         exchange -> {
+          assertNotNull(exchange.getRequestHeaders().getFirst("X-MACaddress"));
+          assertNotNull(exchange.getRequestHeaders().getFirst("X-ClientLocalIP"));
+          assertNotNull(exchange.getRequestHeaders().getFirst("X-ClientPublicIP"));
+          assertEquals("test-api-key", exchange.getRequestHeaders().getFirst("X-PrivateKey"));
+          assertEquals("USER", exchange.getRequestHeaders().getFirst("X-UserType"));
+          assertEquals("WEB", exchange.getRequestHeaders().getFirst("X-SourceID"));
+
           byte[] bytes = successResponse.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, bytes.length);

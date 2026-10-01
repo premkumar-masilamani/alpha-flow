@@ -24,6 +24,7 @@ public class AngelOneAuthManager {
   private final AngelOneConfig config;
   private final TotpGenerator totpGenerator;
   private final ObjectMapper objectMapper;
+  private final AngelOneNetworkHelper networkHelper;
 
   private String jwtToken;
   private String refreshToken;
@@ -31,10 +32,14 @@ public class AngelOneAuthManager {
   private Instant tokenGeneratedAt;
 
   public AngelOneAuthManager(
-      AngelOneConfig config, TotpGenerator totpGenerator, ObjectMapper objectMapper) {
+      AngelOneConfig config,
+      TotpGenerator totpGenerator,
+      ObjectMapper objectMapper,
+      AngelOneNetworkHelper networkHelper) {
     this.config = config;
     this.totpGenerator = totpGenerator;
     this.objectMapper = objectMapper;
+    this.networkHelper = networkHelper;
   }
 
   public synchronized String getValidJwtToken() {
@@ -79,11 +84,7 @@ public class AngelOneAuthManager {
       conn.setConnectTimeout(10000);
       conn.setReadTimeout(10000);
       conn.setDoOutput(true);
-      conn.setRequestProperty("Content-Type", "application/json");
-      conn.setRequestProperty("Accept", "application/json");
-      conn.setRequestProperty("X-PrivateKey", config.getApiKey());
-      conn.setRequestProperty("X-UserType", "USER");
-      conn.setRequestProperty("X-SourceID", "WEB");
+      networkHelper.applyHeaders(conn, config.getApiKey());
 
       try (OutputStream os = conn.getOutputStream()) {
         os.write(requestBytes);

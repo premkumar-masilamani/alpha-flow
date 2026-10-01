@@ -16,4 +16,7 @@ public class AngelOneConfig {
   private String baseUrl = "https://apiconnect.angelone.in";
   private long delayMilliseconds = 1000;
   private int initialLookbackDays = 5;
+  private String clientLocalIp = "";
+  private String clientPublicIp = "";
+  private String macAddress = "";
 }

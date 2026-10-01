@@ -40,7 +40,8 @@ class AngelOneClientTest {
     when(authManager.getValidJwtToken()).thenReturn("mock-bearer-token");
 
     objectMapper = new ObjectMapper();
-    client = new AngelOneClient(config, authManager, objectMapper);
+    AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper(config);
+    client = new AngelOneClient(config, authManager, objectMapper, networkHelper);
   }
 
   @AfterEach
@@ -68,6 +69,13 @@ class AngelOneClientTest {
     server.createContext(
         "/rest/secure/angelbroking/historical/v1/getCandleData",
         exchange -> {
+          assertEquals(
+              "Bearer mock-bearer-token", exchange.getRequestHeaders().getFirst("Authorization"));
+          assertEquals("test-key", exchange.getRequestHeaders().getFirst("X-PrivateKey"));
+          assertNotNull(exchange.getRequestHeaders().getFirst("X-MACaddress"));
+          assertNotNull(exchange.getRequestHeaders().getFirst("X-ClientLocalIP"));
+          assertNotNull(exchange.getRequestHeaders().getFirst("X-ClientPublicIP"));
+
           byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, bytes.length);

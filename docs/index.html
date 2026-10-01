@@ -1602,6 +1602,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "label": "AngelOneNetworkHelper",
+      "parent": "com.alphaflow.engine.downloaders.angelone",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneNetworkHelper.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "label": "AngelOneClient",
       "parent": "com.alphaflow.engine.downloaders.angelone",
@@ -3858,6 +3869,15 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager_to_com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager_to_com.alphaflow.engine.downloaders.angelone.TotpGenerator",
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
       "target": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
@@ -3885,6 +3905,15 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
@@ -3897,6 +3926,15 @@
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
       "violation": false,
       "reason": ""
     }
@@ -4977,6 +5015,15 @@
       "id": "com.alphaflow.persistence.repositories.DailyPriceRepository_to_com.alphaflow.persistence.entities.Ticker",
       "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.persistence.repositories.DailyPriceRepository_to_com.alphaflow.persistence.enums.DataProvider",
+      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
       "violation": false,
       "reason": ""
     }

@@ -28,12 +28,17 @@ public class AngelOneClient {
   private final AngelOneConfig config;
   private final AngelOneAuthManager authManager;
   private final ObjectMapper objectMapper;
+  private final AngelOneNetworkHelper networkHelper;
 
   public AngelOneClient(
-      AngelOneConfig config, AngelOneAuthManager authManager, ObjectMapper objectMapper) {
+      AngelOneConfig config,
+      AngelOneAuthManager authManager,
+      ObjectMapper objectMapper,
+      AngelOneNetworkHelper networkHelper) {
     this.config = config;
     this.authManager = authManager;
     this.objectMapper = objectMapper;
+    this.networkHelper = networkHelper;
   }
 
   public static String resolveToken(String symbol) {
@@ -186,12 +191,7 @@ public class AngelOneClient {
     conn.setConnectTimeout(10000);
     conn.setReadTimeout(10000);
     conn.setDoOutput(true);
-    conn.setRequestProperty("Content-Type", "application/json");
-    conn.setRequestProperty("Accept", "application/json");
-    conn.setRequestProperty("Authorization", "Bearer " + jwtToken);
-    conn.setRequestProperty("X-PrivateKey", config.getApiKey());
-    conn.setRequestProperty("X-UserType", "USER");
-    conn.setRequestProperty("X-SourceID", "WEB");
+    networkHelper.applyAuthenticatedHeaders(conn, config.getApiKey(), jwtToken);
 
     try (OutputStream os = conn.getOutputStream()) {
       os.write(requestBytes);

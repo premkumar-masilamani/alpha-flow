@@ -847,6 +847,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "name": "AngelOneNetworkHelper",
+      "package": "com.alphaflow.engine.downloaders.angelone",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneNetworkHelper.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "name": "AngelOneClient",
       "package": "com.alphaflow.engine.downloaders.angelone",
@@ -2389,6 +2398,12 @@
     },
     {
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
       "target": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
       "violation": false,
       "reason": ""
@@ -2407,6 +2422,12 @@
     },
     {
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
       "violation": false,
       "reason": ""
@@ -2414,6 +2435,12 @@
     {
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
       "violation": false,
       "reason": ""
     },
@@ -3134,6 +3161,12 @@
     {
       "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
       "violation": false,
       "reason": ""
     },

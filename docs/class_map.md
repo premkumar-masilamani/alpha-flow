@@ -67,6 +67,7 @@ flowchart TD
         com_alphaflow_engine_downloaders_dtos_YahooResponse["YahooResponse (record)"]
         com_alphaflow_engine_downloaders_dtos_YahooChart["YahooChart (record)"]
         com_alphaflow_engine_downloaders_dtos_YahooIndicators["YahooIndicators (record)"]
+        com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper["AngelOneNetworkHelper (class)"]
         com_alphaflow_engine_downloaders_angelone_AngelOneClient["AngelOneClient (class)"]
         com_alphaflow_engine_downloaders_angelone_TotpGenerator["TotpGenerator (class)"]
         com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager["AngelOneAuthManager (class)"]
@@ -362,11 +363,14 @@ flowchart TD
     com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_persistence_entities_DailyPrice
     com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_TotpGenerator
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
+    com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_dtos_YahooChart --> com_alphaflow_engine_downloaders_dtos_YahooResult
     com_alphaflow_engine_downloaders_dtos_YahooIndicators --> com_alphaflow_engine_downloaders_dtos_YahooQuote
     com_alphaflow_engine_downloaders_dtos_YahooResponse --> com_alphaflow_engine_downloaders_dtos_YahooChart
@@ -487,6 +491,7 @@ flowchart TD
     com_alphaflow_persistence_repositories_DailyIndicatorRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_DailyPriceRepository --> com_alphaflow_persistence_entities_DailyPrice
     com_alphaflow_persistence_repositories_DailyPriceRepository --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_persistence_repositories_DailyPriceRepository --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_persistence_repositories_DailySupportResistanceRepository --> com_alphaflow_persistence_entities_DailySupportResistance
     com_alphaflow_persistence_repositories_DailySupportResistanceRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_IndicatorDefinitionRepository --> com_alphaflow_persistence_entities_IndicatorDefinition
@@ -513,8 +518,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 115
-- **Total Dependencies**: 370
+- **Total Classes**: 116
+- **Total Dependencies**: 374
 - **API Layer Classes**: 32
-- **Engine Layer Classes**: 41
+- **Engine Layer Classes**: 42
 - **Persistence Layer Classes**: 40
