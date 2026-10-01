@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -117,6 +117,14 @@ const getInitialTimeframe = (): Timeframe => {
   return "DAILY";
 };
 
+const getLocalDateKey = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
   const [selectedTicker, setSelectedTicker] = useState<string | null>(getInitialTicker);
@@ -159,11 +167,86 @@ function App() {
 
   // Intraday states
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
-  const [intradayCandles, setIntradayCandles] = useState<DailyCandleData[]>([]);
-  const [prevDayHigh, setPrevDayHigh] = useState<number | null>(null);
-  const [prevDayLow, setPrevDayLow] = useState<number | null>(null);
+  const [rawIntradayCandles, setRawIntradayCandles] = useState<DailyCandleData[]>([]);
+  const [selectedIntradayDay, setSelectedIntradayDay] = useState<string | null>(null);
   const [intradayLoading, setIntradayLoading] = useState(false);
   const [intradayError, setIntradayError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedIntradayDay(null);
+  }, [selectedTicker]);
+
+  // Calculate distinct available days sorted chronologically
+  const distinctDays = useMemo(() => {
+    const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
+    return Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
+  }, [rawIntradayCandles]);
+
+  // Determine active day: selected day if valid, otherwise defaults to latest available day
+  const activeDay = useMemo(() => {
+    if (distinctDays.length === 0) return null;
+    if (selectedIntradayDay && distinctDays.includes(selectedIntradayDay)) {
+      return selectedIntradayDay;
+    }
+    return distinctDays[distinctDays.length - 1];
+  }, [distinctDays, selectedIntradayDay]);
+
+  const activeDayIndex = useMemo(() => {
+    if (!activeDay) return -1;
+    return distinctDays.indexOf(activeDay);
+  }, [distinctDays, activeDay]);
+
+  const canGoPrev = activeDayIndex > 0;
+  const canGoNext = activeDayIndex >= 0 && activeDayIndex < distinctDays.length - 1;
+
+  const goToPrevDay = () => {
+    if (canGoPrev) {
+      setSelectedIntradayDay(distinctDays[activeDayIndex - 1]);
+    }
+  };
+
+  const goToNextDay = () => {
+    if (canGoNext) {
+      setSelectedIntradayDay(distinctDays[activeDayIndex + 1]);
+    }
+  };
+
+  const intradayCandles = useMemo(() => {
+    if (!activeDay) return [];
+    const filtered = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === activeDay);
+    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+
+    // If viewing the latest day and we have live quote, merge LTP into latest candle
+    const isLatest = activeDayIndex === distinctDays.length - 1;
+    if (isLatest && sorted.length > 0 && quoteData && quoteData.lastPrice > 0) {
+      const lastIndex = sorted.length - 1;
+      const lastCandle = sorted[lastIndex];
+      const ltp = Number(quoteData.lastPrice);
+      sorted[lastIndex] = {
+        ...lastCandle,
+        high: Math.max(Number(lastCandle.high), ltp),
+        low: Math.min(Number(lastCandle.low), ltp),
+        close: ltp,
+      };
+    }
+    return sorted;
+  }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData]);
+
+  const { prevDayHigh, prevDayLow, prevDayClose } = useMemo(() => {
+    if (activeDayIndex > 0) {
+      const prevDayKey = distinctDays[activeDayIndex - 1];
+      const prevCandles = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === prevDayKey);
+      if (prevCandles.length > 0) {
+        const sortedPrev = [...prevCandles].sort((a, b) => a.date.localeCompare(b.date));
+        return {
+          prevDayHigh: Math.max(...prevCandles.map((c) => Number(c.high))),
+          prevDayLow: Math.min(...prevCandles.map((c) => Number(c.low))),
+          prevDayClose: Number(sortedPrev[sortedPrev.length - 1].close),
+        };
+      }
+    }
+    return { prevDayHigh: null, prevDayLow: null, prevDayClose: null };
+  }, [rawIntradayCandles, distinctDays, activeDayIndex]);
 
   const openCspModal = (patternId?: string | null) => {
     setSelectedPatternId(patternId || null);
@@ -465,14 +548,6 @@ function App() {
     }
     let active = true;
 
-    const getLocalDateKey = (dateStr: string): string => {
-      const d = new Date(dateStr);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    };
-
     const fetchIntraday = async (isInitial = false) => {
       if (isInitial) {
         setIntradayLoading(true);
@@ -480,7 +555,7 @@ function App() {
       }
       try {
         const [rawCandles, quote] = await Promise.all([
-          getCandleData(selectedTicker, "15M", 0, 100, !isInitial).catch((err) => {
+          getCandleData(selectedTicker, "15M", 0, 250, !isInitial).catch((err) => {
             console.warn("Failed to fetch 15m candle data:", err);
             return [] as DailyCandleData[];
           }),
@@ -495,58 +570,14 @@ function App() {
         if (rawCandles.length === 0 && !quote) {
           if (isInitial) {
             setIntradayError("No 15-minute intraday data available for this ticker");
-            setIntradayCandles([]);
+            setRawIntradayCandles([]);
             setQuoteData(null);
-            setPrevDayHigh(null);
-            setPrevDayLow(null);
           }
           return;
         }
 
-        // Sort ascending by timestamp
-        const sortedRawCandles = [...rawCandles].sort((a, b) => a.date.localeCompare(b.date));
-        const distinctDays = Array.from(
-          new Set(sortedRawCandles.map((c) => getLocalDateKey(c.date)))
-        );
-
-        let currentDayCandles: DailyCandleData[] = [];
-        let calculatedPdh: number | null = null;
-        let calculatedPdl: number | null = null;
-
-        if (distinctDays.length > 0) {
-          const latestDay = distinctDays[distinctDays.length - 1];
-          currentDayCandles = sortedRawCandles.filter((c) => getLocalDateKey(c.date) === latestDay);
-
-          if (distinctDays.length >= 2) {
-            const previousDay = distinctDays[distinctDays.length - 2];
-            const previousDayCandles = sortedRawCandles.filter(
-              (c) => getLocalDateKey(c.date) === previousDay
-            );
-            if (previousDayCandles.length > 0) {
-              calculatedPdh = Math.max(...previousDayCandles.map((c) => Number(c.high)));
-              calculatedPdl = Math.min(...previousDayCandles.map((c) => Number(c.low)));
-            }
-          }
-        }
-
-        // Merge live quote LTP into the latest candle of the current day
-        if (currentDayCandles.length > 0 && quote && quote.lastPrice > 0) {
-          const lastIndex = currentDayCandles.length - 1;
-          const lastCandle = currentDayCandles[lastIndex];
-          const ltp = Number(quote.lastPrice);
-          const updatedLastCandle: DailyCandleData = {
-            ...lastCandle,
-            high: Math.max(Number(lastCandle.high), ltp),
-            low: Math.min(Number(lastCandle.low), ltp),
-            close: ltp,
-          };
-          currentDayCandles[lastIndex] = updatedLastCandle;
-        }
-
-        setIntradayCandles(currentDayCandles);
+        setRawIntradayCandles(rawCandles);
         setQuoteData(quote);
-        if (calculatedPdh != null) setPrevDayHigh(calculatedPdh);
-        if (calculatedPdl != null) setPrevDayLow(calculatedPdl);
       } catch (err) {
         if (active && isInitial) {
           console.error("Failed to load intraday data:", err);
@@ -1315,7 +1346,7 @@ function App() {
   };
 
   const renderIntradayTab = () => {
-    if (intradayLoading && intradayCandles.length === 0) {
+    if (intradayLoading && rawIntradayCandles.length === 0) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
           <Loader2 className="animate-spin text-blue-500" size={32} />
@@ -1324,7 +1355,7 @@ function App() {
       );
     }
 
-    if (intradayError || (intradayCandles.length === 0 && !quoteData)) {
+    if (intradayError || (rawIntradayCandles.length === 0 && !quoteData)) {
       return (
         <div className="flex-1 flex items-center justify-center text-slate-500">
           No data available for this ticker
@@ -1332,17 +1363,34 @@ function App() {
       );
     }
 
+    const isLatestDay = activeDayIndex === distinctDays.length - 1;
     const latestCandle = intradayCandles.length > 0 ? intradayCandles[intradayCandles.length - 1] : null;
-    const ltp = quoteData?.lastPrice ?? (latestCandle ? latestCandle.close : 0);
-    const openPrice = quoteData?.open ?? (latestCandle ? latestCandle.open : 0);
-    const highPrice = quoteData?.high ?? (latestCandle ? latestCandle.high : 0);
-    const lowPrice = quoteData?.low ?? (latestCandle ? latestCandle.low : 0);
+    const firstCandle = intradayCandles.length > 0 ? intradayCandles[0] : null;
+
+    const ltp = isLatestDay
+      ? (quoteData?.lastPrice ?? (latestCandle ? latestCandle.close : 0))
+      : (latestCandle ? latestCandle.close : 0);
+    const openPrice = isLatestDay
+      ? (quoteData?.open ?? (firstCandle ? firstCandle.open : 0))
+      : (firstCandle ? firstCandle.open : 0);
+    const highPrice = isLatestDay
+      ? (quoteData?.high ?? (intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0))
+      : (intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0);
+    const lowPrice = isLatestDay
+      ? (quoteData?.low ?? (intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0))
+      : (intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0);
     const closePrice = latestCandle ? latestCandle.close : ltp;
-    const change = quoteData?.change ?? (openPrice > 0 ? ltp - openPrice : 0);
-    const pct = quoteData?.changePercent ?? pctChange(change, openPrice);
+
+    const changeBase = prevDayClose ?? openPrice;
+    const change = isLatestDay
+      ? (quoteData?.change ?? (changeBase > 0 ? ltp - changeBase : 0))
+      : (changeBase > 0 ? closePrice - changeBase : 0);
+    const pct = isLatestDay
+      ? (quoteData?.changePercent ?? pctChange(change, changeBase))
+      : pctChange(change, changeBase);
     const isPositive = change >= 0;
 
-    const chartDate = latestCandle?.date || quoteData?.timestamp;
+    const chartDate = latestCandle?.date || (isLatestDay ? quoteData?.timestamp : null);
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
 
     return (
@@ -1393,9 +1441,29 @@ function App() {
               <span className="text-slate-200 font-semibold">{closePrice.toFixed(2)}</span>
             </div>
             {chartDateFormatted && chartDateFormatted !== "N/A" && (
-              <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
-                {chartDateFormatted}
-              </span>
+              <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
+                <button
+                  onClick={goToPrevDay}
+                  disabled={!canGoPrev}
+                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
+                  title="Previous day"
+                  aria-label="Previous day"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
+                  {chartDateFormatted}
+                </span>
+                <button
+                  onClick={goToNextDay}
+                  disabled={!canGoNext}
+                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-r"
+                  title="Next day"
+                  aria-label="Next day"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
             )}
             <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
               15m
