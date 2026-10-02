@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 class AngelOneAuthManagerTest {
 
@@ -25,8 +26,10 @@ class AngelOneAuthManagerTest {
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.start();
 
+    int port = server.getAddress().getPort();
     config = new AngelOneConfig();
-    config.setBaseUrl("http://localhost:" + server.getAddress().getPort());
+    config.setLoginUrl(
+        "http://localhost:" + port + "/rest/auth/angelbroking/user/v1/loginByPassword");
     config.setApiKey("test-api-key");
     config.setClientCode("test-client-code");
     config.setPassword("test-mpin");
@@ -34,8 +37,10 @@ class AngelOneAuthManagerTest {
 
     totpGenerator = new TotpGenerator();
     objectMapper = new ObjectMapper();
-    AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper(config);
-    authManager = new AngelOneAuthManager(config, totpGenerator, objectMapper, networkHelper);
+    AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
+    authManager =
+        new AngelOneAuthManager(
+            config, totpGenerator, objectMapper, networkHelper, RestClient.builder());
   }
 
   @AfterEach

@@ -40,16 +40,7 @@ const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: nu
 export type Timeframe = 'DAILY' | 'WEEKLY' | '15M';
 
 export interface QuoteData {
-    symbol: string;
-    name: string;
-    lastPrice: number;
-    change: number;
-    changePercent: number;
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
+    currentPrice: number;
     timestamp: string;
 }
 

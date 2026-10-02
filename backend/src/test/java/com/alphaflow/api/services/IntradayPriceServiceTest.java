@@ -1,6 +1,7 @@
 package com.alphaflow.api.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -18,7 +19,7 @@ import org.springframework.data.domain.PageRequest;
 class IntradayPriceServiceTest {
 
   @Test
-  void testGetIntradayPriceDefaultTimeframe() {
+  void testGetIntradayPriceWithValidTimeframe() {
     IntradayPriceRepository repo = mock(IntradayPriceRepository.class);
     IntradayPriceService service = new IntradayPriceService(repo);
 
@@ -56,39 +57,23 @@ class IntradayPriceServiceTest {
     when(repo.findLatestByTickerAndTimeframe(ticker, "15M", PageRequest.of(0, 250)))
         .thenReturn(List.of(p2, p1));
 
-    List<OhlcvDto> result = service.getIntradayPrice(ticker, 0, 250);
+    List<OhlcvDto> result = service.getIntradayPrice(ticker, "15M", 0, 250);
 
     assertEquals(2, result.size());
-    assertEquals(t1.toString(), result.getFirst().priceDate());
-    assertEquals(t2.toString(), result.get(1).priceDate());
+    assertEquals(t1, result.getFirst().priceDate());
+    assertEquals(t2, result.get(1).priceDate());
   }
 
   @Test
-  void testGetIntradayPriceCustomTimeframe() {
+  void testGetIntradayPriceThrowsWhenTimeframeNullOrBlank() {
     IntradayPriceRepository repo = mock(IntradayPriceRepository.class);
     IntradayPriceService service = new IntradayPriceService(repo);
 
     Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
-    OffsetDateTime t1 =
-        OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
 
-    IntradayPrice p1 =
-        IntradayPrice.builder()
-            .ticker(ticker)
-            .timeframe("5M")
-            .priceTime(t1)
-            .priceOpen(new BigDecimal("25000.0000"))
-            .priceHigh(new BigDecimal("25010.0000"))
-            .priceLow(new BigDecimal("24995.0000"))
-            .priceClose(new BigDecimal("25005.0000"))
-            .volume(BigDecimal.ZERO)
-            .build();
-
-    when(repo.findLatestByTickerAndTimeframe(ticker, "5M", PageRequest.of(1, 10)))
-        .thenReturn(List.of(p1));
-
-    List<OhlcvDto> result = service.getIntradayPrice(ticker, "5M", 1, 10);
-    assertEquals(1, result.size());
-    assertEquals(t1.toString(), result.getFirst().priceDate());
+    assertThrows(
+        IllegalArgumentException.class, () -> service.getIntradayPrice(ticker, null, 0, 250));
+    assertThrows(
+        IllegalArgumentException.class, () -> service.getIntradayPrice(ticker, "   ", 0, 250));
   }
 }

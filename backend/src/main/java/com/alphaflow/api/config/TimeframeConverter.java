@@ -13,10 +13,7 @@ public class TimeframeConverter implements Converter<String, Timeframe> {
       return null;
     }
     String normalized = source.trim().toUpperCase();
-    if ("15M".equals(normalized)
-        || "15MIN".equals(normalized)
-        || "FIFTEEN_MINUTE".equals(normalized)
-        || "_15M".equals(normalized)) {
+    if ("15M".equals(normalized)) {
       return Timeframe._15M;
     }
     return Timeframe.valueOf(normalized);

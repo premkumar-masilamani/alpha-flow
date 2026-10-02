@@ -31,7 +31,7 @@ public class OhlcvMapper {
 
   public static OhlcvDto toDto(IntradayPrice intradayPrice) {
     return OhlcvDto.builder()
-        .priceDate(intradayPrice.getPriceTime().toString())
+        .priceDate(intradayPrice.getPriceTime())
         .priceOpen(intradayPrice.getPriceOpen())
         .priceHigh(intradayPrice.getPriceHigh())
         .priceLow(intradayPrice.getPriceLow())

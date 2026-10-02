@@ -17,6 +17,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
 
 class AngelOneClientTest {
 
@@ -31,8 +32,11 @@ class AngelOneClientTest {
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.start();
 
+    int port = server.getAddress().getPort();
     config = new AngelOneConfig();
-    config.setBaseUrl("http://localhost:" + server.getAddress().getPort());
+    config.setCandleUrl(
+        "http://localhost:" + port + "/rest/secure/angelbroking/historical/v1/getCandleData");
+    config.setQuoteUrl("http://localhost:" + port + "/rest/secure/angelbroking/market/v1/quote");
     config.setApiKey("test-key");
     config.setDelayMilliseconds(0);
 
@@ -40,8 +44,9 @@ class AngelOneClientTest {
     when(authManager.getValidJwtToken()).thenReturn("mock-bearer-token");
 
     objectMapper = new ObjectMapper();
-    AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper(config);
-    client = new AngelOneClient(config, authManager, objectMapper, networkHelper);
+    AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
+    client =
+        new AngelOneClient(config, authManager, objectMapper, networkHelper, RestClient.builder());
   }
 
   @AfterEach
@@ -85,8 +90,7 @@ class AngelOneClientTest {
         });
 
     List<AngelOneCandle> candles =
-        client.getCandleData(
-            "NSE", "99926000", "FIFTEEN_MINUTE", "2026-09-23 09:15", "2026-09-23 15:30");
+        client.getCandleData("NSE", "99926000", "15M", "2026-09-23 09:15", "2026-09-23 15:30");
 
     assertNotNull(candles);
     assertEquals(2, candles.size());
@@ -101,8 +105,7 @@ class AngelOneClientTest {
   void testGetCandleDataNoJwtToken() {
     when(authManager.getValidJwtToken()).thenReturn(null);
     List<AngelOneCandle> candles =
-        client.getCandleData(
-            "NSE", "99926000", "FIFTEEN_MINUTE", "2026-09-23 09:15", "2026-09-23 15:30");
+        client.getCandleData("NSE", "99926000", "15M", "2026-09-23 09:15", "2026-09-23 15:30");
     assertTrue(candles.isEmpty());
   }
 
@@ -129,8 +132,7 @@ class AngelOneClientTest {
         });
 
     List<AngelOneCandle> candles =
-        client.getCandleData(
-            "NSE", "99926000", "FIFTEEN_MINUTE", "2026-09-23 09:15", "2026-09-23 15:30");
+        client.getCandleData("NSE", "99926000", "15M", "2026-09-23 09:15", "2026-09-23 15:30");
 
     assertTrue(candles.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
@@ -151,11 +153,6 @@ class AngelOneClientTest {
                 "tradingSymbol": "NIFTY",
                 "symbolToken": "99926000",
                 "ltp": 25150.25,
-                "open": 25000.00,
-                "high": 25200.00,
-                "low": 24980.00,
-                "close": 25050.00,
-                "tradeVolume": 500000,
                 "exchFeedTime": "23-Sep-2026 15:30:00"
               }
             ]
@@ -178,8 +175,6 @@ class AngelOneClientTest {
     assertTrue(quoteOpt.isPresent());
     AngelOneQuote q = quoteOpt.get();
     assertEquals(0, new BigDecimal("25150.25").compareTo(q.lastPrice()));
-    assertEquals(0, new BigDecimal("100.25").compareTo(q.change()));
-    assertEquals(0, new BigDecimal("25000.00").compareTo(q.open()));
     assertEquals("23-Sep-2026 15:30:00", q.timestamp());
   }
 
@@ -220,7 +215,15 @@ class AngelOneClientTest {
   void testResolveToken() {
     assertEquals("99926000", AngelOneClient.resolveToken("NIFTY50"));
     assertEquals("99926000", AngelOneClient.resolveToken("nifty50"));
-    assertEquals("99926000", AngelOneClient.resolveToken(null));
-    assertEquals("99926000", AngelOneClient.resolveToken("UNKNOWN"));
+    assertEquals("99926000", AngelOneClient.resolveToken("NIFTY 50"));
+    assertEquals("UNKNOWN", AngelOneClient.resolveToken("UNKNOWN"));
+  }
+
+  @Test
+  void testMapToAngelOneInterval() {
+    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval("15M"));
+    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval("15m"));
+    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval("FIFTEEN_MINUTE"));
+    assertEquals("ONE_DAY", AngelOneClient.mapToAngelOneInterval("ONE_DAY"));
   }
 }

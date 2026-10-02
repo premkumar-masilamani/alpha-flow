@@ -388,6 +388,24 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
+      "name": "TemporalAccessorSerializer",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorSerializer.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
+      "name": "TemporalAccessorDeserializer",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorDeserializer.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.api.dtos.ChartPatternPivotDto",
       "name": "ChartPatternPivotDto",
       "package": "com.alphaflow.api.dtos",
@@ -1299,6 +1317,18 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.api.dtos.OhlcvDto",
+      "target": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.OhlcvDto",
+      "target": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.api.dtos.TickerDto",
       "target": "com.alphaflow.persistence.enums.Country",
       "violation": false,
@@ -1672,18 +1702,6 @@
     },
     {
       "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.entities.IntradayPrice",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.QuoteService",
       "target": "com.alphaflow.persistence.entities.Ticker",
       "violation": false,
       "reason": ""
@@ -1691,18 +1709,6 @@
     {
       "source": "com.alphaflow.api.services.QuoteService",
       "target": "com.alphaflow.persistence.enums.DataProvider",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
       "violation": false,
       "reason": ""
     },
@@ -2435,12 +2441,6 @@
     {
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
-      "target": "com.alphaflow.engine.configs.AngelOneConfig",
       "violation": false,
       "reason": ""
     },

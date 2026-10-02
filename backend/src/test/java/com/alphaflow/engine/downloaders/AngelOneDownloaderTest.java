@@ -76,7 +76,7 @@ class AngelOneDownloaderTest {
             new BigDecimal("25040.00"),
             BigDecimal.ZERO);
 
-    when(client.getCandleData(eq("NSE"), eq("99926000"), eq("FIFTEEN_MINUTE"), any(), any()))
+    when(client.getCandleData(eq("NSE"), eq("99926000"), eq("15M"), any(), any()))
         .thenReturn(List.of(c1));
 
     downloader.downloadIntradayPrices();

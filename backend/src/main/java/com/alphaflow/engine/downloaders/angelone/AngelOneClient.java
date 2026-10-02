@@ -5,61 +5,75 @@ import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.net.HttpURLConnection;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 @Component
 @Slf4j
 public class AngelOneClient {
 
   private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
+  private static final DateTimeFormatter CANDLE_TIMESTAMP_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
+
   private final AngelOneConfig config;
   private final AngelOneAuthManager authManager;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
+  private final RestClient restClient;
 
   public AngelOneClient(
       AngelOneConfig config,
       AngelOneAuthManager authManager,
       ObjectMapper objectMapper,
-      AngelOneNetworkHelper networkHelper) {
+      AngelOneNetworkHelper networkHelper,
+      RestClient.Builder restClientBuilder) {
     this.config = config;
     this.authManager = authManager;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
+    this.restClient = restClientBuilder.build();
   }
 
   public static String resolveToken(String symbol) {
-    if (symbol != null && symbol.equalsIgnoreCase("NIFTY50")) {
+    if ("NIFTY50".equalsIgnoreCase(symbol) || "NIFTY 50".equalsIgnoreCase(symbol)) {
       return "99926000";
     }
-    return "99926000";
+    return symbol;
+  }
+
+  public static String mapToAngelOneInterval(String timeframe) {
+    if ("15M".equalsIgnoreCase(timeframe) || "FIFTEEN_MINUTE".equalsIgnoreCase(timeframe)) {
+      return "FIFTEEN_MINUTE";
+    }
+    return timeframe;
   }
 
   public List<AngelOneCandle> getCandleData(
       String exchange, String symbolToken, String interval, String fromDate, String toDate) {
 
+    String angelOneInterval = mapToAngelOneInterval(interval);
+
     Map<String, String> body = new HashMap<>();
     body.put("exchange", exchange);
     body.put("symboltoken", symbolToken);
-    body.put("interval", interval);
+    body.put("interval", angelOneInterval);
     body.put("fromdate", fromDate);
     body.put("todate", toDate);
 
-    final String url =
-        config.getBaseUrl() + "/rest/secure/angelbroking/historical/v1/getCandleData";
     for (int attempt = 1; attempt <= 2; attempt++) {
       String jwt = authManager.getValidJwtToken();
       if (jwt == null || jwt.isBlank()) {
@@ -68,7 +82,23 @@ public class AngelOneClient {
       }
 
       try {
-        String responseBody = executePost(url, body, jwt);
+        ResponseEntity<String> response =
+            restClient
+                .post()
+                .uri(config.getCandleUrl())
+                .headers(
+                    headers ->
+                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                .body(body)
+                .retrieve()
+                .toEntity(String.class);
+
+        String responseBody = response.getBody();
+        if (responseBody == null) {
+          log.warn("Empty response body from getCandleData");
+          return Collections.emptyList();
+        }
+
         JsonNode root = objectMapper.readTree(responseBody);
         if (root.path("status").asBoolean(false)) {
           JsonNode dataNode = root.path("data");
@@ -109,7 +139,6 @@ public class AngelOneClient {
   }
 
   public Optional<AngelOneQuote> getMarketQuote(String exchange, String symbolToken) {
-    String url = config.getBaseUrl() + "/rest/secure/angelbroking/market/v1/quote";
     Map<String, Object> body = new HashMap<>();
     body.put("mode", "FULL");
     body.put("exchangeTokens", Map.of(exchange, List.of(symbolToken)));
@@ -121,7 +150,22 @@ public class AngelOneClient {
       }
 
       try {
-        String responseBody = executePost(url, body, jwt);
+        ResponseEntity<String> response =
+            restClient
+                .post()
+                .uri(config.getQuoteUrl())
+                .headers(
+                    headers ->
+                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                .body(body)
+                .retrieve()
+                .toEntity(String.class);
+
+        String responseBody = response.getBody();
+        if (responseBody == null) {
+          return Optional.empty();
+        }
+
         JsonNode root = objectMapper.readTree(responseBody);
         if (root.path("status").asBoolean(false)) {
           JsonNode fetchedList = root.path("data").path("fetched");
@@ -131,41 +175,13 @@ public class AngelOneClient {
                 item.hasNonNull("ltp")
                     ? new BigDecimal(item.path("ltp").asText())
                     : BigDecimal.ZERO;
-            BigDecimal open =
-                item.hasNonNull("open")
-                    ? new BigDecimal(item.path("open").asText())
-                    : BigDecimal.ZERO;
-            BigDecimal high =
-                item.hasNonNull("high")
-                    ? new BigDecimal(item.path("high").asText())
-                    : BigDecimal.ZERO;
-            BigDecimal low =
-                item.hasNonNull("low")
-                    ? new BigDecimal(item.path("low").asText())
-                    : BigDecimal.ZERO;
-            BigDecimal close =
-                item.hasNonNull("close")
-                    ? new BigDecimal(item.path("close").asText())
-                    : BigDecimal.ZERO;
-            BigDecimal volume =
-                item.hasNonNull("tradeVolume")
-                    ? new BigDecimal(item.path("tradeVolume").asText())
-                    : BigDecimal.ZERO;
 
-            BigDecimal change = ltp.subtract(close);
-            BigDecimal changePercent = BigDecimal.ZERO;
-            if (close.compareTo(BigDecimal.ZERO) > 0) {
-              changePercent =
-                  change.divide(close, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
-            }
             String timestamp =
                 item.hasNonNull("exchFeedTime")
                     ? item.path("exchFeedTime").asText()
                     : OffsetDateTime.now(IST_ZONE).toString();
 
-            return Optional.of(
-                new AngelOneQuote(
-                    ltp, change, changePercent, open, high, low, close, volume, timestamp));
+            return Optional.of(new AngelOneQuote(ltp, timestamp));
           }
         } else {
           String errorCode = root.path("errorcode").asText();
@@ -184,40 +200,23 @@ public class AngelOneClient {
     return Optional.empty();
   }
 
-  private String executePost(String url, Object payload, String jwtToken) throws Exception {
-    byte[] requestBytes = objectMapper.writeValueAsBytes(payload);
-    HttpURLConnection conn = (HttpURLConnection) URI.create(url).toURL().openConnection();
-    conn.setRequestMethod("POST");
-    conn.setConnectTimeout(10000);
-    conn.setReadTimeout(10000);
-    conn.setDoOutput(true);
-    networkHelper.applyAuthenticatedHeaders(conn, config.getApiKey(), jwtToken);
-
-    try (OutputStream os = conn.getOutputStream()) {
-      os.write(requestBytes);
-    }
-
-    int statusCode = conn.getResponseCode();
-    InputStream is =
-        (statusCode >= 200 && statusCode < 300) ? conn.getInputStream() : conn.getErrorStream();
-
-    byte[] bytes = (is != null) ? is.readAllBytes() : new byte[0];
-    return new String(bytes, StandardCharsets.UTF_8);
-  }
-
-  private OffsetDateTime parseTimestamp(String text) {
+  OffsetDateTime parseTimestamp(String raw) {
     try {
-      return OffsetDateTime.parse(text);
-    } catch (Exception ignored) {
-      DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-      LocalDateTime ldt = LocalDateTime.parse(text.replace('T', ' ').substring(0, 19), dtf);
-      return ldt.atZone(IST_ZONE).toOffsetDateTime();
+      return OffsetDateTime.parse(raw, CANDLE_TIMESTAMP_FORMATTER);
+    } catch (Exception e) {
+      try {
+        DateTimeFormatter noOffset = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        LocalDateTime ldt = LocalDateTime.parse(raw, noOffset);
+        return ldt.atZone(IST_ZONE).toOffsetDateTime();
+      } catch (Exception ex) {
+        return OffsetDateTime.now(IST_ZONE);
+      }
     }
   }
 
-  private void sleep(long ms) {
+  private void sleep(long millis) {
     try {
-      Thread.sleep(ms);
+      Thread.sleep(millis);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }

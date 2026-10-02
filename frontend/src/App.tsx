@@ -216,12 +216,11 @@ function App() {
     const filtered = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === activeDay);
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
 
-    // If viewing the latest day and we have live quote, merge LTP into latest candle
     const isLatest = activeDayIndex === distinctDays.length - 1;
-    if (isLatest && sorted.length > 0 && quoteData && quoteData.lastPrice > 0) {
+    if (isLatest && sorted.length > 0 && quoteData && quoteData.currentPrice > 0) {
       const lastIndex = sorted.length - 1;
       const lastCandle = sorted[lastIndex];
-      const ltp = Number(quoteData.lastPrice);
+      const ltp = Number(quoteData.currentPrice);
       sorted[lastIndex] = {
         ...lastCandle,
         high: Math.max(Number(lastCandle.high), ltp),
@@ -1368,26 +1367,16 @@ function App() {
     const firstCandle = intradayCandles.length > 0 ? intradayCandles[0] : null;
 
     const ltp = isLatestDay
-      ? (quoteData?.lastPrice ?? (latestCandle ? latestCandle.close : 0))
+      ? (quoteData?.currentPrice ?? (latestCandle ? latestCandle.close : 0))
       : (latestCandle ? latestCandle.close : 0);
-    const openPrice = isLatestDay
-      ? (quoteData?.open ?? (firstCandle ? firstCandle.open : 0))
-      : (firstCandle ? firstCandle.open : 0);
-    const highPrice = isLatestDay
-      ? (quoteData?.high ?? (intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0))
-      : (intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0);
-    const lowPrice = isLatestDay
-      ? (quoteData?.low ?? (intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0))
-      : (intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0);
+    const openPrice = firstCandle ? firstCandle.open : 0;
+    const highPrice = intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0;
+    const lowPrice = intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0;
     const closePrice = latestCandle ? latestCandle.close : ltp;
 
     const changeBase = prevDayClose ?? openPrice;
-    const change = isLatestDay
-      ? (quoteData?.change ?? (changeBase > 0 ? ltp - changeBase : 0))
-      : (changeBase > 0 ? closePrice - changeBase : 0);
-    const pct = isLatestDay
-      ? (quoteData?.changePercent ?? pctChange(change, changeBase))
-      : pctChange(change, changeBase);
+    const change = changeBase > 0 ? (isLatestDay ? ltp - changeBase : closePrice - changeBase) : 0;
+    const pct = pctChange(change, changeBase);
     const isPositive = change >= 0;
 
     const chartDate = latestCandle?.date || (isLatestDay ? quoteData?.timestamp : null);

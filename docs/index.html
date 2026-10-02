@@ -1041,6 +1041,28 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
+      "label": "TemporalAccessorSerializer",
+      "parent": "com.alphaflow.api.dtos",
+      "type": "class",
+      "component": "api",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorSerializer.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
+      "label": "TemporalAccessorDeserializer",
+      "parent": "com.alphaflow.api.dtos",
+      "type": "class",
+      "component": "api",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorDeserializer.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.dtos.ChartPatternPivotDto",
       "label": "ChartPatternPivotDto",
       "parent": "com.alphaflow.api.dtos",
@@ -2222,6 +2244,24 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.dtos.OhlcvDto_to_com.alphaflow.api.dtos.TemporalAccessorDeserializer",
+      "source": "com.alphaflow.api.dtos.OhlcvDto",
+      "target": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.dtos.OhlcvDto_to_com.alphaflow.api.dtos.TemporalAccessorSerializer",
+      "source": "com.alphaflow.api.dtos.OhlcvDto",
+      "target": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.dtos.TickerDto_to_com.alphaflow.persistence.enums.Country",
       "source": "com.alphaflow.api.dtos.TickerDto",
       "target": "com.alphaflow.persistence.enums.Country",
@@ -2780,24 +2820,6 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.entities.DailyPrice",
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.entities.IntradayPrice",
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.entities.IntradayPrice",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
       "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.entities.Ticker",
       "source": "com.alphaflow.api.services.QuoteService",
       "target": "com.alphaflow.persistence.entities.Ticker",
@@ -2810,24 +2832,6 @@
       "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.enums.DataProvider",
       "source": "com.alphaflow.api.services.QuoteService",
       "target": "com.alphaflow.persistence.enums.DataProvider",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.persistence.repositories.IntradayPriceRepository",
-      "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
       "violation": false,
       "reason": ""
     }
@@ -3926,15 +3930,6 @@
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
       "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper_to_com.alphaflow.engine.configs.AngelOneConfig",
-      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
-      "target": "com.alphaflow.engine.configs.AngelOneConfig",
       "violation": false,
       "reason": ""
     }

@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
+import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
@@ -54,21 +55,25 @@ class PriceControllerTest {
     List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
-    assertEquals("2026-05-29", res.getFirst().priceDate());
+    assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
 
     when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
 
-    when(intradayPriceService.getIntradayPrice(ticker, 0, 250)).thenReturn(List.of(dto));
+    when(intradayPriceService.getIntradayPrice(ticker, "15M", 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> intradayRes = controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250);
     assertEquals(1, intradayRes.size());
 
-    com.alphaflow.api.dtos.QuoteDto mockQuote =
-        com.alphaflow.api.dtos.QuoteDto.builder().symbol("AAPL").build();
+    QuoteDto mockQuote =
+        QuoteDto.builder()
+            .currentPrice(BigDecimal.valueOf(150.0))
+            .timestamp("2026-05-29T10:00:00Z")
+            .build();
     when(quoteService.getQuote(ticker)).thenReturn(mockQuote);
-    com.alphaflow.api.dtos.QuoteDto quoteRes = controller.getQuoteForTicker("AAPL");
-    assertEquals("AAPL", quoteRes.symbol());
+    QuoteDto quoteRes = controller.getQuoteForTicker("AAPL");
+    assertEquals(BigDecimal.valueOf(150.0), quoteRes.currentPrice());
+    assertEquals("2026-05-29T10:00:00Z", quoteRes.timestamp());
 
     org.junit.jupiter.api.Assertions.assertThrows(
         IllegalArgumentException.class,

@@ -13,6 +13,8 @@ This report was generated dynamically by parsing the backend codebase. It provid
 flowchart TD
     subgraph api ["API Layer"]
         com_alphaflow_api_config_TimeframeConverter["TimeframeConverter (class)"]
+        com_alphaflow_api_dtos_TemporalAccessorSerializer["TemporalAccessorSerializer (class)"]
+        com_alphaflow_api_dtos_TemporalAccessorDeserializer["TemporalAccessorDeserializer (class)"]
         com_alphaflow_api_dtos_ChartPatternPivotDto["ChartPatternPivotDto (record)"]
         com_alphaflow_api_dtos_OhlcvDto["OhlcvDto (record)"]
         com_alphaflow_api_dtos_ChartPatternDto["ChartPatternDto (record)"]
@@ -180,6 +182,8 @@ flowchart TD
     com_alphaflow_api_dtos_ChartPatternDto --> com_alphaflow_persistence_enums_PatternSentiment
     com_alphaflow_api_dtos_IndicatorPointDto --> com_alphaflow_persistence_enums_IndicatorOutputKey
     com_alphaflow_api_dtos_IndicatorSeriesDto --> com_alphaflow_api_dtos_IndicatorPointDto
+    com_alphaflow_api_dtos_OhlcvDto --> com_alphaflow_api_dtos_TemporalAccessorDeserializer
+    com_alphaflow_api_dtos_OhlcvDto --> com_alphaflow_api_dtos_TemporalAccessorSerializer
     com_alphaflow_api_dtos_TickerDto --> com_alphaflow_persistence_enums_Country
     com_alphaflow_api_dtos_TickerDto --> com_alphaflow_persistence_enums_TickerType
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorConfigDto
@@ -242,12 +246,8 @@ flowchart TD
     com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
     com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
-    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_DailyPrice
-    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_IntradayPrice
     com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_enums_DataProvider
-    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_repositories_DailyPriceRepository
-    com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_repositories_IntradayPriceRepository
     com_alphaflow_api_services_SupportResistanceService --> com_alphaflow_api_dtos_SupportResistanceDto
     com_alphaflow_api_services_SupportResistanceService --> com_alphaflow_api_services_TickerService
     com_alphaflow_api_services_SupportResistanceService --> com_alphaflow_common_enums_Timeframe
@@ -370,7 +370,6 @@ flowchart TD
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
-    com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_dtos_YahooChart --> com_alphaflow_engine_downloaders_dtos_YahooResult
     com_alphaflow_engine_downloaders_dtos_YahooIndicators --> com_alphaflow_engine_downloaders_dtos_YahooQuote
     com_alphaflow_engine_downloaders_dtos_YahooResponse --> com_alphaflow_engine_downloaders_dtos_YahooChart
@@ -518,8 +517,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 116
-- **Total Dependencies**: 374
-- **API Layer Classes**: 32
+- **Total Classes**: 118
+- **Total Dependencies**: 371
+- **API Layer Classes**: 34
 - **Engine Layer Classes**: 42
 - **Persistence Layer Classes**: 40

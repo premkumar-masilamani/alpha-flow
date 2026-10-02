@@ -15,19 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class IntradayPriceService {
 
-  public static final String DEFAULT_TIMEFRAME = "15M";
-
   private final IntradayPriceRepository intradayPriceRepository;
 
   public IntradayPriceService(IntradayPriceRepository intradayPriceRepository) {
     this.intradayPriceRepository = intradayPriceRepository;
   }
 
-  public List<OhlcvDto> getIntradayPrice(Ticker ticker, int page, int size) {
-    return getIntradayPrice(ticker, DEFAULT_TIMEFRAME, page, size);
-  }
-
   public List<OhlcvDto> getIntradayPrice(Ticker ticker, String timeframe, int page, int size) {
+    if (timeframe == null || timeframe.trim().isEmpty()) {
+      throw new IllegalArgumentException("Timeframe must not be null or blank");
+    }
     return intradayPriceRepository
         .findLatestByTickerAndTimeframe(ticker, timeframe, PageRequest.of(page, size))
         .stream()

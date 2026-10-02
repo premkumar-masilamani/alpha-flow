@@ -22,7 +22,6 @@ import org.springframework.stereotype.Component;
 public class AngelOneDownloader {
 
   public static final String TIMEFRAME_15M = "15M";
-  public static final String ANGEL_ONE_INTERVAL_15M = "FIFTEEN_MINUTE";
   private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -105,7 +104,7 @@ public class AngelOneDownloader {
         toDateStr);
 
     List<AngelOneCandle> candles =
-        client.getCandleData(exchange, token, ANGEL_ONE_INTERVAL_15M, fromDateStr, toDateStr);
+        client.getCandleData(exchange, token, TIMEFRAME_15M, fromDateStr, toDateStr);
 
     if (candles.isEmpty()) {
       log.info("No candle data returned for {}", ticker.getTickerSymbol());

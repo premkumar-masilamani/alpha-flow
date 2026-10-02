@@ -262,16 +262,7 @@ describe('API Service Layer Tests', () => {
     describe('getQuote', () => {
         it('should fetch and cache live quote data', async () => {
             const mockQuote: QuoteData = {
-                symbol: 'NIFTY50',
-                name: 'Nifty 50 Index',
-                lastPrice: 25100.5,
-                change: 120.25,
-                changePercent: 0.48,
-                open: 24980.25,
-                high: 25150.0,
-                low: 24950.0,
-                close: 25100.5,
-                volume: 500000,
+                currentPrice: 25100.5,
                 timestamp: '2026-09-23T15:30:00Z',
             };
 

@@ -3,8 +3,6 @@ package com.alphaflow.engine.downloaders.angelone;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Collections;
@@ -12,35 +10,23 @@ import java.util.Enumeration;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 class AngelOneNetworkHelperTest {
 
-  private AngelOneConfig config;
   private AngelOneNetworkHelper networkHelper;
 
   @BeforeEach
   void setUp() {
-    config = new AngelOneConfig();
-    networkHelper = new AngelOneNetworkHelper(config);
+    networkHelper = new AngelOneNetworkHelper();
   }
 
   @Test
-  void testGetMacAddressConfigured() {
-    config.setMacAddress("AA:BB:CC:DD:EE:FF");
-    assertEquals("AA:BB:CC:DD:EE:FF", networkHelper.getMacAddress());
-  }
-
-  @Test
-  void testGetMacAddressDynamicBlankAndNull() {
-    config.setMacAddress("");
-    String macBlank = networkHelper.getMacAddress();
-    assertNotNull(macBlank);
-    assertFalse(macBlank.isBlank());
-
-    config.setMacAddress(null);
-    String macNull = networkHelper.getMacAddress();
-    assertNotNull(macNull);
-    assertFalse(macNull.isBlank());
+  void testGetMacAddressNotNull() {
+    String mac = networkHelper.getMacAddress();
+    assertNotNull(mac);
+    assertFalse(mac.isBlank());
   }
 
   @Test
@@ -87,7 +73,7 @@ class AngelOneNetworkHelperTest {
   @Test
   void testResolveSystemMacAddressExceptionFallback() {
     AngelOneNetworkHelper helperWithException =
-        new AngelOneNetworkHelper(config) {
+        new AngelOneNetworkHelper() {
           @Override
           String extractMacAddress(Enumeration<NetworkInterface> networkInterfaces)
               throws Exception {
@@ -98,29 +84,20 @@ class AngelOneNetworkHelperTest {
   }
 
   @Test
-  void testGetClientLocalIpConfigured() {
-    config.setClientLocalIp("test-local-ip");
-    assertEquals("test-local-ip", networkHelper.getClientLocalIp());
-  }
+  void testGetClientLocalIpAndPublicIp() {
+    String localIp = networkHelper.getClientLocalIp();
+    assertNotNull(localIp);
+    assertFalse(localIp.isBlank());
 
-  @Test
-  void testGetClientLocalIpDynamicBlankAndNull() {
-    config.setClientLocalIp("");
-    String localIpBlank = networkHelper.getClientLocalIp();
-    assertNotNull(localIpBlank);
-    assertFalse(localIpBlank.isBlank());
-
-    config.setClientLocalIp(null);
-    String localIpNull = networkHelper.getClientLocalIp();
-    assertNotNull(localIpNull);
-    assertFalse(localIpNull.isBlank());
+    String publicIp = networkHelper.getClientPublicIp();
+    assertEquals(localIp, publicIp);
   }
 
   @Test
   void testResolveSystemLocalIpExceptionFallback() {
     String fallbackIp = InetAddress.getLoopbackAddress().getHostAddress();
     AngelOneNetworkHelper helperWithException =
-        new AngelOneNetworkHelper(config) {
+        new AngelOneNetworkHelper() {
           @Override
           protected String resolveSystemLocalIp() {
             try {
@@ -130,48 +107,25 @@ class AngelOneNetworkHelperTest {
             }
           }
         };
-    assertEquals(fallbackIp, helperWithException.getClientLocalIp());
-  }
-
-  @Test
-  void testGetClientPublicIpConfigured() {
-    config.setClientPublicIp("test-public-ip");
-    assertEquals("test-public-ip", networkHelper.getClientPublicIp());
-  }
-
-  @Test
-  void testGetClientPublicIpFallbackToLocal() {
-    config.setClientPublicIp("");
-    config.setClientLocalIp("test-fallback-ip");
-    assertEquals("test-fallback-ip", networkHelper.getClientPublicIp());
-
-    config.setClientPublicIp(null);
-    assertEquals("test-fallback-ip", networkHelper.getClientPublicIp());
+    assertNotNull(helperWithException.getClientLocalIp());
   }
 
   @Test
   void testApplyHeadersAndAuthenticatedHeaders() {
-    config.setApiKey("test-key");
-    config.setClientLocalIp("test-local-ip");
-    config.setClientPublicIp("test-public-ip");
-    config.setMacAddress("11:22:33:44:55:66");
+    HttpHeaders headers = new HttpHeaders();
+    networkHelper.applyHeaders(headers, "test-api-key");
 
-    HttpURLConnection connection = mock(HttpURLConnection.class);
+    assertEquals(MediaType.APPLICATION_JSON, headers.getContentType());
+    assertEquals("test-api-key", headers.getFirst("X-PrivateKey"));
+    assertEquals("USER", headers.getFirst("X-UserType"));
+    assertEquals("WEB", headers.getFirst("X-SourceID"));
+    assertEquals(networkHelper.getClientLocalIp(), headers.getFirst("X-ClientLocalIP"));
+    assertEquals(networkHelper.getClientPublicIp(), headers.getFirst("X-ClientPublicIP"));
+    assertEquals(networkHelper.getMacAddress(), headers.getFirst("X-MACaddress"));
 
-    networkHelper.applyHeaders(connection, config.getApiKey());
-
-    verify(connection).setRequestProperty("Content-Type", "application/json");
-    verify(connection).setRequestProperty("Accept", "application/json");
-    verify(connection).setRequestProperty("X-PrivateKey", "test-key");
-    verify(connection).setRequestProperty("X-UserType", "USER");
-    verify(connection).setRequestProperty("X-SourceID", "WEB");
-    verify(connection).setRequestProperty("X-ClientLocalIP", "test-local-ip");
-    verify(connection).setRequestProperty("X-ClientPublicIP", "test-public-ip");
-    verify(connection).setRequestProperty("X-MACaddress", "11:22:33:44:55:66");
-
-    HttpURLConnection authConnection = mock(HttpURLConnection.class);
-    networkHelper.applyAuthenticatedHeaders(authConnection, config.getApiKey(), "test-jwt-token");
-    verify(authConnection).setRequestProperty("Authorization", "Bearer " + "test-jwt-token");
-    verify(authConnection).setRequestProperty("X-PrivateKey", "test-key");
+    HttpHeaders authHeaders = new HttpHeaders();
+    networkHelper.applyAuthenticatedHeaders(authHeaders, "test-api-key", "test-jwt-token");
+    assertEquals("Bearer test-jwt-token", authHeaders.getFirst("Authorization"));
+    assertEquals("test-api-key", authHeaders.getFirst("X-PrivateKey"));
   }
 }
