@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
+import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.DailyPriceService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
@@ -23,13 +24,20 @@ class PriceControllerTest {
 
     DailyPriceService dailyPriceService = mock(DailyPriceService.class);
     WeeklyPriceService weeklyPriceService = mock(WeeklyPriceService.class);
+    com.alphaflow.api.services.IntradayPriceService intradayPriceService =
+        mock(com.alphaflow.api.services.IntradayPriceService.class);
+    com.alphaflow.api.services.QuoteService quoteService =
+        mock(com.alphaflow.api.services.QuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
+    java.time.OffsetDateTime date =
+        LocalDate.of(2026, 5, 29).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
+
     OhlcvDto dto =
         new OhlcvDto(
-            LocalDate.of(2026, 5, 29),
+            date,
             new BigDecimal("100.00"),
             new BigDecimal("105.00"),
             new BigDecimal("99.00"),
@@ -40,16 +48,36 @@ class PriceControllerTest {
     when(dailyPriceService.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
 
     PriceController controller =
-        new PriceController(dailyPriceService, weeklyPriceService, tickerService);
+        new PriceController(
+            dailyPriceService,
+            weeklyPriceService,
+            intradayPriceService,
+            quoteService,
+            tickerService);
 
     List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
-    assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
+    assertEquals(date, res.getFirst().priceDate());
 
     when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
+
+    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, 0, 250))
+        .thenReturn(List.of(dto));
+    List<OhlcvDto> intradayRes = controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250);
+    assertEquals(1, intradayRes.size());
+
+    QuoteDto mockQuote =
+        QuoteDto.builder()
+            .currentPrice(BigDecimal.valueOf(150.0))
+            .timestamp("2026-05-29T10:00:00Z")
+            .build();
+    when(quoteService.getQuote(ticker)).thenReturn(mockQuote);
+    QuoteDto quoteRes = controller.getQuoteForTicker("AAPL");
+    assertEquals(BigDecimal.valueOf(150.0), quoteRes.currentPrice());
+    assertEquals("2026-05-29T10:00:00Z", quoteRes.timestamp());
 
     org.junit.jupiter.api.Assertions.assertThrows(
         IllegalArgumentException.class,

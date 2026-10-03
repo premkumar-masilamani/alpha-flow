@@ -42,7 +42,9 @@ class WeeklyPriceServiceTest {
     List<OhlcvDto> result = service.getWeeklyPrice(ticker, 0, 250);
 
     assertEquals(1, result.size());
-    assertEquals(LocalDate.of(2026, 5, 29), result.getFirst().priceDate());
+    assertEquals(
+        LocalDate.of(2026, 5, 29).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
+        result.getFirst().priceDate());
   }
 
   @Test
@@ -81,11 +83,12 @@ class WeeklyPriceServiceTest {
     List<OhlcvDto> result = service.getWeeklyPriceByTickerName("AAPL", 0, 250);
 
     assertEquals(2, result.size());
-
     assertEquals(
-        LocalDate.of(2026, 5, 22), result.getFirst().priceDate()); // Sorted ascending by date
-
-    assertEquals(LocalDate.of(2026, 5, 29), result.get(1).priceDate());
+        LocalDate.of(2026, 5, 22).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
+        result.getFirst().priceDate()); // Sorted ascending by date
+    assertEquals(
+        LocalDate.of(2026, 5, 29).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
+        result.get(1).priceDate());
   }
 
   @Test
@@ -129,6 +132,8 @@ class WeeklyPriceServiceTest {
 
     assertEquals(1, result.size());
 
-    assertEquals(LocalDate.of(2026, 5, 29), result.getFirst().priceDate());
+    assertEquals(
+        LocalDate.of(2026, 5, 29).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
+        result.getFirst().priceDate());
   }
 }

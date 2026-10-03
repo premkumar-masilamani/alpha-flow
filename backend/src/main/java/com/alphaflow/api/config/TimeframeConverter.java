@@ -9,9 +9,6 @@ public class TimeframeConverter implements Converter<String, Timeframe> {
 
   @Override
   public Timeframe convert(String source) {
-    if (source == null || source.trim().isEmpty()) {
-      return null;
-    }
-    return Timeframe.valueOf(source.trim().toUpperCase());
+    return Timeframe.from(source);
   }
 }

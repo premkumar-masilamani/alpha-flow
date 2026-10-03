@@ -2,12 +2,12 @@ package com.alphaflow.api.dtos;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import lombok.Builder;
 
 @Builder
 public record OhlcvDto(
-    @JsonProperty("date") LocalDate priceDate,
+    @JsonProperty("date") OffsetDateTime priceDate,
     @JsonProperty("open") BigDecimal priceOpen,
     @JsonProperty("high") BigDecimal priceHigh,
     @JsonProperty("low") BigDecimal priceLow,

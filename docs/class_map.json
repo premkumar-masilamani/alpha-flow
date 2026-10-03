@@ -10,12 +10,30 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.common.constants.MarketConstants",
+      "name": "MarketConstants",
+      "package": "com.alphaflow.common.constants",
+      "component": "root",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/common/constants/MarketConstants.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.common.enums.Timeframe",
       "name": "Timeframe",
       "package": "com.alphaflow.common.enums",
       "component": "root",
       "type": "enum",
       "filepath": "backend/src/main/java/com/alphaflow/common/enums/Timeframe.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.enums.Country",
+      "name": "Country",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/Country.java",
       "violation": false
     },
     {
@@ -34,6 +52,24 @@
       "component": "persistence",
       "type": "enum",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/PatternSentiment.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.enums.DataProvider",
+      "name": "DataProvider",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/DataProvider.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.enums.TickerType",
+      "name": "TickerType",
+      "package": "com.alphaflow.persistence.enums",
+      "component": "persistence",
+      "type": "enum",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/enums/TickerType.java",
       "violation": false
     },
     {
@@ -97,6 +133,15 @@
       "component": "persistence",
       "type": "interface",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/TickerRepository.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "name": "IntradayPriceRepository",
+      "package": "com.alphaflow.persistence.repositories",
+      "component": "persistence",
+      "type": "interface",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/repositories/IntradayPriceRepository.java",
       "violation": false
     },
     {
@@ -223,6 +268,15 @@
       "component": "persistence",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/ChartPatternPivot.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.persistence.entities.IntradayPrice",
+      "name": "IntradayPrice",
+      "package": "com.alphaflow.persistence.entities",
+      "component": "persistence",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/persistence/entities/IntradayPrice.java",
       "violation": false
     },
     {
@@ -424,6 +478,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.api.dtos.QuoteDto",
+      "name": "QuoteDto",
+      "package": "com.alphaflow.api.dtos",
+      "component": "api",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/QuoteDto.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.api.configs.CorsConfig",
       "name": "CorsConfig",
       "package": "com.alphaflow.api.configs",
@@ -547,6 +610,24 @@
       "component": "api",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/api/services/TickerService.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.services.IntradayPriceService",
+      "name": "IntradayPriceService",
+      "package": "com.alphaflow.api.services",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/IntradayPriceService.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.api.services.QuoteService",
+      "name": "QuoteService",
+      "package": "com.alphaflow.api.services",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/services/QuoteService.java",
       "violation": false
     },
     {
@@ -712,6 +793,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "name": "AngelOneDownloader",
+      "package": "com.alphaflow.engine.downloaders",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/AngelOneDownloader.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.downloaders.YahooResponseParser",
       "name": "YahooResponseParser",
       "package": "com.alphaflow.engine.downloaders",
@@ -766,6 +856,69 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "name": "AngelOneNetworkHelper",
+      "package": "com.alphaflow.engine.downloaders.angelone",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneNetworkHelper.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "name": "AngelOneClient",
+      "package": "com.alphaflow.engine.downloaders.angelone",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneClient.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "name": "TotpGenerator",
+      "package": "com.alphaflow.engine.downloaders.angelone",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/TotpGenerator.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "name": "AngelOneAuthManager",
+      "package": "com.alphaflow.engine.downloaders.angelone",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/AngelOneAuthManager.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "name": "AngelOneCandle",
+      "package": "com.alphaflow.engine.downloaders.angelone.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/dtos/AngelOneCandle.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "name": "AngelOneQuote",
+      "package": "com.alphaflow.engine.downloaders.angelone.dtos",
+      "component": "engine",
+      "type": "record",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/angelone/dtos/AngelOneQuote.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.configs.JacksonConfig",
+      "name": "JacksonConfig",
+      "package": "com.alphaflow.engine.configs",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/JacksonConfig.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.configs.YahooFinanceConfig",
       "name": "YahooFinanceConfig",
       "package": "com.alphaflow.engine.configs",
@@ -781,6 +934,24 @@
       "component": "engine",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/engine/configs/IndicatorConfig.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.configs.AngelOneConfig",
+      "name": "AngelOneConfig",
+      "package": "com.alphaflow.engine.configs",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/AngelOneConfig.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.configs.RestClientConfig",
+      "name": "RestClientConfig",
+      "package": "com.alphaflow.engine.configs",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/RestClientConfig.java",
       "violation": false
     },
     {
@@ -871,6 +1042,15 @@
       "component": "engine",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/engine/calculators/dtos/Bucket.java",
+      "violation": false
+    },
+    {
+      "id": "com.alphaflow.engine.schedulers.AngelOneScheduler",
+      "name": "AngelOneScheduler",
+      "package": "com.alphaflow.engine.schedulers",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/schedulers/AngelOneScheduler.java",
       "violation": false
     },
     {
@@ -1000,7 +1180,25 @@
     },
     {
       "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.dtos.QuoteDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.services.DailyPriceService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.IntradayPriceService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.PriceController",
+      "target": "com.alphaflow.api.services.QuoteService",
       "violation": false,
       "reason": ""
     },
@@ -1119,6 +1317,18 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.api.dtos.TickerDto",
+      "target": "com.alphaflow.persistence.enums.Country",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.dtos.TickerDto",
+      "target": "com.alphaflow.persistence.enums.TickerType",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.api.mappers.IndicatorMapper",
       "target": "com.alphaflow.api.dtos.IndicatorConfigDto",
       "violation": false,
@@ -1180,13 +1390,31 @@
     },
     {
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.DailyPrice",
       "violation": false,
       "reason": ""
     },
     {
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.persistence.enums.Country",
       "violation": false,
       "reason": ""
     },
@@ -1415,6 +1643,78 @@
     {
       "source": "com.alphaflow.api.services.IndicatorService",
       "target": "com.alphaflow.persistence.repositories.WeeklyPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.api.mappers.OhlcvMapper",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.api.dtos.QuoteDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.QuoteService",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
       "violation": false,
       "reason": ""
     },
@@ -1995,6 +2295,66 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.persistence.repositories.TickerRepository",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
       "target": "com.alphaflow.engine.configs.YahooFinanceConfig",
       "violation": false,
@@ -2051,6 +2411,66 @@
     {
       "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "target": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.AngelOneNetworkHelper",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote",
       "violation": false,
       "reason": ""
     },
@@ -2433,6 +2853,18 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.engine.schedulers.AngelOneScheduler",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.schedulers.AngelOneScheduler",
+      "target": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.engine.schedulers.CoreScheduler",
       "target": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
       "violation": false,
@@ -2579,6 +3011,30 @@
     {
       "source": "com.alphaflow.persistence.entities.IndicatorDefinition",
       "target": "com.alphaflow.persistence.enums.PriceSource",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.IntradayPrice",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.Ticker",
+      "target": "com.alphaflow.persistence.enums.Country",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.Ticker",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.entities.Ticker",
+      "target": "com.alphaflow.persistence.enums.TickerType",
       "violation": false,
       "reason": ""
     },
@@ -2739,6 +3195,12 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.persistence.repositories.DailyPriceRepository",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.persistence.repositories.DailySupportResistanceRepository",
       "target": "com.alphaflow.persistence.entities.DailySupportResistance",
       "violation": false,
@@ -2757,8 +3219,26 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "target": "com.alphaflow.persistence.entities.IntradayPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.persistence.repositories.TickerRepository",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.TickerRepository",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
       "violation": false,
       "reason": ""
     },

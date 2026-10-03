@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import axios from "axios";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -11,6 +11,8 @@ import { getChartPatternDetails } from "./config/chartPatterns";
 import {
   type DailyCandleData,
   getCandleData,
+  getQuote,
+  type QuoteData,
   getIndicatorConfigs,
   getIndicatorSeries,
   getTickers,
@@ -58,9 +60,74 @@ const INDICATOR_ORDER = [
   "MACD (12,26,9)"
 ];
 
+const STORAGE_KEY_TICKER = "alphaflow_selected_ticker";
+const STORAGE_KEY_TAB = "alphaflow_active_tab";
+const STORAGE_KEY_TIMEFRAME = "alphaflow_timeframe";
+
+const getInitialTicker = (): string | null => {
+  try {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTicker = params.get("ticker");
+      if (urlTicker) return urlTicker;
+      const savedTicker = localStorage.getItem(STORAGE_KEY_TICKER);
+      if (savedTicker) return savedTicker;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+};
+
+const getInitialTab = (): "overview" | "charts" | "intraday" => {
+  try {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get("tab");
+      if (urlTab === "overview" || urlTab === "charts" || urlTab === "intraday") {
+        return urlTab;
+      }
+      const savedTab = localStorage.getItem(STORAGE_KEY_TAB);
+      if (savedTab === "overview" || savedTab === "charts" || savedTab === "intraday") {
+        return savedTab;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return "overview";
+};
+
+const getInitialTimeframe = (): Timeframe => {
+  try {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlTf = params.get("timeframe")?.toUpperCase();
+      if (urlTf === "DAILY" || urlTf === "WEEKLY") {
+        return urlTf as Timeframe;
+      }
+      const savedTf = localStorage.getItem(STORAGE_KEY_TIMEFRAME);
+      if (savedTf === "DAILY" || savedTf === "WEEKLY") {
+        return savedTf as Timeframe;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return "DAILY";
+};
+
+const getLocalDateKey = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 function App() {
   const [tickers, setTickers] = useState<Ticker[]>([]);
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(getInitialTicker);
   const [showCandlestickPatterns, setShowCandlestickPatterns] = useState(false);
   const [candlestickPatterns, setCandlestickPatterns] = useState<CandlestickPatternData[]>([]);
   const [showSupportResistance, setShowSupportResistance] = useState(false);
@@ -75,7 +142,7 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   // Timeframe and Indicators
-  const [timeframe, setTimeframe] = useState<Timeframe>("DAILY");
+  const [timeframe, setTimeframe] = useState<Timeframe>(getInitialTimeframe);
   const [indicatorConfigs, setIndicatorConfigs] = useState<IndicatorConfig[]>(
     [],
   );
@@ -92,11 +159,93 @@ function App() {
 
   // Layout states
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "charts">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "charts" | "intraday">(getInitialTab);
   const [isCspModalOpen, setIsCspModalOpen] = useState(false);
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isCpModalOpen, setIsCpModalOpen] = useState(false);
   const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
+
+  // Intraday states
+  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
+  const [rawIntradayCandles, setRawIntradayCandles] = useState<DailyCandleData[]>([]);
+  const [selectedIntradayDay, setSelectedIntradayDay] = useState<string | null>(null);
+  const [intradayLoading, setIntradayLoading] = useState(false);
+  const [intradayError, setIntradayError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedIntradayDay(null);
+  }, [selectedTicker]);
+
+  // Calculate distinct available days sorted chronologically
+  const distinctDays = useMemo(() => {
+    const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
+    return Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
+  }, [rawIntradayCandles]);
+
+  // Determine active day: selected day if valid, otherwise defaults to latest available day
+  const activeDay = useMemo(() => {
+    if (distinctDays.length === 0) return null;
+    if (selectedIntradayDay && distinctDays.includes(selectedIntradayDay)) {
+      return selectedIntradayDay;
+    }
+    return distinctDays[distinctDays.length - 1];
+  }, [distinctDays, selectedIntradayDay]);
+
+  const activeDayIndex = useMemo(() => {
+    if (!activeDay) return -1;
+    return distinctDays.indexOf(activeDay);
+  }, [distinctDays, activeDay]);
+
+  const canGoPrev = activeDayIndex > 0;
+  const canGoNext = activeDayIndex >= 0 && activeDayIndex < distinctDays.length - 1;
+
+  const goToPrevDay = () => {
+    if (canGoPrev) {
+      setSelectedIntradayDay(distinctDays[activeDayIndex - 1]);
+    }
+  };
+
+  const goToNextDay = () => {
+    if (canGoNext) {
+      setSelectedIntradayDay(distinctDays[activeDayIndex + 1]);
+    }
+  };
+
+  const intradayCandles = useMemo(() => {
+    if (!activeDay) return [];
+    const filtered = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === activeDay);
+    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+
+    const isLatest = activeDayIndex === distinctDays.length - 1;
+    if (isLatest && sorted.length > 0 && quoteData && quoteData.currentPrice > 0) {
+      const lastIndex = sorted.length - 1;
+      const lastCandle = sorted[lastIndex];
+      const ltp = Number(quoteData.currentPrice);
+      sorted[lastIndex] = {
+        ...lastCandle,
+        high: Math.max(Number(lastCandle.high), ltp),
+        low: Math.min(Number(lastCandle.low), ltp),
+        close: ltp,
+      };
+    }
+    return sorted;
+  }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData]);
+
+  const { prevDayHigh, prevDayLow, prevDayClose } = useMemo(() => {
+    if (activeDayIndex > 0) {
+      const prevDayKey = distinctDays[activeDayIndex - 1];
+      const prevCandles = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === prevDayKey);
+      if (prevCandles.length > 0) {
+        const sortedPrev = [...prevCandles].sort((a, b) => a.date.localeCompare(b.date));
+        return {
+          prevDayHigh: Math.max(...prevCandles.map((c) => Number(c.high))),
+          prevDayLow: Math.min(...prevCandles.map((c) => Number(c.low))),
+          prevDayClose: Number(sortedPrev[sortedPrev.length - 1].close),
+        };
+      }
+    }
+    return { prevDayHigh: null, prevDayLow: null, prevDayClose: null };
+  }, [rawIntradayCandles, distinctDays, activeDayIndex]);
 
   const openCspModal = (patternId?: string | null) => {
     setSelectedPatternId(patternId || null);
@@ -119,6 +268,47 @@ function App() {
     timeframeRef.current = timeframe;
   }, [timeframe]);
 
+  useEffect(() => {
+    if (selectedTicker) {
+      try {
+        localStorage.setItem(STORAGE_KEY_TICKER, selectedTicker);
+      } catch {
+        // ignore
+      }
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("ticker", selectedTicker);
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [selectedTicker]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_TAB, activeTab);
+    } catch {
+      // ignore
+    }
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", activeTab);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_TIMEFRAME, timeframe);
+    } catch {
+      // ignore
+    }
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("timeframe", timeframe.toLowerCase());
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [timeframe]);
+
   const toggleIndicator = (key: string) => {
     setEnabledIndicators((prev) => {
       const next = new Set(prev);
@@ -134,8 +324,14 @@ function App() {
         const data = await getTickers();
         setTickers(data);
         if (data.length > 0) {
-          const btcUsd = data.find((t) => t.symbol === "BTC-USD");
-          setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
+          const current = selectedTickerRef.current || getInitialTicker();
+          const match = current ? data.find((t) => t.symbol === current) : null;
+          if (match) {
+            setSelectedTicker(match.symbol);
+          } else {
+            const btcUsd = data.find((t) => t.symbol === "BTC-USD");
+            setSelectedTicker(btcUsd ? btcUsd.symbol : data[0].symbol);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch tickers:", error);
@@ -344,6 +540,68 @@ function App() {
     };
   }, [selectedTicker, timeframe, showChartPatterns]);
 
+  // Fetch intraday candle data and live quote when selectedTicker or activeTab is intraday
+  useEffect(() => {
+    if (activeTab !== "intraday" || !selectedTicker) {
+      return;
+    }
+    let active = true;
+
+    const fetchIntraday = async (isInitial = false) => {
+      if (isInitial) {
+        setIntradayLoading(true);
+        setIntradayError(null);
+      }
+      try {
+        const [rawCandles, quote] = await Promise.all([
+          getCandleData(selectedTicker, "15M", 0, 250, !isInitial).catch((err) => {
+            console.warn("Failed to fetch 15m candle data:", err);
+            return [] as DailyCandleData[];
+          }),
+          getQuote(selectedTicker, true).catch((err) => {
+            console.warn("Failed to fetch live quote:", err);
+            return null as QuoteData | null;
+          }),
+        ]);
+
+        if (!active) return;
+
+        const hasValidQuote = quote && Number(quote.currentPrice) > 0;
+        if (rawCandles.length === 0 && !hasValidQuote) {
+          if (isInitial) {
+            setIntradayError("No data available for this ticker");
+            setRawIntradayCandles([]);
+            setQuoteData(null);
+          }
+          return;
+        }
+
+        setRawIntradayCandles(rawCandles);
+        setQuoteData(quote);
+      } catch (err) {
+        if (active && isInitial) {
+          console.error("Failed to load intraday data:", err);
+          setIntradayError("Failed to load intraday data");
+        }
+      } finally {
+        if (active && isInitial) {
+          setIntradayLoading(false);
+        }
+      }
+    };
+
+    fetchIntraday(true);
+
+    const intervalTimer = setInterval(() => {
+      fetchIntraday(false);
+    }, 30_000);
+
+    return () => {
+      active = false;
+      clearInterval(intervalTimer);
+    };
+  }, [selectedTicker, activeTab]);
+
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;
     setLoadingOlder(true);
@@ -428,6 +686,23 @@ function App() {
     return label.replace(/^([A-Za-z]+)\((.*)\)$/, '$1 ($2)');
   };
 
+  const formatSectionDate = (dateStr?: string | null): string => {
+    if (!dateStr || dateStr === "N/A") return "N/A";
+    const parts = dateStr.split("T")[0].split("-");
+    let d: Date;
+    if (parts.length === 3) {
+      d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    } else {
+      d = new Date(dateStr);
+    }
+    if (isNaN(d.getTime())) return dateStr;
+    const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
+    const month = d.toLocaleDateString("en-US", { month: "short" });
+    const day = String(d.getDate()).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${weekday}, ${month} ${day}, ${year}`;
+  };
+
   const renderOverview = () => {
     if (analysisError === "stale") {
       return (
@@ -460,12 +735,19 @@ function App() {
     }
 
     if (!analysisData || !analysisData.candle) {
+      if (loading) {
+        return (
+          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <Loader2 className="animate-spin text-blue-500" size={32} />
+            <p className="text-sm font-semibold text-slate-400">
+              Loading technical analysis...
+            </p>
+          </div>
+        );
+      }
       return (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
-          <Loader2 className="animate-spin text-blue-500" size={32} />
-          <p className="text-sm font-semibold text-slate-400">
-            Fetching technical analysis...
-          </p>
+        <div className="flex-1 flex items-center justify-center text-slate-500">
+          No data available for this ticker
         </div>
       );
     }
@@ -489,7 +771,7 @@ function App() {
                   All Candlestick Patterns
                 </button>
                 <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                  {candle?.date || "N/A"}
+                  {formatSectionDate(candle?.date)}
                 </span>
               </div>
             </div>
@@ -538,7 +820,7 @@ function App() {
                 All Candlestick Patterns
               </button>
               <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                {candle?.date || "N/A"}
+                {formatSectionDate(candle?.date)}
               </span>
             </div>
           </div>
@@ -658,7 +940,7 @@ function App() {
                   All Chart Patterns
                 </button>
                 <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                  {candle?.date || "N/A"}
+                  {formatSectionDate(candle?.date)}
                 </span>
               </div>
             </div>
@@ -685,7 +967,7 @@ function App() {
                 All Chart Patterns
               </button>
               <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
-                {patterns.length} {patterns.length === 1 ? "Pattern" : "Patterns"} Active
+                {formatSectionDate(candle?.date)}
               </span>
             </div>
           </div>
@@ -961,7 +1243,7 @@ function App() {
               OHLCV Technical Analysis
             </div>
             <div className="text-xs px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 font-semibold text-slate-300 font-mono">
-              {candle.date}
+              {formatSectionDate(candle.date)}
             </div>
           </div>
           <div className="flex items-baseline gap-2 mb-6">
@@ -1057,8 +1339,157 @@ function App() {
         {renderChartPatterns(overviewChartPatterns, recentDailyCandles)}
 
         {/* Indicators Tables */}
-        {renderIndicatorTable("Daily Indicators", dailyDate, dailyIndicators)}
-        {renderIndicatorTable("Weekly Indicators", weeklyDate, weeklyIndicators)}
+        {renderIndicatorTable("Daily Indicators", formatSectionDate(dailyDate), dailyIndicators)}
+        {renderIndicatorTable("Weekly Indicators", formatSectionDate(weeklyDate), weeklyIndicators)}
+      </div>
+    );
+  };
+
+  const renderIntradayTab = () => {
+    if (intradayLoading && rawIntradayCandles.length === 0) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
+          <Loader2 className="animate-spin text-blue-500" size={32} />
+          <p className="text-sm font-semibold text-slate-400">Loading intraday 15-minute data...</p>
+        </div>
+      );
+    }
+
+    const hasValidQuoteData = quoteData && Number(quoteData.currentPrice) > 0;
+    if (intradayError || (rawIntradayCandles.length === 0 && !hasValidQuoteData)) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-slate-500">
+          No data available for this ticker
+        </div>
+      );
+    }
+
+    const isLatestDay = activeDayIndex === distinctDays.length - 1;
+    const latestCandle = intradayCandles.length > 0 ? intradayCandles[intradayCandles.length - 1] : null;
+    const firstCandle = intradayCandles.length > 0 ? intradayCandles[0] : null;
+
+    const ltp = isLatestDay
+      ? (quoteData?.currentPrice ?? (latestCandle ? latestCandle.close : 0))
+      : (latestCandle ? latestCandle.close : 0);
+    const openPrice = firstCandle ? firstCandle.open : 0;
+    const highPrice = intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0;
+    const lowPrice = intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0;
+    const closePrice = latestCandle ? latestCandle.close : ltp;
+
+    const changeBase = prevDayClose ?? openPrice;
+    const change = changeBase > 0 ? (isLatestDay ? ltp - changeBase : closePrice - changeBase) : 0;
+    const pct = pctChange(change, changeBase);
+    const isPositive = change >= 0;
+
+    const chartDate = latestCandle?.date || (isLatestDay ? quoteData?.timestamp : null);
+    const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
+
+    return (
+      <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+        {/* Quote / Summary Banner */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-4 shadow-lg backdrop-blur flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last Traded Price</div>
+              <div className="text-2xl font-bold font-mono text-white mt-0.5">
+                {ltp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                Change <span className="text-[10px] text-slate-500 font-normal lowercase">(vs last day close)</span>
+              </div>
+              <div
+                className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
+                  isPositive ? "text-emerald-400" : "text-rose-400"
+                }`}
+              >
+                {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                <span>
+                  {isPositive ? "+" : ""}
+                  {change.toFixed(2)} ({isPositive ? "+" : ""}
+                  {pct.toFixed(2)}%)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Open:</span>
+              <span className="text-slate-200 font-semibold">{openPrice.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">High:</span>
+              <span className="text-slate-200 font-semibold">{highPrice.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Low:</span>
+              <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
+              <span className="text-slate-400 mr-1.5">Close:</span>
+              <span className="text-slate-200 font-semibold">{closePrice.toFixed(2)}</span>
+            </div>
+            {chartDateFormatted && chartDateFormatted !== "N/A" && (
+              <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
+                <button
+                  onClick={goToPrevDay}
+                  disabled={!canGoPrev}
+                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
+                  title="Previous day"
+                  aria-label="Previous day"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
+                  {chartDateFormatted}
+                </span>
+                <button
+                  onClick={goToNextDay}
+                  disabled={!canGoNext}
+                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-r"
+                  title="Next day"
+                  aria-label="Next day"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+            <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
+              15m
+            </span>
+          </div>
+        </div>
+
+        {/* 15m Candlestick Chart */}
+        <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
+          {intradayCandles.length > 0 ? (
+            <Chart
+              data={intradayCandles}
+              indicators={[]}
+              enabled={new Set()}
+              configs={[]}
+              symbol={selectedTicker!}
+              timeframe="15M"
+              showVolume={false}
+              previousDayHigh={prevDayHigh}
+              previousDayLow={prevDayLow}
+              onLoadOlderData={() => {}}
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+              {intradayLoading ? (
+                <>
+                  <Loader2 className="animate-spin text-blue-500" size={32} />
+                  <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
+                </>
+              ) : (
+                "No chart candles recorded yet for this session"
+              )}
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -1122,6 +1553,16 @@ function App() {
               >
                 Technical Chart
               </button>
+              <button
+                onClick={() => setActiveTab("intraday")}
+                className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  activeTab === "intraday"
+                    ? "bg-blue-600 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                Intra-Day
+              </button>
             </div>
           </div>
 
@@ -1132,16 +1573,8 @@ function App() {
 
         {/* Dashboard Tab Content */}
         {activeTab === "overview" ? (
-          analysisData ? (
-            renderOverview()
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-500">
-              {loading
-                ? "Loading technical analysis..."
-                : "No data available for this ticker"}
-            </div>
-          )
-        ) : (
+          renderOverview()
+        ) : activeTab === "charts" ? (
           <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
             {selectedTicker && (
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
@@ -1258,6 +1691,8 @@ function App() {
               )}
             </div>
           </div>
+        ) : (
+          renderIntradayTab()
         )}
       </>
     );

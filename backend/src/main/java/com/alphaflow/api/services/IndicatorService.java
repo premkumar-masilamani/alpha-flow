@@ -47,7 +47,7 @@ public class IndicatorService {
   public List<IndicatorConfigDto> getConfiguredIndicators() {
     List<IndicatorConfigDto> configs = new ArrayList<>();
     List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
-    for (Timeframe timeframe : Timeframe.values()) {
+    for (Timeframe timeframe : List.of(Timeframe.DAILY, Timeframe.WEEKLY)) {
       for (IndicatorDefinition definition : definitions) {
         configs.add(IndicatorMapper.toConfigDto(timeframe, definition));
       }

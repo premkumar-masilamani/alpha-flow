@@ -8,6 +8,8 @@ import {
     getTechnicalAnalysis,
     getSupportResistances,
     getChartPatterns,
+    getQuote,
+    type QuoteData,
     indicatorKey,
     type Ticker,
     type DailyCandleData,
@@ -66,6 +68,20 @@ describe('API Service Layer Tests', () => {
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/BTC-USD/data'),
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: 'weekly' }) })
+            );
+        });
+
+        it('should request 15m data endpoint when timeframe is 15M', async () => {
+            const mockCandles: DailyCandleData[] = [
+                { date: '2026-09-23T09:15:00', open: 25000, high: 25050, low: 24980, close: 25020, vol: 150000 }
+            ];
+            mockedAxios.get.mockResolvedValueOnce({ data: mockCandles });
+
+            const result = await getCandleData('NIFTY50', '15M', 0);
+            expect(result).toEqual(mockCandles);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/NIFTY50/data'),
+                expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m' }) })
             );
         });
     });
@@ -240,6 +256,28 @@ describe('API Service Layer Tests', () => {
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
                 { params: { timeframe: 'daily', page: 0, statuses: 'IN_PROGRESS,COMPLETED' } }
             );
+        });
+    });
+
+    describe('getQuote', () => {
+        it('should fetch and cache live quote data', async () => {
+            const mockQuote: QuoteData = {
+                currentPrice: 25100.5,
+                timestamp: '2026-09-23T15:30:00Z',
+            };
+
+            mockedAxios.get.mockResolvedValueOnce({ data: mockQuote });
+
+            const res1 = await getQuote('NIFTY50');
+            expect(res1).toEqual(mockQuote);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/NIFTY50/quote')
+            );
+
+            // Second call - served from cache
+            const res2 = await getQuote('NIFTY50');
+            expect(res2).toEqual(mockQuote);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         });
     });
 });
