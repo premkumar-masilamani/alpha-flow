@@ -56,17 +56,3 @@ export ANGEL_ONE_CLIENT_CODE="your_client_code_here"
 export ANGEL_ONE_PASSWORD="your_mpin_here"
 export ANGEL_ONE_TOTP_KEY="your_totp_key_here"
 ```
-
-### 3. How Intraday Data Works
-
-- **Startup Sync**: On backend startup, `AngelOneScheduler` catches up any missing 15-minute candles for active Angel One tickers up to 5 days back.
-- **Scheduled Updates**: During Indian market hours (Monday–Friday, 9:15 AM to 3:30 PM IST), candles are fetched every 15 minutes (`5 0,15,30,45 9-15 * * MON-FRI`).
-- **Live Quotes**: The frontend polls `/api/tickers/{ticker}/quote` every 30 seconds to update the current price on the latest forming candle.
-
-### 4. Graceful Degradation Without Credentials
-
-If credentials are not configured or are incomplete:
-- The Spring Boot backend starts up without errors.
-- `AngelOneScheduler` logs an informative notice once on startup and cleanly skips execution.
-- Price APIs return an empty list (`[]`) and quote APIs return zero price.
-- The frontend gracefully displays `"No data available for this ticker"` on the Intra-day tab without errors.
