@@ -52,6 +52,10 @@ public class AngelOneClient {
         (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
   }
 
+  public boolean hasValidCredentials() {
+    return config.hasValidCredentials();
+  }
+
   public static String resolveToken(String symbol) {
     if ("NIFTY50".equalsIgnoreCase(symbol) || "NIFTY 50".equalsIgnoreCase(symbol)) {
       return "99926000";

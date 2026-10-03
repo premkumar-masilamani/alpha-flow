@@ -23,6 +23,9 @@ public class AngelOneScheduler {
 
   @Scheduled(cron = "5 0,15,30,45 9-15 * * MON-FRI", zone = MarketConstants.TIMEZONE_KOLKATA)
   public void runScheduledIntradayUpdate() {
+    if (!angelOneDownloader.hasValidCredentials()) {
+      return;
+    }
     log.info("Starting scheduled Angel One 15-minute intraday update cycle...");
     run();
   }
@@ -30,11 +33,21 @@ public class AngelOneScheduler {
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
+    if (!angelOneDownloader.hasValidCredentials()) {
+      log.warn(
+          "Angel One credentials are not configured. Intraday sync is disabled. "
+              + "Refer to README.md to configure ANGEL_ONE_API_KEY, ANGEL_ONE_CLIENT_CODE, "
+              + "ANGEL_ONE_PASSWORD, and ANGEL_ONE_TOTP_KEY.");
+      return;
+    }
     log.info("Starting initial Angel One intraday sync upon startup...");
     run();
   }
 
   public void run() {
+    if (!angelOneDownloader.hasValidCredentials()) {
+      return;
+    }
     if (!running.compareAndSet(false, true)) {
       log.warn("Angel One update cycle skipped: a previous run is still in progress.");
       return;

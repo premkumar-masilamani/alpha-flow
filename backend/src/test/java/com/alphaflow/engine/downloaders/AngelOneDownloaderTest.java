@@ -32,10 +32,23 @@ class AngelOneDownloaderTest {
   @BeforeEach
   void setUp() {
     config = new AngelOneConfig();
+    config.setApiKey("test-key");
+    config.setClientCode("test-code");
+    config.setPassword("test-pwd");
+    config.setTotpKey("test-totp");
     client = mock(AngelOneClient.class);
     tickerRepo = mock(TickerRepository.class);
     intradayRepo = mock(IntradayPriceRepository.class);
     downloader = new AngelOneDownloader(config, client, tickerRepo, intradayRepo);
+  }
+
+  @Test
+  void testDownloadSkippedWhenCredentialsMissing() {
+    config.setApiKey("");
+    downloader.downloadIntradayPrices();
+
+    verify(tickerRepo, never()).findByIsActiveTrueAndDataProvider(any());
+    verify(client, never()).getCandleData(any(), any(), any(), any(), any());
   }
 
   @Test

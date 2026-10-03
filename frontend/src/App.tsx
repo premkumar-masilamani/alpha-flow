@@ -566,9 +566,10 @@ function App() {
 
         if (!active) return;
 
-        if (rawCandles.length === 0 && !quote) {
+        const hasValidQuote = quote && Number(quote.currentPrice) > 0;
+        if (rawCandles.length === 0 && !hasValidQuote) {
           if (isInitial) {
-            setIntradayError("No 15-minute intraday data available for this ticker");
+            setIntradayError("No data available for this ticker");
             setRawIntradayCandles([]);
             setQuoteData(null);
           }
@@ -1354,7 +1355,8 @@ function App() {
       );
     }
 
-    if (intradayError || (rawIntradayCandles.length === 0 && !quoteData)) {
+    const hasValidQuoteData = quoteData && Number(quoteData.currentPrice) > 0;
+    if (intradayError || (rawIntradayCandles.length === 0 && !hasValidQuoteData)) {
       return (
         <div className="flex-1 flex items-center justify-center text-slate-500">
           No data available for this ticker

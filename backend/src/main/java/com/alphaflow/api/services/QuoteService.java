@@ -25,6 +25,9 @@ public class QuoteService {
 
   public QuoteDto getQuote(Ticker ticker) {
     if (ticker.getDataProvider() == DataProvider.ANGEL_ONE) {
+      if (!angelOneClient.hasValidCredentials()) {
+        return QuoteDto.builder().currentPrice(BigDecimal.ZERO).timestamp("").build();
+      }
       String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
       Optional<AngelOneQuote> quoteOpt =
           angelOneClient.getMarketQuote(MarketConstants.EXCHANGE_NSE, token);

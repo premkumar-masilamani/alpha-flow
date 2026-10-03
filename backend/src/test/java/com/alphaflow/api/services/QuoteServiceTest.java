@@ -2,7 +2,10 @@ package com.alphaflow.api.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.QuoteDto;
@@ -24,7 +27,26 @@ class QuoteServiceTest {
   @BeforeEach
   void setUp() {
     client = mock(AngelOneClient.class);
+    when(client.hasValidCredentials()).thenReturn(true);
     quoteService = new QuoteService(client);
+  }
+
+  @Test
+  void testGetQuoteAngelOneMissingCredentials() {
+    when(client.hasValidCredentials()).thenReturn(false);
+    Ticker ticker =
+        Ticker.builder()
+            .tickerSymbol("NIFTY50")
+            .tickerName("NIFTY 50")
+            .dataProvider(DataProvider.ANGEL_ONE)
+            .build();
+
+    QuoteDto dto = quoteService.getQuote(ticker);
+
+    assertNotNull(dto);
+    assertEquals(BigDecimal.ZERO, dto.currentPrice());
+    assertEquals("", dto.timestamp());
+    verify(client, never()).getMarketQuote(any(), any());
   }
 
   @Test

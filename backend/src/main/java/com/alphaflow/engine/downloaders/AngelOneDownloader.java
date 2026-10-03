@@ -41,7 +41,16 @@ public class AngelOneDownloader {
     this.intradayPriceRepository = intradayPriceRepository;
   }
 
+  public boolean hasValidCredentials() {
+    return config.hasValidCredentials();
+  }
+
   public void downloadIntradayPrices() {
+    if (!hasValidCredentials()) {
+      log.debug("Angel One credentials are not configured. Skipping intraday data download.");
+      return;
+    }
+
     log.info("Starting Angel One 15-minute intraday data download process...");
 
     List<Ticker> activeTickers =
