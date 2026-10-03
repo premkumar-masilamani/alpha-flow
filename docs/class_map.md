@@ -13,8 +13,6 @@ This report was generated dynamically by parsing the backend codebase. It provid
 flowchart TD
     subgraph api ["API Layer"]
         com_alphaflow_api_config_TimeframeConverter["TimeframeConverter (class)"]
-        com_alphaflow_api_dtos_TemporalAccessorSerializer["TemporalAccessorSerializer (class)"]
-        com_alphaflow_api_dtos_TemporalAccessorDeserializer["TemporalAccessorDeserializer (class)"]
         com_alphaflow_api_dtos_ChartPatternPivotDto["ChartPatternPivotDto (record)"]
         com_alphaflow_api_dtos_OhlcvDto["OhlcvDto (record)"]
         com_alphaflow_api_dtos_ChartPatternDto["ChartPatternDto (record)"]
@@ -137,6 +135,7 @@ flowchart TD
     end
 
     com_alphaflow_AlphaFlowApp["AlphaFlowApp (Root)"]
+    com_alphaflow_common_constants_MarketConstants["MarketConstants (Root)"]
     com_alphaflow_common_enums_Timeframe["Timeframe (Root)"]
 
     %% Edges
@@ -182,8 +181,6 @@ flowchart TD
     com_alphaflow_api_dtos_ChartPatternDto --> com_alphaflow_persistence_enums_PatternSentiment
     com_alphaflow_api_dtos_IndicatorPointDto --> com_alphaflow_persistence_enums_IndicatorOutputKey
     com_alphaflow_api_dtos_IndicatorSeriesDto --> com_alphaflow_api_dtos_IndicatorPointDto
-    com_alphaflow_api_dtos_OhlcvDto --> com_alphaflow_api_dtos_TemporalAccessorDeserializer
-    com_alphaflow_api_dtos_OhlcvDto --> com_alphaflow_api_dtos_TemporalAccessorSerializer
     com_alphaflow_api_dtos_TickerDto --> com_alphaflow_persistence_enums_Country
     com_alphaflow_api_dtos_TickerDto --> com_alphaflow_persistence_enums_TickerType
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_api_dtos_IndicatorConfigDto
@@ -196,9 +193,11 @@ flowchart TD
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_enums_IndicatorType
     com_alphaflow_api_mappers_IndicatorMapper --> com_alphaflow_persistence_enums_PriceSource
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_api_dtos_OhlcvDto
+    com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_common_constants_MarketConstants
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_DailyPrice
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_IntradayPrice
     com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_entities_WeeklyPrice
+    com_alphaflow_api_mappers_OhlcvMapper --> com_alphaflow_persistence_enums_Country
     com_alphaflow_api_mappers_TickerMapper --> com_alphaflow_api_dtos_TickerDto
     com_alphaflow_api_mappers_TickerMapper --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_api_services_CandlestickPatternService --> com_alphaflow_api_dtos_CandlestickPatternDto
@@ -239,11 +238,12 @@ flowchart TD
     com_alphaflow_api_services_IndicatorService --> com_alphaflow_persistence_repositories_WeeklyPriceRepository
     com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_api_dtos_OhlcvDto
     com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_api_mappers_OhlcvMapper
+    com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_persistence_entities_IntradayPrice
     com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_api_services_IntradayPriceService --> com_alphaflow_persistence_repositories_IntradayPriceRepository
     com_alphaflow_api_services_QuoteService --> com_alphaflow_api_dtos_QuoteDto
-    com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_api_services_QuoteService --> com_alphaflow_common_constants_MarketConstants
     com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
     com_alphaflow_api_services_QuoteService --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
     com_alphaflow_api_services_QuoteService --> com_alphaflow_persistence_entities_Ticker
@@ -344,6 +344,8 @@ flowchart TD
     com_alphaflow_engine_calculators_dtos_PatternMatch --> com_alphaflow_persistence_enums_CandlestickPattern
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_constants_MarketConstants
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
@@ -365,6 +367,8 @@ flowchart TD
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_TotpGenerator
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_common_constants_MarketConstants
+    com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
@@ -433,7 +437,7 @@ flowchart TD
     com_alphaflow_engine_indicators_utils_EmaAccumulator --> com_alphaflow_engine_indicators_utils_IndicatorMath
     com_alphaflow_engine_indicators_utils_IndicatorRegistry --> com_alphaflow_engine_indicators_Indicator
     com_alphaflow_engine_indicators_utils_IndicatorRegistry --> com_alphaflow_persistence_enums_IndicatorType
-    com_alphaflow_engine_schedulers_AngelOneScheduler --> com_alphaflow_engine_configs_AngelOneConfig
+    com_alphaflow_engine_schedulers_AngelOneScheduler --> com_alphaflow_common_constants_MarketConstants
     com_alphaflow_engine_schedulers_AngelOneScheduler --> com_alphaflow_engine_downloaders_AngelOneDownloader
     com_alphaflow_engine_schedulers_CoreScheduler --> com_alphaflow_engine_calculators_CandlestickPatternCalculator
     com_alphaflow_engine_schedulers_CoreScheduler --> com_alphaflow_engine_calculators_ChartPatternCalculator
@@ -517,8 +521,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 118
-- **Total Dependencies**: 371
-- **API Layer Classes**: 34
+- **Total Classes**: 117
+- **Total Dependencies**: 376
+- **API Layer Classes**: 32
 - **Engine Layer Classes**: 42
 - **Persistence Layer Classes**: 40

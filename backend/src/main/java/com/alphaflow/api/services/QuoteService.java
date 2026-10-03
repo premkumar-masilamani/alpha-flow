@@ -1,7 +1,7 @@
 package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.QuoteDto;
-import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -18,17 +18,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class QuoteService {
 
   private final AngelOneClient angelOneClient;
-  private final AngelOneConfig angelOneConfig;
 
-  public QuoteService(AngelOneClient angelOneClient, AngelOneConfig angelOneConfig) {
+  public QuoteService(AngelOneClient angelOneClient) {
     this.angelOneClient = angelOneClient;
-    this.angelOneConfig = angelOneConfig;
   }
 
   public QuoteDto getQuote(Ticker ticker) {
-    if (ticker.getDataProvider() == DataProvider.ANGEL_ONE && angelOneConfig.isEnabled()) {
+    if (ticker.getDataProvider() == DataProvider.ANGEL_ONE) {
       String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
-      Optional<AngelOneQuote> quoteOpt = angelOneClient.getMarketQuote("NSE", token);
+      Optional<AngelOneQuote> quoteOpt =
+          angelOneClient.getMarketQuote(MarketConstants.EXCHANGE_NSE, token);
       if (quoteOpt.isPresent()) {
         AngelOneQuote quote = quoteOpt.get();
         return QuoteDto.builder()

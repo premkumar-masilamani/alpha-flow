@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.QuoteDto;
-import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -19,19 +19,16 @@ import org.junit.jupiter.api.Test;
 class QuoteServiceTest {
 
   private AngelOneClient client;
-  private AngelOneConfig config;
   private QuoteService quoteService;
 
   @BeforeEach
   void setUp() {
     client = mock(AngelOneClient.class);
-    config = new AngelOneConfig();
-    quoteService = new QuoteService(client, config);
+    quoteService = new QuoteService(client);
   }
 
   @Test
   void testGetQuoteAngelOneLiveSuccess() {
-    config.setEnabled(true);
     Ticker ticker =
         Ticker.builder()
             .tickerSymbol("NIFTY50")
@@ -41,7 +38,8 @@ class QuoteServiceTest {
 
     AngelOneQuote liveQuote = new AngelOneQuote(new BigDecimal("25100.00"), "2026-09-23 15:30:00");
 
-    when(client.getMarketQuote("NSE", "99926000")).thenReturn(Optional.of(liveQuote));
+    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+        .thenReturn(Optional.of(liveQuote));
 
     QuoteDto dto = quoteService.getQuote(ticker);
 
@@ -51,25 +49,7 @@ class QuoteServiceTest {
   }
 
   @Test
-  void testGetQuoteAngelOneDisabled() {
-    config.setEnabled(false);
-    Ticker ticker =
-        Ticker.builder()
-            .tickerSymbol("NIFTY50")
-            .tickerName("NIFTY 50")
-            .dataProvider(DataProvider.ANGEL_ONE)
-            .build();
-
-    QuoteDto dto = quoteService.getQuote(ticker);
-
-    assertNotNull(dto);
-    assertEquals(BigDecimal.ZERO, dto.currentPrice());
-    assertEquals("", dto.timestamp());
-  }
-
-  @Test
   void testGetQuoteAngelOneEmptyResponse() {
-    config.setEnabled(true);
     Ticker ticker =
         Ticker.builder()
             .tickerSymbol("NIFTY50")
@@ -77,7 +57,8 @@ class QuoteServiceTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    when(client.getMarketQuote("NSE", "99926000")).thenReturn(Optional.empty());
+    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+        .thenReturn(Optional.empty());
 
     QuoteDto dto = quoteService.getQuote(ticker);
 

@@ -1,5 +1,7 @@
 package com.alphaflow.engine.downloaders.angelone;
 
+import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
@@ -25,7 +27,7 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 public class AngelOneClient {
 
-  private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
+  private static final ZoneId IST_ZONE = MarketConstants.IST_ZONE;
   private static final DateTimeFormatter CANDLE_TIMESTAMP_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
@@ -55,17 +57,17 @@ public class AngelOneClient {
     return symbol;
   }
 
-  public static String mapToAngelOneInterval(String timeframe) {
-    if ("15M".equalsIgnoreCase(timeframe) || "FIFTEEN_MINUTE".equalsIgnoreCase(timeframe)) {
+  public static String mapToAngelOneInterval(Timeframe timeframe) {
+    if (timeframe == Timeframe._15M) {
       return "FIFTEEN_MINUTE";
     }
-    return timeframe;
+    return timeframe != null ? timeframe.getValue() : "";
   }
 
   public List<AngelOneCandle> getCandleData(
-      String exchange, String symbolToken, String interval, String fromDate, String toDate) {
+      String exchange, String symbolToken, Timeframe timeframe, String fromDate, String toDate) {
 
-    String angelOneInterval = mapToAngelOneInterval(interval);
+    String angelOneInterval = mapToAngelOneInterval(timeframe);
 
     Map<String, String> body = new HashMap<>();
     body.put("exchange", exchange);

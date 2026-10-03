@@ -9,20 +9,16 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "alphaflow.angelone")
 @Data
 public class AngelOneConfig {
-  private boolean enabled = false;
-  private String apiKey = "";
-  private String clientCode = "";
-  private String password = "";
-  private String totpKey = "";
-  private String loginUrl =
-      "https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword";
-  private String candleUrl =
-      "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData";
-  private String quoteUrl =
-      "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote";
-  private long delayMilliseconds = 1000;
-  private int initialLookbackDays = 5;
-  private long tokenTtlSeconds = 72000;
+  private String apiKey;
+  private String clientCode;
+  private String password;
+  private String totpKey;
+  private String loginUrl;
+  private String candleUrl;
+  private String quoteUrl;
+  private long delayMilliseconds;
+  private int initialLookbackDays;
+  private long tokenTtlSeconds;
 
   public Duration getTokenTtl() {
     return Duration.ofSeconds(tokenTtlSeconds);

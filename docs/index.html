@@ -432,6 +432,14 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.common.constants",
+      "label": "common.constants",
+      "parent": "root",
+      "is_parent": true
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.common.enums",
       "label": "common.enums",
       "parent": "root",
@@ -574,6 +582,17 @@
       "type": "class",
       "component": "root",
       "filepath": "backend/src/main/java/com/alphaflow/AlphaFlowApp.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.common.constants.MarketConstants",
+      "label": "MarketConstants",
+      "parent": "com.alphaflow.common.constants",
+      "type": "class",
+      "component": "root",
+      "filepath": "backend/src/main/java/com/alphaflow/common/constants/MarketConstants.java",
       "violation": false
     }
   },
@@ -1036,28 +1055,6 @@
       "type": "class",
       "component": "api",
       "filepath": "backend/src/main/java/com/alphaflow/api/config/TimeframeConverter.java",
-      "violation": false
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
-      "label": "TemporalAccessorSerializer",
-      "parent": "com.alphaflow.api.dtos",
-      "type": "class",
-      "component": "api",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorSerializer.java",
-      "violation": false
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
-      "label": "TemporalAccessorDeserializer",
-      "parent": "com.alphaflow.api.dtos",
-      "type": "class",
-      "component": "api",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorDeserializer.java",
       "violation": false
     }
   },
@@ -2244,24 +2241,6 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.dtos.OhlcvDto_to_com.alphaflow.api.dtos.TemporalAccessorDeserializer",
-      "source": "com.alphaflow.api.dtos.OhlcvDto",
-      "target": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.dtos.OhlcvDto_to_com.alphaflow.api.dtos.TemporalAccessorSerializer",
-      "source": "com.alphaflow.api.dtos.OhlcvDto",
-      "target": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
       "id": "com.alphaflow.api.dtos.TickerDto_to_com.alphaflow.persistence.enums.Country",
       "source": "com.alphaflow.api.dtos.TickerDto",
       "target": "com.alphaflow.persistence.enums.Country",
@@ -2370,6 +2349,15 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.mappers.OhlcvMapper_to_com.alphaflow.common.constants.MarketConstants",
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.mappers.OhlcvMapper_to_com.alphaflow.persistence.entities.DailyPrice",
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.DailyPrice",
@@ -2391,6 +2379,15 @@
       "id": "com.alphaflow.api.mappers.OhlcvMapper_to_com.alphaflow.persistence.entities.WeeklyPrice",
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.mappers.OhlcvMapper_to_com.alphaflow.persistence.enums.Country",
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.persistence.enums.Country",
       "violation": false,
       "reason": ""
     }
@@ -2757,6 +2754,15 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.services.IntradayPriceService_to_com.alphaflow.persistence.entities.IntradayPrice",
       "source": "com.alphaflow.api.services.IntradayPriceService",
       "target": "com.alphaflow.persistence.entities.IntradayPrice",
@@ -2793,9 +2799,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "id": "com.alphaflow.api.services.QuoteService_to_com.alphaflow.common.constants.MarketConstants",
       "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "target": "com.alphaflow.common.constants.MarketConstants",
       "violation": false,
       "reason": ""
     }
@@ -3702,6 +3708,24 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.common.constants.MarketConstants",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.downloaders.AngelOneDownloader_to_com.alphaflow.engine.configs.AngelOneConfig",
       "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
       "target": "com.alphaflow.engine.configs.AngelOneConfig",
@@ -3885,6 +3909,24 @@
       "id": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager_to_com.alphaflow.engine.downloaders.angelone.TotpGenerator",
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
       "target": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.common.constants.MarketConstants",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.angelone.AngelOneClient_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.common.enums.Timeframe",
       "violation": false,
       "reason": ""
     }
@@ -4503,9 +4545,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.schedulers.AngelOneScheduler_to_com.alphaflow.engine.configs.AngelOneConfig",
+      "id": "com.alphaflow.engine.schedulers.AngelOneScheduler_to_com.alphaflow.common.constants.MarketConstants",
       "source": "com.alphaflow.engine.schedulers.AngelOneScheduler",
-      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "target": "com.alphaflow.common.constants.MarketConstants",
       "violation": false,
       "reason": ""
     }

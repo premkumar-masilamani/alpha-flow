@@ -1,6 +1,6 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.engine.downloaders.AngelOneDownloader;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
@@ -14,16 +14,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AngelOneScheduler {
 
-  private final AngelOneConfig angelOneConfig;
   private final AngelOneDownloader angelOneDownloader;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
-  public AngelOneScheduler(AngelOneConfig angelOneConfig, AngelOneDownloader angelOneDownloader) {
-    this.angelOneConfig = angelOneConfig;
+  public AngelOneScheduler(AngelOneDownloader angelOneDownloader) {
     this.angelOneDownloader = angelOneDownloader;
   }
 
-  @Scheduled(cron = "5 0,15,30,45 9-15 * * MON-FRI", zone = "Asia/Kolkata")
+  @Scheduled(cron = "5 0,15,30,45 9-15 * * MON-FRI", zone = MarketConstants.TIMEZONE_KOLKATA)
   public void runScheduledIntradayUpdate() {
     log.info("Starting scheduled Angel One 15-minute intraday update cycle...");
     run();
@@ -32,19 +30,11 @@ public class AngelOneScheduler {
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
-    if (!angelOneConfig.isEnabled()) {
-      log.info("Angel One downloader is disabled on startup.");
-      return;
-    }
     log.info("Starting initial Angel One intraday sync upon startup...");
     run();
   }
 
   public void run() {
-    if (!angelOneConfig.isEnabled()) {
-      return;
-    }
-
     if (!running.compareAndSet(false, true)) {
       log.warn("Angel One update cycle skipped: a previous run is still in progress.");
       return;

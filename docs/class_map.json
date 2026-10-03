@@ -10,6 +10,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.common.constants.MarketConstants",
+      "name": "MarketConstants",
+      "package": "com.alphaflow.common.constants",
+      "component": "root",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/common/constants/MarketConstants.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.common.enums.Timeframe",
       "name": "Timeframe",
       "package": "com.alphaflow.common.enums",
@@ -385,24 +394,6 @@
       "component": "api",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/api/config/TimeframeConverter.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
-      "name": "TemporalAccessorSerializer",
-      "package": "com.alphaflow.api.dtos",
-      "component": "api",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorSerializer.java",
-      "violation": false
-    },
-    {
-      "id": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
-      "name": "TemporalAccessorDeserializer",
-      "package": "com.alphaflow.api.dtos",
-      "component": "api",
-      "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/api/dtos/TemporalAccessorDeserializer.java",
       "violation": false
     },
     {
@@ -1317,18 +1308,6 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.api.dtos.OhlcvDto",
-      "target": "com.alphaflow.api.dtos.TemporalAccessorDeserializer",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.dtos.OhlcvDto",
-      "target": "com.alphaflow.api.dtos.TemporalAccessorSerializer",
-      "violation": false,
-      "reason": ""
-    },
-    {
       "source": "com.alphaflow.api.dtos.TickerDto",
       "target": "com.alphaflow.persistence.enums.Country",
       "violation": false,
@@ -1402,6 +1381,12 @@
     },
     {
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.DailyPrice",
       "violation": false,
       "reason": ""
@@ -1415,6 +1400,12 @@
     {
       "source": "com.alphaflow.api.mappers.OhlcvMapper",
       "target": "com.alphaflow.persistence.entities.WeeklyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.mappers.OhlcvMapper",
+      "target": "com.alphaflow.persistence.enums.Country",
       "violation": false,
       "reason": ""
     },
@@ -1660,6 +1651,12 @@
     },
     {
       "source": "com.alphaflow.api.services.IntradayPriceService",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.services.IntradayPriceService",
       "target": "com.alphaflow.persistence.entities.IntradayPrice",
       "violation": false,
       "reason": ""
@@ -1684,7 +1681,7 @@
     },
     {
       "source": "com.alphaflow.api.services.QuoteService",
-      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "target": "com.alphaflow.common.constants.MarketConstants",
       "violation": false,
       "reason": ""
     },
@@ -2290,6 +2287,18 @@
     },
     {
       "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
       "target": "com.alphaflow.engine.configs.AngelOneConfig",
       "violation": false,
       "reason": ""
@@ -2411,6 +2420,18 @@
     {
       "source": "com.alphaflow.engine.downloaders.angelone.AngelOneAuthManager",
       "target": "com.alphaflow.engine.downloaders.angelone.TotpGenerator",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.common.constants.MarketConstants",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.angelone.AngelOneClient",
+      "target": "com.alphaflow.common.enums.Timeframe",
       "violation": false,
       "reason": ""
     },
@@ -2824,7 +2845,7 @@
     },
     {
       "source": "com.alphaflow.engine.schedulers.AngelOneScheduler",
-      "target": "com.alphaflow.engine.configs.AngelOneConfig",
+      "target": "com.alphaflow.common.constants.MarketConstants",
       "violation": false,
       "reason": ""
     },

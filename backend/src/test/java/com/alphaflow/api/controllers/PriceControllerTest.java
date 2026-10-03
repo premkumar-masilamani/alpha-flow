@@ -32,9 +32,12 @@ class PriceControllerTest {
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
 
+    java.time.OffsetDateTime date =
+        LocalDate.of(2026, 5, 29).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime();
+
     OhlcvDto dto =
         new OhlcvDto(
-            LocalDate.of(2026, 5, 29),
+            date,
             new BigDecimal("100.00"),
             new BigDecimal("105.00"),
             new BigDecimal("99.00"),
@@ -55,13 +58,14 @@ class PriceControllerTest {
     List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
 
     assertEquals(1, res.size());
-    assertEquals(LocalDate.of(2026, 5, 29), res.getFirst().priceDate());
+    assertEquals(date, res.getFirst().priceDate());
 
     when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
 
-    when(intradayPriceService.getIntradayPrice(ticker, "15M", 0, 250)).thenReturn(List.of(dto));
+    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, 0, 250))
+        .thenReturn(List.of(dto));
     List<OhlcvDto> intradayRes = controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250);
     assertEquals(1, intradayRes.size());
 

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
@@ -54,10 +55,11 @@ class IntradayPriceServiceTest {
             .volume(BigDecimal.ZERO)
             .build();
 
-    when(repo.findLatestByTickerAndTimeframe(ticker, "15M", PageRequest.of(0, 250)))
+    when(repo.findLatestByTickerAndTimeframe(
+            ticker, Timeframe._15M.getValue(), PageRequest.of(0, 250)))
         .thenReturn(List.of(p2, p1));
 
-    List<OhlcvDto> result = service.getIntradayPrice(ticker, "15M", 0, 250);
+    List<OhlcvDto> result = service.getIntradayPrice(ticker, Timeframe._15M, 0, 250);
 
     assertEquals(2, result.size());
     assertEquals(t1, result.getFirst().priceDate());
@@ -65,15 +67,15 @@ class IntradayPriceServiceTest {
   }
 
   @Test
-  void testGetIntradayPriceThrowsWhenTimeframeNullOrBlank() {
+  void testGetIntradayPriceThrowsWhenTimeframeNull() {
     IntradayPriceRepository repo = mock(IntradayPriceRepository.class);
     IntradayPriceService service = new IntradayPriceService(repo);
 
     Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
 
     assertThrows(
-        IllegalArgumentException.class, () -> service.getIntradayPrice(ticker, null, 0, 250));
-    assertThrows(
-        IllegalArgumentException.class, () -> service.getIntradayPrice(ticker, "   ", 0, 250));
+        IllegalArgumentException.class,
+        () ->
+            service.getIntradayPrice(ticker, (com.alphaflow.common.enums.Timeframe) null, 0, 250));
   }
 }

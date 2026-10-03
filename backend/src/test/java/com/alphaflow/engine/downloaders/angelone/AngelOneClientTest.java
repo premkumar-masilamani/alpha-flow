@@ -3,6 +3,8 @@ package com.alphaflow.engine.downloaders.angelone;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
@@ -90,7 +92,12 @@ class AngelOneClientTest {
         });
 
     List<AngelOneCandle> candles =
-        client.getCandleData("NSE", "99926000", "15M", "2026-09-23 09:15", "2026-09-23 15:30");
+        client.getCandleData(
+            MarketConstants.EXCHANGE_NSE,
+            "99926000",
+            Timeframe._15M,
+            "2026-09-23 09:15",
+            "2026-09-23 15:30");
 
     assertNotNull(candles);
     assertEquals(2, candles.size());
@@ -105,7 +112,12 @@ class AngelOneClientTest {
   void testGetCandleDataNoJwtToken() {
     when(authManager.getValidJwtToken()).thenReturn(null);
     List<AngelOneCandle> candles =
-        client.getCandleData("NSE", "99926000", "15M", "2026-09-23 09:15", "2026-09-23 15:30");
+        client.getCandleData(
+            MarketConstants.EXCHANGE_NSE,
+            "99926000",
+            Timeframe._15M,
+            "2026-09-23 09:15",
+            "2026-09-23 15:30");
     assertTrue(candles.isEmpty());
   }
 
@@ -132,7 +144,12 @@ class AngelOneClientTest {
         });
 
     List<AngelOneCandle> candles =
-        client.getCandleData("NSE", "99926000", "15M", "2026-09-23 09:15", "2026-09-23 15:30");
+        client.getCandleData(
+            MarketConstants.EXCHANGE_NSE,
+            "99926000",
+            Timeframe._15M,
+            "2026-09-23 09:15",
+            "2026-09-23 15:30");
 
     assertTrue(candles.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
@@ -170,7 +187,8 @@ class AngelOneClientTest {
           }
         });
 
-    Optional<AngelOneQuote> quoteOpt = client.getMarketQuote("NSE", "99926000");
+    Optional<AngelOneQuote> quoteOpt =
+        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
 
     assertTrue(quoteOpt.isPresent());
     AngelOneQuote q = quoteOpt.get();
@@ -181,7 +199,8 @@ class AngelOneClientTest {
   @Test
   void testGetMarketQuoteNoJwt() {
     when(authManager.getValidJwtToken()).thenReturn("");
-    Optional<AngelOneQuote> quoteOpt = client.getMarketQuote("NSE", "99926000");
+    Optional<AngelOneQuote> quoteOpt =
+        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
     assertTrue(quoteOpt.isEmpty());
   }
 
@@ -206,7 +225,8 @@ class AngelOneClientTest {
           }
         });
 
-    Optional<AngelOneQuote> quoteOpt = client.getMarketQuote("NSE", "99926000");
+    Optional<AngelOneQuote> quoteOpt =
+        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
     assertTrue(quoteOpt.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
   }
@@ -221,9 +241,8 @@ class AngelOneClientTest {
 
   @Test
   void testMapToAngelOneInterval() {
-    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval("15M"));
-    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval("15m"));
-    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval("FIFTEEN_MINUTE"));
-    assertEquals("ONE_DAY", AngelOneClient.mapToAngelOneInterval("ONE_DAY"));
+    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval(Timeframe._15M));
+    assertEquals("DAILY", AngelOneClient.mapToAngelOneInterval(Timeframe.DAILY));
+    assertEquals("WEEKLY", AngelOneClient.mapToAngelOneInterval(Timeframe.WEEKLY));
   }
 }

@@ -668,8 +668,9 @@ const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; s
     }
 };
 
-const toChartTime = (dateStr: string): Time => {
-    if (dateStr && (dateStr.includes('T') || dateStr.includes(':') || dateStr.includes(' '))) {
+const toChartTime = (dateStr: string, isIntraday: boolean = false): Time => {
+    if (!dateStr) return dateStr as Time;
+    if (isIntraday) {
         const d = new Date(dateStr);
         return Math.floor(
             Date.UTC(
@@ -682,13 +683,13 @@ const toChartTime = (dateStr: string): Time => {
             ) / 1000
         ) as Time;
     }
-    return dateStr as Time;
+    return (dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr) as Time;
 };
 
-const lineData = (series: IndicatorSeries, output: string) =>
+const lineData = (series: IndicatorSeries, output: string, isIntraday: boolean = false) =>
     series.points
         .filter((p) => p.values[output] !== undefined && p.values[output] !== null)
-        .map((p) => ({time: toChartTime(p.date), value: Number(p.values[output])}))
+        .map((p) => ({time: toChartTime(p.date, isIntraday), value: Number(p.values[output])}))
         .sort((a, b) =>
             typeof a.time === 'number' && typeof b.time === 'number'
                 ? a.time - b.time
@@ -845,8 +846,9 @@ const Chart: React.FC<ChartProps> = ({
                 },
             });
         }
+        const isIntraday = timeframe === '15M';
         candlestickSeries.setData(sortedData.map((d) => ({
-            time: toChartTime(d.date),
+            time: toChartTime(d.date, isIntraday),
             open: Number(d.open),
             high: Number(d.high),
             low: Number(d.low),
@@ -895,16 +897,18 @@ const Chart: React.FC<ChartProps> = ({
         const deduplicatedCandlestickPatterns = Array.from(uniqueCandlestickPatternsMap.values());
 
         if (deduplicatedCandlestickPatterns.length > 0) {
-            const markers = deduplicatedCandlestickPatterns.map((p) => {
-                const isBullish = p.sentiment.startsWith('BULLISH');
-                return {
-                    time: toChartTime(p.date),
-                    position: isBullish ? 'belowBar' as const : 'aboveBar' as const,
-                    color: isBullish ? '#22c55e' : '#ef4444',
-                    shape: isBullish ? 'arrowUp' as const : 'arrowDown' as const,
-                    text: p.shortName,
-                };
-            });
+            const markers = deduplicatedCandlestickPatterns
+                .filter((p) => sortedData.some((d) => (d.date.length >= 10 ? d.date.substring(0, 10) : d.date) === (p.date.length >= 10 ? p.date.substring(0, 10) : p.date)))
+                .map((p) => {
+                    const isBullish = p.sentiment.startsWith('BULLISH');
+                    return {
+                        time: toChartTime(p.date, isIntraday),
+                        position: isBullish ? 'belowBar' as const : 'aboveBar' as const,
+                        color: isBullish ? '#22c55e' : '#ef4444',
+                        shape: isBullish ? 'arrowUp' as const : 'arrowDown' as const,
+                        text: p.shortName,
+                    };
+                });
             createSeriesMarkers(candlestickSeries, markers);
         }
 
@@ -949,7 +953,7 @@ const Chart: React.FC<ChartProps> = ({
             }, 0);
             volumeSeries.priceScale().applyOptions({scaleMargins: {top: 0.8, bottom: 0}});
             volumeSeries.setData(sortedData.map((d) => ({
-                time: toChartTime(d.date),
+                time: toChartTime(d.date, isIntraday),
                 value: Number(d.vol),
                 color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
             })));
@@ -977,7 +981,7 @@ const Chart: React.FC<ChartProps> = ({
             const paneIndex = placement === 'oscillator' ? nextPane++ : 0;
 
             for (const output of outputsFor(series.type)) {
-                const points = lineData(series, output.name);
+                const points = lineData(series, output.name, isIntraday);
                 if (points.length === 0) continue;
                 const hardcodedColor = getIndicatorColor(series.type, series.source, series.params, output.name);
                 const color = hardcodedColor || nextColor();
@@ -1154,7 +1158,7 @@ const Chart: React.FC<ChartProps> = ({
                 dateStr = param.time;
             } else if (typeof param.time === 'number') {
                 // Find matching candle in sortedData with same epoch second
-                const match = sortedData.find((d) => toChartTime(d.date) === param.time);
+                const match = sortedData.find((d) => toChartTime(d.date, isIntraday) === param.time);
                 if (match) {
                     dateStr = match.date;
                 } else {

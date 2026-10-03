@@ -2,6 +2,7 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.mappers.OhlcvMapper;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
@@ -21,12 +22,12 @@ public class IntradayPriceService {
     this.intradayPriceRepository = intradayPriceRepository;
   }
 
-  public List<OhlcvDto> getIntradayPrice(Ticker ticker, String timeframe, int page, int size) {
-    if (timeframe == null || timeframe.trim().isEmpty()) {
-      throw new IllegalArgumentException("Timeframe must not be null or blank");
+  public List<OhlcvDto> getIntradayPrice(Ticker ticker, Timeframe timeframe, int page, int size) {
+    if (timeframe == null) {
+      throw new IllegalArgumentException("Timeframe must not be null");
     }
     return intradayPriceRepository
-        .findLatestByTickerAndTimeframe(ticker, timeframe, PageRequest.of(page, size))
+        .findLatestByTickerAndTimeframe(ticker, timeframe.getValue(), PageRequest.of(page, size))
         .stream()
         .sorted(Comparator.comparing(IntradayPrice::getPriceTime))
         .map(OhlcvMapper::toDto)

@@ -1,5 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
+import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
@@ -9,7 +11,6 @@ import com.alphaflow.persistence.enums.DataProvider;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +22,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class AngelOneDownloader {
 
-  public static final String TIMEFRAME_15M = "15M";
-  private static final ZoneId IST_ZONE = ZoneId.of("Asia/Kolkata");
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -43,11 +42,6 @@ public class AngelOneDownloader {
   }
 
   public void downloadIntradayPrices() {
-    if (!config.isEnabled()) {
-      log.info("Angel One downloader is disabled (alphaflow.angelone.enabled=false).");
-      return;
-    }
-
     log.info("Starting Angel One 15-minute intraday data download process...");
 
     List<Ticker> activeTickers =
@@ -71,9 +65,9 @@ public class AngelOneDownloader {
   public void syncTicker(Ticker ticker) {
     Optional<IntradayPrice> latestSaved =
         intradayPriceRepository.findTopByTickerAndTimeframeOrderByPriceTimeDesc(
-            ticker, TIMEFRAME_15M);
+            ticker, Timeframe._15M.getValue());
 
-    OffsetDateTime now = OffsetDateTime.now(IST_ZONE);
+    OffsetDateTime now = OffsetDateTime.now(MarketConstants.IST_ZONE);
     OffsetDateTime fromTime =
         latestSaved
             .map(IntradayPrice::getPriceTime)
@@ -93,7 +87,7 @@ public class AngelOneDownloader {
     String fromDateStr = fromTime.format(DATE_TIME_FORMATTER);
     String toDateStr = now.format(DATE_TIME_FORMATTER);
 
-    String exchange = "NSE";
+    String exchange = MarketConstants.EXCHANGE_NSE;
     String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
 
     log.info(
@@ -104,7 +98,7 @@ public class AngelOneDownloader {
         toDateStr);
 
     List<AngelOneCandle> candles =
-        client.getCandleData(exchange, token, TIMEFRAME_15M, fromDateStr, toDateStr);
+        client.getCandleData(exchange, token, Timeframe._15M, fromDateStr, toDateStr);
 
     if (candles.isEmpty()) {
       log.info("No candle data returned for {}", ticker.getTickerSymbol());
@@ -120,7 +114,7 @@ public class AngelOneDownloader {
         toSave.add(
             IntradayPrice.builder()
                 .ticker(ticker)
-                .timeframe(TIMEFRAME_15M)
+                .timeframe(Timeframe._15M.getValue())
                 .priceTime(candle.timestamp())
                 .priceOpen(candle.open())
                 .priceHigh(candle.high())
