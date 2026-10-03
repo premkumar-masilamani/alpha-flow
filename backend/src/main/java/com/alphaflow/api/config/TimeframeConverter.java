@@ -9,13 +9,6 @@ public class TimeframeConverter implements Converter<String, Timeframe> {
 
   @Override
   public Timeframe convert(String source) {
-    if (source == null || source.trim().isEmpty()) {
-      return null;
-    }
-    String normalized = source.trim().toUpperCase();
-    if (Timeframe._15M.getValue().equals(normalized)) {
-      return Timeframe._15M;
-    }
-    return Timeframe.valueOf(normalized);
+    return Timeframe.from(source);
   }
 }

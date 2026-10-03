@@ -54,6 +54,9 @@ public class OhlcvMapper {
     if (country == Country.IN) {
       return localDate.atStartOfDay(MarketConstants.IST_ZONE).toOffsetDateTime();
     }
+    if (country == Country.US) {
+      return localDate.atStartOfDay(MarketConstants.EST_ZONE).toOffsetDateTime();
+    }
     return localDate.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
   }
 }
