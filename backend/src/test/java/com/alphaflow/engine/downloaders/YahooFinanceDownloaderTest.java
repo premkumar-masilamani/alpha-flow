@@ -1,6 +1,8 @@
 package com.alphaflow.engine.downloaders;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -8,11 +10,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.net.URL;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -23,6 +28,7 @@ class YahooFinanceDownloaderTest {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
     ticker.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
@@ -32,10 +38,12 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     YahooFinanceConfig config = new YahooFinanceConfig();
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-    downloader.downloadDailyPrices();
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
 
+    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -45,15 +53,17 @@ class YahooFinanceDownloaderTest {
     URL jsonUrl = getClass().getResource("/yahoo_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(10); // Throttle is run
+    config.setDelayMilliseconds(10);
 
     Ticker t1 = new Ticker();
     t1.setTickerId(1L);
     t1.setTickerSymbol("AAPL");
+    t1.setCountry(Country.US);
     t1.setActive(true);
     Ticker t2 = new Ticker();
     t2.setTickerId(2L);
     t2.setTickerSymbol("MSFT");
+    t2.setCountry(Country.US);
     t2.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
@@ -63,87 +73,18 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-    downloader.downloadDailyPrices();
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
 
-    // Verifies both AAPL and MSFT processed, and saveAll was called
+    // Verifies both AAPL and MSFT processed, and saveAll was called twice
+    assertEquals(4, ingestedRows);
     verify(dailyRepo, times(2)).saveAll(any());
   }
 
   @Test
-  void testDownloadConnectionExceptionHandled() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    // Invalid protocol triggers connection error
-    config.setDownloadUrl("invalidproto://foo?symbol={symbol}&start={start}&end={end}");
-
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("AAPL");
-    ticker.setActive(true);
-
-    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
-    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
-
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-    downloader.downloadDailyPrices();
-
-    // Catches and logs the connection exception, does not save anything or crash the run
-    verify(dailyRepo, never()).saveAll(any());
-  }
-
-  @Test
-  void testInterruptedDuringThrottle() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(2000L); // Large delay to intercept
-
-    Ticker t1 = new Ticker();
-    t1.setTickerId(1L);
-    t1.setTickerSymbol("AAPL");
-    t1.setActive(true);
-    Ticker t2 = new Ticker();
-    t2.setTickerId(2L);
-    t2.setTickerSymbol("MSFT");
-    t2.setActive(true);
-
-    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
-    latestDates.put(t1, LocalDate.of(2025, 8, 12));
-    latestDates.put(t2, LocalDate.of(2025, 8, 12));
-
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-
-    // Interrupt thread in background
-    Thread mainThread = Thread.currentThread();
-    new Thread(
-            () -> {
-              try {
-                Thread.sleep(200);
-              } catch (InterruptedException ignored) {
-                // expected interrupt during sleep
-              }
-              mainThread.interrupt();
-            })
-        .start();
-
-    downloader.downloadDailyPrices();
-
-    // First was processed, second was skipped because the pause was interrupted and returned false
-    verify(dailyRepo, times(1)).saveAll(any());
-  }
-
-  @Test
-  void testDownloadMergeDuplicateLatestDates() {
+  void testDownloadTickerWithNullCountryFallback() {
     YahooFinanceConfig config = new YahooFinanceConfig();
     URL jsonUrl = getClass().getResource("/yahoo_response.json");
     assertNotNull(jsonUrl);
@@ -153,6 +94,7 @@ class YahooFinanceDownloaderTest {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(null);
     ticker.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
@@ -161,10 +103,12 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-    downloader.downloadDailyPrices();
-    // Verify it processes normally and saves since the dates don't exist yet
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -179,18 +123,21 @@ class YahooFinanceDownloaderTest {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
     ticker.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
-    latestDates.put(ticker, null); // Returns empty -> latestSavedDate is null
+    latestDates.put(ticker, null);
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-    downloader.downloadDailyPrices();
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
 
+    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -205,6 +152,7 @@ class YahooFinanceDownloaderTest {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
     ticker.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
@@ -213,11 +161,44 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
-    downloader.downloadDailyPrices();
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
 
-    // saveAll should never be called since all points exist (latest saved date is 2026-05-29)
+    assertEquals(0, ingestedRows);
+    verify(dailyRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testDownloadEmptyPriceDataReturned() throws Exception {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    URL jsonUrl = getClass().getResource("/yahoo_response.json");
+    assertNotNull(jsonUrl);
+    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDelayMilliseconds(0);
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooResponseParser parser = mock(YahooResponseParser.class);
+    when(parser.parse(any(), any())).thenReturn(List.of());
+
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
+    YahooFinanceDownloader downloader =
+        new YahooFinanceDownloader(config, dailyRepo, parser, calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -225,13 +206,128 @@ class YahooFinanceDownloaderTest {
   void testDownloadNoActiveTickers() {
     YahooFinanceConfig config = new YahooFinanceConfig();
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
 
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser());
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(0, ingestedRows);
+    verify(dailyRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testDownloadConnectionExceptionHandled() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    config.setDownloadUrl("invalidproto://foo?symbol={symbol}&start={start}&end={end}");
+    config.setDelayMilliseconds(1);
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
+    YahooFinanceDownloader downloader =
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(0, ingestedRows);
+    verify(dailyRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testInterruptedDuringThrottle() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    URL jsonUrl = getClass().getResource("/yahoo_response.json");
+    assertNotNull(jsonUrl);
+    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDelayMilliseconds(2000L);
+
+    Ticker t1 = new Ticker();
+    t1.setTickerId(1L);
+    t1.setTickerSymbol("AAPL");
+    t1.setCountry(Country.US);
+    t1.setActive(true);
+    Ticker t2 = new Ticker();
+    t2.setTickerId(2L);
+    t2.setTickerSymbol("MSFT");
+    t2.setCountry(Country.US);
+    t2.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(t1, LocalDate.of(2025, 8, 12));
+    latestDates.put(t2, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
+    YahooFinanceDownloader downloader =
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+
+    Thread mainThread = Thread.currentThread();
+    new Thread(
+            () -> {
+              try {
+                Thread.sleep(200);
+              } catch (InterruptedException ignored) {
+                // expected interrupt during sleep
+              }
+              mainThread.interrupt();
+            })
+        .start();
+
     downloader.downloadDailyPrices();
 
-    verify(dailyRepo, never()).saveAll(any());
+    verify(dailyRepo, times(1)).saveAll(any());
+  }
+
+  @Test
+  void testInterruptedDuringRetryDelay() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    config.setDownloadUrl("invalidproto://foo?symbol={symbol}&start={start}&end={end}");
+    config.setDelayMilliseconds(2000L);
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
+    YahooFinanceDownloader downloader =
+        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+
+    Thread mainThread = Thread.currentThread();
+    new Thread(
+            () -> {
+              try {
+                Thread.sleep(200);
+              } catch (InterruptedException ignored) {
+                // expected interrupt during sleep
+              }
+              mainThread.interrupt();
+            })
+        .start();
+
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(0, ingestedRows);
+    assertTrue(Thread.interrupted());
   }
 }

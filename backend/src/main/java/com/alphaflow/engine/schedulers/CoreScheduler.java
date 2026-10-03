@@ -64,37 +64,47 @@ public class CoreScheduler {
     try {
       log.info("Step 1/6: Downloading Yahoo Finance daily data...");
       long start = System.currentTimeMillis();
-      yahooFinanceDownloader.downloadDailyPrices();
-      log.info("Step 1/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 2/6: Computing weekly candles...");
-      start = System.currentTimeMillis();
-      weeklyPriceCalculator.computeWeeklyPrices();
-      log.info("Step 2/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 3/6: Computing support and resistances...");
-      start = System.currentTimeMillis();
-      supportResistanceCalculator.computeSupportResistances();
-      log.info("Step 3/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 4/6: Computing candlestick patterns...");
-      start = System.currentTimeMillis();
-      candlestickPatternCalculator.computeCandleStickPatterns();
-      log.info("Step 4/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 5/6: Computing chart patterns...");
-      start = System.currentTimeMillis();
-      chartPatternCalculator.computeChartPatterns();
-      log.info("Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-      log.info("Step 6/6: Computing indicators...");
-      start = System.currentTimeMillis();
-      indicatorCalculator.computeIndicators();
-      log.info("Step 6/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
+      int newlyIngestedRows = yahooFinanceDownloader.downloadDailyPrices();
       log.info(
-          "Scheduled data update cycle completed successfully in {}.",
-          formatDuration(System.currentTimeMillis() - cycleStart));
+          "Step 1/6 completed in {}. Newly ingested rows: {}",
+          formatDuration(System.currentTimeMillis() - start),
+          newlyIngestedRows);
+
+      if (newlyIngestedRows > 0) {
+        log.info("Step 2/6: Computing weekly candles...");
+        start = System.currentTimeMillis();
+        weeklyPriceCalculator.computeWeeklyPrices();
+        log.info("Step 2/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+        log.info("Step 3/6: Computing support and resistances...");
+        start = System.currentTimeMillis();
+        supportResistanceCalculator.computeSupportResistances();
+        log.info("Step 3/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+        log.info("Step 4/6: Computing candlestick patterns...");
+        start = System.currentTimeMillis();
+        candlestickPatternCalculator.computeCandleStickPatterns();
+        log.info("Step 4/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+        log.info("Step 5/6: Computing chart patterns...");
+        start = System.currentTimeMillis();
+        chartPatternCalculator.computeChartPatterns();
+        log.info("Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+        log.info("Step 6/6: Computing indicators...");
+        start = System.currentTimeMillis();
+        indicatorCalculator.computeIndicators();
+        log.info("Step 6/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+        log.info(
+            "Scheduled data update cycle completed successfully in {}.",
+            formatDuration(System.currentTimeMillis() - cycleStart));
+      } else {
+        log.info(
+            "Zero new daily price rows ingested across all tickers. "
+                + "Skipping downstream calculations (Steps 2 to 6). Cycle completed in {}.",
+            formatDuration(System.currentTimeMillis() - cycleStart));
+      }
     } catch (Exception exception) {
       log.error(
           "Error occurred during scheduled data update cycle after {}",

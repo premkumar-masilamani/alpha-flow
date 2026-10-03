@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.ChartPatternCalculator;
@@ -29,6 +30,8 @@ class CoreSchedulerTest {
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
+    when(downloader.downloadDailyPrices()).thenReturn(5);
+
     CoreScheduler scheduler =
         new CoreScheduler(
             downloader,
@@ -46,6 +49,37 @@ class CoreSchedulerTest {
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();
     verify(patternCalculator, times(1)).computeCandleStickPatterns();
     verify(chartPatternCalculator, times(1)).computeChartPatterns();
+  }
+
+  @Test
+  void testScheduledUpdateZeroNewRowsShortCircuitsDownstreamSteps() {
+    YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
+    WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
+    IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
+    CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
+    ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+
+    when(downloader.downloadDailyPrices()).thenReturn(0);
+
+    CoreScheduler scheduler =
+        new CoreScheduler(
+            downloader,
+            weeklyPriceCalculator,
+            indicatorCalculator,
+            supportResistanceCalculator,
+            patternCalculator,
+            chartPatternCalculator);
+
+    scheduler.runScheduledUpdate();
+
+    verify(downloader, times(1)).downloadDailyPrices();
+    verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
+    verify(indicatorCalculator, never()).computeIndicators();
+    verify(supportResistanceCalculator, never()).computeSupportResistances();
+    verify(patternCalculator, never()).computeCandleStickPatterns();
+    verify(chartPatternCalculator, never()).computeChartPatterns();
   }
 
   @Test
@@ -98,7 +132,7 @@ class CoreSchedulerTest {
             invocation -> {
               startLatch.countDown();
               finishLatch.await(5, TimeUnit.SECONDS);
-              return null;
+              return 5;
             })
         .when(downloader)
         .downloadDailyPrices();
