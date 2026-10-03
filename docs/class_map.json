@@ -946,6 +946,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.configs.RestClientConfig",
+      "name": "RestClientConfig",
+      "package": "com.alphaflow.engine.configs",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/RestClientConfig.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.calculators.CandlestickPatternCalculator",
       "name": "CandlestickPatternCalculator",
       "package": "com.alphaflow.engine.calculators",

@@ -77,6 +77,7 @@ flowchart TD
         com_alphaflow_engine_configs_YahooFinanceConfig["YahooFinanceConfig (class)"]
         com_alphaflow_engine_configs_IndicatorConfig["IndicatorConfig (class)"]
         com_alphaflow_engine_configs_AngelOneConfig["AngelOneConfig (class)"]
+        com_alphaflow_engine_configs_RestClientConfig["RestClientConfig (class)"]
         com_alphaflow_engine_calculators_CandlestickPatternCalculator["CandlestickPatternCalculator (class)"]
         com_alphaflow_engine_calculators_WeeklyPriceCalculator["WeeklyPriceCalculator (class)"]
         com_alphaflow_engine_calculators_ChartPatternCalculator["ChartPatternCalculator (class)"]
@@ -521,8 +522,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 117
+- **Total Classes**: 118
 - **Total Dependencies**: 376
 - **API Layer Classes**: 32
-- **Engine Layer Classes**: 42
+- **Engine Layer Classes**: 43
 - **Persistence Layer Classes**: 40

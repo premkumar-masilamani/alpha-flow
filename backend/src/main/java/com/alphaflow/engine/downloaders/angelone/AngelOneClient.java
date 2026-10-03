@@ -42,12 +42,14 @@ public class AngelOneClient {
       AngelOneAuthManager authManager,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
-      RestClient.Builder restClientBuilder) {
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+          RestClient.Builder restClientBuilder) {
     this.config = config;
     this.authManager = authManager;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
-    this.restClient = restClientBuilder.build();
+    this.restClient =
+        (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
   }
 
   public static String resolveToken(String symbol) {

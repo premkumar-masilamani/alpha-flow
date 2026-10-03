@@ -32,12 +32,14 @@ public class AngelOneAuthManager {
       TotpGenerator totpGenerator,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
-      RestClient.Builder restClientBuilder) {
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+          RestClient.Builder restClientBuilder) {
     this.config = config;
     this.totpGenerator = totpGenerator;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
-    this.restClient = restClientBuilder.build();
+    this.restClient =
+        (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
   }
 
   public synchronized String getValidJwtToken() {
@@ -58,9 +60,13 @@ public class AngelOneAuthManager {
   }
 
   public synchronized boolean login() {
-    if (config.getApiKey().isBlank()
+    if (config.getApiKey() == null
+        || config.getApiKey().isBlank()
+        || config.getClientCode() == null
         || config.getClientCode().isBlank()
+        || config.getPassword() == null
         || config.getPassword().isBlank()
+        || config.getTotpKey() == null
         || config.getTotpKey().isBlank()) {
       log.warn("Angel One credentials are incomplete. Skipping authentication.");
       return false;
