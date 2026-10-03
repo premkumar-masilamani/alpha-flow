@@ -47,6 +47,7 @@ flowchart TD
     end
 
     subgraph engine ["Engine (Logic)"]
+        com_alphaflow_engine_calendar_MarketTradingCalendar["MarketTradingCalendar (class)"]
         com_alphaflow_engine_indicators_SmaIndicator["SmaIndicator (class)"]
         com_alphaflow_engine_indicators_Indicator["Indicator (interface)"]
         com_alphaflow_engine_indicators_RsiIndicator["RsiIndicator (class)"]
@@ -343,6 +344,7 @@ flowchart TD
     com_alphaflow_engine_calculators_dtos_ChartPatternMatch --> com_alphaflow_persistence_enums_ChartPatternType
     com_alphaflow_engine_calculators_dtos_ChartPatternMatch --> com_alphaflow_persistence_enums_PatternSentiment
     com_alphaflow_engine_calculators_dtos_PatternMatch --> com_alphaflow_persistence_enums_CandlestickPattern
+    com_alphaflow_engine_calendar_MarketTradingCalendar --> com_alphaflow_engine_configs_YahooFinanceConfig
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_constants_MarketConstants
@@ -355,6 +357,7 @@ flowchart TD
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_IntradayPriceRepository
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_TickerRepository
+    com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_calendar_MarketTradingCalendar
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_configs_YahooFinanceConfig
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_YahooResponseParser
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_persistence_entities_DailyPrice
@@ -522,8 +525,8 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 118
-- **Total Dependencies**: 376
+- **Total Classes**: 119
+- **Total Dependencies**: 378
 - **API Layer Classes**: 32
-- **Engine Layer Classes**: 43
+- **Engine Layer Classes**: 44
 - **Persistence Layer Classes**: 40

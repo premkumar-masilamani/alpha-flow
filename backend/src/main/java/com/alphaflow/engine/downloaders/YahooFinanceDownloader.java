@@ -1,5 +1,6 @@
 package com.alphaflow.engine.downloaders;
 
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
@@ -13,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -28,17 +29,20 @@ public class YahooFinanceDownloader {
   private final YahooFinanceConfig yahooFinanceConfig;
   private final DailyPriceRepository dailyPriceRepository;
   private final YahooResponseParser yahooResponseParser;
+  private final MarketTradingCalendar marketTradingCalendar;
 
   public YahooFinanceDownloader(
       YahooFinanceConfig yahooFinanceConfig,
       DailyPriceRepository dailyPriceRepository,
-      YahooResponseParser yahooResponseParser) {
+      YahooResponseParser yahooResponseParser,
+      MarketTradingCalendar marketTradingCalendar) {
     this.yahooFinanceConfig = yahooFinanceConfig;
     this.dailyPriceRepository = dailyPriceRepository;
     this.yahooResponseParser = yahooResponseParser;
+    this.marketTradingCalendar = marketTradingCalendar;
   }
 
-  public void downloadDailyPrices() {
+  public int downloadDailyPrices() {
     log.info("Starting Yahoo Finance data download process...");
 
     Map<Ticker, LocalDate> latestSavedDates =
@@ -46,35 +50,61 @@ public class YahooFinanceDownloader {
 
     log.info("Found {} active Yahoo Finance tickers to sync.", latestSavedDates.size());
 
+    int totalNewlyIngestedRows = 0;
     List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
     for (Ticker ticker : tickers) {
-      downloadDataForTicker(ticker, latestSavedDates.get(ticker));
-      try {
-        Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        log.warn("Download process interrupted during delay.");
-        break;
+      ZoneId marketZone;
+      if (ticker.getCountry() != null) {
+        marketZone = ticker.getCountry().getZoneId();
+      } else {
+        marketZone = ZoneId.of(yahooFinanceConfig.getMarketTimezone());
+      }
+
+      LocalDate expectedTradingDate =
+          marketTradingCalendar.getExpectedLatestTradingDate(
+              ZonedDateTime.now(marketZone), yahooFinanceConfig.getMarketCutoffTime());
+
+      LocalDate latestSavedDate = latestSavedDates.get(ticker);
+      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
+        int ingestedRows =
+            downloadDataForTicker(ticker, latestSavedDate, expectedTradingDate, marketZone);
+        totalNewlyIngestedRows += ingestedRows;
+
+        try {
+          Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          log.warn("Download process interrupted during delay.");
+          break;
+        }
+      } else {
+        log.debug(
+            "{}: up to date (latest saved: {}, expected: {}). Skipping.",
+            ticker.getTickerSymbol(),
+            latestSavedDate,
+            expectedTradingDate);
       }
     }
-    log.info("All Yahoo Finance downloads completed!");
+    log.info(
+        "All Yahoo Finance downloads completed! Total newly ingested rows: {}",
+        totalNewlyIngestedRows);
+    return totalNewlyIngestedRows;
   }
 
-  private void downloadDataForTicker(Ticker ticker, LocalDate latestSavedDate) {
+  private int downloadDataForTicker(
+      Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate, ZoneId marketZone) {
     LocalDate actualLatestDate =
         (latestSavedDate != null) ? latestSavedDate : LocalDate.of(1899, 12, 31);
     LocalDate startDate = actualLatestDate.plusDays(1);
 
     long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
-    long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
-
-    if (startTs >= endTs) {
-      log.info("{}: up to date (last sync: {}).", ticker.getTickerSymbol(), actualLatestDate);
-      return;
-    }
+    long endTs =
+        Math.max(
+            Instant.now().getEpochSecond(),
+            expectedTradingDate.plusDays(1).atStartOfDay(marketZone).toEpochSecond());
 
     log.info(
-        "Syncing {} from {} (timestamp: {}) to start of today (timestamp: {})",
+        "Syncing {} from {} (timestamp: {}) to timestamp: {}",
         ticker.getTickerSymbol(),
         startDate,
         Instant.ofEpochSecond(startTs),
@@ -112,38 +142,43 @@ public class YahooFinanceDownloader {
                 "Successfully synced {} rows for {}",
                 newDailyPriceData.size(),
                 ticker.getTickerSymbol());
+            return newDailyPriceData.size();
           } else {
             log.info(
                 "No new data points to save for ticker {} (all downloaded points already exist).",
                 ticker.getTickerSymbol());
+            return 0;
           }
+        } else {
+          log.info(
+              "No price data returned from Yahoo Finance for ticker {}.", ticker.getTickerSymbol());
+          return 0;
         }
-        // Success: exit the attempt loop
-        return;
-      } catch (Exception e) {
+      } catch (Exception exception) {
         if (attempt < maxAttempts) {
           log.warn(
               "Failed to download Yahoo Finance data for {} on attempt {}/{} (will retry): {}",
               ticker.getTickerSymbol(),
               attempt,
               maxAttempts,
-              e.getMessage());
+              exception.getMessage());
           try {
             Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
-          } catch (InterruptedException ie) {
+          } catch (InterruptedException interruptedException) {
             Thread.currentThread().interrupt();
             log.warn("Download process interrupted during retry delay.");
-            return;
+            return 0;
           }
         } else {
           log.error(
               "Failed to download Yahoo Finance data for {} after {} attempts",
               ticker.getTickerSymbol(),
               maxAttempts,
-              e);
+              exception);
         }
       }
     }
+    return 0;
   }
 
   private String downloadData(String url) throws IOException {
