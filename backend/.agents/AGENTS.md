@@ -159,3 +159,13 @@ if (dailyBars.size() >= MIN_BARS) {
 ## Technical Analysis & S&R Engine
 - **Decoupling False Breakout Forgiveness from Touch Scoring**: Forgiving a temporary breach (preventing premature invalidation) must not conflate with validating support/resistance strength. Reclaims should never award touch credits, and false breakouts must be capped per level lifecycle (`max-false-breakouts`) to prevent whipsawed chop ranges from persisting indefinitely.
 - **Sequential Candle Boundary Anchoring**: In `computeBuckets`, the latest price candle (`bars.getLast()`) defines both the pivot anchor $P$ and linear bucket intervals $[Z_{\text{bottom}}, Z_{\text{top}}]$. Because the latest candle is also scanned during historical candle iteration, its price bounds evaluate against the computed zone boundaries.
+
+## Market Calendars & Data Downloader Gating
+- **Market Calendar & Downloader Gating Pattern**:
+  - `DailyPriceRepository.findLatestPriceDatesForActiveTickers()` provides a single bulk JPQL query mapping `Ticker` to `LocalDate` (`1900-01-01` if no prices exist). Comparing `latestSavedDate >= expectedTradingDate` allows $O(1)$ memory checks per ticker, eliminating redundant HTTP calls and throttle sleeps.
+  - Setting `endTs` to at least `expectedTradingDate.plusDays(1).atStartOfDay(marketZone).toEpochSecond()` (or `Instant.now()`) allows ingestion of finalized daily candles immediately after market cutoff, avoiding UTC start-of-day truncation limitations.
+- **Downstream Pipeline Short-Circuiting**:
+  - Downstream pipeline steps (weekly candles, support/resistance, candlestick patterns, chart patterns, indicators) should be conditionally bypassed when the daily ingestion step yields zero newly ingested rows across all tickers, logging the short-circuit duration cleanly.
+- **JaCoCo Branch Coverage on Downloader Logic**:
+  - Redundant guards in inner download methods (such as checking `startTs >= endTs` when caller gating already guarantees `latestSavedDate < expectedTradingDate`) introduce unreachable branches that violate the 100% JaCoCo branch coverage requirement. Placing gating cleanly at the caller loop level keeps inner methods branch-lean and fully coverable.
+
