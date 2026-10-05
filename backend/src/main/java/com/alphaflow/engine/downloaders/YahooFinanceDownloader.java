@@ -6,6 +6,7 @@ import com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -161,6 +162,6 @@ public class YahooFinanceDownloader {
   }
 
   private String downloadData(String url) {
-    return restClient.get().uri(url).retrieve().body(String.class);
+    return restClient.get().uri(URI.create(url)).retrieve().body(String.class);
   }
 }

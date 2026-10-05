@@ -62,6 +62,22 @@ class YahooFinanceDownloaderTest {
           }
         });
 
+    server.createContext(
+        "/special-symbol",
+        exchange -> {
+          String rawQuery = exchange.getRequestURI().getRawQuery();
+          if (rawQuery != null && rawQuery.contains("%5EGSPC") && !rawQuery.contains("%255EGSPC")) {
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, validJson.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+              os.write(validJson);
+            }
+          } else {
+            exchange.sendResponseHeaders(404, 0);
+            exchange.close();
+          }
+        });
+
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -287,5 +303,44 @@ class YahooFinanceDownloaderTest {
     downloader.downloadDailyPrices();
 
     verify(dailyRepo, times(1)).saveAll(any());
+  }
+
+  @Test
+  void testDownloadSpecialSymbolTickerEncoding() {
+    YahooFinanceConfig config = createConfig();
+    config.setDownloadUrl(baseUrl + "/special-symbol?symbol={symbol}&start={start}&end={end}");
+    config.setDelayMilliseconds(0);
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("^GSPC");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(2, ingestedRows);
+    verify(dailyRepo, times(1)).saveAll(any());
+  }
+
+  @Test
+  void testConstructorWithCustomRestClientBuilder() {
+    YahooFinanceConfig config = createConfig();
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
+
+    YahooFinanceDownloader downloader =
+        new YahooFinanceDownloader(
+            config, dailyRepo, org.springframework.web.client.RestClient.builder());
+    int ingestedRows = downloader.downloadDailyPrices();
+
+    assertEquals(0, ingestedRows);
   }
 }

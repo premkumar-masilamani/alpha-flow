@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class CoreSchedulerTest {
 
   @Test
-  void testScheduledUpdateSuccess() {
+  void testScheduledUpdateSuccessWithChartPatternsDisabledByDefault() {
     YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
     WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
@@ -40,6 +40,38 @@ class CoreSchedulerTest {
             supportResistanceCalculator,
             patternCalculator,
             chartPatternCalculator);
+
+    scheduler.runScheduledUpdate();
+
+    verify(downloader, times(1)).downloadDailyPrices();
+    verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
+    verify(indicatorCalculator, times(1)).computeIndicators();
+    verify(supportResistanceCalculator, times(1)).computeSupportResistances();
+    verify(patternCalculator, times(1)).computeCandleStickPatterns();
+    verify(chartPatternCalculator, never()).computeChartPatterns();
+  }
+
+  @Test
+  void testScheduledUpdateSuccessWithChartPatternsEnabled() {
+    YahooFinanceDownloader downloader = mock(YahooFinanceDownloader.class);
+    WeeklyPriceCalculator weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
+    IndicatorCalculator indicatorCalculator = mock(IndicatorCalculator.class);
+    SupportResistanceCalculator supportResistanceCalculator =
+        mock(SupportResistanceCalculator.class);
+    CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
+    ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+
+    when(downloader.downloadDailyPrices()).thenReturn(5);
+
+    CoreScheduler scheduler =
+        new CoreScheduler(
+            downloader,
+            weeklyPriceCalculator,
+            indicatorCalculator,
+            supportResistanceCalculator,
+            patternCalculator,
+            chartPatternCalculator,
+            true);
 
     scheduler.runScheduledUpdate();
 
@@ -166,6 +198,6 @@ class CoreSchedulerTest {
     verify(indicatorCalculator, times(1)).computeIndicators();
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();
     verify(patternCalculator, times(1)).computeCandleStickPatterns();
-    verify(chartPatternCalculator, times(1)).computeChartPatterns();
+    verify(chartPatternCalculator, never()).computeChartPatterns();
   }
 }

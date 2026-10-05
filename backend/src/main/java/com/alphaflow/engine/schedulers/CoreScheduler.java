@@ -8,6 +8,7 @@ import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -24,8 +25,10 @@ public class CoreScheduler {
   private final SupportResistanceCalculator supportResistanceCalculator;
   private final CandlestickPatternCalculator candlestickPatternCalculator;
   private final ChartPatternCalculator chartPatternCalculator;
+  private final boolean enableChartPatterns;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
+  @Autowired
   public CoreScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
@@ -33,12 +36,31 @@ public class CoreScheduler {
       SupportResistanceCalculator supportResistanceCalculator,
       CandlestickPatternCalculator candlestickPatternCalculator,
       ChartPatternCalculator chartPatternCalculator) {
+    this(
+        yahooFinanceDownloader,
+        weeklyPriceCalculator,
+        indicatorCalculator,
+        supportResistanceCalculator,
+        candlestickPatternCalculator,
+        chartPatternCalculator,
+        false);
+  }
+
+  public CoreScheduler(
+      YahooFinanceDownloader yahooFinanceDownloader,
+      WeeklyPriceCalculator weeklyPriceCalculator,
+      IndicatorCalculator indicatorCalculator,
+      SupportResistanceCalculator supportResistanceCalculator,
+      CandlestickPatternCalculator candlestickPatternCalculator,
+      ChartPatternCalculator chartPatternCalculator,
+      boolean enableChartPatterns) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.indicatorCalculator = indicatorCalculator;
     this.supportResistanceCalculator = supportResistanceCalculator;
     this.candlestickPatternCalculator = candlestickPatternCalculator;
     this.chartPatternCalculator = chartPatternCalculator;
+    this.enableChartPatterns = enableChartPatterns;
   }
 
   @Scheduled(cron = "0 0 * * * *")
@@ -86,10 +108,14 @@ public class CoreScheduler {
         candlestickPatternCalculator.computeCandleStickPatterns();
         log.info("Step 4/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
 
-        log.info("Step 5/6: Computing chart patterns...");
-        start = System.currentTimeMillis();
-        chartPatternCalculator.computeChartPatterns();
-        log.info("Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+        if (enableChartPatterns) {
+          log.info("Step 5/6: Computing chart patterns...");
+          start = System.currentTimeMillis();
+          chartPatternCalculator.computeChartPatterns();
+          log.info("Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+        } else {
+          log.info("Step 5/6: Computing chart patterns is disabled.");
+        }
 
         log.info("Step 6/6: Computing indicators...");
         start = System.currentTimeMillis();
