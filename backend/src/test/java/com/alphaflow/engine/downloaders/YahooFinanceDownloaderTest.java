@@ -16,10 +16,17 @@ import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.net.URL;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class YahooFinanceDownloaderTest {
+
+  private YahooFinanceConfig createConfig() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    config.setMarketCutoffTime(LocalTime.of(17, 0));
+    return config;
+  }
 
   @Test
   void testDownloadUpToDateNoAction() {
@@ -35,7 +42,7 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
@@ -46,7 +53,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testDownloadValidParseAndSave() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     URL jsonUrl = getClass().getResource("/yahoo_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
@@ -81,7 +88,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testDownloadNullLatestSavedDate() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     URL jsonUrl = getClass().getResource("/yahoo_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
@@ -109,7 +116,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testDownloadAllDownloadedPointsAlreadyExist() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     URL jsonUrl = getClass().getResource("/yahoo_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
@@ -137,7 +144,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testDownloadEmptyPriceDataReturned() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     URL jsonUrl = getClass().getResource("/yahoo_empty_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
@@ -165,7 +172,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testDownloadNoActiveTickers() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
 
@@ -179,7 +186,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testDownloadConnectionExceptionHandled() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     config.setDownloadUrl("invalidproto://foo?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(1);
 
@@ -205,7 +212,7 @@ class YahooFinanceDownloaderTest {
 
   @Test
   void testInterruptedDuringThrottle() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceConfig config = createConfig();
     URL jsonUrl = getClass().getResource("/yahoo_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");

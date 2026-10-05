@@ -20,7 +20,7 @@ public class YahooFinanceConfig {
 
   private String downloadUrl;
   private long delayMilliseconds;
-  private LocalTime marketCutoffTime = LocalTime.of(17, 0);
+  private LocalTime marketCutoffTime;
   private List<String> holidays = new ArrayList<>();
 
   public Set<MonthDay> getHolidaySet() {
