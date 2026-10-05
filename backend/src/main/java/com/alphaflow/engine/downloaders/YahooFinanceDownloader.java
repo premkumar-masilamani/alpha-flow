@@ -1,25 +1,26 @@
 package com.alphaflow.engine.downloaders;
 
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
+import com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
-import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 @Component
 @Slf4j
@@ -27,18 +28,30 @@ public class YahooFinanceDownloader {
 
   private final YahooFinanceConfig yahooFinanceConfig;
   private final DailyPriceRepository dailyPriceRepository;
-  private final YahooResponseParser yahooResponseParser;
+  private final RestClient restClient;
 
+  @Autowired
   public YahooFinanceDownloader(
       YahooFinanceConfig yahooFinanceConfig,
       DailyPriceRepository dailyPriceRepository,
-      YahooResponseParser yahooResponseParser) {
+      @Autowired(required = false) RestClient.Builder restClientBuilder) {
     this.yahooFinanceConfig = yahooFinanceConfig;
     this.dailyPriceRepository = dailyPriceRepository;
-    this.yahooResponseParser = yahooResponseParser;
+    this.restClient =
+        (restClientBuilder != null ? restClientBuilder : RestClient.builder())
+            .defaultHeader(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .defaultHeader("Accept", "application/json")
+            .build();
   }
 
-  public void downloadDailyPrices() {
+  public YahooFinanceDownloader(
+      YahooFinanceConfig yahooFinanceConfig, DailyPriceRepository dailyPriceRepository) {
+    this(yahooFinanceConfig, dailyPriceRepository, null);
+  }
+
+  public int downloadDailyPrices() {
     log.info("Starting Yahoo Finance data download process...");
 
     Map<Ticker, LocalDate> latestSavedDates =
@@ -46,35 +59,58 @@ public class YahooFinanceDownloader {
 
     log.info("Found {} active Yahoo Finance tickers to sync.", latestSavedDates.size());
 
+    int totalNewlyIngestedRows = 0;
     List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
     for (Ticker ticker : tickers) {
-      downloadDataForTicker(ticker, latestSavedDates.get(ticker));
-      try {
-        Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        log.warn("Download process interrupted during delay.");
-        break;
+      ZoneId marketZone = ticker.getCountry().getZoneId();
+
+      LocalDate expectedTradingDate =
+          MarketTradingCalendar.getExpectedLatestTradingDate(
+              ZonedDateTime.now(marketZone),
+              yahooFinanceConfig.getMarketCutoffTime(),
+              yahooFinanceConfig.getHolidaySet());
+
+      LocalDate latestSavedDate = latestSavedDates.get(ticker);
+      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
+        int ingestedRows =
+            downloadDataForTicker(ticker, latestSavedDate, expectedTradingDate, marketZone);
+        totalNewlyIngestedRows += ingestedRows;
+
+        try {
+          Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          log.warn("Download process interrupted during delay.");
+          break;
+        }
+      } else {
+        log.debug(
+            "{}: up to date (latest saved: {}, expected: {}). Skipping.",
+            ticker.getTickerSymbol(),
+            latestSavedDate,
+            expectedTradingDate);
       }
     }
-    log.info("All Yahoo Finance downloads completed!");
+    log.info(
+        "All Yahoo Finance downloads completed! Total newly ingested rows: {}",
+        totalNewlyIngestedRows);
+    return totalNewlyIngestedRows;
   }
 
-  private void downloadDataForTicker(Ticker ticker, LocalDate latestSavedDate) {
+  private int downloadDataForTicker(
+      Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate, ZoneId marketZone) {
     LocalDate actualLatestDate =
-        (latestSavedDate != null) ? latestSavedDate : LocalDate.of(1899, 12, 31);
+        (latestSavedDate != null) ? latestSavedDate : LocalDate.of(1900, 1, 1);
     LocalDate startDate = actualLatestDate.plusDays(1);
 
     long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
-    long endTs = Instant.now().truncatedTo(ChronoUnit.DAYS).getEpochSecond();
-
-    if (startTs >= endTs) {
-      log.info("{}: up to date (last sync: {}).", ticker.getTickerSymbol(), actualLatestDate);
-      return;
-    }
+    long endTs =
+        Math.max(
+            Instant.now().getEpochSecond(),
+            expectedTradingDate.plusDays(1).atStartOfDay(marketZone).toEpochSecond());
 
     log.info(
-        "Syncing {} from {} (timestamp: {}) to start of today (timestamp: {})",
+        "Syncing {} from {} (timestamp: {}) to timestamp: {}",
         ticker.getTickerSymbol(),
         startDate,
         Instant.ofEpochSecond(startTs),
@@ -88,76 +124,44 @@ public class YahooFinanceDownloader {
             .replace("{start}", String.valueOf(startTs))
             .replace("{end}", String.valueOf(endTs));
 
-    int maxAttempts = 2;
-    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        if (attempt > 1) {
-          log.info(
-              "Retrying Yahoo Finance download for {} (attempt {}/{})...",
-              ticker.getTickerSymbol(),
-              attempt,
-              maxAttempts);
-        }
-        String json = downloadData(url);
-        List<DailyPrice> dailyPriceList = yahooResponseParser.parse(json, ticker);
-        if (!dailyPriceList.isEmpty()) {
-          List<DailyPrice> newDailyPriceData =
-              dailyPriceList.stream()
-                  .filter(candle -> candle.getPriceDate().isAfter(actualLatestDate))
-                  .collect(Collectors.toList());
+    try {
+      String json = downloadData(url);
+      List<DailyPrice> dailyPriceList = YahooResponseParser.parse(json, ticker);
+      if (!dailyPriceList.isEmpty()) {
+        List<DailyPrice> newDailyPriceData =
+            dailyPriceList.stream()
+                .filter(candle -> candle.getPriceDate().isAfter(actualLatestDate))
+                .collect(Collectors.toList());
 
-          if (!newDailyPriceData.isEmpty()) {
-            dailyPriceRepository.saveAll(newDailyPriceData);
-            log.info(
-                "Successfully synced {} rows for {}",
-                newDailyPriceData.size(),
-                ticker.getTickerSymbol());
-          } else {
-            log.info(
-                "No new data points to save for ticker {} (all downloaded points already exist).",
-                ticker.getTickerSymbol());
-          }
-        }
-        // Success: exit the attempt loop
-        return;
-      } catch (Exception e) {
-        if (attempt < maxAttempts) {
-          log.warn(
-              "Failed to download Yahoo Finance data for {} on attempt {}/{} (will retry): {}",
-              ticker.getTickerSymbol(),
-              attempt,
-              maxAttempts,
-              e.getMessage());
-          try {
-            Thread.sleep(yahooFinanceConfig.getDelayMilliseconds());
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            log.warn("Download process interrupted during retry delay.");
-            return;
-          }
+        if (!newDailyPriceData.isEmpty()) {
+          dailyPriceRepository.saveAll(newDailyPriceData);
+          log.info(
+              "Successfully synced {} rows for {}",
+              newDailyPriceData.size(),
+              ticker.getTickerSymbol());
+          return newDailyPriceData.size();
         } else {
-          log.error(
-              "Failed to download Yahoo Finance data for {} after {} attempts",
-              ticker.getTickerSymbol(),
-              maxAttempts,
-              e);
+          log.info(
+              "No new data points to save for ticker {} (all downloaded points already exist).",
+              ticker.getTickerSymbol());
+          return 0;
         }
+      } else {
+        log.info(
+            "No price data returned from Yahoo Finance for ticker {}.", ticker.getTickerSymbol());
+        return 0;
       }
+    } catch (Exception exception) {
+      log.error(
+          "Failed to download Yahoo Finance data for {}: {}",
+          ticker.getTickerSymbol(),
+          exception.getMessage(),
+          exception);
+      return 0;
     }
   }
 
-  private String downloadData(String url) throws IOException {
-    URLConnection connection = URI.create(url).toURL().openConnection();
-    connection.setConnectTimeout(10000);
-    connection.setReadTimeout(10000);
-    // Add a realistic User-Agent to avoid 401/403 errors
-    connection.setRequestProperty(
-        "User-Agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-    connection.setRequestProperty("Accept", "application/json");
-
-    try (InputStream in = connection.getInputStream()) {
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
+  private String downloadData(String url) {
+    return restClient.get().uri(URI.create(url)).retrieve().body(String.class);
   }
 }

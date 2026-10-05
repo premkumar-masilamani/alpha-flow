@@ -1,4 +1,4 @@
-package com.alphaflow.engine.downloaders.dtos;
+package com.alphaflow.engine.downloaders.yahoofinance.dtos;
 
 import java.util.List;
 

@@ -23,7 +23,7 @@ make format
 ### Always do
 - Use `BigDecimal` for prices, monetary values, and volume.
 - Use `Long` for all IDs and `LocalDate` / `LocalDateTime` for dates.
-- Enforce strict boundaries: `api` depends on `engine` and `persistence`; `engine` depends on `persistence`; `persistence` is completely self-contained.
+- Enforce strict boundaries: `api` depends on `engine`, `persistence`, and `common`; `engine` depends on `persistence` and `common`; `persistence` depends on `common`; `common` is completely self-contained and can be used by all layers.
 - Ensure all Java files contain exactly one Java type definition (only one class, record, interface, or enum per file) with no nested or extra package-private helper type definitions.
 - Ensure all code (including tests and newly generated files) fully conforms to Checkstyle, PMD, and Spotless formatting rules. Fix code quality warnings in the source code rather than suppressing them.
 - Explicitly branch on `Timeframe`: always use `if (timeframe == Timeframe.DAILY)` followed by `else if (timeframe == Timeframe.WEEKLY)`. The terminal `else` block must explicitly log an error (`log.error(...)`) and throw `new IllegalArgumentException("Unsupported timeframe: " + timeframe)`.
@@ -46,6 +46,7 @@ make format
 src/main/java/com/alphaflow/api/         # REST API layer (controllers, services, DTOs)
 src/main/java/com/alphaflow/engine/      # Computation (downloaders, calculators, schedulers)
 src/main/java/com/alphaflow/persistence/ # DB layer (JPA entities, repositories, enums)
+src/main/java/com/alphaflow/common/      # Shared cross-cutting constants and enums
 ```
 
 ## Code Style
@@ -159,3 +160,13 @@ if (dailyBars.size() >= MIN_BARS) {
 ## Technical Analysis & S&R Engine
 - **Decoupling False Breakout Forgiveness from Touch Scoring**: Forgiving a temporary breach (preventing premature invalidation) must not conflate with validating support/resistance strength. Reclaims should never award touch credits, and false breakouts must be capped per level lifecycle (`max-false-breakouts`) to prevent whipsawed chop ranges from persisting indefinitely.
 - **Sequential Candle Boundary Anchoring**: In `computeBuckets`, the latest price candle (`bars.getLast()`) defines both the pivot anchor $P$ and linear bucket intervals $[Z_{\text{bottom}}, Z_{\text{top}}]$. Because the latest candle is also scanned during historical candle iteration, its price bounds evaluate against the computed zone boundaries.
+
+## Market Calendars & Data Downloader Gating
+- **Market Calendar & Downloader Gating Pattern**:
+  - `DailyPriceRepository.findLatestPriceDatesForActiveTickers()` provides a single bulk JPQL query mapping `Ticker` to `LocalDate` (`1900-01-01` if no prices exist). Comparing `latestSavedDate >= expectedTradingDate` allows $O(1)$ memory checks per ticker, eliminating redundant HTTP calls and throttle sleeps.
+  - Setting `endTs` to at least `expectedTradingDate.plusDays(1).atStartOfDay(marketZone).toEpochSecond()` (or `Instant.now()`) allows ingestion of finalized daily candles immediately after market cutoff, avoiding UTC start-of-day truncation limitations.
+- **Downstream Pipeline Short-Circuiting**:
+  - Downstream pipeline steps (weekly candles, support/resistance, candlestick patterns, chart patterns, indicators) should be conditionally bypassed when the daily ingestion step yields zero newly ingested rows across all tickers, logging the short-circuit duration cleanly.
+- **JaCoCo Branch Coverage on Downloader Logic**:
+  - Redundant guards in inner download methods (such as checking `startTs >= endTs` when caller gating already guarantees `latestSavedDate < expectedTradingDate`) introduce unreachable branches that violate the 100% JaCoCo branch coverage requirement. Placing gating cleanly at the caller loop level keeps inner methods branch-lean and fully coverable.
+

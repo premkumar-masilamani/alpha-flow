@@ -47,6 +47,7 @@ flowchart TD
     end
 
     subgraph engine ["Engine (Logic)"]
+        com_alphaflow_engine_calendar_MarketTradingCalendar["MarketTradingCalendar (class)"]
         com_alphaflow_engine_indicators_SmaIndicator["SmaIndicator (class)"]
         com_alphaflow_engine_indicators_Indicator["Indicator (interface)"]
         com_alphaflow_engine_indicators_RsiIndicator["RsiIndicator (class)"]
@@ -61,12 +62,12 @@ flowchart TD
         com_alphaflow_engine_indicators_dtos_PriceBar["PriceBar (record)"]
         com_alphaflow_engine_downloaders_YahooFinanceDownloader["YahooFinanceDownloader (class)"]
         com_alphaflow_engine_downloaders_AngelOneDownloader["AngelOneDownloader (class)"]
-        com_alphaflow_engine_downloaders_YahooResponseParser["YahooResponseParser (class)"]
-        com_alphaflow_engine_downloaders_dtos_YahooResult["YahooResult (record)"]
-        com_alphaflow_engine_downloaders_dtos_YahooQuote["YahooQuote (record)"]
-        com_alphaflow_engine_downloaders_dtos_YahooResponse["YahooResponse (record)"]
-        com_alphaflow_engine_downloaders_dtos_YahooChart["YahooChart (record)"]
-        com_alphaflow_engine_downloaders_dtos_YahooIndicators["YahooIndicators (record)"]
+        com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser["YahooResponseParser (class)"]
+        com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResult["YahooResult (record)"]
+        com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooQuote["YahooQuote (record)"]
+        com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResponse["YahooResponse (record)"]
+        com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooChart["YahooChart (record)"]
+        com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooIndicators["YahooIndicators (record)"]
         com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper["AngelOneNetworkHelper (class)"]
         com_alphaflow_engine_downloaders_angelone_AngelOneClient["AngelOneClient (class)"]
         com_alphaflow_engine_downloaders_angelone_TotpGenerator["TotpGenerator (class)"]
@@ -135,9 +136,12 @@ flowchart TD
         com_alphaflow_persistence_entities_Ticker["Ticker (class)"]
     end
 
+    subgraph common ["Common (Shared)"]
+        com_alphaflow_common_constants_MarketConstants["MarketConstants (class)"]
+        com_alphaflow_common_enums_Timeframe["Timeframe (enum)"]
+    end
+
     com_alphaflow_AlphaFlowApp["AlphaFlowApp (Root)"]
-    com_alphaflow_common_constants_MarketConstants["MarketConstants (Root)"]
-    com_alphaflow_common_enums_Timeframe["Timeframe (Root)"]
 
     %% Edges
     com_alphaflow_api_config_TimeframeConverter --> com_alphaflow_common_enums_Timeframe
@@ -355,16 +359,12 @@ flowchart TD
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_IntradayPriceRepository
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_TickerRepository
+    com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_calendar_MarketTradingCalendar
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_configs_YahooFinanceConfig
-    com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_YahooResponseParser
+    com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_persistence_entities_DailyPrice
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_persistence_repositories_DailyPriceRepository
-    com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_engine_downloaders_dtos_YahooQuote
-    com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_engine_downloaders_dtos_YahooResponse
-    com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_engine_downloaders_dtos_YahooResult
-    com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_persistence_entities_DailyPrice
-    com_alphaflow_engine_downloaders_YahooResponseParser --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
     com_alphaflow_engine_downloaders_angelone_AngelOneAuthManager --> com_alphaflow_engine_downloaders_angelone_TotpGenerator
@@ -375,10 +375,15 @@ flowchart TD
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_AngelOneNetworkHelper
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
     com_alphaflow_engine_downloaders_angelone_AngelOneClient --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote
-    com_alphaflow_engine_downloaders_dtos_YahooChart --> com_alphaflow_engine_downloaders_dtos_YahooResult
-    com_alphaflow_engine_downloaders_dtos_YahooIndicators --> com_alphaflow_engine_downloaders_dtos_YahooQuote
-    com_alphaflow_engine_downloaders_dtos_YahooResponse --> com_alphaflow_engine_downloaders_dtos_YahooChart
-    com_alphaflow_engine_downloaders_dtos_YahooResult --> com_alphaflow_engine_downloaders_dtos_YahooIndicators
+    com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooQuote
+    com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResponse
+    com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResult
+    com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser --> com_alphaflow_persistence_entities_DailyPrice
+    com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooChart --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResult
+    com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooIndicators --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooQuote
+    com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResponse --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooChart
+    com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooResult --> com_alphaflow_engine_downloaders_yahoofinance_dtos_YahooIndicators
     com_alphaflow_engine_indicators_BollingerBandsIndicator --> com_alphaflow_engine_indicators_Indicator
     com_alphaflow_engine_indicators_BollingerBandsIndicator --> com_alphaflow_engine_indicators_dtos_IndicatorParams
     com_alphaflow_engine_indicators_BollingerBandsIndicator --> com_alphaflow_engine_indicators_dtos_PriceBar
@@ -522,8 +527,9 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 118
-- **Total Dependencies**: 376
+- **Total Classes**: 119
+- **Total Dependencies**: 377
 - **API Layer Classes**: 32
-- **Engine Layer Classes**: 43
+- **Engine Layer Classes**: 44
 - **Persistence Layer Classes**: 40
+- **Common Classes**: 2

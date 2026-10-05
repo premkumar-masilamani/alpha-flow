@@ -30,13 +30,15 @@ def parse_java_file(filepath):
     class_name = os.path.basename(filepath).replace(".java", "")
     fqn = f"{package}.{class_name}" if package else class_name
 
-    # Determine component (api, engine, persistence, root)
+    # Determine component (api, engine, persistence, common, root)
     if "com.alphaflow.api" in package:
         component = "api"
     elif "com.alphaflow.engine" in package:
         component = "engine"
     elif "com.alphaflow.persistence" in package:
         component = "persistence"
+    elif "com.alphaflow.common" in package:
+        component = "common"
     else:
         component = "root"
 
@@ -158,9 +160,10 @@ def main():
                     edges.add((c['fqn'], resolved))
 
     # 3. Validate Rules & Detect Violations
-    # api -> engine, persistence (allowed)
-    # engine -> persistence (allowed), engine -> api (VIOLATION)
-    # persistence -> api (VIOLATION), persistence -> engine (VIOLATION)
+    # api -> engine, persistence, common (allowed)
+    # engine -> persistence, common (allowed), engine -> api (VIOLATION)
+    # persistence -> common (allowed), persistence -> api (VIOLATION), persistence -> engine (VIOLATION)
+    # common -> api (VIOLATION), common -> engine (VIOLATION), common -> persistence (VIOLATION)
     violations = []
     violated_nodes = set()
     violated_edges = []
@@ -182,6 +185,15 @@ def main():
         elif src_c['component'] == 'persistence' and tgt_c['component'] == 'engine':
             is_violation = True
             reason = "Persistence database entities and repositories cannot depend on Business Logic (Engine)"
+        elif src_c['component'] == 'common' and tgt_c['component'] == 'api':
+            is_violation = True
+            reason = "Common component cannot depend on API layer DTOs or Controllers"
+        elif src_c['component'] == 'common' and tgt_c['component'] == 'engine':
+            is_violation = True
+            reason = "Common component cannot depend on Business Logic (Engine)"
+        elif src_c['component'] == 'common' and tgt_c['component'] == 'persistence':
+            is_violation = True
+            reason = "Common component cannot depend on Persistence (Database)"
 
         if is_violation:
             violations.append({
@@ -281,7 +293,12 @@ def generate_markdown_report(classes, edges, violations):
         f.write("```mermaid\nflowchart TD\n")
 
         # Subgraphs for components
-        components = {"api": "API Layer", "engine": "Engine (Logic)", "persistence": "Persistence (Database)"}
+        components = {
+            "api": "API Layer",
+            "engine": "Engine (Logic)",
+            "persistence": "Persistence (Database)",
+            "common": "Common (Shared)",
+        }
         for comp, label in components.items():
             f.write(f"    subgraph {comp} [\"{label}\"]\n")
             for c in classes:
@@ -328,6 +345,7 @@ def generate_markdown_report(classes, edges, violations):
         f.write(f"- **API Layer Classes**: {len([c for c in classes if c['component'] == 'api'])}\n")
         f.write(f"- **Engine Layer Classes**: {len([c for c in classes if c['component'] == 'engine'])}\n")
         f.write(f"- **Persistence Layer Classes**: {len([c for c in classes if c['component'] == 'persistence'])}\n")
+        f.write(f"- **Common Classes**: {len([c for c in classes if c['component'] == 'common'])}\n")
 
 def generate_html_visualizer(classes, edges, violations):
     html_path = os.path.join(DIAGRAMS_DIR, "index.html")
@@ -339,7 +357,8 @@ def generate_html_visualizer(classes, edges, violations):
     components = [
         {"id": "api", "label": "API LAYER (controllers, dtos, mappers, services)"},
         {"id": "engine", "label": "ENGINE LAYER (calculators, downloaders, indicators, schedulers)"},
-        {"id": "persistence", "label": "PERSISTENCE LAYER (entities, repositories, enums)"}
+        {"id": "persistence", "label": "PERSISTENCE LAYER (entities, repositories, enums)"},
+        {"id": "common", "label": "COMMON (constants, enums)"}
     ]
     for comp in components:
         cy_elements.append({
@@ -361,6 +380,8 @@ def generate_html_visualizer(classes, edges, violations):
             parent_comp = "engine"
         elif "com.alphaflow.persistence" in pkg:
             parent_comp = "persistence"
+        elif "com.alphaflow.common" in pkg:
+            parent_comp = "common"
 
         cy_elements.append({
             "data": {
@@ -419,6 +440,7 @@ def generate_html_visualizer(classes, edges, violations):
             --accent-api: #3b82f6;
             --accent-engine: #10b981;
             --accent-persistence: #fb8c00;
+            --accent-common: #8b5cf6;
             --accent-violation: #ef4444;
             --accent-root: #6b7280;
         }}
@@ -676,6 +698,10 @@ def generate_html_visualizer(classes, edges, violations):
             <span>Persistence Layer (Orange)</span>
         </div>
         <div class="legend-item">
+            <div class="legend-color" style="background-color: var(--accent-common)"></div>
+            <span>Common Layer (Purple)</span>
+        </div>
+        <div class="legend-item">
             <div class="legend-color" style="background-color: var(--accent-root)"></div>
             <span>Root (Gray)</span>
         </div>
@@ -726,6 +752,9 @@ def generate_html_visualizer(classes, edges, violations):
                     </label>
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="chk-persistence" checked> Show Persistence Layer
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="chk-common" checked> Show Common Layer
                     </label>
                 </div>
             </div>
@@ -826,6 +855,17 @@ def generate_html_visualizer(classes, edges, violations):
                             'padding': '36px 16px 16px 16px'
                         }}
                     }},
+                    {{
+                        selector: '#common',
+                        style: {{
+                            'border-color': 'rgba(139, 92, 246, 0.3)',
+                            'border-style': 'solid',
+                            'border-width': '2px',
+                            'color': '#c084fc',
+                            'font-size': '13px',
+                            'padding': '36px 16px 16px 16px'
+                        }}
+                    }},
                     // Node Components styling (using explicit Hex values instead of css variables)
                     {{
                         selector: 'node[component="api"]',
@@ -838,6 +878,10 @@ def generate_html_visualizer(classes, edges, violations):
                     {{
                         selector: 'node[component="persistence"]',
                         style: {{ 'background-color': '#fb8c00' }}
+                    }},
+                    {{
+                        selector: 'node[component="common"]',
+                        style: {{ 'background-color': '#8b5cf6' }}
                     }},
                     // Violation Nodes
                     {{
@@ -973,7 +1017,7 @@ def generate_html_visualizer(classes, edges, violations):
 
                     <div class="detail-section">
                         <div class="detail-label">Component Group</div>
-                        <div class="detail-value" style="text-transform: uppercase; font-weight: 600; color: ${{data.component === 'api' ? '#3b82f6' : data.component === 'engine' ? '#10b981' : '#fb8c00'}};">
+                        <div class="detail-value" style="text-transform: uppercase; font-weight: 600; color: ${{data.component === 'api' ? '#3b82f6' : data.component === 'engine' ? '#10b981' : data.component === 'persistence' ? '#fb8c00' : data.component === 'common' ? '#8b5cf6' : '#9ca3af'}};">
                             ${{data.component}}
                         </div>
                     </div>
@@ -1121,6 +1165,7 @@ def generate_html_visualizer(classes, edges, violations):
                 const showApi = document.getElementById('chk-api').checked;
                 const showEngine = document.getElementById('chk-engine').checked;
                 const showPersistence = document.getElementById('chk-persistence').checked;
+                const showCommon = document.getElementById('chk-common').checked;
 
                 cy.batch(() => {{
                     cy.nodes().forEach(node => {{
@@ -1132,6 +1177,7 @@ def generate_html_visualizer(classes, edges, violations):
                         if (comp === 'api' && !showApi) isVisible = false;
                         if (comp === 'engine' && !showEngine) isVisible = false;
                         if (comp === 'persistence' && !showPersistence) isVisible = false;
+                        if (comp === 'common' && !showCommon) isVisible = false;
                         if (onlyViolationsMode && !node.data('violation')) isVisible = false;
 
                         if (isVisible) {{
@@ -1156,6 +1202,7 @@ def generate_html_visualizer(classes, edges, violations):
             document.getElementById('chk-api').addEventListener('change', applyFilters);
             document.getElementById('chk-engine').addEventListener('change', applyFilters);
             document.getElementById('chk-persistence').addEventListener('change', applyFilters);
+            document.getElementById('chk-common').addEventListener('change', applyFilters);
 
             document.getElementById('btn-violations').addEventListener('click', function() {{
                 onlyViolationsMode = !onlyViolationsMode;
