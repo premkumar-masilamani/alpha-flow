@@ -136,9 +136,12 @@ flowchart TD
         com_alphaflow_persistence_entities_Ticker["Ticker (class)"]
     end
 
+    subgraph common ["Common (Shared)"]
+        com_alphaflow_common_constants_MarketConstants["MarketConstants (class)"]
+        com_alphaflow_common_enums_Timeframe["Timeframe (enum)"]
+    end
+
     com_alphaflow_AlphaFlowApp["AlphaFlowApp (Root)"]
-    com_alphaflow_common_constants_MarketConstants["MarketConstants (Root)"]
-    com_alphaflow_common_enums_Timeframe["Timeframe (Root)"]
 
     %% Edges
     com_alphaflow_api_config_TimeframeConverter --> com_alphaflow_common_enums_Timeframe
@@ -530,3 +533,4 @@ flowchart TD
 - **API Layer Classes**: 32
 - **Engine Layer Classes**: 44
 - **Persistence Layer Classes**: 40
+- **Common Classes**: 2

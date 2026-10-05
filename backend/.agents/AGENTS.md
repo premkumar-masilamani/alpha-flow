@@ -23,7 +23,7 @@ make format
 ### Always do
 - Use `BigDecimal` for prices, monetary values, and volume.
 - Use `Long` for all IDs and `LocalDate` / `LocalDateTime` for dates.
-- Enforce strict boundaries: `api` depends on `engine` and `persistence`; `engine` depends on `persistence`; `persistence` is completely self-contained.
+- Enforce strict boundaries: `api` depends on `engine`, `persistence`, and `common`; `engine` depends on `persistence` and `common`; `persistence` depends on `common`; `common` is completely self-contained and can be used by all layers.
 - Ensure all Java files contain exactly one Java type definition (only one class, record, interface, or enum per file) with no nested or extra package-private helper type definitions.
 - Ensure all code (including tests and newly generated files) fully conforms to Checkstyle, PMD, and Spotless formatting rules. Fix code quality warnings in the source code rather than suppressing them.
 - Explicitly branch on `Timeframe`: always use `if (timeframe == Timeframe.DAILY)` followed by `else if (timeframe == Timeframe.WEEKLY)`. The terminal `else` block must explicitly log an error (`log.error(...)`) and throw `new IllegalArgumentException("Unsupported timeframe: " + timeframe)`.
@@ -46,6 +46,7 @@ make format
 src/main/java/com/alphaflow/api/         # REST API layer (controllers, services, DTOs)
 src/main/java/com/alphaflow/engine/      # Computation (downloaders, calculators, schedulers)
 src/main/java/com/alphaflow/persistence/ # DB layer (JPA entities, repositories, enums)
+src/main/java/com/alphaflow/common/      # Shared cross-cutting constants and enums
 ```
 
 ## Code Style

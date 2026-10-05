@@ -18,6 +18,7 @@
             --accent-api: #3b82f6;
             --accent-engine: #10b981;
             --accent-persistence: #fb8c00;
+            --accent-common: #8b5cf6;
             --accent-violation: #ef4444;
             --accent-root: #6b7280;
         }
@@ -275,6 +276,10 @@
             <span>Persistence Layer (Orange)</span>
         </div>
         <div class="legend-item">
+            <div class="legend-color" style="background-color: var(--accent-common)"></div>
+            <span>Common Layer (Purple)</span>
+        </div>
+        <div class="legend-item">
             <div class="legend-color" style="background-color: var(--accent-root)"></div>
             <span>Root (Gray)</span>
         </div>
@@ -326,6 +331,9 @@
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                         <input type="checkbox" id="chk-persistence" checked> Show Persistence Layer
                     </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="chk-common" checked> Show Common Layer
+                    </label>
                 </div>
             </div>
 
@@ -363,6 +371,13 @@
     "data": {
       "id": "persistence",
       "label": "PERSISTENCE LAYER (entities, repositories, enums)",
+      "is_parent": true
+    }
+  },
+  {
+    "data": {
+      "id": "common",
+      "label": "COMMON (constants, enums)",
       "is_parent": true
     }
   },
@@ -434,7 +449,7 @@
     "data": {
       "id": "com.alphaflow.common.constants",
       "label": "common.constants",
-      "parent": "root",
+      "parent": "common",
       "is_parent": true
     }
   },
@@ -442,7 +457,7 @@
     "data": {
       "id": "com.alphaflow.common.enums",
       "label": "common.enums",
-      "parent": "root",
+      "parent": "common",
       "is_parent": true
     }
   },
@@ -607,7 +622,7 @@
       "label": "MarketConstants",
       "parent": "com.alphaflow.common.constants",
       "type": "class",
-      "component": "root",
+      "component": "common",
       "filepath": "backend/src/main/java/com/alphaflow/common/constants/MarketConstants.java",
       "violation": false
     }
@@ -618,7 +633,7 @@
       "label": "Timeframe",
       "parent": "com.alphaflow.common.enums",
       "type": "enum",
-      "component": "root",
+      "component": "common",
       "filepath": "backend/src/main/java/com/alphaflow/common/enums/Timeframe.java",
       "violation": false
     }
@@ -5382,6 +5397,17 @@
                             'padding': '36px 16px 16px 16px'
                         }
                     },
+                    {
+                        selector: '#common',
+                        style: {
+                            'border-color': 'rgba(139, 92, 246, 0.3)',
+                            'border-style': 'solid',
+                            'border-width': '2px',
+                            'color': '#c084fc',
+                            'font-size': '13px',
+                            'padding': '36px 16px 16px 16px'
+                        }
+                    },
                     // Node Components styling (using explicit Hex values instead of css variables)
                     {
                         selector: 'node[component="api"]',
@@ -5394,6 +5420,10 @@
                     {
                         selector: 'node[component="persistence"]',
                         style: { 'background-color': '#fb8c00' }
+                    },
+                    {
+                        selector: 'node[component="common"]',
+                        style: { 'background-color': '#8b5cf6' }
                     },
                     // Violation Nodes
                     {
@@ -5529,7 +5559,7 @@
 
                     <div class="detail-section">
                         <div class="detail-label">Component Group</div>
-                        <div class="detail-value" style="text-transform: uppercase; font-weight: 600; color: ${data.component === 'api' ? '#3b82f6' : data.component === 'engine' ? '#10b981' : '#fb8c00'};">
+                        <div class="detail-value" style="text-transform: uppercase; font-weight: 600; color: ${data.component === 'api' ? '#3b82f6' : data.component === 'engine' ? '#10b981' : data.component === 'persistence' ? '#fb8c00' : data.component === 'common' ? '#8b5cf6' : '#9ca3af'};">
                             ${data.component}
                         </div>
                     </div>
@@ -5677,6 +5707,7 @@
                 const showApi = document.getElementById('chk-api').checked;
                 const showEngine = document.getElementById('chk-engine').checked;
                 const showPersistence = document.getElementById('chk-persistence').checked;
+                const showCommon = document.getElementById('chk-common').checked;
 
                 cy.batch(() => {
                     cy.nodes().forEach(node => {
@@ -5688,6 +5719,7 @@
                         if (comp === 'api' && !showApi) isVisible = false;
                         if (comp === 'engine' && !showEngine) isVisible = false;
                         if (comp === 'persistence' && !showPersistence) isVisible = false;
+                        if (comp === 'common' && !showCommon) isVisible = false;
                         if (onlyViolationsMode && !node.data('violation')) isVisible = false;
 
                         if (isVisible) {
@@ -5712,6 +5744,7 @@
             document.getElementById('chk-api').addEventListener('change', applyFilters);
             document.getElementById('chk-engine').addEventListener('change', applyFilters);
             document.getElementById('chk-persistence').addEventListener('change', applyFilters);
+            document.getElementById('chk-common').addEventListener('change', applyFilters);
 
             document.getElementById('btn-violations').addEventListener('click', function() {
                 onlyViolationsMode = !onlyViolationsMode;

@@ -13,7 +13,7 @@
       "id": "com.alphaflow.common.constants.MarketConstants",
       "name": "MarketConstants",
       "package": "com.alphaflow.common.constants",
-      "component": "root",
+      "component": "common",
       "type": "class",
       "filepath": "backend/src/main/java/com/alphaflow/common/constants/MarketConstants.java",
       "violation": false
@@ -22,7 +22,7 @@
       "id": "com.alphaflow.common.enums.Timeframe",
       "name": "Timeframe",
       "package": "com.alphaflow.common.enums",
-      "component": "root",
+      "component": "common",
       "type": "enum",
       "filepath": "backend/src/main/java/com/alphaflow/common/enums/Timeframe.java",
       "violation": false
