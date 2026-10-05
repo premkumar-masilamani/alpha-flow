@@ -1,7 +1,6 @@
 package com.alphaflow.engine.downloaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -13,13 +12,66 @@ import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import java.net.URL;
+import com.sun.net.httpserver.HttpServer;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Map;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class YahooFinanceDownloaderTest {
+
+  private static HttpServer server;
+  private static String baseUrl;
+
+  @BeforeAll
+  static void startServer() throws Exception {
+    server = HttpServer.create(new InetSocketAddress(0), 0);
+    byte[] validJson;
+    try (InputStream in =
+        YahooFinanceDownloaderTest.class.getResourceAsStream("/yahoo_response.json")) {
+      validJson = (in != null) ? in.readAllBytes() : new byte[0];
+    }
+    byte[] emptyJson;
+    try (InputStream in =
+        YahooFinanceDownloaderTest.class.getResourceAsStream("/yahoo_empty_response.json")) {
+      emptyJson = (in != null) ? in.readAllBytes() : new byte[0];
+    }
+
+    server.createContext(
+        "/valid",
+        exchange -> {
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, validJson.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(validJson);
+          }
+        });
+
+    server.createContext(
+        "/empty",
+        exchange -> {
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, emptyJson.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(emptyJson);
+          }
+        });
+
+    server.start();
+    baseUrl = "http://localhost:" + server.getAddress().getPort();
+  }
+
+  @AfterAll
+  static void stopServer() {
+    if (server != null) {
+      server.stop(0);
+    }
+  }
 
   private YahooFinanceConfig createConfig() {
     YahooFinanceConfig config = new YahooFinanceConfig();
@@ -52,9 +104,7 @@ class YahooFinanceDownloaderTest {
   @Test
   void testDownloadValidParseAndSave() {
     YahooFinanceConfig config = createConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(10);
 
     Ticker t1 = new Ticker();
@@ -86,9 +136,7 @@ class YahooFinanceDownloaderTest {
   @Test
   void testDownloadNullLatestSavedDate() {
     YahooFinanceConfig config = createConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(0);
 
     Ticker ticker = new Ticker();
@@ -113,9 +161,7 @@ class YahooFinanceDownloaderTest {
   @Test
   void testDownloadAllDownloadedPointsAlreadyExist() {
     YahooFinanceConfig config = createConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(0);
 
     Ticker ticker = new Ticker();
@@ -140,9 +186,7 @@ class YahooFinanceDownloaderTest {
   @Test
   void testDownloadEmptyPriceDataReturned() {
     YahooFinanceConfig config = createConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_empty_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl(baseUrl + "/empty?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(0);
 
     Ticker ticker = new Ticker();
@@ -180,7 +224,7 @@ class YahooFinanceDownloaderTest {
   @Test
   void testDownloadConnectionExceptionHandled() {
     YahooFinanceConfig config = createConfig();
-    config.setDownloadUrl("invalidproto://foo?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl("http://localhost:1/invalid?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(1);
 
     Ticker ticker = new Ticker();
@@ -205,9 +249,7 @@ class YahooFinanceDownloaderTest {
   @Test
   void testInterruptedDuringThrottle() {
     YahooFinanceConfig config = createConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(2000L);
 
     Ticker t1 = new Ticker();

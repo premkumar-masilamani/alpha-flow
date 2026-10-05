@@ -6,10 +6,6 @@ import com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -21,7 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 
 @Component
 @Slf4j
@@ -29,11 +27,27 @@ public class YahooFinanceDownloader {
 
   private final YahooFinanceConfig yahooFinanceConfig;
   private final DailyPriceRepository dailyPriceRepository;
+  private final RestClient restClient;
+
+  @Autowired
+  public YahooFinanceDownloader(
+      YahooFinanceConfig yahooFinanceConfig,
+      DailyPriceRepository dailyPriceRepository,
+      @Autowired(required = false) RestClient.Builder restClientBuilder) {
+    this.yahooFinanceConfig = yahooFinanceConfig;
+    this.dailyPriceRepository = dailyPriceRepository;
+    this.restClient =
+        (restClientBuilder != null ? restClientBuilder : RestClient.builder())
+            .defaultHeader(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .defaultHeader("Accept", "application/json")
+            .build();
+  }
 
   public YahooFinanceDownloader(
       YahooFinanceConfig yahooFinanceConfig, DailyPriceRepository dailyPriceRepository) {
-    this.yahooFinanceConfig = yahooFinanceConfig;
-    this.dailyPriceRepository = dailyPriceRepository;
+    this(yahooFinanceConfig, dailyPriceRepository, null);
   }
 
   public int downloadDailyPrices() {
@@ -146,18 +160,7 @@ public class YahooFinanceDownloader {
     }
   }
 
-  private String downloadData(String url) throws IOException {
-    URLConnection connection = URI.create(url).toURL().openConnection();
-    connection.setConnectTimeout(10000);
-    connection.setReadTimeout(10000);
-    // Add a realistic User-Agent to avoid 401/403 errors
-    connection.setRequestProperty(
-        "User-Agent",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-    connection.setRequestProperty("Accept", "application/json");
-
-    try (InputStream in = connection.getInputStream()) {
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
+  private String downloadData(String url) {
+    return restClient.get().uri(url).retrieve().body(String.class);
   }
 }
