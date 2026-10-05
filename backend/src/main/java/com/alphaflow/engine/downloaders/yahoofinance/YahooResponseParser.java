@@ -1,8 +1,8 @@
-package com.alphaflow.engine.downloaders;
+package com.alphaflow.engine.downloaders.yahoofinance;
 
-import com.alphaflow.engine.downloaders.dtos.YahooQuote;
-import com.alphaflow.engine.downloaders.dtos.YahooResponse;
-import com.alphaflow.engine.downloaders.dtos.YahooResult;
+import com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote;
+import com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse;
+import com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -15,13 +15,13 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
-@Component
 @Slf4j
-public class YahooResponseParser {
+public final class YahooResponseParser {
 
-  public List<DailyPrice> parse(String jsonString, Ticker ticker) throws IOException {
+  private YahooResponseParser() {}
+
+  public static List<DailyPrice> parse(String jsonString, Ticker ticker) throws IOException {
     log.debug("Parsing Yahoo Finance JSON response for ticker: {}", ticker.getTickerSymbol());
 
     if (jsonString == null || jsonString.isBlank()) {

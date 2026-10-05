@@ -4,6 +4,7 @@ import com.alphaflow.engine.configs.YahooFinanceConfig;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.MonthDay;
 import java.time.ZonedDateTime;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,7 @@ public class MarketTradingCalendar {
   public boolean isTradingDay(LocalDate date) {
     DayOfWeek dayOfWeek = date.getDayOfWeek();
     if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-      return !yahooFinanceConfig.getHolidaySet().contains(date);
+      return !yahooFinanceConfig.getHolidaySet().contains(MonthDay.from(date));
     } else {
       return false;
     }

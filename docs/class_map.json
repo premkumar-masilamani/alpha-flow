@@ -811,57 +811,57 @@
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
       "name": "YahooResponseParser",
-      "package": "com.alphaflow.engine.downloaders",
+      "package": "com.alphaflow.engine.downloaders.yahoofinance",
       "component": "engine",
       "type": "class",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/YahooResponseParser.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/YahooResponseParser.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
       "name": "YahooResult",
-      "package": "com.alphaflow.engine.downloaders.dtos",
+      "package": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "component": "engine",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooResult.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooResult.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
       "name": "YahooQuote",
-      "package": "com.alphaflow.engine.downloaders.dtos",
+      "package": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "component": "engine",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooQuote.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooQuote.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
       "name": "YahooResponse",
-      "package": "com.alphaflow.engine.downloaders.dtos",
+      "package": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "component": "engine",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooResponse.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooResponse.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
       "name": "YahooChart",
-      "package": "com.alphaflow.engine.downloaders.dtos",
+      "package": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "component": "engine",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooChart.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooChart.java",
       "violation": false
     },
     {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
       "name": "YahooIndicators",
-      "package": "com.alphaflow.engine.downloaders.dtos",
+      "package": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "component": "engine",
       "type": "record",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooIndicators.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooIndicators.java",
       "violation": false
     },
     {
@@ -2383,7 +2383,7 @@
     },
     {
       "source": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
-      "target": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
       "violation": false,
       "reason": ""
     },
@@ -2402,36 +2402,6 @@
     {
       "source": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
       "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooResult",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.persistence.entities.Ticker",
       "violation": false,
       "reason": ""
     },
@@ -2496,26 +2466,56 @@
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooChart",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
       "violation": false,
       "reason": ""
     },
     {
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooResult",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
       "violation": false,
       "reason": ""
     },

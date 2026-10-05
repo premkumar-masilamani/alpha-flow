@@ -25,9 +25,9 @@ class MarketTradingCalendarTest {
     config = new YahooFinanceConfig();
     config.setHolidays(
         List.of(
-            LocalDate.of(2026, 1, 1), // New Year's Day (Thursday)
-            LocalDate.of(2026, 1, 19), // Martin Luther King Jr. Day (Monday)
-            LocalDate.of(2026, 4, 3) // Good Friday (Friday)
+            "01-01", // New Year's Day
+            "01-19", // Martin Luther King Jr. Day
+            "04-03" // Good Friday
             ));
     calendar = new MarketTradingCalendar(config);
   }

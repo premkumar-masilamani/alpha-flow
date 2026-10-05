@@ -512,8 +512,16 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos",
-      "label": "engine.downloaders.dtos",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance",
+      "label": "engine.downloaders.yahoofinance",
+      "parent": "engine",
+      "is_parent": true
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
+      "label": "engine.downloaders.yahoofinance.dtos",
       "parent": "engine",
       "is_parent": true
     }
@@ -1574,67 +1582,67 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
       "label": "YahooResponseParser",
-      "parent": "com.alphaflow.engine.downloaders",
+      "parent": "com.alphaflow.engine.downloaders.yahoofinance",
       "type": "class",
       "component": "engine",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/YahooResponseParser.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/YahooResponseParser.java",
       "violation": false
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
       "label": "YahooResult",
-      "parent": "com.alphaflow.engine.downloaders.dtos",
+      "parent": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "type": "record",
       "component": "engine",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooResult.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooResult.java",
       "violation": false
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
       "label": "YahooQuote",
-      "parent": "com.alphaflow.engine.downloaders.dtos",
+      "parent": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "type": "record",
       "component": "engine",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooQuote.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooQuote.java",
       "violation": false
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
       "label": "YahooResponse",
-      "parent": "com.alphaflow.engine.downloaders.dtos",
+      "parent": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "type": "record",
       "component": "engine",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooResponse.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooResponse.java",
       "violation": false
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
       "label": "YahooChart",
-      "parent": "com.alphaflow.engine.downloaders.dtos",
+      "parent": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "type": "record",
       "component": "engine",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooChart.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooChart.java",
       "violation": false
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
       "label": "YahooIndicators",
-      "parent": "com.alphaflow.engine.downloaders.dtos",
+      "parent": "com.alphaflow.engine.downloaders.yahoofinance.dtos",
       "type": "record",
       "component": "engine",
-      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/dtos/YahooIndicators.java",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/downloaders/yahoofinance/dtos/YahooIndicators.java",
       "violation": false
     }
   },
@@ -3855,9 +3863,9 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooFinanceDownloader_to_com.alphaflow.engine.downloaders.YahooResponseParser",
+      "id": "com.alphaflow.engine.downloaders.YahooFinanceDownloader_to_com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
       "source": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
-      "target": "com.alphaflow.engine.downloaders.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
       "violation": false,
       "reason": ""
     }
@@ -3885,51 +3893,6 @@
       "id": "com.alphaflow.engine.downloaders.YahooFinanceDownloader_to_com.alphaflow.persistence.repositories.DailyPriceRepository",
       "source": "com.alphaflow.engine.downloaders.YahooFinanceDownloader",
       "target": "com.alphaflow.persistence.repositories.DailyPriceRepository",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser_to_com.alphaflow.engine.downloaders.dtos.YahooQuote",
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser_to_com.alphaflow.engine.downloaders.dtos.YahooResponse",
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser_to_com.alphaflow.engine.downloaders.dtos.YahooResult",
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooResult",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser_to_com.alphaflow.persistence.entities.DailyPrice",
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.persistence.entities.DailyPrice",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.engine.downloaders.YahooResponseParser_to_com.alphaflow.persistence.entities.Ticker",
-      "source": "com.alphaflow.engine.downloaders.YahooResponseParser",
-      "target": "com.alphaflow.persistence.entities.Ticker",
       "violation": false,
       "reason": ""
     }
@@ -4026,36 +3989,81 @@
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooChart_to_com.alphaflow.engine.downloaders.dtos.YahooResult",
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooChart",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooResult",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
       "violation": false,
       "reason": ""
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooIndicators_to_com.alphaflow.engine.downloaders.dtos.YahooQuote",
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooQuote",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
       "violation": false,
       "reason": ""
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooResponse_to_com.alphaflow.engine.downloaders.dtos.YahooChart",
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooResponse",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooChart",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
       "violation": false,
       "reason": ""
     }
   },
   {
     "data": {
-      "id": "com.alphaflow.engine.downloaders.dtos.YahooResult_to_com.alphaflow.engine.downloaders.dtos.YahooIndicators",
-      "source": "com.alphaflow.engine.downloaders.dtos.YahooResult",
-      "target": "com.alphaflow.engine.downloaders.dtos.YahooIndicators",
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser_to_com.alphaflow.persistence.entities.DailyPrice",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.persistence.entities.DailyPrice",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooQuote",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResponse",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooChart",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult_to_com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
+      "source": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooResult",
+      "target": "com.alphaflow.engine.downloaders.yahoofinance.dtos.YahooIndicators",
       "violation": false,
       "reason": ""
     }

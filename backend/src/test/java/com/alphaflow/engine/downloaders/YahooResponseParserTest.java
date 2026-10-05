@@ -6,16 +6,26 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class YahooResponseParserTest {
 
-  private final YahooResponseParser parser = new YahooResponseParser();
+  @Test
+  void testConstructorIsPrivate() throws Exception {
+    Constructor<YahooResponseParser> constructor =
+        YahooResponseParser.class.getDeclaredConstructor();
+    assertTrue(Modifier.isPrivate(constructor.getModifiers()));
+    constructor.setAccessible(true);
+    assertNotNull(constructor.newInstance());
+  }
 
   @Test
   void testParseValidJson() throws IOException {
@@ -28,7 +38,7 @@ class YahooResponseParserTest {
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
 
-    List<DailyPrice> result = parser.parse(json, ticker);
+    List<DailyPrice> result = YahooResponseParser.parse(json, ticker);
     assertNotNull(result);
     assertFalse(result.isEmpty());
 
@@ -46,14 +56,14 @@ class YahooResponseParserTest {
   @Test
   void testParseNullOrEmptyJson() throws IOException {
     Ticker ticker = new Ticker();
-    assertTrue(parser.parse(null, ticker).isEmpty());
-    assertTrue(parser.parse("", ticker).isEmpty());
-    assertTrue(parser.parse("   ", ticker).isEmpty());
+    assertTrue(YahooResponseParser.parse(null, ticker).isEmpty());
+    assertTrue(YahooResponseParser.parse("", ticker).isEmpty());
+    assertTrue(YahooResponseParser.parse("   ", ticker).isEmpty());
   }
 
   @Test
   void testParseMalformedJsonThrowsException() {
     Ticker ticker = new Ticker();
-    assertThrows(IOException.class, () -> parser.parse("{malformed: json}", ticker));
+    assertThrows(IOException.class, () -> YahooResponseParser.parse("{malformed: json}", ticker));
   }
 }

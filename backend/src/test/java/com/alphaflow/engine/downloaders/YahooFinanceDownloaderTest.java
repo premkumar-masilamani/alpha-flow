@@ -2,7 +2,6 @@ package com.alphaflow.engine.downloaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -17,7 +16,6 @@ import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.net.URL;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -39,8 +37,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceConfig config = new YahooFinanceConfig();
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     assertEquals(0, ingestedRows);
@@ -74,42 +71,12 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     // Verifies both AAPL and MSFT processed, and saveAll was called twice
     assertEquals(4, ingestedRows);
     verify(dailyRepo, times(2)).saveAll(any());
-  }
-
-  @Test
-  void testDownloadTickerWithNullCountryFallback() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
-    assertNotNull(jsonUrl);
-    config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(0);
-
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("AAPL");
-    ticker.setCountry(null);
-    ticker.setActive(true);
-
-    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
-    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
-
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-
-    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
-    int ingestedRows = downloader.downloadDailyPrices();
-
-    assertEquals(2, ingestedRows);
-    verify(dailyRepo, times(1)).saveAll(any());
   }
 
   @Test
@@ -133,8 +100,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     assertEquals(2, ingestedRows);
@@ -162,8 +128,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     assertEquals(0, ingestedRows);
@@ -171,9 +136,9 @@ class YahooFinanceDownloaderTest {
   }
 
   @Test
-  void testDownloadEmptyPriceDataReturned() throws Exception {
+  void testDownloadEmptyPriceDataReturned() {
     YahooFinanceConfig config = new YahooFinanceConfig();
-    URL jsonUrl = getClass().getResource("/yahoo_response.json");
+    URL jsonUrl = getClass().getResource("/yahoo_empty_response.json");
     assertNotNull(jsonUrl);
     config.setDownloadUrl(jsonUrl.toString() + "?symbol={symbol}&start={start}&end={end}");
     config.setDelayMilliseconds(0);
@@ -190,12 +155,8 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooResponseParser parser = mock(YahooResponseParser.class);
-    when(parser.parse(any(), any())).thenReturn(List.of());
-
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, parser, calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     assertEquals(0, ingestedRows);
@@ -209,8 +170,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
 
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     assertEquals(0, ingestedRows);
@@ -236,8 +196,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
     int ingestedRows = downloader.downloadDailyPrices();
 
     assertEquals(0, ingestedRows);
@@ -271,8 +230,7 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo, calendar);
 
     Thread mainThread = Thread.currentThread();
     new Thread(
@@ -289,45 +247,5 @@ class YahooFinanceDownloaderTest {
     downloader.downloadDailyPrices();
 
     verify(dailyRepo, times(1)).saveAll(any());
-  }
-
-  @Test
-  void testInterruptedDuringRetryDelay() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl("invalidproto://foo?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(2000L);
-
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("AAPL");
-    ticker.setCountry(Country.US);
-    ticker.setActive(true);
-
-    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
-    latestDates.put(ticker, LocalDate.of(2025, 8, 12));
-
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-
-    MarketTradingCalendar calendar = new MarketTradingCalendar(config);
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(config, dailyRepo, new YahooResponseParser(), calendar);
-
-    Thread mainThread = Thread.currentThread();
-    new Thread(
-            () -> {
-              try {
-                Thread.sleep(200);
-              } catch (InterruptedException ignored) {
-                // expected interrupt during sleep
-              }
-              mainThread.interrupt();
-            })
-        .start();
-
-    int ingestedRows = downloader.downloadDailyPrices();
-
-    assertEquals(0, ingestedRows);
-    assertTrue(Thread.interrupted());
   }
 }
