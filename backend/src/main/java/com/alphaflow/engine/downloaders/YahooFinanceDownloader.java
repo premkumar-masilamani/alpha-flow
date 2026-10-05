@@ -29,15 +29,11 @@ public class YahooFinanceDownloader {
 
   private final YahooFinanceConfig yahooFinanceConfig;
   private final DailyPriceRepository dailyPriceRepository;
-  private final MarketTradingCalendar marketTradingCalendar;
 
   public YahooFinanceDownloader(
-      YahooFinanceConfig yahooFinanceConfig,
-      DailyPriceRepository dailyPriceRepository,
-      MarketTradingCalendar marketTradingCalendar) {
+      YahooFinanceConfig yahooFinanceConfig, DailyPriceRepository dailyPriceRepository) {
     this.yahooFinanceConfig = yahooFinanceConfig;
     this.dailyPriceRepository = dailyPriceRepository;
-    this.marketTradingCalendar = marketTradingCalendar;
   }
 
   public int downloadDailyPrices() {
@@ -54,8 +50,10 @@ public class YahooFinanceDownloader {
       ZoneId marketZone = ticker.getCountry().getZoneId();
 
       LocalDate expectedTradingDate =
-          marketTradingCalendar.getExpectedLatestTradingDate(
-              ZonedDateTime.now(marketZone), yahooFinanceConfig.getMarketCutoffTime());
+          MarketTradingCalendar.getExpectedLatestTradingDate(
+              ZonedDateTime.now(marketZone),
+              yahooFinanceConfig.getMarketCutoffTime(),
+              yahooFinanceConfig.getHolidaySet());
 
       LocalDate latestSavedDate = latestSavedDates.get(ticker);
       if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {

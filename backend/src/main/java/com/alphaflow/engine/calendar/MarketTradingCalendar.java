@@ -1,32 +1,27 @@
 package com.alphaflow.engine.calendar;
 
-import com.alphaflow.engine.configs.YahooFinanceConfig;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.MonthDay;
 import java.time.ZonedDateTime;
-import org.springframework.stereotype.Component;
+import java.util.Set;
 
-@Component
-public class MarketTradingCalendar {
+public final class MarketTradingCalendar {
 
-  private final YahooFinanceConfig yahooFinanceConfig;
+  private MarketTradingCalendar() {}
 
-  public MarketTradingCalendar(YahooFinanceConfig yahooFinanceConfig) {
-    this.yahooFinanceConfig = yahooFinanceConfig;
-  }
-
-  public boolean isTradingDay(LocalDate date) {
+  public static boolean isTradingDay(LocalDate date, Set<MonthDay> holidays) {
     DayOfWeek dayOfWeek = date.getDayOfWeek();
     if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-      return !yahooFinanceConfig.getHolidaySet().contains(MonthDay.from(date));
+      return holidays == null || !holidays.contains(MonthDay.from(date));
     } else {
       return false;
     }
   }
 
-  public LocalDate getExpectedLatestTradingDate(ZonedDateTime nowInMarket, LocalTime cutoffTime) {
+  public static LocalDate getExpectedLatestTradingDate(
+      ZonedDateTime nowInMarket, LocalTime cutoffTime, Set<MonthDay> holidays) {
     LocalDate candidate;
     if (!nowInMarket.toLocalTime().isBefore(cutoffTime)) {
       candidate = nowInMarket.toLocalDate();
@@ -34,7 +29,7 @@ public class MarketTradingCalendar {
       candidate = nowInMarket.toLocalDate().minusDays(1);
     }
 
-    while (!isTradingDay(candidate)) {
+    while (!isTradingDay(candidate, holidays)) {
       candidate = candidate.minusDays(1);
     }
     return candidate;
