@@ -351,6 +351,7 @@ flowchart TD
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_constants_MarketConstants
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_enums_Timeframe
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_calendar_MarketTradingCalendar
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
@@ -358,7 +359,6 @@ flowchart TD
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_IntradayPriceRepository
-    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_TickerRepository
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_calendar_MarketTradingCalendar
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_configs_YahooFinanceConfig
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser
@@ -506,6 +506,7 @@ flowchart TD
     com_alphaflow_persistence_repositories_IndicatorDefinitionRepository --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_entities_IntradayPrice
     com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_persistence_repositories_TickerRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_TickerRepository --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_persistence_repositories_WeeklyCandlestickPatternRepository --> com_alphaflow_persistence_entities_Ticker
@@ -528,7 +529,7 @@ flowchart TD
 ## Component Summary
 
 - **Total Classes**: 119
-- **Total Dependencies**: 377
+- **Total Dependencies**: 378
 - **API Layer Classes**: 32
 - **Engine Layer Classes**: 44
 - **Persistence Layer Classes**: 40

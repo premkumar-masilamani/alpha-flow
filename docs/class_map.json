@@ -2317,6 +2317,12 @@
     },
     {
       "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
+      "target": "com.alphaflow.engine.calendar.MarketTradingCalendar",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
       "target": "com.alphaflow.engine.configs.AngelOneConfig",
       "violation": false,
       "reason": ""
@@ -2354,12 +2360,6 @@
     {
       "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
       "target": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.engine.downloaders.AngelOneDownloader",
-      "target": "com.alphaflow.persistence.repositories.TickerRepository",
       "violation": false,
       "reason": ""
     },
@@ -3242,6 +3242,12 @@
     {
       "source": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
       "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.persistence.repositories.IntradayPriceRepository",
+      "target": "com.alphaflow.persistence.enums.DataProvider",
       "violation": false,
       "reason": ""
     },

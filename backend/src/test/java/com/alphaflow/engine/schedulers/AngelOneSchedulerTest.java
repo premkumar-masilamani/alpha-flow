@@ -47,6 +47,13 @@ class AngelOneSchedulerTest {
   }
 
   @Test
+  void testRunDirectlySkippedWhenCredentialsMissing() {
+    when(downloader.hasValidCredentials()).thenReturn(false);
+    scheduler.run();
+    verify(downloader, never()).downloadIntradayPrices();
+  }
+
+  @Test
   void testRunCatchesException() {
     doThrow(new RuntimeException("Simulated exception")).when(downloader).downloadIntradayPrices();
     scheduler.runScheduledIntradayUpdate();
@@ -62,7 +69,7 @@ class AngelOneSchedulerTest {
             invocation -> {
               startLatch.countDown();
               finishLatch.await(5, TimeUnit.SECONDS);
-              return null;
+              return 0;
             })
         .when(downloader)
         .downloadIntradayPrices();
