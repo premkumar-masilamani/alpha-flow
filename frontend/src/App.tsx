@@ -34,7 +34,6 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Calendar,
   Info,
   AlertCircle,
   TrendingUp,
@@ -174,7 +173,6 @@ function App() {
   const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
   const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSelectedIntradayDay(null);
@@ -239,35 +237,6 @@ function App() {
     }
   };
 
-  const handleSelectDate = async (targetDate: string) => {
-    if (!targetDate || !selectedTicker) return;
-    if (distinctDays.includes(targetDate)) {
-      setSelectedIntradayDay(targetDate);
-      return;
-    }
-    setLoadingOlderIntraday(true);
-    try {
-      const targetCandles = await getCandleData(selectedTicker, "15M", 0, 250, true, targetDate);
-      if (targetCandles.length > 0) {
-        setRawIntradayCandles((prev) => {
-          const merged = [...targetCandles, ...prev];
-          const unique = Array.from(new Map(merged.map((c) => [c.date, c])).values());
-          return unique.sort((a, b) => a.date.localeCompare(b.date));
-        });
-        const loadedDays = Array.from(new Set(targetCandles.map((c) => getLocalDateKey(c.date)))).sort();
-        if (loadedDays.includes(targetDate)) {
-          setSelectedIntradayDay(targetDate);
-        } else {
-          setSelectedIntradayDay(loadedDays[loadedDays.length - 1]);
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to load candles for selected date:", err);
-    } finally {
-      setLoadingOlderIntraday(false);
-    }
-  };
-
   const goToPrevDay = () => {
     if (activeDayIndex > 0) {
       setSelectedIntradayDay(distinctDays[activeDayIndex - 1]);
@@ -282,21 +251,6 @@ function App() {
   const goToNextDay = () => {
     if (canGoNext) {
       setSelectedIntradayDay(distinctDays[activeDayIndex + 1]);
-    }
-  };
-
-  const handleDatePickerClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (dateInputRef.current) {
-      try {
-        if ("showPicker" in HTMLInputElement.prototype) {
-          dateInputRef.current.showPicker();
-        } else {
-          dateInputRef.current.focus();
-        }
-      } catch (err) {
-        console.warn("Could not open date picker:", err);
-      }
     }
   };
 
@@ -1539,32 +1493,9 @@ function App() {
                     <ChevronLeft size={14} />
                   )}
                 </button>
-                <div className="relative flex items-center">
-                  <button
-                    type="button"
-                    onClick={handleDatePickerClick}
-                    className="flex items-center cursor-pointer px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40 hover:text-white hover:bg-blue-800/30 transition-colors"
-                    title="Jump to date"
-                  >
-                    <Calendar size={13} className="mr-1.5 opacity-80 shrink-0" />
-                    <span>{chartDateFormatted}</span>
-                  </button>
-                  <input
-                    ref={dateInputRef}
-                    type="date"
-                    value={activeDay || ""}
-                    min="2015-01-01"
-                    max={new Date().toLocaleDateString("en-CA")}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleSelectDate(e.target.value);
-                      }
-                    }}
-                    className="absolute inset-0 opacity-0 pointer-events-none -z-10 w-full h-full"
-                    tabIndex={-1}
-                    aria-label="Jump to date"
-                  />
-                </div>
+                <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
+                  {chartDateFormatted}
+                </span>
                 <button
                   onClick={goToNextDay}
                   disabled={!canGoNext || loadingOlderIntraday}
