@@ -174,6 +174,7 @@ function App() {
   const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
   const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSelectedIntradayDay(null);
@@ -281,6 +282,21 @@ function App() {
   const goToNextDay = () => {
     if (canGoNext) {
       setSelectedIntradayDay(distinctDays[activeDayIndex + 1]);
+    }
+  };
+
+  const handleDatePickerClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (dateInputRef.current) {
+      try {
+        if ("showPicker" in HTMLInputElement.prototype) {
+          dateInputRef.current.showPicker();
+        } else {
+          dateInputRef.current.focus();
+        }
+      } catch (err) {
+        console.warn("Could not open date picker:", err);
+      }
     }
   };
 
@@ -1523,22 +1539,32 @@ function App() {
                     <ChevronLeft size={14} />
                   )}
                 </button>
-                <label
-                  className="relative flex items-center cursor-pointer px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40 hover:text-white hover:bg-blue-800/30 transition-colors"
-                  title="Jump to date"
-                >
-                  <Calendar size={13} className="mr-1.5 opacity-80 shrink-0" />
-                  <span>{chartDateFormatted}</span>
+                <div className="relative flex items-center">
+                  <button
+                    type="button"
+                    onClick={handleDatePickerClick}
+                    className="flex items-center cursor-pointer px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40 hover:text-white hover:bg-blue-800/30 transition-colors"
+                    title="Jump to date"
+                  >
+                    <Calendar size={13} className="mr-1.5 opacity-80 shrink-0" />
+                    <span>{chartDateFormatted}</span>
+                  </button>
                   <input
+                    ref={dateInputRef}
                     type="date"
                     value={activeDay || ""}
                     min="2015-01-01"
-                    max={distinctDays[distinctDays.length - 1] || new Date().toISOString().split("T")[0]}
-                    onChange={(e) => handleSelectDate(e.target.value)}
-                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    max={new Date().toLocaleDateString("en-CA")}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleSelectDate(e.target.value);
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 pointer-events-none -z-10 w-full h-full"
+                    tabIndex={-1}
                     aria-label="Jump to date"
                   />
-                </label>
+                </div>
                 <button
                   onClick={goToNextDay}
                   disabled={!canGoNext || loadingOlderIntraday}
