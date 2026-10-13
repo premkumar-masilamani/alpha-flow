@@ -211,6 +211,15 @@ describe('API Service Layer Tests', () => {
             const result = await getSupportResistances('AAPL', 'DAILY', '2026-06-01');
             expect(result).toEqual(mockData);
         });
+
+        it('should normalize ISO OffsetDateTime date string to YYYY-MM-DD', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+            await getSupportResistances('TSLA', 'DAILY', '2026-10-12T00:00:00-04:00');
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/TSLA/support-resistances'),
+                { params: { timeframe: 'daily', date: '2026-10-12' } }
+            );
+        });
     });
 
     describe('getChartPatterns', () => {

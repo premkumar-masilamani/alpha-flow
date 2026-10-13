@@ -244,8 +244,9 @@ export const getSupportResistances = async (
     timeframe: Timeframe = 'DAILY',
     date: string
 ): Promise<SupportResistanceData[]> => {
+    const normalizedDate = date.length >= 10 ? date.substring(0, 10) : date;
     const url = `${API_BASE_URL}/tickers/${symbol}/support-resistances`;
-    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), date } });
+    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), date: normalizedDate } });
     return response.data;
 };
 

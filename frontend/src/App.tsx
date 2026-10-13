@@ -460,7 +460,8 @@ function App() {
           setChartIndicators(indicators);
           // Fetch S&R using the latest candle's date if candles exist
           if (candles.length > 0) {
-            const latestDate = candles[candles.length - 1].date;
+            const rawDate = candles[candles.length - 1].date;
+            const latestDate = rawDate.length >= 10 ? rawDate.substring(0, 10) : rawDate;
             getSupportResistances(selectedTicker, timeframe, latestDate).then((srData) => {
               if (active) setSupportResistances(srData);
             }).catch(err => {
@@ -793,10 +794,12 @@ function App() {
       let relativeTime = "";
       if (candles.length > 0) {
         const latestCandle = candles[candles.length - 1];
-        if (latestPattern.date === latestCandle.date) {
+        const latestCandleDate = latestCandle.date.substring(0, 10);
+        const latestPatternDate = latestPattern.date.substring(0, 10);
+        if (latestPatternDate === latestCandleDate) {
           relativeTime = "today";
         } else {
-          const patternIndex = candles.findIndex((c) => c.date === latestPattern.date);
+          const patternIndex = candles.findIndex((c) => c.date.substring(0, 10) === latestPatternDate);
           if (patternIndex !== -1) {
             const barsAgo = candles.length - 1 - patternIndex;
             relativeTime = `${barsAgo} ${barsAgo === 1 ? "bar" : "bars"} ago`;
@@ -981,11 +984,12 @@ function App() {
               let relativeTime = "";
               if (candles.length > 0) {
                 const latestCandle = candles[candles.length - 1];
-                const refDate = pattern.breakoutDate || pattern.endDate;
-                if (refDate === latestCandle.date) {
+                const latestCandleDate = latestCandle.date.substring(0, 10);
+                const refDate = (pattern.breakoutDate || pattern.endDate).substring(0, 10);
+                if (refDate === latestCandleDate) {
                   relativeTime = "today";
                 } else {
-                  const candleIndex = candles.findIndex((c) => c.date === refDate);
+                  const candleIndex = candles.findIndex((c) => c.date.substring(0, 10) === refDate);
                   if (candleIndex !== -1) {
                     const barsAgo = candles.length - 1 - candleIndex;
                     relativeTime = `${barsAgo} ${barsAgo === 1 ? "bar" : "bars"} ago`;

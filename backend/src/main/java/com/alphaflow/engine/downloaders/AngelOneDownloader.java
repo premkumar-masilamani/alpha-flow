@@ -79,7 +79,7 @@ public class AngelOneDownloader {
             break;
           }
         } else {
-          log.debug(
+          log.info(
               "{}: up to date (latest saved: {}, expected: {}). Skipping.",
               ticker.getTickerSymbol(),
               latestSavedTime,

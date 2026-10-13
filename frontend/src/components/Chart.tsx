@@ -913,7 +913,8 @@ const Chart: React.FC<ChartProps> = ({
         }
 
         if (showSupportResistance && supportResistances.length > 0) {
-            const latestCandleDate = sortedData.length > 0 ? sortedData[sortedData.length - 1].date : '';
+            const rawLatestCandleDate = sortedData.length > 0 ? sortedData[sortedData.length - 1].date : '';
+            const latestCandleDate = rawLatestCandleDate.length >= 10 ? rawLatestCandleDate.substring(0, 10) : rawLatestCandleDate;
             const segments: SupportResistanceSegmentItem[] = supportResistances
                 .filter((sr) => Boolean(sr.firstTouchDate))
                 .map((sr) => {
