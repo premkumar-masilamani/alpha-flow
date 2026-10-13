@@ -68,7 +68,7 @@ public class YahooFinanceDownloader {
           MarketTradingCalendar.getExpectedLatestTradingDate(
               ZonedDateTime.now(marketZone),
               yahooFinanceConfig.getMarketCutoffTime(),
-              yahooFinanceConfig.getHolidaySet());
+              ticker.getCountry());
 
       LocalDate latestSavedDate = latestSavedDates.get(ticker);
       if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {

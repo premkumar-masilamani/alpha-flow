@@ -64,7 +64,7 @@ public class AngelOneDownloader {
                 config.getSessionStartTime(),
                 config.getSessionEndTime(),
                 15,
-                config.getHolidaySet());
+                ticker.getCountry());
 
         OffsetDateTime latestSavedTime = latestSavedTimes.get(ticker);
         if (latestSavedTime == null || latestSavedTime.isBefore(expectedCompletedTime)) {

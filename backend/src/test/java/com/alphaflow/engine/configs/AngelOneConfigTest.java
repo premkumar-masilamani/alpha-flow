@@ -7,9 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.MonthDay;
-import java.util.List;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class AngelOneConfigTest {
@@ -32,7 +29,6 @@ class AngelOneConfigTest {
     config.setSessionEndTime(LocalTime.of(15, 30));
     config.setBackfillStartDate(LocalDate.of(2015, 1, 1));
     config.setMaxChunkDays(200);
-    config.setHolidays(List.of("01-26", " 08-15 "));
 
     assertEquals("test-api-key", config.getApiKey());
     assertEquals("test-client-code", config.getClientCode());
@@ -49,11 +45,6 @@ class AngelOneConfigTest {
     assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
     assertEquals(LocalDate.of(2015, 1, 1), config.getBackfillStartDate());
     assertEquals(200, config.getMaxChunkDays());
-    assertEquals(List.of("01-26", " 08-15 "), config.getHolidays());
-    assertEquals(Set.of(MonthDay.of(1, 26), MonthDay.of(8, 15)), config.getHolidaySet());
-
-    config.setHolidays(null);
-    assertTrue(config.getHolidaySet().isEmpty());
   }
 
   @Test
