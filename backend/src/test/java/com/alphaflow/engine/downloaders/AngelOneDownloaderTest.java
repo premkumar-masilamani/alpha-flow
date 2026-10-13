@@ -103,8 +103,10 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    // 2 hours ago
-    OffsetDateTime latestTime = OffsetDateTime.now(istZone).minusHours(2);
+    // Set latest time to yesterday at 10:00 AM (guaranteed to be before expectedCompletedTime
+    // regardless of time of day)
+    OffsetDateTime latestTime =
+        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
@@ -212,7 +214,8 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    OffsetDateTime latestTime = OffsetDateTime.now(istZone).minusHours(1);
+    OffsetDateTime latestTime =
+        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
@@ -234,7 +237,8 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    OffsetDateTime latestTime = OffsetDateTime.now(istZone).minusHours(1);
+    OffsetDateTime latestTime =
+        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
@@ -310,7 +314,8 @@ class AngelOneDownloaderTest {
             .build();
 
     Map<Ticker, OffsetDateTime> tickerMap = new LinkedHashMap<>();
-    OffsetDateTime twoHoursAgo = OffsetDateTime.now(istZone).minusHours(2);
+    OffsetDateTime twoHoursAgo =
+        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     tickerMap.put(ticker1, twoHoursAgo);
     tickerMap.put(ticker2, twoHoursAgo);
 

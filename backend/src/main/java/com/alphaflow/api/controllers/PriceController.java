@@ -9,8 +9,10 @@ import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,24 +48,36 @@ public class PriceController {
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "250") int size) {
+      @RequestParam(defaultValue = "250") int size,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate) {
 
-    int finalSize = Math.clamp(size, size, 1000);
+    int finalSize = Math.clamp(size, 1, 1000);
     log.info(
-        "Request to get {} data for ticker: {}, page: {}, size: {}",
+        "Request to get {} data for ticker: {}, page: {}, size: {}, endDate: {}",
         timeframe,
         symbol,
         page,
-        finalSize);
+        finalSize,
+        endDate);
 
     Ticker ticker = tickerService.getTicker(symbol);
 
     if (timeframe == Timeframe.DAILY) {
-      return dailyPriceService.getDailyPrice(ticker, page, finalSize);
+      if (endDate != null) {
+        return dailyPriceService.getDailyPrice(ticker, endDate, page, finalSize);
+      } else {
+        return dailyPriceService.getDailyPrice(ticker, page, finalSize);
+      }
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe._15M) {
-      return intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, page, finalSize);
+      if (endDate != null) {
+        return intradayPriceService.getIntradayPrice(
+            ticker, Timeframe._15M, endDate, page, finalSize);
+      } else {
+        return intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, page, finalSize);
+      }
     } else {
       log.error("Unsupported timeframe for price data: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

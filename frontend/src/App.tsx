@@ -34,6 +34,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Calendar,
   Info,
   AlertCircle,
   TrendingUp,
@@ -170,10 +171,14 @@ function App() {
   const [rawIntradayCandles, setRawIntradayCandles] = useState<DailyCandleData[]>([]);
   const [selectedIntradayDay, setSelectedIntradayDay] = useState<string | null>(null);
   const [intradayLoading, setIntradayLoading] = useState(false);
+  const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
+  const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
 
   useEffect(() => {
     setSelectedIntradayDay(null);
+    setHasOlderIntraday(true);
+    setLoadingOlderIntraday(false);
   }, [selectedTicker]);
 
   // Calculate distinct available days sorted chronologically
@@ -196,12 +201,80 @@ function App() {
     return distinctDays.indexOf(activeDay);
   }, [distinctDays, activeDay]);
 
-  const canGoPrev = activeDayIndex > 0;
+  const canGoPrev = (activeDayIndex > 0) || hasOlderIntraday;
   const canGoNext = activeDayIndex >= 0 && activeDayIndex < distinctDays.length - 1;
 
+  const fetchOlderIntradayCandles = async (autoSelectPrev = false) => {
+    if (loadingOlderIntraday || !hasOlderIntraday || !selectedTicker) return;
+    setLoadingOlderIntraday(true);
+    try {
+      const oldestDay = distinctDays.length > 0 ? distinctDays[0] : null;
+      const older = await getCandleData(selectedTicker, "15M", 0, 250, false, oldestDay || undefined);
+      const strictlyOlder = oldestDay
+        ? older.filter((c) => getLocalDateKey(c.date) < oldestDay)
+        : older;
+
+      if (strictlyOlder.length === 0) {
+        setHasOlderIntraday(false);
+        return;
+      }
+
+      const olderDays = Array.from(new Set(strictlyOlder.map((c) => getLocalDateKey(c.date)))).sort();
+      const prevDayToSelect = olderDays[olderDays.length - 1];
+
+      setRawIntradayCandles((prev) => {
+        const merged = [...strictlyOlder, ...prev];
+        const unique = Array.from(new Map(merged.map((c) => [c.date, c])).values());
+        return unique.sort((a, b) => a.date.localeCompare(b.date));
+      });
+
+      if (autoSelectPrev && prevDayToSelect) {
+        setSelectedIntradayDay(prevDayToSelect);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch older intraday data:", err);
+    } finally {
+      setLoadingOlderIntraday(false);
+    }
+  };
+
+  const handleSelectDate = async (targetDate: string) => {
+    if (!targetDate || !selectedTicker) return;
+    if (distinctDays.includes(targetDate)) {
+      setSelectedIntradayDay(targetDate);
+      return;
+    }
+    setLoadingOlderIntraday(true);
+    try {
+      const targetCandles = await getCandleData(selectedTicker, "15M", 0, 250, true, targetDate);
+      if (targetCandles.length > 0) {
+        setRawIntradayCandles((prev) => {
+          const merged = [...targetCandles, ...prev];
+          const unique = Array.from(new Map(merged.map((c) => [c.date, c])).values());
+          return unique.sort((a, b) => a.date.localeCompare(b.date));
+        });
+        const loadedDays = Array.from(new Set(targetCandles.map((c) => getLocalDateKey(c.date)))).sort();
+        if (loadedDays.includes(targetDate)) {
+          setSelectedIntradayDay(targetDate);
+        } else {
+          setSelectedIntradayDay(loadedDays[loadedDays.length - 1]);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load candles for selected date:", err);
+    } finally {
+      setLoadingOlderIntraday(false);
+    }
+  };
+
   const goToPrevDay = () => {
-    if (canGoPrev) {
+    if (activeDayIndex > 0) {
       setSelectedIntradayDay(distinctDays[activeDayIndex - 1]);
+      if (activeDayIndex <= 2 && hasOlderIntraday && !loadingOlderIntraday) {
+        fetchOlderIntradayCandles(false);
+      }
+    } else if (hasOlderIntraday && !loadingOlderIntraday) {
+      fetchOlderIntradayCandles(true);
     }
   };
 
@@ -1439,19 +1512,36 @@ function App() {
               <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
                 <button
                   onClick={goToPrevDay}
-                  disabled={!canGoPrev}
+                  disabled={!canGoPrev || loadingOlderIntraday}
                   className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
                   title="Previous day"
                   aria-label="Previous day"
                 >
-                  <ChevronLeft size={14} />
+                  {loadingOlderIntraday && activeDayIndex === 0 ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <ChevronLeft size={14} />
+                  )}
                 </button>
-                <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
-                  {chartDateFormatted}
-                </span>
+                <label
+                  className="relative flex items-center cursor-pointer px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40 hover:text-white hover:bg-blue-800/30 transition-colors"
+                  title="Jump to date"
+                >
+                  <Calendar size={13} className="mr-1.5 opacity-80 shrink-0" />
+                  <span>{chartDateFormatted}</span>
+                  <input
+                    type="date"
+                    value={activeDay || ""}
+                    min="2015-01-01"
+                    max={distinctDays[distinctDays.length - 1] || new Date().toISOString().split("T")[0]}
+                    onChange={(e) => handleSelectDate(e.target.value)}
+                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    aria-label="Jump to date"
+                  />
+                </label>
                 <button
                   onClick={goToNextDay}
-                  disabled={!canGoNext}
+                  disabled={!canGoNext || loadingOlderIntraday}
                   className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-r"
                   title="Next day"
                   aria-label="Next day"

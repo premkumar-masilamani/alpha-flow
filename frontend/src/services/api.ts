@@ -64,10 +64,11 @@ export const getCandleData = async (
     timeframe: Timeframe = 'DAILY',
     page: number = 0,
     size: number = CHART_WINDOW,
-    forceFresh = false
+    forceFresh = false,
+    endDate?: string
 ): Promise<DailyCandleData[]> => {
     const now = Date.now();
-    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
+    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}:${endDate ?? 'latest'}`;
     const cached = candleDataCache.get(cacheKey);
     const ttl = timeframe === '15M' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
     if (!forceFresh && cached && (now - cached.timestamp < ttl)) {
@@ -78,7 +79,11 @@ export const getCandleData = async (
     }
 
     const url = `${API_BASE_URL}/tickers/${symbol}/data`;
-    const response = await axios.get(url, { params: { timeframe: timeframe.toLowerCase(), page, size } });
+    const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page, size };
+    if (endDate) {
+        params.endDate = endDate;
+    }
+    const response = await axios.get(url, { params });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
     // Evict the least-recently-used entries if we exceed the cap.

@@ -55,19 +55,33 @@ class PriceControllerTest {
             quoteService,
             tickerService);
 
-    List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
+    List<OhlcvDto> res = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250, null);
 
     assertEquals(1, res.size());
     assertEquals(date, res.getFirst().priceDate());
 
+    LocalDate endDate = LocalDate.of(2026, 5, 29);
+    when(dailyPriceService.getDailyPrice(ticker, endDate, 0, 250)).thenReturn(List.of(dto));
+    List<OhlcvDto> dailyWithEndDateRes =
+        controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250, endDate);
+    assertEquals(1, dailyWithEndDateRes.size());
+
     when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
-    List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
+    List<OhlcvDto> weeklyRes =
+        controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250, null);
     assertEquals(1, weeklyRes.size());
 
     when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, 0, 250))
         .thenReturn(List.of(dto));
-    List<OhlcvDto> intradayRes = controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250);
+    List<OhlcvDto> intradayRes =
+        controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250, null);
     assertEquals(1, intradayRes.size());
+
+    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, endDate, 0, 250))
+        .thenReturn(List.of(dto));
+    List<OhlcvDto> intradayWithEndDateRes =
+        controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250, endDate);
+    assertEquals(1, intradayWithEndDateRes.size());
 
     QuoteDto mockQuote =
         QuoteDto.builder()
@@ -81,13 +95,13 @@ class PriceControllerTest {
 
     org.junit.jupiter.api.Assertions.assertThrows(
         IllegalArgumentException.class,
-        () -> controller.getPriceDataForTicker("AAPL", null, 0, 250));
+        () -> controller.getPriceDataForTicker("AAPL", null, 0, 250, null));
 
     when(tickerService.getTicker("UNKNOWN"))
         .thenThrow(new ResourceNotFoundException("Ticker not found: UNKNOWN"));
 
     org.junit.jupiter.api.Assertions.assertThrows(
         ResourceNotFoundException.class,
-        () -> controller.getPriceDataForTicker("UNKNOWN", Timeframe.WEEKLY, 0, 250));
+        () -> controller.getPriceDataForTicker("UNKNOWN", Timeframe.WEEKLY, 0, 250, null));
   }
 }

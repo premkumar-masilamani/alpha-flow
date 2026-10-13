@@ -52,6 +52,21 @@ public interface IntradayPriceRepository extends JpaRepository<IntradayPrice, Lo
   List<IntradayPrice> findLatestByTickerAndTimeframe(
       Ticker ticker, String timeframe, Pageable pageable);
 
+  @Query(
+      """
+        SELECT ip FROM IntradayPrice ip
+        JOIN FETCH ip.ticker tk
+        WHERE ip.ticker = :ticker
+          AND ip.timeframe = :timeframe
+          AND ip.priceTime <= :endDateTime
+        ORDER BY ip.priceTime DESC
+      """)
+  List<IntradayPrice> findLatestByTickerAndTimeframeAndEndDate(
+      @Param("ticker") Ticker ticker,
+      @Param("timeframe") String timeframe,
+      @Param("endDateTime") OffsetDateTime endDateTime,
+      Pageable pageable);
+
   Optional<IntradayPrice> findTopByTickerAndTimeframeOrderByPriceTimeDesc(
       Ticker ticker, String timeframe);
 
