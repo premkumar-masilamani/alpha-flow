@@ -1,4 +1,4 @@
-package com.alphaflow.engine.configs;
+package com.alphaflow.engine.calculators.cache;
 
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
@@ -11,15 +11,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
-public class IndicatorConfig {
+public class IndicatorDefinitions {
 
-  private static final Logger logger = LoggerFactory.getLogger(IndicatorConfig.class);
+  private static final Logger logger = LoggerFactory.getLogger(IndicatorDefinitions.class);
 
   private final IndicatorDefinitionRepository indicatorDefinitionRepository;
   private final List<IndicatorDefinition> cachedDefinitions = new ArrayList<>();
 
   @Autowired
-  public IndicatorConfig(IndicatorDefinitionRepository indicatorDefinitionRepository) {
+  public IndicatorDefinitions(IndicatorDefinitionRepository indicatorDefinitionRepository) {
     this.indicatorDefinitionRepository = indicatorDefinitionRepository;
   }
 

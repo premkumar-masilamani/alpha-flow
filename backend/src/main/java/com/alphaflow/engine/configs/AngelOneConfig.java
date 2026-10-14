@@ -16,18 +16,17 @@ public class AngelOneConfig {
   private String clientCode;
   private String password;
   private String totpKey;
-  private String loginUrl;
-  private String candleUrl;
-  private String quoteUrl;
-  private long delayMilliseconds;
-  private int initialLookbackDays;
-  private long tokenTtlSeconds;
-  private LocalTime sessionStartTime;
-  private LocalTime sessionEndTime;
-  private LocalDate backfillStartDate;
-  private int maxChunkDays;
 
-  public Duration getTokenTtl() {
-    return Duration.ofSeconds(tokenTtlSeconds);
-  }
+  private String loginUrl =
+      "https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword";
+  private String candleUrl =
+      "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData";
+  private String quoteUrl =
+      "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote";
+  private long delayMilliseconds = 1000;
+  private Duration tokenTtl = Duration.ofSeconds(72000);
+  private LocalTime sessionStartTime = LocalTime.of(9, 15);
+  private LocalTime sessionEndTime = LocalTime.of(15, 30);
+  private LocalDate backfillStartDate = LocalDate.of(2015, 1, 1);
+  private int maxChunkDays = 200;
 }

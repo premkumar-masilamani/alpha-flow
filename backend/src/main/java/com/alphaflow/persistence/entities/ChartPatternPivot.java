@@ -1,5 +1,6 @@
 package com.alphaflow.persistence.entities;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,7 +15,7 @@ import lombok.*;
 @ToString
 public class ChartPatternPivot implements Serializable {
 
-  private static final long serialVersionUID = 1L;
+  @Serial private static final long serialVersionUID = 1L;
 
   private LocalDate date;
   private BigDecimal price;

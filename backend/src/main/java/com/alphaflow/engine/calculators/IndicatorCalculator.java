@@ -1,7 +1,7 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.engine.indicators.Indicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -37,7 +37,7 @@ public class IndicatorCalculator {
 
   private final TickerRepository tickerRepository;
   private final IndicatorRegistry indicatorRegistry;
-  private final IndicatorConfig indicatorConfig;
+  private final IndicatorDefinitions indicatorDefinitions;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyIndicatorRepository dailyIndicatorRepository;
@@ -48,14 +48,14 @@ public class IndicatorCalculator {
   public IndicatorCalculator(
       TickerRepository tickerRepository,
       IndicatorRegistry registry,
-      IndicatorConfig properties,
+      IndicatorDefinitions properties,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyIndicatorRepository dailyIndicatorRepository,
       WeeklyIndicatorRepository weeklyIndicatorRepository) {
     this.tickerRepository = tickerRepository;
     this.indicatorRegistry = registry;
-    this.indicatorConfig = properties;
+    this.indicatorDefinitions = properties;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyIndicatorRepository = dailyIndicatorRepository;
@@ -88,7 +88,7 @@ public class IndicatorCalculator {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker) {
     log.info("{}: Computing indicators...", ticker.getTickerSymbol());
-    List<IndicatorDefinition> indicatorDefinitions = indicatorConfig.getDefinitions();
+    List<IndicatorDefinition> indicatorDefinitions = this.indicatorDefinitions.getDefinitions();
     if (indicatorDefinitions.isEmpty()) {
       log.info(
           "{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());

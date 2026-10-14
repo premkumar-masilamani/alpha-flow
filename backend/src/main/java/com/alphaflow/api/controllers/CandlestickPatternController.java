@@ -30,7 +30,7 @@ public class CandlestickPatternController {
   @GetMapping("/tickers/{symbol}/candlestick-patterns")
   public List<CandlestickPatternDto> getCandlestickPatterns(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "daily") Timeframe timeframe,
+      @RequestParam Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
 

@@ -4,7 +4,7 @@ import com.alphaflow.api.dtos.IndicatorConfigDto;
 import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.api.mappers.IndicatorMapper;
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
@@ -25,19 +25,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class IndicatorService {
 
-  private final IndicatorConfig indicatorConfig;
+  private final IndicatorDefinitions indicatorDefinitions;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyIndicatorRepository dailyIndicatorRepository;
   private final WeeklyIndicatorRepository weeklyIndicatorRepository;
 
   public IndicatorService(
-      IndicatorConfig indicatorConfig,
+      IndicatorDefinitions indicatorDefinitions,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyIndicatorRepository dailyIndicatorRepository,
       WeeklyIndicatorRepository weeklyIndicatorRepository) {
-    this.indicatorConfig = indicatorConfig;
+    this.indicatorDefinitions = indicatorDefinitions;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyIndicatorRepository = dailyIndicatorRepository;
@@ -46,7 +46,7 @@ public class IndicatorService {
 
   public List<IndicatorConfigDto> getConfiguredIndicators() {
     List<IndicatorConfigDto> configs = new ArrayList<>();
-    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
+    List<IndicatorDefinition> definitions = indicatorDefinitions.getDefinitions();
     for (Timeframe timeframe : List.of(Timeframe.DAILY, Timeframe.WEEKLY)) {
       for (IndicatorDefinition definition : definitions) {
         configs.add(IndicatorMapper.toConfigDto(timeframe, definition));
@@ -90,7 +90,7 @@ public class IndicatorService {
     LocalDate start = pageDates.getLast();
     LocalDate end = pageDates.getFirst();
 
-    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
+    List<IndicatorDefinition> definitions = indicatorDefinitions.getDefinitions();
     if (definitions.isEmpty()) {
       return List.of();
     }

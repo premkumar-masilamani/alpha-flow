@@ -8,9 +8,9 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.services.IntradayPriceService;
 import com.alphaflow.api.services.TickerService;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -41,9 +41,9 @@ class IntradayPriceControllerTest {
 
     LocalDate endDate = LocalDate.of(2026, 9, 23);
 
-    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, null, 0, 250))
+    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, null, 0, 250))
         .thenReturn(List.of(dto));
-    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, endDate, 0, 250))
+    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, endDate, 0, 250))
         .thenReturn(List.of(dto));
 
     IntradayPriceController controller =
@@ -51,13 +51,14 @@ class IntradayPriceControllerTest {
 
     // Call without endDate
     List<OhlcvDto> resultWithoutEndDate =
-        controller.getIntradayPriceDataForTicker("NIFTY50", Timeframe._15M, 0, 250, null);
+        controller.getIntradayPriceDataForTicker("NIFTY50", IntradayTimeframe._15M, 0, 250, null);
     assertEquals(1, resultWithoutEndDate.size());
     assertEquals(candleTime, resultWithoutEndDate.getFirst().priceDate());
 
     // Call with endDate
     List<OhlcvDto> resultWithEndDate =
-        controller.getIntradayPriceDataForTicker("NIFTY50", Timeframe._15M, 0, 250, endDate);
+        controller.getIntradayPriceDataForTicker(
+            "NIFTY50", IntradayTimeframe._15M, 0, 250, endDate);
     assertEquals(1, resultWithEndDate.size());
     assertEquals(candleTime, resultWithEndDate.getFirst().priceDate());
   }
@@ -70,20 +71,20 @@ class IntradayPriceControllerTest {
     Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
     when(tickerService.getTicker("NIFTY50")).thenReturn(ticker);
 
-    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, null, 0, 1000))
+    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, null, 0, 1000))
         .thenReturn(List.of());
-    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, null, 0, 1))
+    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, null, 0, 1))
         .thenReturn(List.of());
 
     IntradayPriceController controller =
         new IntradayPriceController(intradayPriceService, tickerService);
 
     List<OhlcvDto> clampedMax =
-        controller.getIntradayPriceDataForTicker("NIFTY50", Timeframe._15M, 0, 5000, null);
+        controller.getIntradayPriceDataForTicker("NIFTY50", IntradayTimeframe._15M, 0, 5000, null);
     assertEquals(0, clampedMax.size());
 
     List<OhlcvDto> clampedMin =
-        controller.getIntradayPriceDataForTicker("NIFTY50", Timeframe._15M, 0, -5, null);
+        controller.getIntradayPriceDataForTicker("NIFTY50", IntradayTimeframe._15M, 0, -5, null);
     assertEquals(0, clampedMin.size());
   }
 
@@ -100,7 +101,7 @@ class IntradayPriceControllerTest {
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> controller.getIntradayPriceDataForTicker("NIFTY50", Timeframe.DAILY, 0, 250, null));
+        () -> controller.getIntradayPriceDataForTicker("NIFTY50", null, 0, 250, null));
   }
 
   @Test
@@ -116,6 +117,8 @@ class IntradayPriceControllerTest {
 
     assertThrows(
         ResourceNotFoundException.class,
-        () -> controller.getIntradayPriceDataForTicker("UNKNOWN", Timeframe._15M, 0, 250, null));
+        () ->
+            controller.getIntradayPriceDataForTicker(
+                "UNKNOWN", IntradayTimeframe._15M, 0, 250, null));
   }
 }

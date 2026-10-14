@@ -13,7 +13,7 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.api.dtos.IndicatorConfigDto;
 import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.Indicator;
@@ -40,7 +40,7 @@ class IndicatorServiceTest {
   private static final LocalDate D2 = LocalDate.of(2024, 1, 2);
   private static final LocalDate D3 = LocalDate.of(2024, 1, 3);
 
-  private IndicatorConfig indicatorConfig;
+  private IndicatorDefinitions indicatorDefinitions;
   private DailyPriceRepository dailyPriceRepository;
   private WeeklyPriceRepository weeklyPriceRepository;
   private DailyIndicatorRepository dailyIndicatorRepository;
@@ -74,7 +74,7 @@ class IndicatorServiceTest {
 
   @BeforeEach
   void setUp() {
-    indicatorConfig = mock(IndicatorConfig.class);
+    indicatorDefinitions = mock(IndicatorDefinitions.class);
     dailyPriceRepository = mock(DailyPriceRepository.class);
     weeklyPriceRepository = mock(WeeklyPriceRepository.class);
     dailyIndicatorRepository = mock(DailyIndicatorRepository.class);
@@ -82,7 +82,7 @@ class IndicatorServiceTest {
 
     indicatorService =
         new IndicatorService(
-            indicatorConfig,
+            indicatorDefinitions,
             dailyPriceRepository,
             weeklyPriceRepository,
             dailyIndicatorRepository,
@@ -93,7 +93,7 @@ class IndicatorServiceTest {
 
   @Test
   void discoveryFlattensConfiguredMatrix() {
-    when(indicatorConfig.getDefinitions())
+    when(indicatorDefinitions.getDefinitions())
         .thenReturn(
             List.of(
                 def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5)),
@@ -124,7 +124,7 @@ class IndicatorServiceTest {
     when(dailyPriceRepository.findRecentPriceDatesUpTo(eq(ticker), any(LocalDate.class), any()))
         .thenReturn(List.of(D3, D2, D1));
 
-    when(indicatorConfig.getDefinitions())
+    when(indicatorDefinitions.getDefinitions())
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 5))));
 
     doReturn(
@@ -183,7 +183,7 @@ class IndicatorServiceTest {
     when(weeklyPriceRepository.findRecentPriceDatesUpTo(eq(ticker), any(LocalDate.class), any()))
         .thenReturn(List.of(D1));
 
-    when(indicatorConfig.getDefinitions())
+    when(indicatorDefinitions.getDefinitions())
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 2))));
 
     doReturn(List.of())
@@ -203,7 +203,7 @@ class IndicatorServiceTest {
             eq(ticker), any(LocalDate.class), eq(PageRequest.of(1, 10))))
         .thenReturn(List.of(D1));
 
-    when(indicatorConfig.getDefinitions())
+    when(indicatorDefinitions.getDefinitions())
         .thenReturn(List.of(def(IndicatorType.EMA, PriceSource.CLOSE, Map.of("period", 2))));
 
     doReturn(List.of())
@@ -222,7 +222,7 @@ class IndicatorServiceTest {
   void seriesReturnsEmptyWhenNoDefinitions() {
     when(dailyPriceRepository.findRecentPriceDatesUpTo(eq(ticker), any(LocalDate.class), any()))
         .thenReturn(List.of(D1));
-    when(indicatorConfig.getDefinitions()).thenReturn(List.of());
+    when(indicatorDefinitions.getDefinitions()).thenReturn(List.of());
 
     assertTrue(indicatorService.getIndicatorSeries(ticker, Timeframe.DAILY, 0, 250).isEmpty());
 

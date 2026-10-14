@@ -1,7 +1,7 @@
 package com.alphaflow.engine.downloaders.angelone;
 
 import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
@@ -59,15 +59,19 @@ public class AngelOneClient {
     return symbol;
   }
 
-  public static String mapToAngelOneInterval(Timeframe timeframe) {
-    if (timeframe == Timeframe._15M) {
+  public static String mapToAngelOneInterval(IntradayTimeframe timeframe) {
+    if (timeframe == IntradayTimeframe._15M) {
       return "FIFTEEN_MINUTE";
     }
     return timeframe != null ? timeframe.getValue() : "";
   }
 
   public List<AngelOneCandle> getCandleData(
-      String exchange, String symbolToken, Timeframe timeframe, String fromDate, String toDate) {
+      String exchange,
+      String symbolToken,
+      IntradayTimeframe timeframe,
+      String fromDate,
+      String toDate) {
 
     String angelOneInterval = mapToAngelOneInterval(timeframe);
 

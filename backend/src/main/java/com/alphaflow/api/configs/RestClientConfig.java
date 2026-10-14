@@ -1,4 +1,4 @@
-package com.alphaflow.engine.configs;
+package com.alphaflow.api.configs;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

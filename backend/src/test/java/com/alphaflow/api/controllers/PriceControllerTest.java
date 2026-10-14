@@ -12,8 +12,8 @@ import com.alphaflow.api.services.QuoteService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -71,9 +71,6 @@ class PriceControllerTest {
     assertEquals("2026-05-29T10:00:00Z", quoteRes.timestamp());
 
     // Unsupported timeframe
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250));
     assertThrows(
         IllegalArgumentException.class,
         () -> controller.getPriceDataForTicker("AAPL", null, 0, 250));

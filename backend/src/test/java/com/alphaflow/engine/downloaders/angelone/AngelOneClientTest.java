@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
@@ -95,7 +95,7 @@ class AngelOneClientTest {
         client.getCandleData(
             MarketConstants.EXCHANGE_NSE,
             "99926000",
-            Timeframe._15M,
+            IntradayTimeframe._15M,
             "2026-09-23 09:15",
             "2026-09-23 15:30");
 
@@ -115,7 +115,7 @@ class AngelOneClientTest {
         client.getCandleData(
             MarketConstants.EXCHANGE_NSE,
             "99926000",
-            Timeframe._15M,
+            IntradayTimeframe._15M,
             "2026-09-23 09:15",
             "2026-09-23 15:30");
     assertTrue(candles.isEmpty());
@@ -147,7 +147,7 @@ class AngelOneClientTest {
         client.getCandleData(
             MarketConstants.EXCHANGE_NSE,
             "99926000",
-            Timeframe._15M,
+            IntradayTimeframe._15M,
             "2026-09-23 09:15",
             "2026-09-23 15:30");
 
@@ -241,8 +241,7 @@ class AngelOneClientTest {
 
   @Test
   void testMapToAngelOneInterval() {
-    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval(Timeframe._15M));
-    assertEquals("DAILY", AngelOneClient.mapToAngelOneInterval(Timeframe.DAILY));
-    assertEquals("WEEKLY", AngelOneClient.mapToAngelOneInterval(Timeframe.WEEKLY));
+    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval(IntradayTimeframe._15M));
+    assertEquals("", AngelOneClient.mapToAngelOneInterval(null));
   }
 }

@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
@@ -54,7 +54,7 @@ class AngelOneDownloaderTest {
   @Test
   void testDownloadEmptyActiveTickers() {
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of());
 
     int result = downloader.downloadIntradayPrices();
@@ -75,7 +75,7 @@ class AngelOneDownloaderTest {
     // Latest saved time is far in future (greater than expected completed time)
     OffsetDateTime futureTime = OffsetDateTime.now(istZone).plusDays(1);
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, futureTime));
 
     int result = downloader.downloadIntradayPrices();
@@ -98,7 +98,7 @@ class AngelOneDownloaderTest {
     OffsetDateTime latestTime =
         LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
 
     // Candle 1: older than latestTime (filtered out by timestamp > effectiveMinTime)
@@ -132,7 +132,11 @@ class AngelOneDownloaderTest {
             BigDecimal.ONE);
 
     when(client.getCandleData(
-            eq(MarketConstants.EXCHANGE_NSE), eq("99926000"), eq(Timeframe._15M), any(), any()))
+            eq(MarketConstants.EXCHANGE_NSE),
+            eq("99926000"),
+            eq(IntradayTimeframe._15M),
+            any(),
+            any()))
         .thenReturn(List.of(oldCandle, validCandle, futureCandle));
 
     int result = downloader.downloadIntradayPrices();
@@ -154,7 +158,7 @@ class AngelOneDownloaderTest {
     Map<Ticker, OffsetDateTime> tickerMap = new LinkedHashMap<>();
     tickerMap.put(ticker, null);
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(tickerMap);
 
     // Configure small chunk days and recent backfill start date so it runs in 2 chunks
@@ -184,7 +188,11 @@ class AngelOneDownloaderTest {
             BigDecimal.TEN);
 
     when(client.getCandleData(
-            eq(MarketConstants.EXCHANGE_NSE), eq("99926000"), eq(Timeframe._15M), any(), any()))
+            eq(MarketConstants.EXCHANGE_NSE),
+            eq("99926000"),
+            eq(IntradayTimeframe._15M),
+            any(),
+            any()))
         .thenReturn(List.of(candleChunk1))
         .thenReturn(List.of(candleChunk2));
 
@@ -207,7 +215,7 @@ class AngelOneDownloaderTest {
     OffsetDateTime latestTime =
         LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
 
     when(client.getCandleData(any(), any(), any(), any(), any())).thenReturn(List.of());
@@ -230,7 +238,7 @@ class AngelOneDownloaderTest {
     OffsetDateTime latestTime =
         LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
 
     // Candle equal to latestTime -> timestamp.isAfter(latestTime) is false
@@ -263,7 +271,7 @@ class AngelOneDownloaderTest {
     Map<Ticker, OffsetDateTime> tickerMap = new LinkedHashMap<>();
     tickerMap.put(ticker, null);
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(tickerMap);
 
     config.setBackfillStartDate(LocalDate.now(istZone).minusDays(3));
@@ -310,7 +318,7 @@ class AngelOneDownloaderTest {
     tickerMap.put(ticker2, twoHoursAgo);
 
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(tickerMap);
 
     config.setDelayMilliseconds(2000);

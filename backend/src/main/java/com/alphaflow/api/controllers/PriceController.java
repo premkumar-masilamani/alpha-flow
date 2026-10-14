@@ -40,7 +40,7 @@ public class PriceController {
   @GetMapping("/tickers/{symbol}/data")
   public List<OhlcvDto> getPriceDataForTicker(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "daily") Timeframe timeframe,
+      @RequestParam Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "250") int size) {
 

@@ -1,7 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
@@ -45,7 +45,7 @@ public class AngelOneDownloader {
 
     Map<Ticker, OffsetDateTime> latestSavedTimes =
         intradayPriceRepository.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue());
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue());
 
     log.info("Found {} active Angel One tickers to sync.", latestSavedTimes.size());
 
@@ -102,7 +102,6 @@ public class AngelOneDownloader {
               .toOffsetDateTime();
     }
 
-    OffsetDateTime overallEnd = expectedCompletedTime;
     OffsetDateTime effectiveMinTime =
         (latestSavedTime != null) ? latestSavedTime : OffsetDateTime.MIN;
 
@@ -111,10 +110,12 @@ public class AngelOneDownloader {
     int totalIngestedForTicker = 0;
 
     OffsetDateTime currentWindowStart = chunkStart;
-    while (currentWindowStart.isBefore(overallEnd)) {
+    while (currentWindowStart.isBefore(expectedCompletedTime)) {
       OffsetDateTime candidateWindowEnd = currentWindowStart.plusDays(config.getMaxChunkDays());
       OffsetDateTime currentWindowEnd =
-          candidateWindowEnd.isBefore(overallEnd) ? candidateWindowEnd : overallEnd;
+          candidateWindowEnd.isBefore(expectedCompletedTime)
+              ? candidateWindowEnd
+              : expectedCompletedTime;
 
       String fromDateStr = currentWindowStart.format(DATE_TIME_FORMATTER);
       String toDateStr = currentWindowEnd.format(DATE_TIME_FORMATTER);
@@ -127,17 +128,17 @@ public class AngelOneDownloader {
           toDateStr);
 
       List<AngelOneCandle> candles =
-          client.getCandleData(exchange, token, Timeframe._15M, fromDateStr, toDateStr);
+          client.getCandleData(exchange, token, IntradayTimeframe._15M, fromDateStr, toDateStr);
 
       if (!candles.isEmpty()) {
         List<IntradayPrice> toSave = new ArrayList<>();
         for (AngelOneCandle candle : candles) {
           if (candle.timestamp().isAfter(effectiveMinTime)
-              && !candle.timestamp().isAfter(overallEnd)) {
+              && !candle.timestamp().isAfter(expectedCompletedTime)) {
             toSave.add(
                 IntradayPrice.builder()
                     .ticker(ticker)
-                    .timeframe(Timeframe._15M.getValue())
+                    .timeframe(IntradayTimeframe._15M.getValue())
                     .priceTime(candle.timestamp())
                     .priceOpen(candle.open())
                     .priceHigh(candle.high())
@@ -172,7 +173,7 @@ public class AngelOneDownloader {
       }
 
       currentWindowStart = currentWindowEnd;
-      if (currentWindowStart.isBefore(overallEnd)) {
+      if (currentWindowStart.isBefore(expectedCompletedTime)) {
         try {
           Thread.sleep(config.getDelayMilliseconds());
         } catch (InterruptedException exception) {

@@ -1,4 +1,4 @@
-package com.alphaflow.persistence.exceptions;
+package com.alphaflow.common.exceptions;
 
 public class ResourceNotFoundException extends RuntimeException {
   public ResourceNotFoundException(String message) {

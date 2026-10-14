@@ -61,6 +61,8 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
   List<DailyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);
 
+  Optional<DailyPrice> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
+
   @Query(
       """
                 SELECT dp.priceDate FROM DailyPrice dp

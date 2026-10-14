@@ -1,12 +1,13 @@
 package com.alphaflow.api.controllers.generic;
 
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -25,6 +26,14 @@ public class GlobalExceptionHandler {
   public ResponseEntity<Map<String, Object>> handleBadRequest(
       IllegalArgumentException ex, HttpServletRequest request) {
     log.warn("Bad request for path {}: {}", request.getRequestURI(), ex.getMessage());
+    return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+  }
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  public ResponseEntity<Map<String, Object>> handleMissingParams(
+      MissingServletRequestParameterException ex, HttpServletRequest request) {
+    log.warn(
+        "Missing required parameter for path {}: {}", request.getRequestURI(), ex.getMessage());
     return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
   }
 

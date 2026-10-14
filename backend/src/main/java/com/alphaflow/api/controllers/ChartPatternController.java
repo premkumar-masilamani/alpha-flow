@@ -33,7 +33,7 @@ public class ChartPatternController {
   @GetMapping("/tickers/{symbol}/chart-patterns")
   public List<ChartPatternDto> getChartPatterns(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "daily") Timeframe timeframe,
+      @RequestParam Timeframe timeframe,
       @RequestParam(required = false) List<ChartPatternStatus> statuses,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {

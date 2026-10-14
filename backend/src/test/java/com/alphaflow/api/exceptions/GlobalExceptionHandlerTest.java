@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.controllers.generic.GlobalExceptionHandler;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -92,5 +92,26 @@ class GlobalExceptionHandlerTest {
     assertNotNull(body);
 
     assertEquals("Bad Request", body.get("message"));
+  }
+
+  @Test
+  void testHandleMissingParams() {
+    HttpServletRequest request = mock(HttpServletRequest.class);
+    when(request.getRequestURI()).thenReturn("/api/tickers/AAPL/data");
+
+    GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    org.springframework.web.bind.MissingServletRequestParameterException ex =
+        new org.springframework.web.bind.MissingServletRequestParameterException(
+            "timeframe", "Timeframe");
+
+    ResponseEntity<Map<String, Object>> response = handler.handleMissingParams(ex, request);
+
+    assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    Map<String, Object> body = response.getBody();
+    assertNotNull(body);
+    assertEquals(400, body.get("status"));
+    assertEquals("Bad Request", body.get("error"));
+    assertEquals("/api/tickers/AAPL/data", body.get("path"));
+    assertNotNull(body.get("timestamp"));
   }
 }

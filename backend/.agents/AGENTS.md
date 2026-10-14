@@ -40,6 +40,7 @@ make format
 - Use a fallback `else` or ternary default for `Timeframe` branches without explicit validation.
 - Use cryptic or single-letter variable names (such as `b`, `d`, `w`, `p`, `v`, `r`) for domain models, method parameters, or stream/lambda expressions.
 - Place error, warning, or insufficient data handling inside the `if` block while relegating the actual business logic to the `else` block.
+- Define default values for configuration variables or request parameters unless specifically mentioned.
 
 ## Project Structure
 ```text
@@ -137,6 +138,9 @@ if (dailyBars.size() >= MIN_BARS) {
 - **Algorithm Configurability & Clean Architecture**: Avoid littering with `@Value` annotations inside the core engine classes; instead, use a config class and inject it.
 - **JPA Property Paths in JPQL**: Always use exact Java entity field names (e.g. `iv.indicatorDefinition.indicatorDefinitionId`) in `@Query` JPQL definitions rather than DB column names to avoid `QueryCreationException` on context startup.
 - **DTO Isolation from Schema Renames**: When refactoring entity primary keys to `<entity>_id` formats, maintain existing DTO property names (e.g. `ChartPatternDto.id`) to avoid breaking frontend REST clients.
+- **Atomic Bulk JPQL Deletes for Retention Cleanup**: Prefer `@Modifying @Query("DELETE FROM ...")` single-statement JPQL deletes over Spring Data derived deletion methods (such as `deleteByTickerAndPriceDateLessThan(...)`). Derived delete methods issue individual $N+1$ select queries followed by entity-by-entity deletions, whereas `@Modifying @Query` executes an atomic $O(1)$ database operation.
+- **Window Filtering & Typical Price Boundary Calculations**: When filtering zone midpoint levels within a dynamic percentage window around price action, derive Typical Price ($TP = \frac{\text{high} + \text{low} + \text{close}}{3}$) from the reference candle at scale 12 (`RoundingMode.HALF_UP`). Validate `rangePct` for boundary safety (`rangePct > 0` and finite/non-NaN) and provide an unwindowed fallback when the reference candle is not present.
+- **No Defaults for Config Variables or Request Parameters**: Never provide default values for configuration properties (in `@ConfigurationProperties` classes) or request parameters (`@RequestParam(defaultValue = ...)`) unless specifically mentioned and requested. Configuration properties must be declared without field initializers in Java classes and sourced explicitly from external configuration (`application.properties` / environment variables).
 
 ## Technical Indicators & Mathematical Calculations
 - **BigDecimal Math Precision & Stability**: When computing standard deviation or variance over sliding windows:
@@ -160,6 +164,9 @@ if (dailyBars.size() >= MIN_BARS) {
 ## Technical Analysis & S&R Engine
 - **Decoupling False Breakout Forgiveness from Touch Scoring**: Forgiving a temporary breach (preventing premature invalidation) must not conflate with validating support/resistance strength. Reclaims should never award touch credits, and false breakouts must be capped per level lifecycle (`max-false-breakouts`) to prevent whipsawed chop ranges from persisting indefinitely.
 - **Sequential Candle Boundary Anchoring**: In `computeBuckets`, the latest price candle (`bars.getLast()`) defines both the pivot anchor $P$ and linear bucket intervals $[Z_{\text{bottom}}, Z_{\text{top}}]$. Because the latest candle is also scanned during historical candle iteration, its price bounds evaluate against the computed zone boundaries.
+- **Dynamic Bucket Safety & Memory Protection**: When deriving dynamic bucket counts ($k_{\text{up}}, k_{\text{down}}$) from historical price extremes ($\text{minPrice}, \text{maxPrice}$), penny stocks or wide split-adjusted historical ranges can generate thousands of granular intervals. Always cap bucket creation with a safety ceiling (`maxAllowedBuckets = 500`) configured via a dedicated configuration properties class (`SupportResistanceConfig`) to safeguard against heap exhaustion.
+- **Touch Detection Branch Leanliness for 100% Branch Coverage**: Avoid mathematically redundant boundary checks in support and resistance touch/slice calculations (such as checking `bar.close() >= bucket.getBottom()` when `bar.low() >= bucket.getBottom()` is already guaranteed). Redundant boundary checks introduce unreachable branches in bytecode that prevent achieving 100% JaCoCo branch coverage.
+- **Subroutine Validation Order**: In multi-step calculation flows (e.g. `saveSupportResistances`), perform caller-level `timeframe` validation before delegating to subroutines that also validate `timeframe` (e.g. `isAlreadyComputed`). Otherwise, the subroutine throws first, leaving the caller's terminal unsupported timeframe branch unreachable during testing.
 
 ## Market Calendars & Data Downloader Gating
 - **Market Calendar & Downloader Gating Pattern**:
