@@ -16,7 +16,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.configs.IndicatorConfig;
+import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.engine.indicators.EmaIndicator;
 import com.alphaflow.engine.indicators.MacdIndicator;
 import com.alphaflow.engine.indicators.RsiIndicator;
@@ -116,7 +116,8 @@ class IndicatorCalculatorTest {
                 new MacdIndicator(),
                 new StochasticIndicator()));
 
-    IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
+    IndicatorDefinitions properties =
+        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
     properties.setCachedDefinitions(List.of(emaDef(), smaVolumeDef()));
 
     calculator =
@@ -225,7 +226,8 @@ class IndicatorCalculatorTest {
             .params(Map.of("period", 2))
             .build();
 
-    IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
+    IndicatorDefinitions properties =
+        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
     properties.setCachedDefinitions(List.of(weeklyDef));
 
     calculator =
@@ -262,7 +264,8 @@ class IndicatorCalculatorTest {
             .params(Map.of("period", 10))
             .build();
 
-    IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
+    IndicatorDefinitions properties =
+        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
     properties.setCachedDefinitions(List.of(emaDef));
 
     Ticker testTicker = Ticker.builder().tickerId(99L).tickerSymbol("TEST").isActive(true).build();
@@ -330,7 +333,8 @@ class IndicatorCalculatorTest {
             .params(Map.of("period", 5))
             .build();
 
-    IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
+    IndicatorDefinitions properties =
+        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
     properties.setCachedDefinitions(List.of(weeklyDef));
 
     calculator =
@@ -371,7 +375,8 @@ class IndicatorCalculatorTest {
 
   @Test
   void testComputeIndicatorsWithNoDefinitionsReturnsEarly() {
-    IndicatorConfig properties = new IndicatorConfig(mock(IndicatorDefinitionRepository.class));
+    IndicatorDefinitions properties =
+        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
     properties.setCachedDefinitions(List.of());
 
     IndicatorCalculator testCalculator =

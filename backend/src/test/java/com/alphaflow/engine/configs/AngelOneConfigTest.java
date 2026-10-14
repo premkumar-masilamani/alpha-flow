@@ -22,8 +22,7 @@ class AngelOneConfigTest {
     config.setCandleUrl("https://candle.example.com");
     config.setQuoteUrl("https://quote.example.com");
     config.setDelayMilliseconds(1500L);
-    config.setInitialLookbackDays(10);
-    config.setTokenTtlSeconds(3600L);
+    config.setTokenTtl(Duration.ofSeconds(3600));
     config.setSessionStartTime(LocalTime.of(9, 15));
     config.setSessionEndTime(LocalTime.of(15, 30));
     config.setBackfillStartDate(LocalDate.of(2015, 1, 1));
@@ -37,8 +36,6 @@ class AngelOneConfigTest {
     assertEquals("https://candle.example.com", config.getCandleUrl());
     assertEquals("https://quote.example.com", config.getQuoteUrl());
     assertEquals(1500L, config.getDelayMilliseconds());
-    assertEquals(10, config.getInitialLookbackDays());
-    assertEquals(3600L, config.getTokenTtlSeconds());
     assertEquals(Duration.ofSeconds(3600L), config.getTokenTtl());
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());
     assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
@@ -47,11 +44,26 @@ class AngelOneConfigTest {
   }
 
   @Test
-  void testInitialStateNoDefaults() {
+  void testDefaultValues() {
     AngelOneConfig config = new AngelOneConfig();
-    assertNull(config.getSessionStartTime());
-    assertNull(config.getSessionEndTime());
-    assertNull(config.getBackfillStartDate());
-    assertEquals(0, config.getMaxChunkDays());
+    assertNull(config.getApiKey());
+    assertNull(config.getClientCode());
+    assertNull(config.getPassword());
+    assertNull(config.getTotpKey());
+    assertEquals(
+        "https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword",
+        config.getLoginUrl());
+    assertEquals(
+        "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData",
+        config.getCandleUrl());
+    assertEquals(
+        "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote",
+        config.getQuoteUrl());
+    assertEquals(1000L, config.getDelayMilliseconds());
+    assertEquals(Duration.ofSeconds(72000), config.getTokenTtl());
+    assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());
+    assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
+    assertEquals(LocalDate.of(2015, 1, 1), config.getBackfillStartDate());
+    assertEquals(200, config.getMaxChunkDays());
   }
 }

@@ -32,10 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SupportResistanceCalculator {
 
-  private static final double BUCKET_WIDTH_PCT = 0.01;
-  private static final int BREAKOUT_CONFIRMATION_BARS = 2;
-  private static final int MAX_FALSE_BREAKOUTS = 1;
-
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
@@ -134,7 +130,8 @@ public class SupportResistanceCalculator {
               .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
       // 2. Calculate Linear Bucket Width
-      BigDecimal bucketWidth = pivot.multiply(BigDecimal.valueOf(BUCKET_WIDTH_PCT));
+      BigDecimal bucketWidth =
+          pivot.multiply(BigDecimal.valueOf(supportResistanceConfig.getBucketWidthPct()));
 
       // 3. Compute dynamic historical price range
       BigDecimal minPrice =
@@ -202,8 +199,10 @@ public class SupportResistanceCalculator {
           if (isBreach) {
             if (bucket.getTouchCount() > 0) {
               bucket.incrementConsecutiveBreachCount();
-              if (bucket.getConsecutiveBreachCount() >= BREAKOUT_CONFIRMATION_BARS
-                  || bucket.getFalseBreakoutCount() >= MAX_FALSE_BREAKOUTS) {
+              if (bucket.getConsecutiveBreachCount()
+                      >= supportResistanceConfig.getBreakoutConfirmationBars()
+                  || bucket.getFalseBreakoutCount()
+                      >= supportResistanceConfig.getMaxFalseBreakouts()) {
                 bucket.resetTouchCount();
               }
             }

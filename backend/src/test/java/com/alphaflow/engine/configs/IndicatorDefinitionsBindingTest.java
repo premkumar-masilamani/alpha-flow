@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
@@ -14,15 +15,15 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class IndicatorConfigBindingTest {
+class IndicatorDefinitionsBindingTest {
 
   private IndicatorDefinitionRepository indicatorDefinitionRepository;
-  private IndicatorConfig indicatorConfig;
+  private IndicatorDefinitions indicatorDefinitions;
 
   @BeforeEach
   void setUp() {
     indicatorDefinitionRepository = mock(IndicatorDefinitionRepository.class);
-    indicatorConfig = new IndicatorConfig(indicatorDefinitionRepository);
+    indicatorDefinitions = new IndicatorDefinitions(indicatorDefinitionRepository);
   }
 
   @Test
@@ -46,9 +47,9 @@ class IndicatorConfigBindingTest {
     when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(ema, macd));
 
     // Execute init
-    indicatorConfig.init();
+    indicatorDefinitions.init();
 
-    List<IndicatorDefinition> definitions = indicatorConfig.getDefinitions();
+    List<IndicatorDefinition> definitions = indicatorDefinitions.getDefinitions();
     assertEquals(2, definitions.size());
     assertTrue(definitions.contains(ema));
     assertTrue(definitions.contains(macd));

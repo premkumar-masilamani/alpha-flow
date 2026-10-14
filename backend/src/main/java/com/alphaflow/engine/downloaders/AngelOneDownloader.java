@@ -102,7 +102,6 @@ public class AngelOneDownloader {
               .toOffsetDateTime();
     }
 
-    OffsetDateTime overallEnd = expectedCompletedTime;
     OffsetDateTime effectiveMinTime =
         (latestSavedTime != null) ? latestSavedTime : OffsetDateTime.MIN;
 
@@ -111,10 +110,12 @@ public class AngelOneDownloader {
     int totalIngestedForTicker = 0;
 
     OffsetDateTime currentWindowStart = chunkStart;
-    while (currentWindowStart.isBefore(overallEnd)) {
+    while (currentWindowStart.isBefore(expectedCompletedTime)) {
       OffsetDateTime candidateWindowEnd = currentWindowStart.plusDays(config.getMaxChunkDays());
       OffsetDateTime currentWindowEnd =
-          candidateWindowEnd.isBefore(overallEnd) ? candidateWindowEnd : overallEnd;
+          candidateWindowEnd.isBefore(expectedCompletedTime)
+              ? candidateWindowEnd
+              : expectedCompletedTime;
 
       String fromDateStr = currentWindowStart.format(DATE_TIME_FORMATTER);
       String toDateStr = currentWindowEnd.format(DATE_TIME_FORMATTER);
@@ -133,7 +134,7 @@ public class AngelOneDownloader {
         List<IntradayPrice> toSave = new ArrayList<>();
         for (AngelOneCandle candle : candles) {
           if (candle.timestamp().isAfter(effectiveMinTime)
-              && !candle.timestamp().isAfter(overallEnd)) {
+              && !candle.timestamp().isAfter(expectedCompletedTime)) {
             toSave.add(
                 IntradayPrice.builder()
                     .ticker(ticker)
@@ -172,7 +173,7 @@ public class AngelOneDownloader {
       }
 
       currentWindowStart = currentWindowEnd;
-      if (currentWindowStart.isBefore(overallEnd)) {
+      if (currentWindowStart.isBefore(expectedCompletedTime)) {
         try {
           Thread.sleep(config.getDelayMilliseconds());
         } catch (InterruptedException exception) {
