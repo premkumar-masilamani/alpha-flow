@@ -7,8 +7,7 @@ import lombok.Getter;
 @Getter
 public enum Timeframe {
   DAILY("DAILY"),
-  WEEKLY("WEEKLY"),
-  _15M("15M");
+  WEEKLY("WEEKLY");
 
   private final String value;
 
@@ -28,7 +27,7 @@ public enum Timeframe {
     }
     String normalized = text.trim().toUpperCase();
     for (Timeframe tf : values()) {
-      if (tf.name().equals(normalized) || tf.value.equalsIgnoreCase(normalized)) {
+      if (tf.name().equals(normalized)) {
         return tf;
       }
     }

@@ -1,7 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
@@ -45,7 +45,7 @@ public class AngelOneDownloader {
 
     Map<Ticker, OffsetDateTime> latestSavedTimes =
         intradayPriceRepository.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, Timeframe._15M.getValue());
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue());
 
     log.info("Found {} active Angel One tickers to sync.", latestSavedTimes.size());
 
@@ -128,7 +128,7 @@ public class AngelOneDownloader {
           toDateStr);
 
       List<AngelOneCandle> candles =
-          client.getCandleData(exchange, token, Timeframe._15M, fromDateStr, toDateStr);
+          client.getCandleData(exchange, token, IntradayTimeframe._15M, fromDateStr, toDateStr);
 
       if (!candles.isEmpty()) {
         List<IntradayPrice> toSave = new ArrayList<>();
@@ -138,7 +138,7 @@ public class AngelOneDownloader {
             toSave.add(
                 IntradayPrice.builder()
                     .ticker(ticker)
-                    .timeframe(Timeframe._15M.getValue())
+                    .timeframe(IntradayTimeframe._15M.getValue())
                     .priceTime(candle.timestamp())
                     .priceOpen(candle.open())
                     .priceHigh(candle.high())

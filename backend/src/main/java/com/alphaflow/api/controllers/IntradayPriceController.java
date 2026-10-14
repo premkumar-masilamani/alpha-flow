@@ -3,7 +3,7 @@ package com.alphaflow.api.controllers;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.services.IntradayPriceService;
 import com.alphaflow.api.services.TickerService;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,7 +32,7 @@ public class IntradayPriceController {
   @GetMapping("/tickers/{symbol}/intraday")
   public List<OhlcvDto> getIntradayPriceDataForTicker(
       @PathVariable String symbol,
-      @RequestParam Timeframe timeframe,
+      @RequestParam IntradayTimeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "250") int size,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -49,7 +49,7 @@ public class IntradayPriceController {
 
     Ticker ticker = tickerService.getTicker(symbol);
 
-    if (timeframe == Timeframe._15M) {
+    if (timeframe == IntradayTimeframe._15M) {
       return intradayPriceService.getIntradayPrice(ticker, timeframe, endDate, page, finalSize);
     } else {
       log.error("Unsupported timeframe for intraday price data: {}", timeframe);

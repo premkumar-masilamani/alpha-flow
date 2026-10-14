@@ -38,4 +38,19 @@ class SupportResistanceConfigTest {
     config.setWeeklyRetentionDays(90);
     assertEquals(90, config.getWeeklyRetentionDays());
   }
+
+  @Test
+  void testGetRetentionDaysForTimeframe() {
+    SupportResistanceConfig config = new SupportResistanceConfig();
+    config.setDailyRetentionDays(30);
+    config.setWeeklyRetentionDays(180);
+
+    assertEquals(
+        30, config.getRetentionDaysForTimeframe(com.alphaflow.common.enums.Timeframe.DAILY));
+    assertEquals(
+        180, config.getRetentionDaysForTimeframe(com.alphaflow.common.enums.Timeframe.WEEKLY));
+
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> config.getRetentionDaysForTimeframe(null));
+  }
 }

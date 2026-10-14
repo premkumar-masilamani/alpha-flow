@@ -73,9 +73,6 @@ class PriceControllerTest {
     // Unsupported timeframe
     assertThrows(
         IllegalArgumentException.class,
-        () -> controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250));
-    assertThrows(
-        IllegalArgumentException.class,
         () -> controller.getPriceDataForTicker("AAPL", null, 0, 250));
 
     // Unknown ticker

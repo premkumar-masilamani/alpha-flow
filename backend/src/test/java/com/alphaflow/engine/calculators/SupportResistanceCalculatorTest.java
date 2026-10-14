@@ -217,6 +217,28 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
+  void testComputeSupportResistancesWhenNoProvenBucketsDoesNotSave() {
+    LocalDate d1 = LocalDate.of(2026, 1, 1);
+    DailyPrice p1 =
+        DailyPrice.builder()
+            .ticker(ticker)
+            .priceDate(d1)
+            .priceOpen(BigDecimal.valueOf(100))
+            .priceHigh(BigDecimal.valueOf(105))
+            .priceLow(BigDecimal.valueOf(95))
+            .priceClose(BigDecimal.valueOf(100))
+            .volume(BigDecimal.valueOf(1000))
+            .build();
+
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(p1));
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+
+    calculator.computeSupportResistancesForTicker(ticker);
+
+    verify(dailySrRepo, never()).saveAll(any());
+  }
+
+  @Test
   void testBucketTouchDatesTrackingAndReset() {
     Bucket bucket =
         new Bucket(EPOCH, BigDecimal.valueOf(100), BigDecimal.valueOf(105), LevelType.SUPPORT);
@@ -265,7 +287,7 @@ class SupportResistanceCalculatorTest {
   void testUnsupportedTimeframeInSaveSupportResistancesThrowsException() throws Exception {
     Method saveMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
-            "saveSupportResistances", Ticker.class, Timeframe.class, List.class);
+            "saveSupportResistances", Ticker.class, List.class, Timeframe.class);
     saveMethod.setAccessible(true);
 
     Bucket bucket = new Bucket(EPOCH, BigDecimal.TEN, BigDecimal.valueOf(11), LevelType.SUPPORT);
@@ -273,7 +295,7 @@ class SupportResistanceCalculatorTest {
     InvocationTargetException ex =
         assertThrows(
             InvocationTargetException.class,
-            () -> saveMethod.invoke(calculator, ticker, (Timeframe) null, List.of(bucket)));
+            () -> saveMethod.invoke(calculator, ticker, List.of(bucket), (Timeframe) null));
     assertInstanceOf(IllegalArgumentException.class, ex.getCause());
   }
 
@@ -288,6 +310,27 @@ class SupportResistanceCalculatorTest {
         assertThrows(
             InvocationTargetException.class,
             () -> isAlreadyComputedMethod.invoke(calculator, ticker, EPOCH, (Timeframe) null));
+    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+  }
+
+  @Test
+  void testDeleteOlderSupportResistances() throws Exception {
+    Method deleteMethod =
+        SupportResistanceCalculator.class.getDeclaredMethod(
+            "deleteOlderSupportResistances", Ticker.class, LocalDate.class, Timeframe.class);
+    deleteMethod.setAccessible(true);
+
+    LocalDate cutoff = LocalDate.of(2026, 1, 1);
+    deleteMethod.invoke(calculator, ticker, cutoff, Timeframe.DAILY);
+    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, cutoff);
+
+    deleteMethod.invoke(calculator, ticker, cutoff, Timeframe.WEEKLY);
+    verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, cutoff);
+
+    InvocationTargetException ex =
+        assertThrows(
+            InvocationTargetException.class,
+            () -> deleteMethod.invoke(calculator, ticker, cutoff, (Timeframe) null));
     assertInstanceOf(IllegalArgumentException.class, ex.getCause());
   }
 

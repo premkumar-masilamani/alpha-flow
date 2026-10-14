@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
-import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
@@ -56,10 +56,10 @@ class IntradayPriceServiceTest {
             .build();
 
     when(repo.findLatestByTickerAndTimeframe(
-            ticker, Timeframe._15M.getValue(), PageRequest.of(0, 250)))
+            ticker, IntradayTimeframe._15M.getValue(), PageRequest.of(0, 250)))
         .thenReturn(List.of(p2, p1));
 
-    List<OhlcvDto> result = service.getIntradayPrice(ticker, Timeframe._15M, 0, 250);
+    List<OhlcvDto> result = service.getIntradayPrice(ticker, IntradayTimeframe._15M, 0, 250);
 
     assertEquals(2, result.size());
     assertEquals(t1, result.getFirst().priceDate());
@@ -67,7 +67,8 @@ class IntradayPriceServiceTest {
 
     // Calling with null endDate delegates to getIntradayPrice(ticker, timeframe, page, size)
     List<OhlcvDto> resultNullEndDate =
-        service.getIntradayPrice(ticker, Timeframe._15M, (java.time.LocalDate) null, 0, 250);
+        service.getIntradayPrice(
+            ticker, IntradayTimeframe._15M, (java.time.LocalDate) null, 0, 250);
     assertEquals(2, resultNullEndDate.size());
 
     // Calling with non-null endDate queries findLatestByTickerAndTimeframeAndEndDate
@@ -78,11 +79,11 @@ class IntradayPriceServiceTest {
             .atZone(ticker.getCountry().getZoneId())
             .toOffsetDateTime();
     when(repo.findLatestByTickerAndTimeframeAndEndDate(
-            ticker, Timeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
         .thenReturn(List.of(p1));
 
     List<OhlcvDto> resultWithEndDate =
-        service.getIntradayPrice(ticker, Timeframe._15M, endDate, 0, 250);
+        service.getIntradayPrice(ticker, IntradayTimeframe._15M, endDate, 0, 250);
     assertEquals(1, resultWithEndDate.size());
     assertEquals(t1, resultWithEndDate.getFirst().priceDate());
   }
@@ -97,14 +98,15 @@ class IntradayPriceServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () ->
-            service.getIntradayPrice(ticker, (com.alphaflow.common.enums.Timeframe) null, 0, 250));
+            service.getIntradayPrice(
+                ticker, (com.alphaflow.common.enums.IntradayTimeframe) null, 0, 250));
 
     assertThrows(
         IllegalArgumentException.class,
         () ->
             service.getIntradayPrice(
                 ticker,
-                (com.alphaflow.common.enums.Timeframe) null,
+                (com.alphaflow.common.enums.IntradayTimeframe) null,
                 java.time.LocalDate.now(),
                 0,
                 250));

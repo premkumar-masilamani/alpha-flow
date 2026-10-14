@@ -26,8 +26,10 @@ class TimeframeConverterTest {
 
   @Test
   void testConvertFifteenMinuteVariations() {
-    assertEquals(Timeframe._15M, converter.convert("15m"));
-    assertEquals(Timeframe._15M, converter.convert("15M"));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> converter.convert("15m"));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> converter.convert("15M"));
   }
 
   @Test
