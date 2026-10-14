@@ -6,8 +6,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.TickerDto;
-import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.common.exceptions.ResourceNotFoundException;
+import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import java.util.Optional;

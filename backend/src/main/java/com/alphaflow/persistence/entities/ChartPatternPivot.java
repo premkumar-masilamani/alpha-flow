@@ -15,8 +15,7 @@ import lombok.*;
 @ToString
 public class ChartPatternPivot implements Serializable {
 
-  @Serial
-  private static final long serialVersionUID = 1L;
+  @Serial private static final long serialVersionUID = 1L;
 
   private LocalDate date;
   private BigDecimal price;
