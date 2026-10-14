@@ -6,6 +6,10 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +32,26 @@ public class IntradayPriceService {
     }
     return intradayPriceRepository
         .findLatestByTickerAndTimeframe(ticker, timeframe.getValue(), PageRequest.of(page, size))
+        .stream()
+        .sorted(Comparator.comparing(IntradayPrice::getPriceTime))
+        .map(OhlcvMapper::toDto)
+        .toList();
+  }
+
+  public List<OhlcvDto> getIntradayPrice(
+      Ticker ticker, Timeframe timeframe, LocalDate endDate, int page, int size) {
+    if (timeframe == null) {
+      throw new IllegalArgumentException("Timeframe must not be null");
+    }
+    if (endDate == null) {
+      return getIntradayPrice(ticker, timeframe, page, size);
+    }
+    ZoneId marketZone = ticker.getCountry().getZoneId();
+    OffsetDateTime endDateTime =
+        endDate.atTime(LocalTime.MAX).atZone(marketZone).toOffsetDateTime();
+    return intradayPriceRepository
+        .findLatestByTickerAndTimeframeAndEndDate(
+            ticker, timeframe.getValue(), endDateTime, PageRequest.of(page, size))
         .stream()
         .sorted(Comparator.comparing(IntradayPrice::getPriceTime))
         .map(OhlcvMapper::toDto)

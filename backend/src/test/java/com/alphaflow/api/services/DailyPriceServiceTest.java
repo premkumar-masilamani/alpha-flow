@@ -88,4 +88,33 @@ class DailyPriceServiceTest {
         LocalDate.of(2026, 5, 29).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
         result.getFirst().priceDate());
   }
+
+  @Test
+  void testGetDailyPriceWithExplicitEndDate() {
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    DailyPriceService dailyPriceService = new DailyPriceService(dailyRepo);
+
+    Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
+    LocalDate endDate = LocalDate.of(2026, 4, 15);
+
+    DailyPrice dp =
+        DailyPrice.builder()
+            .priceDate(LocalDate.of(2026, 4, 15))
+            .priceOpen(new BigDecimal("100.0000"))
+            .priceHigh(new BigDecimal("105.0000"))
+            .priceLow(new BigDecimal("99.0000"))
+            .priceClose(new BigDecimal("102.0000"))
+            .volume(new BigDecimal("1000.0000"))
+            .build();
+
+    when(dailyRepo.findLatestByTickerAndEndDate(eq(ticker), eq(endDate), eq(PageRequest.of(0, 10))))
+        .thenReturn(List.of(dp));
+
+    List<OhlcvDto> result = dailyPriceService.getDailyPrice(ticker, endDate, 0, 10);
+
+    assertEquals(1, result.size());
+    assertEquals(
+        LocalDate.of(2026, 4, 15).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
+        result.getFirst().priceDate());
+  }
 }

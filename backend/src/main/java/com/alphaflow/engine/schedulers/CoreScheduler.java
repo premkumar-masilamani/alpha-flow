@@ -76,68 +76,68 @@ public class CoreScheduler {
     run();
   }
 
-  private void run() {
-    if (!running.compareAndSet(false, true)) {
-      log.warn("Data update cycle skipped: a previous run is still in progress.");
-      return;
-    }
+  public void run() {
+    if (running.compareAndSet(false, true)) {
+      long cycleStart = System.currentTimeMillis();
+      try {
+        log.info("Step 1/6: Downloading Yahoo Finance daily data...");
+        long start = System.currentTimeMillis();
+        int newlyIngestedRows = yahooFinanceDownloader.downloadDailyPrices();
+        log.info(
+            "Step 1/6 completed in {}. Newly ingested rows: {}",
+            formatDuration(System.currentTimeMillis() - start),
+            newlyIngestedRows);
 
-    long cycleStart = System.currentTimeMillis();
-    try {
-      log.info("Step 1/6: Downloading Yahoo Finance daily data...");
-      long start = System.currentTimeMillis();
-      int newlyIngestedRows = yahooFinanceDownloader.downloadDailyPrices();
-      log.info(
-          "Step 1/6 completed in {}. Newly ingested rows: {}",
-          formatDuration(System.currentTimeMillis() - start),
-          newlyIngestedRows);
-
-      if (newlyIngestedRows > 0) {
-        log.info("Step 2/6: Computing weekly candles...");
-        start = System.currentTimeMillis();
-        weeklyPriceCalculator.computeWeeklyPrices();
-        log.info("Step 2/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-        log.info("Step 3/6: Computing support and resistances...");
-        start = System.currentTimeMillis();
-        supportResistanceCalculator.computeSupportResistances();
-        log.info("Step 3/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-        log.info("Step 4/6: Computing candlestick patterns...");
-        start = System.currentTimeMillis();
-        candlestickPatternCalculator.computeCandleStickPatterns();
-        log.info("Step 4/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-        if (enableChartPatterns) {
-          log.info("Step 5/6: Computing chart patterns...");
+        if (newlyIngestedRows > 0) {
+          log.info("Step 2/6: Computing weekly candles...");
           start = System.currentTimeMillis();
-          chartPatternCalculator.computeChartPatterns();
-          log.info("Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+          weeklyPriceCalculator.computeWeeklyPrices();
+          log.info("Step 2/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+          log.info("Step 3/6: Computing support and resistances...");
+          start = System.currentTimeMillis();
+          supportResistanceCalculator.computeSupportResistances();
+          log.info("Step 3/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+          log.info("Step 4/6: Computing candlestick patterns...");
+          start = System.currentTimeMillis();
+          candlestickPatternCalculator.computeCandleStickPatterns();
+          log.info("Step 4/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+          if (enableChartPatterns) {
+            log.info("Step 5/6: Computing chart patterns...");
+            start = System.currentTimeMillis();
+            chartPatternCalculator.computeChartPatterns();
+            log.info(
+                "Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+          } else {
+            log.info("Step 5/6: Computing chart patterns is disabled.");
+          }
+
+          log.info("Step 6/6: Computing indicators...");
+          start = System.currentTimeMillis();
+          indicatorCalculator.computeIndicators();
+          log.info("Step 6/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+
+          log.info(
+              "Scheduled data update cycle completed successfully in {}.",
+              formatDuration(System.currentTimeMillis() - cycleStart));
         } else {
-          log.info("Step 5/6: Computing chart patterns is disabled.");
+          log.info(
+              "Zero new daily price rows ingested across all tickers. "
+                  + "Skipping downstream calculations (Steps 2 to 6). Cycle completed in {}.",
+              formatDuration(System.currentTimeMillis() - cycleStart));
         }
-
-        log.info("Step 6/6: Computing indicators...");
-        start = System.currentTimeMillis();
-        indicatorCalculator.computeIndicators();
-        log.info("Step 6/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
-
-        log.info(
-            "Scheduled data update cycle completed successfully in {}.",
-            formatDuration(System.currentTimeMillis() - cycleStart));
-      } else {
-        log.info(
-            "Zero new daily price rows ingested across all tickers. "
-                + "Skipping downstream calculations (Steps 2 to 6). Cycle completed in {}.",
-            formatDuration(System.currentTimeMillis() - cycleStart));
+      } catch (Exception exception) {
+        log.error(
+            "Error occurred during scheduled data update cycle after {}",
+            formatDuration(System.currentTimeMillis() - cycleStart),
+            exception);
+      } finally {
+        running.set(false);
       }
-    } catch (Exception exception) {
-      log.error(
-          "Error occurred during scheduled data update cycle after {}",
-          formatDuration(System.currentTimeMillis() - cycleStart),
-          exception);
-    } finally {
-      running.set(false);
+    } else {
+      log.warn("Data update cycle skipped: a previous run is still in progress.");
     }
   }
 

@@ -30,6 +30,7 @@ flowchart TD
         com_alphaflow_api_controllers_ChartPatternController["ChartPatternController (class)"]
         com_alphaflow_api_controllers_CandlestickPatternController["CandlestickPatternController (class)"]
         com_alphaflow_api_controllers_TickerController["TickerController (class)"]
+        com_alphaflow_api_controllers_IntradayPriceController["IntradayPriceController (class)"]
         com_alphaflow_api_controllers_PriceController["PriceController (class)"]
         com_alphaflow_api_controllers_IndicatorController["IndicatorController (class)"]
         com_alphaflow_api_controllers_SupportResistanceController["SupportResistanceController (class)"]
@@ -76,6 +77,7 @@ flowchart TD
         com_alphaflow_engine_downloaders_angelone_dtos_AngelOneQuote["AngelOneQuote (record)"]
         com_alphaflow_engine_configs_JacksonConfig["JacksonConfig (class)"]
         com_alphaflow_engine_configs_YahooFinanceConfig["YahooFinanceConfig (class)"]
+        com_alphaflow_engine_configs_MarketHolidayConfig["MarketHolidayConfig (class)"]
         com_alphaflow_engine_configs_IndicatorConfig["IndicatorConfig (class)"]
         com_alphaflow_engine_configs_AngelOneConfig["AngelOneConfig (class)"]
         com_alphaflow_engine_configs_RestClientConfig["RestClientConfig (class)"]
@@ -162,10 +164,14 @@ flowchart TD
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_api_services_TickerService
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_common_enums_Timeframe
     com_alphaflow_api_controllers_IndicatorController --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_api_controllers_IntradayPriceController --> com_alphaflow_api_dtos_OhlcvDto
+    com_alphaflow_api_controllers_IntradayPriceController --> com_alphaflow_api_services_IntradayPriceService
+    com_alphaflow_api_controllers_IntradayPriceController --> com_alphaflow_api_services_TickerService
+    com_alphaflow_api_controllers_IntradayPriceController --> com_alphaflow_common_enums_Timeframe
+    com_alphaflow_api_controllers_IntradayPriceController --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_dtos_OhlcvDto
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_dtos_QuoteDto
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_DailyPriceService
-    com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_IntradayPriceService
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_QuoteService
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_TickerService
     com_alphaflow_api_controllers_PriceController --> com_alphaflow_api_services_WeeklyPriceService
@@ -347,10 +353,13 @@ flowchart TD
     com_alphaflow_engine_calculators_dtos_ChartPatternMatch --> com_alphaflow_persistence_enums_ChartPatternType
     com_alphaflow_engine_calculators_dtos_ChartPatternMatch --> com_alphaflow_persistence_enums_PatternSentiment
     com_alphaflow_engine_calculators_dtos_PatternMatch --> com_alphaflow_persistence_enums_CandlestickPattern
+    com_alphaflow_engine_calendar_MarketTradingCalendar --> com_alphaflow_engine_configs_MarketHolidayConfig
+    com_alphaflow_engine_calendar_MarketTradingCalendar --> com_alphaflow_persistence_enums_Country
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_engine_configs_IndicatorConfig --> com_alphaflow_persistence_repositories_IndicatorDefinitionRepository
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_constants_MarketConstants
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_common_enums_Timeframe
+    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_calendar_MarketTradingCalendar
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_configs_AngelOneConfig
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_AngelOneClient
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_engine_downloaders_angelone_dtos_AngelOneCandle
@@ -358,7 +367,6 @@ flowchart TD
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_IntradayPriceRepository
-    com_alphaflow_engine_downloaders_AngelOneDownloader --> com_alphaflow_persistence_repositories_TickerRepository
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_calendar_MarketTradingCalendar
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_configs_YahooFinanceConfig
     com_alphaflow_engine_downloaders_YahooFinanceDownloader --> com_alphaflow_engine_downloaders_yahoofinance_YahooResponseParser
@@ -506,6 +514,7 @@ flowchart TD
     com_alphaflow_persistence_repositories_IndicatorDefinitionRepository --> com_alphaflow_persistence_entities_IndicatorDefinition
     com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_entities_IntradayPrice
     com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_entities_Ticker
+    com_alphaflow_persistence_repositories_IntradayPriceRepository --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_persistence_repositories_TickerRepository --> com_alphaflow_persistence_entities_Ticker
     com_alphaflow_persistence_repositories_TickerRepository --> com_alphaflow_persistence_enums_DataProvider
     com_alphaflow_persistence_repositories_WeeklyCandlestickPatternRepository --> com_alphaflow_persistence_entities_Ticker
@@ -527,9 +536,9 @@ flowchart TD
 
 ## Component Summary
 
-- **Total Classes**: 119
-- **Total Dependencies**: 377
-- **API Layer Classes**: 32
-- **Engine Layer Classes**: 44
+- **Total Classes**: 121
+- **Total Dependencies**: 384
+- **API Layer Classes**: 33
+- **Engine Layer Classes**: 45
 - **Persistence Layer Classes**: 40
 - **Common Classes**: 2

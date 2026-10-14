@@ -3,7 +3,6 @@ package com.alphaflow.api.controllers;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.DailyPriceService;
-import com.alphaflow.api.services.IntradayPriceService;
 import com.alphaflow.api.services.QuoteService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
@@ -24,19 +23,16 @@ public class PriceController {
 
   private final DailyPriceService dailyPriceService;
   private final WeeklyPriceService weeklyPriceService;
-  private final IntradayPriceService intradayPriceService;
   private final QuoteService quoteService;
   private final TickerService tickerService;
 
   public PriceController(
       DailyPriceService dailyPriceService,
       WeeklyPriceService weeklyPriceService,
-      IntradayPriceService intradayPriceService,
       QuoteService quoteService,
       TickerService tickerService) {
     this.dailyPriceService = dailyPriceService;
     this.weeklyPriceService = weeklyPriceService;
-    this.intradayPriceService = intradayPriceService;
     this.quoteService = quoteService;
     this.tickerService = tickerService;
   }
@@ -48,7 +44,7 @@ public class PriceController {
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "250") int size) {
 
-    int finalSize = Math.clamp(size, size, 1000);
+    int finalSize = Math.clamp(size, 1, 1000);
     log.info(
         "Request to get {} data for ticker: {}, page: {}, size: {}",
         timeframe,
@@ -62,8 +58,6 @@ public class PriceController {
       return dailyPriceService.getDailyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
-    } else if (timeframe == Timeframe._15M) {
-      return intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, page, finalSize);
     } else {
       log.error("Unsupported timeframe for price data: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

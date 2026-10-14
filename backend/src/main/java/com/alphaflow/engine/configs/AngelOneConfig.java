@@ -1,6 +1,8 @@
 package com.alphaflow.engine.configs;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -9,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties(prefix = "alphaflow.angelone")
 @Data
 public class AngelOneConfig {
+
   private String apiKey;
   private String clientCode;
   private String password;
@@ -19,19 +22,12 @@ public class AngelOneConfig {
   private long delayMilliseconds;
   private int initialLookbackDays;
   private long tokenTtlSeconds;
+  private LocalTime sessionStartTime;
+  private LocalTime sessionEndTime;
+  private LocalDate backfillStartDate;
+  private int maxChunkDays;
 
   public Duration getTokenTtl() {
     return Duration.ofSeconds(tokenTtlSeconds);
-  }
-
-  public boolean hasValidCredentials() {
-    return apiKey != null
-        && !apiKey.isBlank()
-        && clientCode != null
-        && !clientCode.isBlank()
-        && password != null
-        && !password.isBlank()
-        && totpKey != null
-        && !totpKey.isBlank();
   }
 }

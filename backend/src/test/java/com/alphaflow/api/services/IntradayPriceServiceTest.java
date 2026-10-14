@@ -64,6 +64,27 @@ class IntradayPriceServiceTest {
     assertEquals(2, result.size());
     assertEquals(t1, result.getFirst().priceDate());
     assertEquals(t2, result.get(1).priceDate());
+
+    // Calling with null endDate delegates to getIntradayPrice(ticker, timeframe, page, size)
+    List<OhlcvDto> resultNullEndDate =
+        service.getIntradayPrice(ticker, Timeframe._15M, (java.time.LocalDate) null, 0, 250);
+    assertEquals(2, resultNullEndDate.size());
+
+    // Calling with non-null endDate queries findLatestByTickerAndTimeframeAndEndDate
+    java.time.LocalDate endDate = java.time.LocalDate.of(2026, 9, 23);
+    java.time.OffsetDateTime endDateTime =
+        endDate
+            .atTime(java.time.LocalTime.MAX)
+            .atZone(ticker.getCountry().getZoneId())
+            .toOffsetDateTime();
+    when(repo.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, Timeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of(p1));
+
+    List<OhlcvDto> resultWithEndDate =
+        service.getIntradayPrice(ticker, Timeframe._15M, endDate, 0, 250);
+    assertEquals(1, resultWithEndDate.size());
+    assertEquals(t1, resultWithEndDate.getFirst().priceDate());
   }
 
   @Test
@@ -77,5 +98,15 @@ class IntradayPriceServiceTest {
         IllegalArgumentException.class,
         () ->
             service.getIntradayPrice(ticker, (com.alphaflow.common.enums.Timeframe) null, 0, 250));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            service.getIntradayPrice(
+                ticker,
+                (com.alphaflow.common.enums.Timeframe) null,
+                java.time.LocalDate.now(),
+                0,
+                250));
   }
 }

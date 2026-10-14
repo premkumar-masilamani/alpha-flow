@@ -80,8 +80,22 @@ describe('API Service Layer Tests', () => {
             const result = await getCandleData('NIFTY50', '15M', 0);
             expect(result).toEqual(mockCandles);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/data'),
+                expect.stringContaining('/tickers/NIFTY50/intraday'),
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m' }) })
+            );
+        });
+
+        it('should pass endDate param when provided', async () => {
+            const mockCandles: DailyCandleData[] = [
+                { date: '2016-02-05T09:15:00', open: 7418, high: 7425, low: 7406, close: 7420, vol: 0 }
+            ];
+            mockedAxios.get.mockResolvedValueOnce({ data: mockCandles });
+
+            const result = await getCandleData('NIFTY50', '15M', 0, 250, false, '2016-02-05');
+            expect(result).toEqual(mockCandles);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/NIFTY50/intraday'),
+                expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m', endDate: '2016-02-05' }) })
             );
         });
     });
@@ -210,6 +224,15 @@ describe('API Service Layer Tests', () => {
             mockedAxios.get.mockResolvedValueOnce({ data: mockData });
             const result = await getSupportResistances('AAPL', 'DAILY', '2026-06-01');
             expect(result).toEqual(mockData);
+        });
+
+        it('should normalize ISO OffsetDateTime date string to YYYY-MM-DD', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+            await getSupportResistances('TSLA', 'DAILY', '2026-10-12T00:00:00-04:00');
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/TSLA/support-resistances'),
+                { params: { timeframe: 'daily', date: '2026-10-12' } }
+            );
         });
     });
 

@@ -16,7 +16,6 @@ class AngelOneSchedulerTest {
   @BeforeEach
   void setUp() {
     downloader = mock(AngelOneDownloader.class);
-    when(downloader.hasValidCredentials()).thenReturn(true);
     scheduler = new AngelOneScheduler(downloader);
   }
 
@@ -27,23 +26,9 @@ class AngelOneSchedulerTest {
   }
 
   @Test
-  void testScheduledUpdateSkippedWhenCredentialsMissing() {
-    when(downloader.hasValidCredentials()).thenReturn(false);
-    scheduler.runScheduledIntradayUpdate();
-    verify(downloader, never()).downloadIntradayPrices();
-  }
-
-  @Test
   void testRunOnStartup() {
     scheduler.runOnStartup();
     verify(downloader, times(1)).downloadIntradayPrices();
-  }
-
-  @Test
-  void testRunOnStartupSkippedWhenCredentialsMissing() {
-    when(downloader.hasValidCredentials()).thenReturn(false);
-    scheduler.runOnStartup();
-    verify(downloader, never()).downloadIntradayPrices();
   }
 
   @Test
@@ -62,7 +47,7 @@ class AngelOneSchedulerTest {
             invocation -> {
               startLatch.countDown();
               finishLatch.await(5, TimeUnit.SECONDS);
-              return null;
+              return 0;
             })
         .when(downloader)
         .downloadIntradayPrices();

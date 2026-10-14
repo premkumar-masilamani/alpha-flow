@@ -2,6 +2,7 @@ package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
@@ -9,12 +10,13 @@ import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.DataProvider;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -27,123 +29,160 @@ public class AngelOneDownloader {
 
   private final AngelOneConfig config;
   private final AngelOneClient client;
-  private final TickerRepository tickerRepository;
   private final IntradayPriceRepository intradayPriceRepository;
 
   public AngelOneDownloader(
       AngelOneConfig config,
       AngelOneClient client,
-      TickerRepository tickerRepository,
       IntradayPriceRepository intradayPriceRepository) {
     this.config = config;
     this.client = client;
-    this.tickerRepository = tickerRepository;
     this.intradayPriceRepository = intradayPriceRepository;
   }
 
-  public boolean hasValidCredentials() {
-    return config.hasValidCredentials();
-  }
-
-  public void downloadIntradayPrices() {
-    if (!hasValidCredentials()) {
-      log.debug("Angel One credentials are not configured. Skipping intraday data download.");
-      return;
-    }
-
+  public int downloadIntradayPrices() {
     log.info("Starting Angel One 15-minute intraday data download process...");
 
-    List<Ticker> activeTickers =
-        tickerRepository.findByIsActiveTrueAndDataProvider(DataProvider.ANGEL_ONE);
-    log.info("Found {} active Angel One tickers to sync.", activeTickers.size());
+    Map<Ticker, OffsetDateTime> latestSavedTimes =
+        intradayPriceRepository.findLatestPriceTimesForActiveTickers(
+            DataProvider.ANGEL_ONE, Timeframe._15M.getValue());
 
-    for (Ticker ticker : activeTickers) {
-      syncTicker(ticker);
-      try {
-        Thread.sleep(config.getDelayMilliseconds());
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        log.warn("Angel One download process interrupted during delay.");
-        break;
+    log.info("Found {} active Angel One tickers to sync.", latestSavedTimes.size());
+
+    int totalNewlyIngestedRows = 0;
+    List<Ticker> tickers = new ArrayList<>(latestSavedTimes.keySet());
+    for (Ticker ticker : tickers) {
+      ZoneId marketZone = ticker.getCountry().getZoneId();
+      OffsetDateTime expectedCompletedTime =
+          MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+              ZonedDateTime.now(marketZone),
+              config.getSessionStartTime(),
+              config.getSessionEndTime(),
+              15,
+              ticker.getCountry());
+
+      OffsetDateTime latestSavedTime = latestSavedTimes.get(ticker);
+      if (latestSavedTime == null || latestSavedTime.isBefore(expectedCompletedTime)) {
+        int ingestedRows = downloadDataForTicker(ticker, latestSavedTime, expectedCompletedTime);
+        totalNewlyIngestedRows += ingestedRows;
+
+        try {
+          Thread.sleep(config.getDelayMilliseconds());
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          log.warn("Angel One download process interrupted during delay.");
+          break;
+        }
+      } else {
+        log.info(
+            "{}: up to date (latest saved: {}, expected: {}). Skipping.",
+            ticker.getTickerSymbol(),
+            latestSavedTime,
+            expectedCompletedTime);
       }
     }
 
-    log.info("All Angel One 15-minute downloads completed!");
+    log.info(
+        "All Angel One 15-minute downloads completed! Total newly ingested rows: {}",
+        totalNewlyIngestedRows);
+    return totalNewlyIngestedRows;
   }
 
-  public void syncTicker(Ticker ticker) {
-    Optional<IntradayPrice> latestSaved =
-        intradayPriceRepository.findTopByTickerAndTimeframeOrderByPriceTimeDesc(
-            ticker, Timeframe._15M.getValue());
-
-    OffsetDateTime now = OffsetDateTime.now(MarketConstants.IST_ZONE);
-    OffsetDateTime fromTime =
-        latestSaved
-            .map(IntradayPrice::getPriceTime)
-            .orElseGet(
-                () ->
-                    now.minusDays(config.getInitialLookbackDays())
-                        .withHour(9)
-                        .withMinute(15)
-                        .withSecond(0)
-                        .withNano(0));
-
-    if (!fromTime.isBefore(now)) {
-      log.info("{}: up to date (last sync: {}).", ticker.getTickerSymbol(), fromTime);
-      return;
+  private int downloadDataForTicker(
+      Ticker ticker, OffsetDateTime latestSavedTime, OffsetDateTime expectedCompletedTime) {
+    OffsetDateTime chunkStart;
+    if (latestSavedTime != null) {
+      chunkStart = latestSavedTime;
+    } else {
+      chunkStart =
+          config
+              .getBackfillStartDate()
+              .atTime(config.getSessionStartTime())
+              .atZone(ticker.getCountry().getZoneId())
+              .toOffsetDateTime();
     }
 
-    String fromDateStr = fromTime.format(DATE_TIME_FORMATTER);
-    String toDateStr = now.format(DATE_TIME_FORMATTER);
+    OffsetDateTime overallEnd = expectedCompletedTime;
+    OffsetDateTime effectiveMinTime =
+        (latestSavedTime != null) ? latestSavedTime : OffsetDateTime.MIN;
 
     String exchange = MarketConstants.EXCHANGE_NSE;
     String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
+    int totalIngestedForTicker = 0;
 
-    log.info(
-        "Syncing 15m candles for {} (token: {}) from {} to {}",
-        ticker.getTickerSymbol(),
-        token,
-        fromDateStr,
-        toDateStr);
+    OffsetDateTime currentWindowStart = chunkStart;
+    while (currentWindowStart.isBefore(overallEnd)) {
+      OffsetDateTime candidateWindowEnd = currentWindowStart.plusDays(config.getMaxChunkDays());
+      OffsetDateTime currentWindowEnd =
+          candidateWindowEnd.isBefore(overallEnd) ? candidateWindowEnd : overallEnd;
 
-    List<AngelOneCandle> candles =
-        client.getCandleData(exchange, token, Timeframe._15M, fromDateStr, toDateStr);
+      String fromDateStr = currentWindowStart.format(DATE_TIME_FORMATTER);
+      String toDateStr = currentWindowEnd.format(DATE_TIME_FORMATTER);
 
-    if (candles.isEmpty()) {
-      log.info("No candle data returned for {}", ticker.getTickerSymbol());
-      return;
-    }
+      log.info(
+          "Syncing 15m candles for {} (token: {}) from {} to {}",
+          ticker.getTickerSymbol(),
+          token,
+          fromDateStr,
+          toDateStr);
 
-    OffsetDateTime minTime =
-        latestSaved.map(IntradayPrice::getPriceTime).orElse(OffsetDateTime.MIN);
-    List<IntradayPrice> toSave = new ArrayList<>();
+      List<AngelOneCandle> candles =
+          client.getCandleData(exchange, token, Timeframe._15M, fromDateStr, toDateStr);
 
-    for (AngelOneCandle candle : candles) {
-      if (candle.timestamp().isAfter(minTime)) {
-        toSave.add(
-            IntradayPrice.builder()
-                .ticker(ticker)
-                .timeframe(Timeframe._15M.getValue())
-                .priceTime(candle.timestamp())
-                .priceOpen(candle.open())
-                .priceHigh(candle.high())
-                .priceLow(candle.low())
-                .priceClose(candle.close())
-                .volume(candle.volume())
-                .build());
+      if (!candles.isEmpty()) {
+        List<IntradayPrice> toSave = new ArrayList<>();
+        for (AngelOneCandle candle : candles) {
+          if (candle.timestamp().isAfter(effectiveMinTime)
+              && !candle.timestamp().isAfter(overallEnd)) {
+            toSave.add(
+                IntradayPrice.builder()
+                    .ticker(ticker)
+                    .timeframe(Timeframe._15M.getValue())
+                    .priceTime(candle.timestamp())
+                    .priceOpen(candle.open())
+                    .priceHigh(candle.high())
+                    .priceLow(candle.low())
+                    .priceClose(candle.close())
+                    .volume(candle.volume())
+                    .build());
+          }
+        }
+
+        if (!toSave.isEmpty()) {
+          intradayPriceRepository.saveAll(toSave);
+          effectiveMinTime = toSave.getLast().getPriceTime();
+          totalIngestedForTicker += toSave.size();
+          log.info(
+              "Successfully synced {} new 15-minute candles for {}",
+              toSave.size(),
+              ticker.getTickerSymbol());
+        } else {
+          log.info(
+              "No new 15-minute data points to save for ticker {} in chunk {} to {}.",
+              ticker.getTickerSymbol(),
+              fromDateStr,
+              toDateStr);
+        }
+      } else {
+        log.info(
+            "No candle data returned for {} in chunk {} to {}.",
+            ticker.getTickerSymbol(),
+            fromDateStr,
+            toDateStr);
+      }
+
+      currentWindowStart = currentWindowEnd;
+      if (currentWindowStart.isBefore(overallEnd)) {
+        try {
+          Thread.sleep(config.getDelayMilliseconds());
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          log.warn("Download process interrupted during chunk delay.");
+          break;
+        }
       }
     }
 
-    if (!toSave.isEmpty()) {
-      intradayPriceRepository.saveAll(toSave);
-      log.info(
-          "Successfully synced {} new 15-minute candles for {}",
-          toSave.size(),
-          ticker.getTickerSymbol());
-    } else {
-      log.info(
-          "No new 15-minute data points to save for ticker {} (all downloaded points already exist).",
-          ticker.getTickerSymbol());
-    }
+    return totalIngestedForTicker;
   }
 }
