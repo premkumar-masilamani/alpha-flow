@@ -10,7 +10,7 @@ import com.alphaflow.api.services.IntradayPriceService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;

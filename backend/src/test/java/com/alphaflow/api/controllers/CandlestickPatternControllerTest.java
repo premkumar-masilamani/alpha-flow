@@ -11,7 +11,7 @@ import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.PatternSentiment;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;

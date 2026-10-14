@@ -1,4 +1,4 @@
-package com.alphaflow.engine.configs;
+package com.alphaflow.api.configs;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;

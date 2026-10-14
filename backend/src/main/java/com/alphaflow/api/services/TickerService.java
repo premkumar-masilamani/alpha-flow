@@ -3,7 +3,7 @@ package com.alphaflow.api.services;
 import com.alphaflow.api.dtos.TickerDto;
 import com.alphaflow.api.mappers.TickerMapper;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;

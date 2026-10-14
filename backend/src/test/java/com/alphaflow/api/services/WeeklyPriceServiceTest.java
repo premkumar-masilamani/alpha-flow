@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;

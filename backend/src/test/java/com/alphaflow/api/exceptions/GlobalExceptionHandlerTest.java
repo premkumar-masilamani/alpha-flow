@@ -6,7 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.controllers.generic.GlobalExceptionHandler;
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

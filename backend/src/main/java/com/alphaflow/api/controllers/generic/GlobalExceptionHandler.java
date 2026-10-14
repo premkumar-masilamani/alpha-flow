@@ -1,6 +1,6 @@
 package com.alphaflow.api.controllers.generic;
 
-import com.alphaflow.persistence.exceptions.ResourceNotFoundException;
+import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.Map;
