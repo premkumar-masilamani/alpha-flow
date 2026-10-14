@@ -5,11 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class MarketConfigTest {
+class MarketHolidayConfigTest {
 
   @Test
   void testGettersAndSetters() {
-    MarketConfig config = new MarketConfig();
+    MarketHolidayConfig config = new MarketHolidayConfig();
     List<String> usHolidays = List.of("01-01", "12-25");
     List<String> inHolidays = List.of("01-26", "08-15");
 

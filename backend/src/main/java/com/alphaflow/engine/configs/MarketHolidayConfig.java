@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConfigurationProperties(prefix = "alphaflow.market.holidays")
 @Data
-public class MarketConfig {
+public class MarketHolidayConfig {
 
   private List<String> us;
   private List<String> in;

@@ -3,16 +3,13 @@ package com.alphaflow.api.controllers;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.DailyPriceService;
-import com.alphaflow.api.services.IntradayPriceService;
 import com.alphaflow.api.services.QuoteService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
-import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,19 +23,16 @@ public class PriceController {
 
   private final DailyPriceService dailyPriceService;
   private final WeeklyPriceService weeklyPriceService;
-  private final IntradayPriceService intradayPriceService;
   private final QuoteService quoteService;
   private final TickerService tickerService;
 
   public PriceController(
       DailyPriceService dailyPriceService,
       WeeklyPriceService weeklyPriceService,
-      IntradayPriceService intradayPriceService,
       QuoteService quoteService,
       TickerService tickerService) {
     this.dailyPriceService = dailyPriceService;
     this.weeklyPriceService = weeklyPriceService;
-    this.intradayPriceService = intradayPriceService;
     this.quoteService = quoteService;
     this.tickerService = tickerService;
   }
@@ -48,28 +42,22 @@ public class PriceController {
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
-      @RequestParam(defaultValue = "250") int size,
-      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-          LocalDate endDate) {
+      @RequestParam(defaultValue = "250") int size) {
 
     int finalSize = Math.clamp(size, 1, 1000);
     log.info(
-        "Request to get {} data for ticker: {}, page: {}, size: {}, endDate: {}",
+        "Request to get {} data for ticker: {}, page: {}, size: {}",
         timeframe,
         symbol,
         page,
-        finalSize,
-        endDate);
+        finalSize);
 
     Ticker ticker = tickerService.getTicker(symbol);
 
     if (timeframe == Timeframe.DAILY) {
-      return dailyPriceService.getDailyPrice(ticker, endDate, page, finalSize);
+      return dailyPriceService.getDailyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
-    } else if (timeframe == Timeframe._15M) {
-      return intradayPriceService.getIntradayPrice(
-          ticker, Timeframe._15M, endDate, page, finalSize);
     } else {
       log.error("Unsupported timeframe for price data: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

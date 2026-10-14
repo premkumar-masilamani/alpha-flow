@@ -23,21 +23,21 @@ class MarketTradingCalendarTest {
 
   @BeforeEach
   void setUp() {
-    com.alphaflow.engine.configs.MarketConfig marketConfig =
-        new com.alphaflow.engine.configs.MarketConfig();
-    marketConfig.setUs(
+    com.alphaflow.engine.configs.MarketHolidayConfig marketHolidayConfig =
+        new com.alphaflow.engine.configs.MarketHolidayConfig();
+    marketHolidayConfig.setUs(
         List.of(
             "01-01", // New Year's Day
             "01-19", // Martin Luther King Jr. Day
             "04-03" // Good Friday
             ));
-    marketConfig.setIn(
+    marketHolidayConfig.setIn(
         List.of(
             "01-26", // Republic Day (India)
             "08-15", // Independence Day (India)
             "10-02" // Gandhi Jayanti (India)
             ));
-    new MarketTradingCalendar(marketConfig);
+    new MarketTradingCalendar(marketHolidayConfig);
   }
 
   @Test

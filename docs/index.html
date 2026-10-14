@@ -1278,6 +1278,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController",
+      "label": "IntradayPriceController",
+      "parent": "com.alphaflow.api.controllers",
+      "type": "class",
+      "component": "api",
+      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/IntradayPriceController.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.controllers.PriceController",
       "label": "PriceController",
       "parent": "com.alphaflow.api.controllers",
@@ -1751,6 +1762,17 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.engine.configs.MarketHolidayConfig",
+      "label": "MarketHolidayConfig",
+      "parent": "com.alphaflow.engine.configs",
+      "type": "class",
+      "component": "engine",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/MarketHolidayConfig.java",
+      "violation": false
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.engine.configs.IndicatorConfig",
       "label": "IndicatorConfig",
       "parent": "com.alphaflow.engine.configs",
@@ -2078,6 +2100,51 @@
   },
   {
     "data": {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController_to_com.alphaflow.api.dtos.OhlcvDto",
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController_to_com.alphaflow.api.services.IntradayPriceService",
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.api.services.IntradayPriceService",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController_to_com.alphaflow.api.services.TickerService",
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController_to_com.alphaflow.common.enums.Timeframe",
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController_to_com.alphaflow.persistence.entities.Ticker",
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
       "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.dtos.OhlcvDto",
       "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.dtos.OhlcvDto",
@@ -2099,15 +2166,6 @@
       "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.DailyPriceService",
       "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.services.DailyPriceService",
-      "violation": false,
-      "reason": ""
-    }
-  },
-  {
-    "data": {
-      "id": "com.alphaflow.api.controllers.PriceController_to_com.alphaflow.api.services.IntradayPriceService",
-      "source": "com.alphaflow.api.controllers.PriceController",
-      "target": "com.alphaflow.api.services.IntradayPriceService",
       "violation": false,
       "reason": ""
     }
@@ -3737,6 +3795,15 @@
       "id": "com.alphaflow.engine.calculators.dtos.PatternMatch_to_com.alphaflow.persistence.enums.CandlestickPattern",
       "source": "com.alphaflow.engine.calculators.dtos.PatternMatch",
       "target": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "violation": false,
+      "reason": ""
+    }
+  },
+  {
+    "data": {
+      "id": "com.alphaflow.engine.calendar.MarketTradingCalendar_to_com.alphaflow.engine.configs.MarketHolidayConfig",
+      "source": "com.alphaflow.engine.calendar.MarketTradingCalendar",
+      "target": "com.alphaflow.engine.configs.MarketHolidayConfig",
       "violation": false,
       "reason": ""
     }

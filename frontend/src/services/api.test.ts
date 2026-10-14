@@ -80,7 +80,7 @@ describe('API Service Layer Tests', () => {
             const result = await getCandleData('NIFTY50', '15M', 0);
             expect(result).toEqual(mockCandles);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/data'),
+                expect.stringContaining('/tickers/NIFTY50/intraday'),
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m' }) })
             );
         });
@@ -94,7 +94,7 @@ describe('API Service Layer Tests', () => {
             const result = await getCandleData('NIFTY50', '15M', 0, 250, false, '2016-02-05');
             expect(result).toEqual(mockCandles);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/data'),
+                expect.stringContaining('/tickers/NIFTY50/intraday'),
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m', endDate: '2016-02-05' }) })
             );
         });

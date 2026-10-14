@@ -550,6 +550,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.api.controllers.IntradayPriceController",
+      "name": "IntradayPriceController",
+      "package": "com.alphaflow.api.controllers",
+      "component": "api",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/api/controllers/IntradayPriceController.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.api.controllers.PriceController",
       "name": "PriceController",
       "package": "com.alphaflow.api.controllers",
@@ -937,6 +946,15 @@
       "violation": false
     },
     {
+      "id": "com.alphaflow.engine.configs.MarketHolidayConfig",
+      "name": "MarketHolidayConfig",
+      "package": "com.alphaflow.engine.configs",
+      "component": "engine",
+      "type": "class",
+      "filepath": "backend/src/main/java/com/alphaflow/engine/configs/MarketHolidayConfig.java",
+      "violation": false
+    },
+    {
       "id": "com.alphaflow.engine.configs.IndicatorConfig",
       "name": "IndicatorConfig",
       "package": "com.alphaflow.engine.configs",
@@ -1182,6 +1200,36 @@
       "reason": ""
     },
     {
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.api.dtos.OhlcvDto",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.api.services.IntradayPriceService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.api.services.TickerService",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.common.enums.Timeframe",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.api.controllers.IntradayPriceController",
+      "target": "com.alphaflow.persistence.entities.Ticker",
+      "violation": false,
+      "reason": ""
+    },
+    {
       "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.dtos.OhlcvDto",
       "violation": false,
@@ -1196,12 +1244,6 @@
     {
       "source": "com.alphaflow.api.controllers.PriceController",
       "target": "com.alphaflow.api.services.DailyPriceService",
-      "violation": false,
-      "reason": ""
-    },
-    {
-      "source": "com.alphaflow.api.controllers.PriceController",
-      "target": "com.alphaflow.api.services.IntradayPriceService",
       "violation": false,
       "reason": ""
     },
@@ -2288,6 +2330,12 @@
     {
       "source": "com.alphaflow.engine.calculators.dtos.PatternMatch",
       "target": "com.alphaflow.persistence.enums.CandlestickPattern",
+      "violation": false,
+      "reason": ""
+    },
+    {
+      "source": "com.alphaflow.engine.calendar.MarketTradingCalendar",
+      "target": "com.alphaflow.engine.configs.MarketHolidayConfig",
       "violation": false,
       "reason": ""
     },

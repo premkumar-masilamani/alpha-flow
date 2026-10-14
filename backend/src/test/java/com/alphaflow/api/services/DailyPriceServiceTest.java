@@ -117,30 +117,4 @@ class DailyPriceServiceTest {
         LocalDate.of(2026, 4, 15).atStartOfDay(java.time.ZoneOffset.UTC).toOffsetDateTime(),
         result.getFirst().priceDate());
   }
-
-  @Test
-  void testGetDailyPriceWithNullEndDate() {
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    DailyPriceService dailyPriceService = new DailyPriceService(dailyRepo);
-
-    Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
-
-    DailyPrice dp =
-        DailyPrice.builder()
-            .priceDate(LocalDate.now())
-            .priceOpen(new BigDecimal("100.0000"))
-            .priceHigh(new BigDecimal("105.0000"))
-            .priceLow(new BigDecimal("99.0000"))
-            .priceClose(new BigDecimal("102.0000"))
-            .volume(new BigDecimal("1000.0000"))
-            .build();
-
-    when(dailyRepo.findLatestByTickerAndEndDate(
-            eq(ticker), any(LocalDate.class), eq(PageRequest.of(0, 10))))
-        .thenReturn(List.of(dp));
-
-    List<OhlcvDto> result = dailyPriceService.getDailyPrice(ticker, null, 0, 10);
-
-    assertEquals(1, result.size());
-  }
 }

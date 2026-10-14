@@ -1,6 +1,6 @@
 package com.alphaflow.engine.calendar;
 
-import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.configs.MarketHolidayConfig;
 import com.alphaflow.persistence.enums.Country;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -24,10 +24,10 @@ public class MarketTradingCalendar {
   private static final Map<Country, Set<MonthDay>> HOLIDAYS_BY_COUNTRY =
       new EnumMap<>(Country.class);
 
-  public MarketTradingCalendar(MarketConfig marketConfig) {
-    if (marketConfig != null) {
-      setHolidays(Country.US, marketConfig.getUs());
-      setHolidays(Country.IN, marketConfig.getIn());
+  public MarketTradingCalendar(MarketHolidayConfig marketHolidayConfig) {
+    if (marketHolidayConfig != null) {
+      setHolidays(Country.US, marketHolidayConfig.getUs());
+      setHolidays(Country.IN, marketHolidayConfig.getIn());
     } else {
       setHolidays(Country.US, null);
       setHolidays(Country.IN, null);
