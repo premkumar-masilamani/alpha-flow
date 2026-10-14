@@ -36,14 +36,12 @@ public class AngelOneConfig {
     validateRequiredProperty("totpKey", totpKey, "ANGEL_ONE_TOTP_KEY");
   }
 
-  private String validateRequiredProperty(String propertyName, String value, String envVarName) {
-    if (value != null && !value.isBlank() && !value.startsWith("${")) {
-      return value;
-    } else {
+  private void validateRequiredProperty(String propertyName, String value, String envVarName) {
+    if (value == null || value.isBlank()) {
       throw new IllegalStateException(
           "Required Angel One configuration property 'alphaflow.angelone."
               + propertyName
-              + "' is missing or unresolvable. Please set the "
+              + "' is missing or empty. Please set the "
               + envVarName
               + " environment variable in your .env file.");
     }

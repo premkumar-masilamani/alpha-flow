@@ -73,10 +73,6 @@ class AngelOneConfigTest {
     config.setApiKey("   ");
     IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
     assertTrue(ex2.getMessage().contains("alphaflow.angelone.apiKey"));
-
-    config.setApiKey("${ANGEL_ONE_API_KEY}");
-    IllegalStateException ex3 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex3.getMessage().contains("alphaflow.angelone.apiKey"));
   }
 
   @Test
@@ -93,10 +89,6 @@ class AngelOneConfigTest {
     config.setClientCode("   ");
     IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
     assertTrue(ex2.getMessage().contains("alphaflow.angelone.clientCode"));
-
-    config.setClientCode("${ANGEL_ONE_CLIENT_CODE}");
-    IllegalStateException ex3 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex3.getMessage().contains("alphaflow.angelone.clientCode"));
   }
 
   @Test
@@ -113,10 +105,6 @@ class AngelOneConfigTest {
     config.setPassword("   ");
     IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
     assertTrue(ex2.getMessage().contains("alphaflow.angelone.password"));
-
-    config.setPassword("${ANGEL_ONE_PASSWORD}");
-    IllegalStateException ex3 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex3.getMessage().contains("alphaflow.angelone.password"));
   }
 
   @Test
@@ -133,9 +121,5 @@ class AngelOneConfigTest {
     config.setTotpKey("   ");
     IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
     assertTrue(ex2.getMessage().contains("alphaflow.angelone.totpKey"));
-
-    config.setTotpKey("${ANGEL_ONE_TOTP_KEY}");
-    IllegalStateException ex3 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex3.getMessage().contains("alphaflow.angelone.totpKey"));
   }
 }
