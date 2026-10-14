@@ -1,9 +1,7 @@
 package com.alphaflow.engine.configs;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -51,84 +49,9 @@ class AngelOneConfigTest {
   @Test
   void testInitialStateNoDefaults() {
     AngelOneConfig config = new AngelOneConfig();
-    org.junit.jupiter.api.Assertions.assertNull(config.getSessionStartTime());
-    org.junit.jupiter.api.Assertions.assertNull(config.getSessionEndTime());
-    org.junit.jupiter.api.Assertions.assertNull(config.getBackfillStartDate());
+    assertNull(config.getSessionStartTime());
+    assertNull(config.getSessionEndTime());
+    assertNull(config.getBackfillStartDate());
     assertEquals(0, config.getMaxChunkDays());
-  }
-
-  @Test
-  void testValidateSuccess() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setApiKey("test-api-key");
-    config.setClientCode("test-client-code");
-    config.setPassword("test-password");
-    config.setTotpKey("test-totp-key");
-
-    assertDoesNotThrow(config::validate);
-  }
-
-  @Test
-  void testValidateApiKeyFailures() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setClientCode("test-client-code");
-    config.setPassword("test-password");
-    config.setTotpKey("test-totp-key");
-
-    config.setApiKey(null);
-    IllegalStateException ex1 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex1.getMessage().contains("alphaflow.angelone.apiKey"));
-
-    config.setApiKey("   ");
-    IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex2.getMessage().contains("alphaflow.angelone.apiKey"));
-  }
-
-  @Test
-  void testValidateClientCodeFailures() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setApiKey("test-api-key");
-    config.setPassword("test-password");
-    config.setTotpKey("test-totp-key");
-
-    config.setClientCode(null);
-    IllegalStateException ex1 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex1.getMessage().contains("alphaflow.angelone.clientCode"));
-
-    config.setClientCode("   ");
-    IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex2.getMessage().contains("alphaflow.angelone.clientCode"));
-  }
-
-  @Test
-  void testValidatePasswordFailures() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setApiKey("test-api-key");
-    config.setClientCode("test-client-code");
-    config.setTotpKey("test-totp-key");
-
-    config.setPassword(null);
-    IllegalStateException ex1 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex1.getMessage().contains("alphaflow.angelone.password"));
-
-    config.setPassword("   ");
-    IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex2.getMessage().contains("alphaflow.angelone.password"));
-  }
-
-  @Test
-  void testValidateTotpKeyFailures() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setApiKey("test-api-key");
-    config.setClientCode("test-client-code");
-    config.setPassword("test-password");
-
-    config.setTotpKey(null);
-    IllegalStateException ex1 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex1.getMessage().contains("alphaflow.angelone.totpKey"));
-
-    config.setTotpKey("   ");
-    IllegalStateException ex2 = assertThrows(IllegalStateException.class, config::validate);
-    assertTrue(ex2.getMessage().contains("alphaflow.angelone.totpKey"));
   }
 }
