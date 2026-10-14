@@ -1,8 +1,6 @@
 package com.alphaflow.engine.configs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -45,43 +43,5 @@ class AngelOneConfigTest {
     assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
     assertEquals(LocalDate.of(2015, 1, 1), config.getBackfillStartDate());
     assertEquals(200, config.getMaxChunkDays());
-  }
-
-  @Test
-  void testHasValidCredentials() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setApiKey("api");
-    config.setClientCode("client");
-    config.setPassword("pass");
-    config.setTotpKey("totp");
-    assertTrue(config.hasValidCredentials());
-
-    // apiKey null or blank
-    config.setApiKey(null);
-    assertFalse(config.hasValidCredentials());
-    config.setApiKey("   ");
-    assertFalse(config.hasValidCredentials());
-    config.setApiKey("api");
-
-    // clientCode null or blank
-    config.setClientCode(null);
-    assertFalse(config.hasValidCredentials());
-    config.setClientCode("   ");
-    assertFalse(config.hasValidCredentials());
-    config.setClientCode("client");
-
-    // password null or blank
-    config.setPassword(null);
-    assertFalse(config.hasValidCredentials());
-    config.setPassword("   ");
-    assertFalse(config.hasValidCredentials());
-    config.setPassword("pass");
-
-    // totpKey null or blank
-    config.setTotpKey(null);
-    assertFalse(config.hasValidCredentials());
-    config.setTotpKey("   ");
-    assertFalse(config.hasValidCredentials());
-    config.setTotpKey("totp");
   }
 }

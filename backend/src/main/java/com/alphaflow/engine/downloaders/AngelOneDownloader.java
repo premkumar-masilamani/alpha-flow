@@ -40,61 +40,52 @@ public class AngelOneDownloader {
     this.intradayPriceRepository = intradayPriceRepository;
   }
 
-  public boolean hasValidCredentials() {
-    return config.hasValidCredentials();
-  }
-
   public int downloadIntradayPrices() {
-    if (hasValidCredentials()) {
-      log.info("Starting Angel One 15-minute intraday data download process...");
+    log.info("Starting Angel One 15-minute intraday data download process...");
 
-      Map<Ticker, OffsetDateTime> latestSavedTimes =
-          intradayPriceRepository.findLatestPriceTimesForActiveTickers(
-              DataProvider.ANGEL_ONE, Timeframe._15M.getValue());
+    Map<Ticker, OffsetDateTime> latestSavedTimes =
+        intradayPriceRepository.findLatestPriceTimesForActiveTickers(
+            DataProvider.ANGEL_ONE, Timeframe._15M.getValue());
 
-      log.info("Found {} active Angel One tickers to sync.", latestSavedTimes.size());
+    log.info("Found {} active Angel One tickers to sync.", latestSavedTimes.size());
 
-      int totalNewlyIngestedRows = 0;
-      List<Ticker> tickers = new ArrayList<>(latestSavedTimes.keySet());
-      for (Ticker ticker : tickers) {
-        ZoneId marketZone = ticker.getCountry().getZoneId();
-        OffsetDateTime expectedCompletedTime =
-            MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
-                ZonedDateTime.now(marketZone),
-                config.getSessionStartTime(),
-                config.getSessionEndTime(),
-                15,
-                ticker.getCountry());
+    int totalNewlyIngestedRows = 0;
+    List<Ticker> tickers = new ArrayList<>(latestSavedTimes.keySet());
+    for (Ticker ticker : tickers) {
+      ZoneId marketZone = ticker.getCountry().getZoneId();
+      OffsetDateTime expectedCompletedTime =
+          MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+              ZonedDateTime.now(marketZone),
+              config.getSessionStartTime(),
+              config.getSessionEndTime(),
+              15,
+              ticker.getCountry());
 
-        OffsetDateTime latestSavedTime = latestSavedTimes.get(ticker);
-        if (latestSavedTime == null || latestSavedTime.isBefore(expectedCompletedTime)) {
-          int ingestedRows = downloadDataForTicker(ticker, latestSavedTime, expectedCompletedTime);
-          totalNewlyIngestedRows += ingestedRows;
+      OffsetDateTime latestSavedTime = latestSavedTimes.get(ticker);
+      if (latestSavedTime == null || latestSavedTime.isBefore(expectedCompletedTime)) {
+        int ingestedRows = downloadDataForTicker(ticker, latestSavedTime, expectedCompletedTime);
+        totalNewlyIngestedRows += ingestedRows;
 
-          try {
-            Thread.sleep(config.getDelayMilliseconds());
-          } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            log.warn("Angel One download process interrupted during delay.");
-            break;
-          }
-        } else {
-          log.info(
-              "{}: up to date (latest saved: {}, expected: {}). Skipping.",
-              ticker.getTickerSymbol(),
-              latestSavedTime,
-              expectedCompletedTime);
+        try {
+          Thread.sleep(config.getDelayMilliseconds());
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          log.warn("Angel One download process interrupted during delay.");
+          break;
         }
+      } else {
+        log.info(
+            "{}: up to date (latest saved: {}, expected: {}). Skipping.",
+            ticker.getTickerSymbol(),
+            latestSavedTime,
+            expectedCompletedTime);
       }
-
-      log.info(
-          "All Angel One 15-minute downloads completed! Total newly ingested rows: {}",
-          totalNewlyIngestedRows);
-      return totalNewlyIngestedRows;
-    } else {
-      log.debug("Angel One credentials are not configured. Skipping intraday data download.");
-      return 0;
     }
+
+    log.info(
+        "All Angel One 15-minute downloads completed! Total newly ingested rows: {}",
+        totalNewlyIngestedRows);
+    return totalNewlyIngestedRows;
   }
 
   private int downloadDataForTicker(

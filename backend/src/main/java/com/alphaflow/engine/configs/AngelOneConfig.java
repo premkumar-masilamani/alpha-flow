@@ -30,15 +30,4 @@ public class AngelOneConfig {
   public Duration getTokenTtl() {
     return Duration.ofSeconds(tokenTtlSeconds);
   }
-
-  public boolean hasValidCredentials() {
-    return apiKey != null
-        && !apiKey.isBlank()
-        && clientCode != null
-        && !clientCode.isBlank()
-        && password != null
-        && !password.isBlank()
-        && totpKey != null
-        && !totpKey.isBlank();
-  }
 }

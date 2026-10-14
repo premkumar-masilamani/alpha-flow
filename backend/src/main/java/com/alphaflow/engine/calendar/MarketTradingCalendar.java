@@ -25,8 +25,8 @@ public class MarketTradingCalendar {
       new EnumMap<>(Country.class);
 
   public MarketTradingCalendar(
-      @Value("${alphaflow.market.holidays.us:}") List<String> usHolidays,
-      @Value("${alphaflow.market.holidays.in:}") List<String> inHolidays) {
+      @Value("${alphaflow.market.holidays.us}") List<String> usHolidays,
+      @Value("${alphaflow.market.holidays.in}") List<String> inHolidays) {
     setHolidays(Country.US, usHolidays);
     setHolidays(Country.IN, inHolidays);
   }

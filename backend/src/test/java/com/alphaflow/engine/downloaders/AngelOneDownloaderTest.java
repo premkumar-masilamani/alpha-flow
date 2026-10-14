@@ -52,16 +52,6 @@ class AngelOneDownloaderTest {
   }
 
   @Test
-  void testDownloadSkippedWhenCredentialsMissing() {
-    config.setApiKey("");
-    int result = downloader.downloadIntradayPrices();
-
-    assertEquals(0, result);
-    verify(intradayRepo, never()).findLatestPriceTimesForActiveTickers(any(), any());
-    verify(client, never()).getCandleData(any(), any(), any(), any(), any());
-  }
-
-  @Test
   void testDownloadEmptyActiveTickers() {
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, Timeframe._15M.getValue()))
