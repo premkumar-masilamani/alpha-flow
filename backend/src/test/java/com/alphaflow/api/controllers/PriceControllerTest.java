@@ -45,7 +45,7 @@ class PriceControllerTest {
             new BigDecimal("1000.00"));
 
     when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(dailyPriceService.getDailyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
+    when(dailyPriceService.getDailyPrice(ticker, null, 0, 250)).thenReturn(List.of(dto));
 
     PriceController controller =
         new PriceController(
@@ -71,7 +71,7 @@ class PriceControllerTest {
         controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250, null);
     assertEquals(1, weeklyRes.size());
 
-    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, 0, 250))
+    when(intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, null, 0, 250))
         .thenReturn(List.of(dto));
     List<OhlcvDto> intradayRes =
         controller.getPriceDataForTicker("AAPL", Timeframe._15M, 0, 250, null);

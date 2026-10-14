@@ -23,10 +23,10 @@ public class AngelOneConfig {
   private long delayMilliseconds;
   private int initialLookbackDays;
   private long tokenTtlSeconds;
-  private LocalTime sessionStartTime = LocalTime.of(9, 15);
-  private LocalTime sessionEndTime = LocalTime.of(15, 30);
-  private LocalDate backfillStartDate = LocalDate.of(2015, 1, 1);
-  private int maxChunkDays = 200;
+  private LocalTime sessionStartTime;
+  private LocalTime sessionEndTime;
+  private LocalDate backfillStartDate;
+  private int maxChunkDays;
 
   @PostConstruct
   public void validate() {

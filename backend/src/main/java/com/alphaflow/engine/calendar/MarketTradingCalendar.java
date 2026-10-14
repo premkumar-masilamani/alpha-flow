@@ -1,5 +1,6 @@
 package com.alphaflow.engine.calendar;
 
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.persistence.enums.Country;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -14,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -24,11 +24,14 @@ public class MarketTradingCalendar {
   private static final Map<Country, Set<MonthDay>> HOLIDAYS_BY_COUNTRY =
       new EnumMap<>(Country.class);
 
-  public MarketTradingCalendar(
-      @Value("${alphaflow.market.holidays.us}") List<String> usHolidays,
-      @Value("${alphaflow.market.holidays.in}") List<String> inHolidays) {
-    setHolidays(Country.US, usHolidays);
-    setHolidays(Country.IN, inHolidays);
+  public MarketTradingCalendar(MarketConfig marketConfig) {
+    if (marketConfig != null) {
+      setHolidays(Country.US, marketConfig.getUs());
+      setHolidays(Country.IN, marketConfig.getIn());
+    } else {
+      setHolidays(Country.US, null);
+      setHolidays(Country.IN, null);
+    }
   }
 
   public static void setHolidays(Country country, List<String> holidays) {

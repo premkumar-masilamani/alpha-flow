@@ -49,6 +49,15 @@ class AngelOneConfigTest {
   }
 
   @Test
+  void testInitialStateNoDefaults() {
+    AngelOneConfig config = new AngelOneConfig();
+    org.junit.jupiter.api.Assertions.assertNull(config.getSessionStartTime());
+    org.junit.jupiter.api.Assertions.assertNull(config.getSessionEndTime());
+    org.junit.jupiter.api.Assertions.assertNull(config.getBackfillStartDate());
+    assertEquals(0, config.getMaxChunkDays());
+  }
+
+  @Test
   void testValidateSuccess() {
     AngelOneConfig config = new AngelOneConfig();
     config.setApiKey("test-api-key");

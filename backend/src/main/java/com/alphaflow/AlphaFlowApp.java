@@ -15,18 +15,8 @@ public class AlphaFlowApp {
   private static final Logger logger = LoggerFactory.getLogger(AlphaFlowApp.class);
 
   public static void main(String[] args) {
-    try {
-      logger.info("Starting Alpha Flow Application...");
-      SpringApplication.run(AlphaFlowApp.class, args);
-      logger.info("Alpha Flow Application started successfully.");
-    } catch (Throwable throwable) {
-      logger.error("************************************************************");
-      logger.error("APPLICATION FAILED TO START");
-      logger.error(
-          "Reason: {}",
-          com.alphaflow.common.diagnostics.StartupFailureAnalyzer.extractRootMessage(throwable));
-      logger.error("************************************************************", throwable);
-      throw throwable;
-    }
+    logger.info("Starting Alpha Flow Application...");
+    SpringApplication.run(AlphaFlowApp.class, args);
+    logger.info("Alpha Flow Application started successfully.");
   }
 }

@@ -27,8 +27,14 @@ public class DailyPriceService {
   }
 
   public List<OhlcvDto> getDailyPrice(Ticker ticker, LocalDate endDate, int page, int size) {
+    LocalDate targetEndDate;
+    if (endDate != null) {
+      targetEndDate = endDate;
+    } else {
+      targetEndDate = LocalDate.now();
+    }
     return dailyPriceRepository
-        .findLatestByTickerAndEndDate(ticker, endDate, PageRequest.of(page, size))
+        .findLatestByTickerAndEndDate(ticker, targetEndDate, PageRequest.of(page, size))
         .stream()
         .sorted(Comparator.comparing(DailyPrice::getPriceDate))
         .map(OhlcvMapper::toDto)

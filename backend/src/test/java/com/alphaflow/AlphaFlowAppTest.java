@@ -34,18 +34,4 @@ class AlphaFlowAppTest {
 
     assertNotNull(app);
   }
-
-  @Test
-  void mainThrowsAndLogsWhenSpringApplicationFails() {
-
-    try (MockedStatic<SpringApplication> springAppMock = mockStatic(SpringApplication.class)) {
-
-      springAppMock
-          .when(() -> SpringApplication.run(eq(AlphaFlowApp.class), any(String[].class)))
-          .thenThrow(new IllegalStateException("Failed to configure Angel One"));
-
-      org.junit.jupiter.api.Assertions.assertThrows(
-          IllegalStateException.class, () -> AlphaFlowApp.main(new String[] {"test"}));
-    }
-  }
 }

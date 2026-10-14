@@ -64,20 +64,12 @@ public class PriceController {
     Ticker ticker = tickerService.getTicker(symbol);
 
     if (timeframe == Timeframe.DAILY) {
-      if (endDate != null) {
-        return dailyPriceService.getDailyPrice(ticker, endDate, page, finalSize);
-      } else {
-        return dailyPriceService.getDailyPrice(ticker, page, finalSize);
-      }
+      return dailyPriceService.getDailyPrice(ticker, endDate, page, finalSize);
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceService.getWeeklyPrice(ticker, page, finalSize);
     } else if (timeframe == Timeframe._15M) {
-      if (endDate != null) {
-        return intradayPriceService.getIntradayPrice(
-            ticker, Timeframe._15M, endDate, page, finalSize);
-      } else {
-        return intradayPriceService.getIntradayPrice(ticker, Timeframe._15M, page, finalSize);
-      }
+      return intradayPriceService.getIntradayPrice(
+          ticker, Timeframe._15M, endDate, page, finalSize);
     } else {
       log.error("Unsupported timeframe for price data: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
