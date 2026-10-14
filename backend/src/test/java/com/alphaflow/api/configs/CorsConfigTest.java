@@ -37,6 +37,28 @@ class CorsConfigTest {
   }
 
   @Test
+  void testAddCorsMappingsThrowsExceptionIfBlankOrigin() {
+
+    CorsConfig config = new CorsConfig();
+
+    config.setAllowedOrigins(List.of("   "));
+
+    assertThrows(
+        IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
+  }
+
+  @Test
+  void testAddCorsMappingsThrowsExceptionIfPlaceholder() {
+
+    CorsConfig config = new CorsConfig();
+
+    config.setAllowedOrigins(List.of("${CORS_ALLOWED_ORIGINS}"));
+
+    assertThrows(
+        IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
+  }
+
+  @Test
   void testAddCorsMappingsRegistersCorrectly() {
 
     CorsConfig config = new CorsConfig();
