@@ -32,7 +32,7 @@ public class IntradayPriceController {
   @GetMapping("/tickers/{symbol}/intraday")
   public List<OhlcvDto> getIntradayPriceDataForTicker(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "15M") Timeframe timeframe,
+      @RequestParam Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "250") int size,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)

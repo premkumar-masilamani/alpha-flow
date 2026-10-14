@@ -32,7 +32,7 @@ public class SupportResistanceController {
   @GetMapping("/tickers/{symbol}/support-resistances")
   public List<SupportResistanceDto> getSupportResistances(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "daily") Timeframe timeframe,
+      @RequestParam Timeframe timeframe,
       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
     log.info(

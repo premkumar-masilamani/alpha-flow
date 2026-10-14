@@ -36,7 +36,7 @@ public class IndicatorController {
   @GetMapping("/tickers/{symbol}/indicators")
   public List<IndicatorSeriesDto> getIndicatorSeries(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "daily") Timeframe timeframe,
+      @RequestParam Timeframe timeframe,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "250") int size) {
 
