@@ -19,6 +19,8 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
   List<WeeklyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);
 
+  Optional<WeeklyPrice> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
+
   @Query(
       """
             SELECT wp FROM WeeklyPrice wp
