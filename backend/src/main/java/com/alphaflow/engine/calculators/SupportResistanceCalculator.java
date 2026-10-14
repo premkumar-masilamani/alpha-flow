@@ -84,14 +84,15 @@ public class SupportResistanceCalculator {
     List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
     List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
 
-    // Retention cleanup: purge records older than retentionDays
-    int retentionDays = config.getRetentionDays();
+    // Retention cleanup: purge records older than dailyRetentionDays / weeklyRetentionMonths
     if (!dailyBars.isEmpty()) {
-      LocalDate dailyCutoffDate = dailyBars.getLast().date().minusDays(retentionDays);
+      LocalDate dailyCutoffDate =
+          dailyBars.getLast().date().minusDays(config.getDailyRetentionDays());
       dailySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(ticker, dailyCutoffDate);
     }
     if (!weeklyBars.isEmpty()) {
-      LocalDate weeklyCutoffDate = weeklyBars.getLast().date().minusDays(retentionDays);
+      LocalDate weeklyCutoffDate =
+          weeklyBars.getLast().date().minusMonths(config.getWeeklyRetentionMonths());
       weeklySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(
           ticker, weeklyCutoffDate);
     }

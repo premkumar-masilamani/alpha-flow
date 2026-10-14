@@ -521,7 +521,7 @@ class SupportResistanceCalculatorTest {
     calculator.computeSupportResistancesForTicker(ticker);
 
     LocalDate expectedDailyCutoff = daily.getLast().getPriceDate().minusDays(30);
-    LocalDate expectedWeeklyCutoff = weekly.getLast().getPriceDate().minusDays(30);
+    LocalDate expectedWeeklyCutoff = weekly.getLast().getPriceDate().minusMonths(6);
 
     verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, expectedDailyCutoff);
     verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, expectedWeeklyCutoff);

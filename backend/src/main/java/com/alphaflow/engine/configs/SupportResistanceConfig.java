@@ -10,5 +10,7 @@ import org.springframework.context.annotation.Configuration;
 public class SupportResistanceConfig {
 
   private int retentionDays = 30;
+  private int dailyRetentionDays = 30;
+  private int weeklyRetentionMonths = 6;
   private int maxAllowedBuckets = 500;
 }
