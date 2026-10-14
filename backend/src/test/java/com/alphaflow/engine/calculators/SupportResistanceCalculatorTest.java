@@ -50,7 +50,7 @@ class SupportResistanceCalculatorTest {
   private WeeklyPriceRepository weeklyPriceRepo;
   private DailySupportResistanceRepository dailySrRepo;
   private WeeklySupportResistanceRepository weeklySrRepo;
-  private SupportResistanceConfig config;
+  private SupportResistanceConfig supportResistanceConfig;
   private SupportResistanceCalculator calculator;
   private Ticker ticker;
 
@@ -61,11 +61,19 @@ class SupportResistanceCalculatorTest {
     weeklyPriceRepo = mock(WeeklyPriceRepository.class);
     dailySrRepo = mock(DailySupportResistanceRepository.class);
     weeklySrRepo = mock(WeeklySupportResistanceRepository.class);
-    config = new SupportResistanceConfig();
+    supportResistanceConfig = new SupportResistanceConfig();
+    supportResistanceConfig.setDailyRetentionDays(30);
+    supportResistanceConfig.setWeeklyRetentionDays(180);
+    supportResistanceConfig.setMaxAllowedBuckets(500);
 
     calculator =
         new SupportResistanceCalculator(
-            tickerRepo, dailyPriceRepo, weeklyPriceRepo, dailySrRepo, weeklySrRepo, config);
+            tickerRepo,
+            dailyPriceRepo,
+            weeklyPriceRepo,
+            dailySrRepo,
+            weeklySrRepo,
+            supportResistanceConfig);
 
     ticker =
         Ticker.builder()
@@ -521,7 +529,7 @@ class SupportResistanceCalculatorTest {
     calculator.computeSupportResistancesForTicker(ticker);
 
     LocalDate expectedDailyCutoff = daily.getLast().getPriceDate().minusDays(30);
-    LocalDate expectedWeeklyCutoff = weekly.getLast().getPriceDate().minusMonths(6);
+    LocalDate expectedWeeklyCutoff = weekly.getLast().getPriceDate().minusDays(180);
 
     verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, expectedDailyCutoff);
     verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, expectedWeeklyCutoff);
@@ -582,7 +590,7 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testMaxAllowedBucketsCapsBucketGeneration() {
-    config.setMaxAllowedBuckets(10);
+    supportResistanceConfig.setMaxAllowedBuckets(10);
     List<DailyPrice> bars = new ArrayList<>();
     // Touch 3 times at 97.50 (Support [97.00, 98.00], k=-3 within 10-bucket range below pivot 100)
     bars.add(createBar(0, "97.60", "97.90", "97.20", "97.50"));

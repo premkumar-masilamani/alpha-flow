@@ -41,7 +41,7 @@ public class SupportResistanceCalculator {
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
-  private final SupportResistanceConfig config;
+  private final SupportResistanceConfig supportResistanceConfig;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
 
@@ -51,13 +51,13 @@ public class SupportResistanceCalculator {
       WeeklyPriceRepository weeklyPriceRepository,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository,
-      SupportResistanceConfig config) {
+      SupportResistanceConfig supportResistanceConfig) {
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
-    this.config = config;
+    this.supportResistanceConfig = supportResistanceConfig;
   }
 
   public void computeSupportResistances() {
@@ -84,15 +84,15 @@ public class SupportResistanceCalculator {
     List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
     List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
 
-    // Retention cleanup: purge records older than dailyRetentionDays / weeklyRetentionMonths
+    // Retention cleanup: purge records older than dailyRetentionDays / weeklyRetentionDays
     if (!dailyBars.isEmpty()) {
       LocalDate dailyCutoffDate =
-          dailyBars.getLast().date().minusDays(config.getDailyRetentionDays());
+          dailyBars.getLast().date().minusDays(supportResistanceConfig.getDailyRetentionDays());
       dailySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(ticker, dailyCutoffDate);
     }
     if (!weeklyBars.isEmpty()) {
       LocalDate weeklyCutoffDate =
-          weeklyBars.getLast().date().minusMonths(config.getWeeklyRetentionMonths());
+          weeklyBars.getLast().date().minusDays(supportResistanceConfig.getWeeklyRetentionDays());
       weeklySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(
           ticker, weeklyCutoffDate);
     }
@@ -147,13 +147,13 @@ public class SupportResistanceCalculator {
       int upwardBucketCount =
           Math.min(
               maxDiff.divide(bucketWidth, 0, RoundingMode.CEILING).intValueExact(),
-              config.getMaxAllowedBuckets());
+              supportResistanceConfig.getMaxAllowedBuckets());
 
       BigDecimal minDiff = pivot.subtract(minPrice).max(BigDecimal.ZERO);
       int downwardBucketCount =
           Math.min(
               minDiff.divide(bucketWidth, 0, RoundingMode.CEILING).intValueExact(),
-              config.getMaxAllowedBuckets());
+              supportResistanceConfig.getMaxAllowedBuckets());
 
       // 4. Construct Dynamic Linear Buckets
       List<Bucket> buckets = new ArrayList<>();

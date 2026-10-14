@@ -2,6 +2,7 @@ package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.SupportResistanceDto;
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
@@ -30,23 +31,27 @@ public class SupportResistanceService {
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
+  private final SupportResistanceConfig supportResistanceConfig;
 
   public SupportResistanceService(
       TickerService tickerService,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository,
       DailyPriceRepository dailyPriceRepository,
-      WeeklyPriceRepository weeklyPriceRepository) {
+      WeeklyPriceRepository weeklyPriceRepository,
+      SupportResistanceConfig supportResistanceConfig) {
     this.tickerService = tickerService;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
+    this.supportResistanceConfig = supportResistanceConfig;
   }
 
   public List<SupportResistanceDto> getSupportResistances(
       Ticker ticker, Timeframe timeframe, LocalDate date) {
-    return getSupportResistances(ticker, timeframe, date, 0.25);
+    Double rangePct = supportResistanceConfig.getRangePct();
+    return getSupportResistances(ticker, timeframe, date, rangePct);
   }
 
   public List<SupportResistanceDto> getSupportResistances(

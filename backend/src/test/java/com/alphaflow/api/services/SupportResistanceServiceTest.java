@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.SupportResistanceDto;
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
@@ -33,6 +34,7 @@ class SupportResistanceServiceTest {
   private WeeklySupportResistanceRepository weeklyRepo;
   private DailyPriceRepository dailyPriceRepo;
   private WeeklyPriceRepository weeklyPriceRepo;
+  private SupportResistanceConfig supportResistanceConfig;
   private SupportResistanceService service;
   private Ticker ticker;
 
@@ -43,9 +45,16 @@ class SupportResistanceServiceTest {
     weeklyRepo = mock(WeeklySupportResistanceRepository.class);
     dailyPriceRepo = mock(DailyPriceRepository.class);
     weeklyPriceRepo = mock(WeeklyPriceRepository.class);
+    supportResistanceConfig = new SupportResistanceConfig();
+    supportResistanceConfig.setRangePct(0.25);
     service =
         new SupportResistanceService(
-            tickerService, dailyRepo, weeklyRepo, dailyPriceRepo, weeklyPriceRepo);
+            tickerService,
+            dailyRepo,
+            weeklyRepo,
+            dailyPriceRepo,
+            weeklyPriceRepo,
+            supportResistanceConfig);
     ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
   }
 

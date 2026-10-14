@@ -40,6 +40,7 @@ make format
 - Use a fallback `else` or ternary default for `Timeframe` branches without explicit validation.
 - Use cryptic or single-letter variable names (such as `b`, `d`, `w`, `p`, `v`, `r`) for domain models, method parameters, or stream/lambda expressions.
 - Place error, warning, or insufficient data handling inside the `if` block while relegating the actual business logic to the `else` block.
+- Define default values for configuration variables or request parameters unless specifically mentioned.
 
 ## Project Structure
 ```text
@@ -139,6 +140,7 @@ if (dailyBars.size() >= MIN_BARS) {
 - **DTO Isolation from Schema Renames**: When refactoring entity primary keys to `<entity>_id` formats, maintain existing DTO property names (e.g. `ChartPatternDto.id`) to avoid breaking frontend REST clients.
 - **Atomic Bulk JPQL Deletes for Retention Cleanup**: Prefer `@Modifying @Query("DELETE FROM ...")` single-statement JPQL deletes over Spring Data derived deletion methods (such as `deleteByTickerAndPriceDateLessThan(...)`). Derived delete methods issue individual $N+1$ select queries followed by entity-by-entity deletions, whereas `@Modifying @Query` executes an atomic $O(1)$ database operation.
 - **Window Filtering & Typical Price Boundary Calculations**: When filtering zone midpoint levels within a dynamic percentage window around price action, derive Typical Price ($TP = \frac{\text{high} + \text{low} + \text{close}}{3}$) from the reference candle at scale 12 (`RoundingMode.HALF_UP`). Validate `rangePct` for boundary safety (`rangePct > 0` and finite/non-NaN) and provide an unwindowed fallback when the reference candle is not present.
+- **No Defaults for Config Variables or Request Parameters**: Never provide default values for configuration properties (in `@ConfigurationProperties` classes) or request parameters (`@RequestParam(defaultValue = ...)`) unless specifically mentioned and requested. Configuration properties must be declared without field initializers in Java classes and sourced explicitly from external configuration (`application.properties` / environment variables).
 
 ## Technical Indicators & Mathematical Calculations
 - **BigDecimal Math Precision & Stability**: When computing standard deviation or variance over sliding windows:

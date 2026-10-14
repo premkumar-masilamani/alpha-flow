@@ -9,21 +9,20 @@ class SupportResistanceConfigTest {
   @Test
   void testConfigProperties() {
     SupportResistanceConfig config = new SupportResistanceConfig();
-    assertEquals(30, config.getRetentionDays());
-
-    config.setRetentionDays(60);
-    assertEquals(60, config.getRetentionDays());
-
+    assertEquals(0, config.getDailyRetentionDays());
+    config.setDailyRetentionDays(30);
     assertEquals(30, config.getDailyRetentionDays());
-    config.setDailyRetentionDays(45);
-    assertEquals(45, config.getDailyRetentionDays());
 
-    assertEquals(6, config.getWeeklyRetentionMonths());
-    config.setWeeklyRetentionMonths(12);
-    assertEquals(12, config.getWeeklyRetentionMonths());
+    assertEquals(0, config.getWeeklyRetentionDays());
+    config.setWeeklyRetentionDays(180);
+    assertEquals(180, config.getWeeklyRetentionDays());
 
+    assertEquals(0, config.getMaxAllowedBuckets());
+    config.setMaxAllowedBuckets(500);
     assertEquals(500, config.getMaxAllowedBuckets());
-    config.setMaxAllowedBuckets(250);
-    assertEquals(250, config.getMaxAllowedBuckets());
+
+    org.junit.jupiter.api.Assertions.assertNull(config.getRangePct());
+    config.setRangePct(0.25);
+    assertEquals(0.25, config.getRangePct());
   }
 }

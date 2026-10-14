@@ -33,18 +33,16 @@ public class SupportResistanceController {
   public List<SupportResistanceDto> getSupportResistances(
       @PathVariable String symbol,
       @RequestParam(defaultValue = "daily") Timeframe timeframe,
-      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-      @RequestParam(required = false, defaultValue = "0.25") Double rangePct) {
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
 
     log.info(
-        "Request to get support resistances for ticker: {}, timeframe: {}, date: {}, rangePct: {}",
+        "Request to get support resistances for ticker: {}, timeframe: {}, date: {}",
         symbol,
         timeframe,
-        date,
-        rangePct);
+        date);
 
     Ticker ticker = tickerService.getTicker(symbol);
 
-    return supportResistanceService.getSupportResistances(ticker, timeframe, date, rangePct);
+    return supportResistanceService.getSupportResistances(ticker, timeframe, date);
   }
 }

@@ -33,7 +33,7 @@ class SupportResistanceControllerTest {
   }
 
   @Test
-  void testGetSupportResistancesDailyDefaultRangePct() {
+  void testGetSupportResistancesDaily() {
     LocalDate date = LocalDate.of(2026, 5, 29);
     LocalDate firstTouch = LocalDate.of(2026, 1, 10);
     LocalDate lastTouch = LocalDate.of(2026, 5, 20);
@@ -51,37 +51,14 @@ class SupportResistanceControllerTest {
             .touchCount(3)
             .build();
 
-    when(service.getSupportResistances(ticker, Timeframe.DAILY, date, 0.25))
-        .thenReturn(List.of(dto));
+    when(service.getSupportResistances(ticker, Timeframe.DAILY, date)).thenReturn(List.of(dto));
 
     List<SupportResistanceDto> result =
-        controller.getSupportResistances("AAPL", Timeframe.DAILY, date, 0.25);
+        controller.getSupportResistances("AAPL", Timeframe.DAILY, date);
     assertEquals(1, result.size());
     assertEquals("SUPPORT", result.getFirst().getLevelType());
     assertEquals(firstTouch, result.getFirst().getFirstTouchDate());
     assertEquals(lastTouch, result.getFirst().getLastTouchDate());
-  }
-
-  @Test
-  void testGetSupportResistancesDailyCustomRangePct() {
-    LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(service.getSupportResistances(ticker, Timeframe.DAILY, date, 0.10)).thenReturn(List.of());
-
-    List<SupportResistanceDto> result =
-        controller.getSupportResistances("AAPL", Timeframe.DAILY, date, 0.10);
-    assertEquals(0, result.size());
-  }
-
-  @Test
-  void testGetSupportResistancesDailyNullRangePct() {
-    LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(service.getSupportResistances(ticker, Timeframe.DAILY, date, null)).thenReturn(List.of());
-
-    List<SupportResistanceDto> result =
-        controller.getSupportResistances("AAPL", Timeframe.DAILY, date, null);
-    assertEquals(0, result.size());
   }
 
   @Test
@@ -103,11 +80,10 @@ class SupportResistanceControllerTest {
             .touchCount(2)
             .build();
 
-    when(service.getSupportResistances(ticker, Timeframe.WEEKLY, date, 0.25))
-        .thenReturn(List.of(dto));
+    when(service.getSupportResistances(ticker, Timeframe.WEEKLY, date)).thenReturn(List.of(dto));
 
     List<SupportResistanceDto> result =
-        controller.getSupportResistances("AAPL", Timeframe.WEEKLY, date, 0.25);
+        controller.getSupportResistances("AAPL", Timeframe.WEEKLY, date);
     assertEquals(1, result.size());
     assertEquals("RESISTANCE", result.getFirst().getLevelType());
     assertEquals(firstTouch, result.getFirst().getFirstTouchDate());
@@ -122,6 +98,6 @@ class SupportResistanceControllerTest {
 
     assertThrows(
         ResourceNotFoundException.class,
-        () -> controller.getSupportResistances("UNKNOWN", Timeframe.DAILY, date, 0.25));
+        () -> controller.getSupportResistances("UNKNOWN", Timeframe.DAILY, date));
   }
 }
