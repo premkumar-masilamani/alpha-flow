@@ -28,30 +28,25 @@ class MarketHolidayServiceTest {
   }
 
   @Test
-  void testGetHolidaysCurrentYear() {
-    int currentYear = LocalDate.now().getYear();
-    LocalDate startDate = LocalDate.of(currentYear, 1, 1);
-    LocalDate endDate = LocalDate.of(currentYear, 12, 31);
+  void testGetHolidaysReturnsAllRecords() {
     MarketHoliday holiday =
         MarketHoliday.builder()
             .marketHolidayId(1L)
             .country(Country.US)
-            .holidayDate(LocalDate.of(currentYear, 1, 1))
+            .holidayDate(LocalDate.of(2026, 1, 1))
             .name("New Year's Day")
             .build();
 
-    when(marketHolidayRepository.findByHolidayDateBetweenOrderByHolidayDateAsc(startDate, endDate))
-        .thenReturn(List.of(holiday));
+    when(marketHolidayRepository.findAllByOrderByHolidayDateAsc()).thenReturn(List.of(holiday));
 
     List<MarketHolidayDto> result = marketHolidayService.getHolidays();
 
     assertEquals(1, result.size());
     assertEquals(1L, result.getFirst().id());
     assertEquals(Country.US, result.getFirst().country());
-    assertEquals(LocalDate.of(currentYear, 1, 1), result.getFirst().holidayDate());
+    assertEquals(LocalDate.of(2026, 1, 1), result.getFirst().holidayDate());
     assertEquals("New Year's Day", result.getFirst().name());
-    verify(marketHolidayRepository)
-        .findByHolidayDateBetweenOrderByHolidayDateAsc(startDate, endDate);
+    verify(marketHolidayRepository).findAllByOrderByHolidayDateAsc();
   }
 
   @Test

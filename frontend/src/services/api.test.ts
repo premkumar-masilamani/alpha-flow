@@ -328,7 +328,7 @@ describe('API Service Layer Tests', () => {
             },
         ];
 
-        it('fetches market holidays for the current year', async () => {
+        it('fetches all market holidays', async () => {
             mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
 
             const result = await getMarketHolidays();

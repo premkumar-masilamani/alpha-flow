@@ -21,7 +21,7 @@ public class MarketHolidayController {
 
   @GetMapping("/holidays")
   public List<MarketHolidayDto> getHolidays() {
-    log.info("Request to get market holidays for the current year");
+    log.info("Request to get all market holidays");
     return marketHolidayService.getHolidays();
   }
 }
