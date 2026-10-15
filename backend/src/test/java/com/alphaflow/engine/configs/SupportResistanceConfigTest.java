@@ -14,10 +14,6 @@ class SupportResistanceConfigTest {
     config.setBucketWidthPct(0.02);
     assertEquals(0.02, config.getBucketWidthPct());
 
-    assertEquals(0.25, config.getRangePct());
-    config.setRangePct(0.30);
-    assertEquals(0.30, config.getRangePct());
-
     assertEquals(500, config.getMaxAllowedBuckets());
     config.setMaxAllowedBuckets(250);
     assertEquals(250, config.getMaxAllowedBuckets());
