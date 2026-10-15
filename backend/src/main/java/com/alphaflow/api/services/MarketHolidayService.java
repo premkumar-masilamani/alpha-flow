@@ -3,7 +3,6 @@ package com.alphaflow.api.services;
 import com.alphaflow.api.dtos.MarketHolidayDto;
 import com.alphaflow.api.mappers.MarketHolidayMapper;
 import com.alphaflow.persistence.entities.MarketHoliday;
-import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.MarketHolidayRepository;
 import java.time.LocalDate;
 import java.util.List;
@@ -22,26 +21,14 @@ public class MarketHolidayService {
     this.marketHolidayRepository = marketHolidayRepository;
   }
 
-  public List<MarketHolidayDto> getHolidays(Country country, Integer year) {
-    log.debug("Fetching market holidays for country: {}, year: {}", country, year);
+  public List<MarketHolidayDto> getHolidays() {
+    int currentYear = LocalDate.now().getYear();
+    log.debug("Fetching market holidays for all countries for current year: {}", currentYear);
 
-    List<MarketHoliday> holidayEntities;
-    if (country != null && year != null) {
-      LocalDate startDate = LocalDate.of(year, 1, 1);
-      LocalDate endDate = LocalDate.of(year, 12, 31);
-      holidayEntities =
-          marketHolidayRepository.findByCountryAndHolidayDateBetweenOrderByHolidayDateAsc(
-              country, startDate, endDate);
-    } else if (country != null) {
-      holidayEntities = marketHolidayRepository.findByCountryOrderByHolidayDateAsc(country);
-    } else if (year != null) {
-      LocalDate startDate = LocalDate.of(year, 1, 1);
-      LocalDate endDate = LocalDate.of(year, 12, 31);
-      holidayEntities =
-          marketHolidayRepository.findByHolidayDateBetweenOrderByHolidayDateAsc(startDate, endDate);
-    } else {
-      holidayEntities = marketHolidayRepository.findAllByOrderByHolidayDateAsc();
-    }
+    LocalDate startDate = LocalDate.of(currentYear, 1, 1);
+    LocalDate endDate = LocalDate.of(currentYear, 12, 31);
+    List<MarketHoliday> holidayEntities =
+        marketHolidayRepository.findByHolidayDateBetweenOrderByHolidayDateAsc(startDate, endDate);
 
     return holidayEntities.stream().map(MarketHolidayMapper::toDto).toList();
   }

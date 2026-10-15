@@ -130,7 +130,7 @@ if (dailyBars.size() >= MIN_BARS) {
 
 ## API Design & Naming
 - **Enum URL Parameters**: Use full lowercase words (e.g., `?timeframe=daily`) for readability.
-- **Spring Boot Converters**: Register custom `Converter<String, EnumType>` (like `TimeframeConverter`) to cleanly map parameters to uppercase Java Enums.
+- **Enum String Lookup via Enum Method**: Add a static `from(String)` method directly in the enum to convert string parameters (case-insensitively) to the enum, rather than maintaining separate `Converter<String, EnumType>` classes.
 - **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`).
 
 ## Backend Architecture & Package Structure

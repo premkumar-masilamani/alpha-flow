@@ -39,4 +39,19 @@ public enum ChartPatternType {
   public PatternSentiment getSentiment() {
     return sentiment;
   }
+
+  public static ChartPatternType from(String text) {
+    if (text == null || text.trim().isEmpty()) {
+      return null;
+    }
+    String normalized = text.trim().toUpperCase();
+    for (ChartPatternType type : values()) {
+      if (type.name().equals(normalized)
+          || type.shortName.equalsIgnoreCase(normalized)
+          || type.displayName.equalsIgnoreCase(text.trim())) {
+        return type;
+      }
+    }
+    throw new IllegalArgumentException("Unknown chart pattern type: " + text);
+  }
 }

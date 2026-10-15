@@ -107,4 +107,19 @@ public enum CandlestickPattern {
   public PatternSentiment getSentiment() {
     return sentiment;
   }
+
+  public static CandlestickPattern from(String text) {
+    if (text == null || text.trim().isEmpty()) {
+      return null;
+    }
+    String normalized = text.trim().toUpperCase();
+    for (CandlestickPattern pattern : values()) {
+      if (pattern.name().equals(normalized)
+          || pattern.shortName.equalsIgnoreCase(normalized)
+          || pattern.longName.equalsIgnoreCase(text.trim())) {
+        return pattern;
+      }
+    }
+    throw new IllegalArgumentException("Unknown candlestick pattern: " + text);
+  }
 }

@@ -323,19 +323,9 @@ export interface CachedMarketHolidays {
     holidays: MarketHoliday[];
 }
 
-export const getMarketHolidays = async (
-    country?: 'IN' | 'US',
-    year?: number
-): Promise<MarketHoliday[]> => {
+export const getMarketHolidays = async (): Promise<MarketHoliday[]> => {
     const url = `${API_BASE_URL}/markets/holidays`;
-    const params: Record<string, string | number> = {};
-    if (country) {
-        params.country = country.toLowerCase();
-    }
-    if (year) {
-        params.year = year;
-    }
-    const response = await axios.get(url, { params });
+    const response = await axios.get(url);
     return response.data;
 };
 

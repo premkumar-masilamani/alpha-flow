@@ -15,4 +15,17 @@ public enum Country {
   public ZoneId getZoneId() {
     return zoneId;
   }
+
+  public static Country from(String text) {
+    if (text == null || text.trim().isEmpty()) {
+      return null;
+    }
+    String normalized = text.trim().toUpperCase();
+    for (Country country : values()) {
+      if (country.name().equals(normalized)) {
+        return country;
+      }
+    }
+    throw new IllegalArgumentException("Unknown country: " + text);
+  }
 }

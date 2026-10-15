@@ -328,25 +328,13 @@ describe('API Service Layer Tests', () => {
             },
         ];
 
-        it('fetches market holidays with country and year filters', async () => {
-            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
-
-            const result = await getMarketHolidays('US', 2026);
-            expect(result).toEqual(mockHolidays);
-            expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/markets/holidays'),
-                { params: { country: 'us', year: 2026 } }
-            );
-        });
-
-        it('fetches market holidays without filters', async () => {
+        it('fetches market holidays for the current year', async () => {
             mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
 
             const result = await getMarketHolidays();
             expect(result).toEqual(mockHolidays);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/markets/holidays'),
-                { params: {} }
+                expect.stringContaining('/markets/holidays')
             );
         });
 
