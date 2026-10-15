@@ -60,6 +60,7 @@ export const ExampleComponent = () => {
 ## Testing
 - **Framework**: Vitest / React Testing Library.
 - **Conventions**: Ensure chart components properly mock canvas APIs if they use `lightweight-charts`.
+- **Universal LocalStorage Mocking**: In Node 22+ test environments where global `localStorage` is partially defined but uninitialized, tests running in Node context throw `TypeError` on storage operations. Always define standard mock implementations on both `window.localStorage` and `globalThis.localStorage` in `setupTests.ts`.
 
 ## Chart Rendering & Indicators
 - **Lightweight-Charts Multi-Line Overlays**: When plotting technical indicators with multiple line outputs (like Bollinger Bands) as overlays on the main price chart, returning multiple output definitions (e.g. `upper`, `middle`, `lower` from `outputsFor()`) automatically loops over them and draws multiple line series that align perfectly on the same scale.
@@ -69,3 +70,8 @@ export const ExampleComponent = () => {
 - **Dual Encyclopedia Conventions**: Maintain UX and architectural parity between Candlestick Patterns and classical Chart Patterns (`config/*Patterns.ts`, `components/*PatternEncyclopedia.tsx`, and `components/*PatternModal.tsx`). Both feature live keyword search, category filter tabs with dynamic count badges, pure 150x130 SVG vector schematics, and deep-linking/smooth-scroll highlighting via `initialPatternId`.
 - **Target & Stop Loss Level Indicators**: In technical analysis overview cards, always render tentative target and stop loss price levels accompanied by percentage distances calculated against the latest candle close (`pctChange(...)`) to provide immediate, actionable risk-reward context.
 - **Backward-Compatible Pattern Dictionaries**: When expanding pattern configuration definitions, derive legacy lookup dictionaries (such as `CHART_PATTERNS_CONFIG`) dynamically via `Array.reduce` over the master pattern array (`CHART_PATTERNS`) to prevent duplicate data definitions while preserving canvas drawing and test contracts.
+
+## Client-Side Caching & Header Layouts
+- **Persistent LocalStorage Caching with TTL**: When fetching rarely changing configuration data (like market holiday calendars), persist payloads in `localStorage` accompanied by an explicit `expiresAt` timestamp (e.g. 24 hours). Re-fetch only when the cache is absent, corrupt, or expired to avoid unnecessary startup API latency.
+- **Full Text Display for Descriptive Status Badges**: For informative badges displaying arbitrary localized domain descriptions (such as festival names), avoid using `truncate` or `overflow-hidden`. Allow responsive wrapping with `flex-wrap` and glowing indicator lights (`bg-emerald-400` / `bg-rose-400`) to communicate both visual and textual state cleanly.
+
