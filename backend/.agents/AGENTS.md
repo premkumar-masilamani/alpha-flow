@@ -182,4 +182,17 @@ if (dailyBars.size() >= MIN_BARS) {
 ## Persistence Layer & Repository Hygiene
 - **Repository Dead Method Cleanliness & Import Hygiene**: Regularly audit and prune dead Spring Data JPA derived query methods when services transition to specialized bulk queries or JPQL projections. When pruning unused repository methods, always remove now-unused imports (e.g., `java.util.List`, `java.util.Optional`, or unused Enums) to maintain strict Checkstyle and Spotless compliance.
 
+## Notification Services & External HTTP Integration
+- **Lightweight In-Memory Mocking for RestClient Testing**:
+  - Prefer `com.sun.net.httpserver.HttpServer` with a wildcard root handler (`/`) for unit testing Spring Boot 3 `RestClient` components. This allows deterministic validation of query parameter URI encoding (`parse_mode`, `chat_id`, `text`), status code branches (200 OK, 4xx/5xx errors), and connection failures without live network calls, third-party wiremock servers, or booting the Spring ApplicationContext.
+- **JaCoCo Branch Coverage in Enum Parsers & Dynamic URL Construction**:
+  - In static `from(String)` enum parsers, avoid checking both `status.name().equals(normalized)` and `status.value.equalsIgnoreCase(normalized)` when `normalized` is already uppercased. Since `name()` and uppercase `value` are identical strings, the second condition is unreachable in bytecode and penalizes branch coverage; check `status.name().equals(normalized)` directly.
+  - When dynamically augmenting query strings, branch on `if (resolved.contains("?"))` upfront rather than checking `if (!resolved.contains("?"))` sequentially across multiple parameter evaluations. Sequential checks create unreachable `else` branches in bytecode if an earlier evaluation already appended query parameters.
+- **PMD Static Analysis & Code Smells**:
+  - Explicitly annotate single-abstract-method service interfaces with `@FunctionalInterface` to comply with PMD's `ImplicitFunctionalInterface` rule.
+  - Always provide an explicit character set (e.g. `StandardCharsets.UTF_8`) to `String.getBytes(...)` in tests and network handlers to conform to PMD's `RelianceOnDefaultCharset` check.
+- **Sensitive Credential Sanitization in Error Payloads**:
+  - When logging network errors or persisting failures to audit tables (e.g., `notification_logs`), always sanitize sensitive bot credentials or API tokens (e.g., replacing occurrences with `******`) before logging or DB persistence to prevent secret leakage in diagnostic logs.
+
+
 
