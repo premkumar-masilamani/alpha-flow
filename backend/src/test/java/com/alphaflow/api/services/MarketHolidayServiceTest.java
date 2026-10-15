@@ -46,6 +46,9 @@ class MarketHolidayServiceTest {
     List<MarketHolidayDto> result = marketHolidayService.getHolidays(Country.US, 2026);
 
     assertEquals(1, result.size());
+    assertEquals(1L, result.getFirst().id());
+    assertEquals(Country.US, result.getFirst().country());
+    assertEquals(LocalDate.of(2026, 1, 1), result.getFirst().holidayDate());
     assertEquals("New Year's Day", result.getFirst().name());
     verify(marketHolidayRepository)
         .findByCountryAndHolidayDateBetweenOrderByHolidayDateAsc(Country.US, startDate, endDate);

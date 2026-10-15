@@ -19,7 +19,6 @@ describe('Header Component', () => {
                 country: 'US',
                 holidayDate: '2026-01-01',
                 name: 'New Year’s Day',
-                description: null,
             },
         ]);
 

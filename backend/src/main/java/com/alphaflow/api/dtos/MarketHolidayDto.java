@@ -10,5 +10,4 @@ public record MarketHolidayDto(
     @JsonProperty("id") Long id,
     @JsonProperty("country") Country country,
     @JsonProperty("holidayDate") LocalDate holidayDate,
-    @JsonProperty("name") String name,
-    @JsonProperty("description") String description) {}
+    @JsonProperty("name") String name) {}

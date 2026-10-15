@@ -9,7 +9,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import java.time.Instant;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -46,11 +45,4 @@ public class MarketHoliday {
 
   @Column(name = "name", nullable = false, length = 255)
   private String name;
-
-  @Column(name = "description", columnDefinition = "TEXT")
-  private String description;
-
-  @Column(name = "created_at", nullable = false, updatable = false)
-  @Builder.Default
-  private Instant createdAt = Instant.now();
 }

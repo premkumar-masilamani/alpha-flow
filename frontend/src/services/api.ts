@@ -312,7 +312,6 @@ export interface MarketHoliday {
     country: 'IN' | 'US';
     holidayDate: string;
     name: string;
-    description: string | null;
 }
 
 export const STORAGE_KEY_MARKET_HOLIDAYS = 'alphaflow_market_holidays';

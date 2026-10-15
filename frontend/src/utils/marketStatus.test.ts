@@ -9,14 +9,12 @@ describe('getMarketStatus', () => {
             country: 'US',
             holidayDate: '2026-01-19',
             name: 'Martin Luther King, Jr. Day',
-            description: null,
         },
         {
             id: 2,
             country: 'IN',
             holidayDate: '2026-11-24',
             name: 'Prakash Gurpurb Sri Guru Nanak Dev',
-            description: null,
         },
     ];
 

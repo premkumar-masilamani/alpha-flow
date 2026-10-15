@@ -319,14 +319,12 @@ describe('API Service Layer Tests', () => {
                 country: 'US',
                 holidayDate: '2026-01-01',
                 name: 'New Year’s Day',
-                description: null,
             },
             {
                 id: 2,
                 country: 'IN',
                 holidayDate: '2026-01-26',
                 name: 'Republic Day',
-                description: null,
             },
         ];
 

@@ -14,7 +14,6 @@ public final class MarketHolidayMapper {
           .country(marketHoliday.getCountry())
           .holidayDate(marketHoliday.getHolidayDate())
           .name(marketHoliday.getName())
-          .description(marketHoliday.getDescription())
           .build();
     } else {
       return null;
