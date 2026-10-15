@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 public class SupportResistanceConfig {
 
   private Double bucketWidthPct = 0.01;
-  private Double rangePct = 0.25;
   private int maxAllowedBuckets = 500;
   private int breakoutConfirmationBars = 2;
   private int maxFalseBreakouts = 1;
