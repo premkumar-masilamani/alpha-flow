@@ -14,7 +14,11 @@ import {
     type Ticker,
     type DailyCandleData,
     type IndicatorConfig,
-    type IndicatorSeries
+    type IndicatorSeries,
+    getMarketHolidays,
+    getCachedMarketHolidays,
+    type MarketHoliday,
+    STORAGE_KEY_MARKET_HOLIDAYS
 } from './api';
 
 // Mock axios completely
@@ -303,4 +307,77 @@ describe('API Service Layer Tests', () => {
             expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         });
     });
+
+    describe('getMarketHolidays & getCachedMarketHolidays', () => {
+        beforeEach(() => {
+            localStorage.clear();
+        });
+
+        const mockHolidays: MarketHoliday[] = [
+            {
+                id: 1,
+                country: 'US',
+                holidayDate: '2026-01-01',
+                name: 'New Year’s Day',
+            },
+            {
+                id: 2,
+                country: 'IN',
+                holidayDate: '2026-01-26',
+                name: 'Republic Day',
+            },
+        ];
+
+        it('fetches all market holidays', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+
+            const result = await getMarketHolidays();
+            expect(result).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledWith(
+                expect.stringContaining('/markets/holidays')
+            );
+        });
+
+        it('getCachedMarketHolidays returns from localStorage when valid', async () => {
+            const cachePayload = {
+                timestamp: Date.now(),
+                expiresAt: Date.now() + 100_000,
+                holidays: mockHolidays,
+            };
+            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
+
+            const result = await getCachedMarketHolidays();
+            expect(result).toEqual(mockHolidays);
+            expect(mockedAxios.get).not.toHaveBeenCalled();
+        });
+
+        it('getCachedMarketHolidays fetches from network when cache is expired', async () => {
+            const expiredPayload = {
+                timestamp: Date.now() - 200_000,
+                expiresAt: Date.now() - 100_000,
+                holidays: [],
+            };
+            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(expiredPayload));
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+
+            const result = await getCachedMarketHolidays();
+            expect(result).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+            const updatedRaw = localStorage.getItem(STORAGE_KEY_MARKET_HOLIDAYS);
+            expect(updatedRaw).not.toBeNull();
+            const updated = JSON.parse(updatedRaw!);
+            expect(updated.holidays).toEqual(mockHolidays);
+        });
+
+        it('getCachedMarketHolidays fetches and stores when cache is corrupt', async () => {
+            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, '{corrupt_json');
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+
+            const result = await getCachedMarketHolidays();
+            expect(result).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+        });
+    });
 });
+

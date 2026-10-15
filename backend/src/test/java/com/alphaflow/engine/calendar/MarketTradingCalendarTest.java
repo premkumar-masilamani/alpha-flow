@@ -3,14 +3,19 @@ package com.alphaflow.engine.calendar;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.alphaflow.persistence.entities.MarketHoliday;
 import com.alphaflow.persistence.enums.Country;
+import com.alphaflow.persistence.repositories.MarketHolidayRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.MonthDay;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,28 +26,65 @@ class MarketTradingCalendarTest {
   private final ZoneId istZone = ZoneId.of("Asia/Kolkata");
   private final LocalTime cutoffTime = LocalTime.of(17, 0);
 
+  private MarketHolidayRepository marketHolidayRepository;
+
   @BeforeEach
   void setUp() {
-    com.alphaflow.engine.configs.MarketHolidayConfig marketHolidayConfig =
-        new com.alphaflow.engine.configs.MarketHolidayConfig();
-    marketHolidayConfig.setUs(
+    marketHolidayRepository = mock(MarketHolidayRepository.class);
+
+    List<MarketHoliday> holidays =
         List.of(
-            "01-01", // New Year's Day
-            "01-19", // Martin Luther King Jr. Day
-            "04-03" // Good Friday
-            ));
-    marketHolidayConfig.setIn(
-        List.of(
-            "01-26", // Republic Day (India)
-            "08-15", // Independence Day (India)
-            "10-02" // Gandhi Jayanti (India)
-            ));
-    new MarketTradingCalendar(marketHolidayConfig);
+            MarketHoliday.builder()
+                .country(Country.US)
+                .holidayDate(LocalDate.of(2026, 1, 1))
+                .name("New Year's Day")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.US)
+                .holidayDate(LocalDate.of(2026, 1, 19))
+                .name("Martin Luther King, Jr. Day")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.US)
+                .holidayDate(LocalDate.of(2026, 4, 3))
+                .name("Good Friday")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.US)
+                .holidayDate(LocalDate.of(2027, 1, 18))
+                .name("Martin Luther King, Jr. Day")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.US)
+                .holidayDate(LocalDate.of(2028, 1, 17))
+                .name("Martin Luther King, Jr. Day")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.IN)
+                .holidayDate(LocalDate.of(2026, 1, 26))
+                .name("Republic Day")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.IN)
+                .holidayDate(LocalDate.of(2026, 8, 15))
+                .name("Independence Day")
+                .build(),
+            MarketHoliday.builder()
+                .country(Country.IN)
+                .holidayDate(LocalDate.of(2026, 10, 2))
+                .name("Mahatma Gandhi Jayanti")
+                .build());
+
+    when(marketHolidayRepository.findAllByOrderByHolidayDateAsc()).thenReturn(holidays);
+
+    MarketTradingCalendar calendar = new MarketTradingCalendar(marketHolidayRepository);
+    calendar.initializeHolidays();
   }
 
   @Test
   void testNullMarketConfig() {
-    new MarketTradingCalendar(null);
+    MarketTradingCalendar calendar = new MarketTradingCalendar(null);
+    calendar.initializeHolidays();
     assertTrue(MarketTradingCalendar.getHolidays(Country.US).isEmpty());
     assertTrue(MarketTradingCalendar.getHolidays(Country.IN).isEmpty());
     setUp();
@@ -51,15 +93,50 @@ class MarketTradingCalendarTest {
   @Test
   void testHolidaysPerCountryConfiguration() {
     assertEquals(
-        Set.of(MonthDay.of(1, 1), MonthDay.of(1, 19), MonthDay.of(4, 3)),
+        Set.of(
+            LocalDate.of(2026, 1, 1),
+            LocalDate.of(2026, 1, 19),
+            LocalDate.of(2026, 4, 3),
+            LocalDate.of(2027, 1, 18),
+            LocalDate.of(2028, 1, 17)),
         MarketTradingCalendar.getHolidays(Country.US));
     assertEquals(
-        Set.of(MonthDay.of(1, 26), MonthDay.of(8, 15), MonthDay.of(10, 2)),
+        Set.of(LocalDate.of(2026, 1, 26), LocalDate.of(2026, 8, 15), LocalDate.of(2026, 10, 2)),
         MarketTradingCalendar.getHolidays(Country.IN));
 
-    // Null holidays list resets country to empty set
+    assertEquals(
+        Optional.of("Martin Luther King, Jr. Day"),
+        MarketTradingCalendar.getHolidayName(LocalDate.of(2026, 1, 19), Country.US));
+    assertEquals(
+        Optional.empty(),
+        MarketTradingCalendar.getHolidayName(LocalDate.of(2026, 1, 20), Country.US));
+
+    // Null holidays map resets country to empty set
     MarketTradingCalendar.setHolidays(Country.US, null);
     assertTrue(MarketTradingCalendar.getHolidays(Country.US).isEmpty());
+
+    // Explicit setHolidays restores mapping
+    MarketTradingCalendar.setHolidays(
+        Country.US,
+        Map.of(
+            LocalDate.of(2026, 1, 19), "Martin Luther King, Jr. Day",
+            LocalDate.of(2026, 4, 3), "Good Friday"));
+    assertEquals(2, MarketTradingCalendar.getHolidays(Country.US).size());
+    assertEquals(
+        Optional.of("Good Friday"),
+        MarketTradingCalendar.getHolidayName(LocalDate.of(2026, 4, 3), Country.US));
+  }
+
+  @Test
+  void testMultiYearHolidayDetection() {
+    // 2026 MLK Day
+    assertFalse(MarketTradingCalendar.isTradingDay(LocalDate.of(2026, 1, 19), Country.US));
+    // 2027 MLK Day
+    assertFalse(MarketTradingCalendar.isTradingDay(LocalDate.of(2027, 1, 18), Country.US));
+    // 2028 MLK Day
+    assertFalse(MarketTradingCalendar.isTradingDay(LocalDate.of(2028, 1, 17), Country.US));
+    // Day after 2026 MLK Day is a trading day
+    assertTrue(MarketTradingCalendar.isTradingDay(LocalDate.of(2026, 1, 20), Country.US));
   }
 
   @Test

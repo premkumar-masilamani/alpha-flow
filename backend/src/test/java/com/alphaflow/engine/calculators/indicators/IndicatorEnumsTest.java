@@ -33,4 +33,24 @@ class IndicatorEnumsTest {
     assertEquals("lower", IndicatorOutputKey.LOWER.getValue());
     assertEquals("bandwidth", IndicatorOutputKey.BANDWIDTH.getValue());
   }
+
+  @Test
+  void testIndicatorParamKeyFrom() {
+    assertEquals(IndicatorParamKey.PERIOD, IndicatorParamKey.from("period"));
+    assertEquals(IndicatorParamKey.PERIOD, IndicatorParamKey.from("PERIOD"));
+    org.junit.jupiter.api.Assertions.assertNull(IndicatorParamKey.from(null));
+    org.junit.jupiter.api.Assertions.assertNull(IndicatorParamKey.from(""));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> IndicatorParamKey.from("unknown"));
+  }
+
+  @Test
+  void testIndicatorOutputKeyFrom() {
+    assertEquals(IndicatorOutputKey.VALUE, IndicatorOutputKey.from("value"));
+    assertEquals(IndicatorOutputKey.VALUE, IndicatorOutputKey.from("VALUE"));
+    org.junit.jupiter.api.Assertions.assertNull(IndicatorOutputKey.from(null));
+    org.junit.jupiter.api.Assertions.assertNull(IndicatorOutputKey.from(""));
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalArgumentException.class, () -> IndicatorOutputKey.from("unknown"));
+  }
 }

@@ -130,7 +130,7 @@ if (dailyBars.size() >= MIN_BARS) {
 
 ## API Design & Naming
 - **Enum URL Parameters**: Use full lowercase words (e.g., `?timeframe=daily`) for readability.
-- **Spring Boot Converters**: Register custom `Converter<String, EnumType>` (like `TimeframeConverter`) to cleanly map parameters to uppercase Java Enums.
+- **Enum String Lookup via Enum Method**: Add a static `from(String)` method directly in the enum to convert string parameters (case-insensitively) to the enum, rather than maintaining separate `Converter<String, EnumType>` classes.
 - **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`).
 
 ## Backend Architecture & Package Structure
@@ -176,6 +176,8 @@ if (dailyBars.size() >= MIN_BARS) {
   - Downstream pipeline steps (weekly candles, support/resistance, candlestick patterns, chart patterns, indicators) should be conditionally bypassed when the daily ingestion step yields zero newly ingested rows across all tickers, logging the short-circuit duration cleanly.
 - **JaCoCo Branch Coverage on Downloader Logic**:
   - Redundant guards in inner download methods (such as checking `startTs >= endTs` when caller gating already guarantees `latestSavedDate < expectedTradingDate`) introduce unreachable branches that violate the 100% JaCoCo branch coverage requirement. Placing gating cleanly at the caller loop level keeps inner methods branch-lean and fully coverable.
+- **Startup In-Memory Cache for Static Reference Data**:
+  - Preloading static multi-year holiday reference data from JPA repositories into an in-memory `Map<Country, Set<LocalDate>>` on application startup (`@PostConstruct`) prevents database contention in high-frequency downloader loops and allows static calendar helper methods to remain branch-lean with $O(1)$ memory lookups.
 
 ## Persistence Layer & Repository Hygiene
 - **Repository Dead Method Cleanliness & Import Hygiene**: Regularly audit and prune dead Spring Data JPA derived query methods when services transition to specialized bulk queries or JPQL projections. When pruning unused repository methods, always remove now-unused imports (e.g., `java.util.List`, `java.util.Optional`, or unused Enums) to maintain strict Checkstyle and Spotless compliance.

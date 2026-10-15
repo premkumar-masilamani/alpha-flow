@@ -6,5 +6,18 @@ public enum IndicatorType {
   RSI,
   MACD,
   STOCHASTIC,
-  BB,
+  BB;
+
+  public static IndicatorType from(String text) {
+    if (text == null || text.trim().isEmpty()) {
+      return null;
+    }
+    String normalized = text.trim().toUpperCase();
+    for (IndicatorType type : values()) {
+      if (type.name().equals(normalized)) {
+        return type;
+      }
+    }
+    throw new IllegalArgumentException("Unknown indicator type: " + text);
+  }
 }

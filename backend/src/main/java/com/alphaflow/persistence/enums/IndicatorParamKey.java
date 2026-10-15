@@ -18,4 +18,16 @@ public enum IndicatorParamKey {
   IndicatorParamKey(String value) {
     this.value = value;
   }
+
+  public static IndicatorParamKey from(String text) {
+    if (text == null || text.trim().isEmpty()) {
+      return null;
+    }
+    for (IndicatorParamKey key : values()) {
+      if (key.name().equalsIgnoreCase(text.trim()) || key.value.equalsIgnoreCase(text.trim())) {
+        return key;
+      }
+    }
+    throw new IllegalArgumentException("Unknown indicator param key: " + text);
+  }
 }
