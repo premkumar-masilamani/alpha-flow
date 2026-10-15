@@ -7,7 +7,6 @@ import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -66,17 +65,4 @@ public interface IntradayPriceRepository extends JpaRepository<IntradayPrice, Lo
       @Param("timeframe") String timeframe,
       @Param("endDateTime") OffsetDateTime endDateTime,
       Pageable pageable);
-
-  Optional<IntradayPrice> findTopByTickerAndTimeframeOrderByPriceTimeDesc(
-      Ticker ticker, String timeframe);
-
-  Optional<IntradayPrice> findTopByTickerOrderByPriceTimeDesc(Ticker ticker);
-
-  List<IntradayPrice> findByTickerAndTimeframeOrderByPriceTimeAsc(Ticker ticker, String timeframe);
-
-  List<IntradayPrice> findByTickerAndTimeframeAndPriceTimeGreaterThanEqualOrderByPriceTimeAsc(
-      Ticker ticker, String timeframe, OffsetDateTime startTime);
-
-  boolean existsByTickerAndTimeframeAndPriceTime(
-      Ticker ticker, String timeframe, OffsetDateTime priceTime);
 }

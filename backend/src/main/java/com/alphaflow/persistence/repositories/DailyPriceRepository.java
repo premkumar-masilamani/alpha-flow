@@ -17,18 +17,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
-  @Query(
-      """
-                SELECT dp FROM DailyPrice dp
-                JOIN FETCH dp.ticker tk
-                WHERE dp.ticker = :ticker
-                ORDER BY dp.priceDate DESC
-            """)
-  List<DailyPrice> findLatestByTicker(Ticker ticker, Pageable pageable);
-
   Optional<DailyPrice> findTopByTickerOrderByPriceDateAsc(Ticker ticker);
-
-  Optional<DailyPrice> findTopByTickerOrderByPriceDateDesc(Ticker ticker);
 
   @Query(
       """
@@ -60,16 +49,6 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
       Ticker ticker, LocalDate startDate);
 
   List<DailyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);
-
-  Optional<DailyPrice> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
-
-  @Query(
-      """
-                SELECT dp.priceDate FROM DailyPrice dp
-                WHERE dp.ticker = :ticker
-                ORDER BY dp.priceDate DESC
-            """)
-  List<LocalDate> findRecentPriceDates(Ticker ticker, Pageable pageable);
 
   @Query(
       """
