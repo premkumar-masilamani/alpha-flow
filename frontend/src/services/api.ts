@@ -307,3 +307,73 @@ export const getChartPatterns = async (
     return response.data;
 };
 
+export interface MarketHoliday {
+    id: number;
+    country: 'IN' | 'US';
+    holidayDate: string;
+    name: string;
+    description: string | null;
+}
+
+export const STORAGE_KEY_MARKET_HOLIDAYS = 'alphaflow_market_holidays';
+export const MARKET_HOLIDAYS_TTL_MS = 24 * 60 * 60 * 1000;
+
+export interface CachedMarketHolidays {
+    timestamp: number;
+    expiresAt: number;
+    holidays: MarketHoliday[];
+}
+
+export const getMarketHolidays = async (
+    country?: 'IN' | 'US',
+    year?: number
+): Promise<MarketHoliday[]> => {
+    const url = `${API_BASE_URL}/markets/holidays`;
+    const params: Record<string, string | number> = {};
+    if (country) {
+        params.country = country.toLowerCase();
+    }
+    if (year) {
+        params.year = year;
+    }
+    const response = await axios.get(url, { params });
+    return response.data;
+};
+
+export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
+    if (typeof window !== 'undefined') {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_MARKET_HOLIDAYS);
+            if (raw) {
+                const parsed: CachedMarketHolidays = JSON.parse(raw);
+                if (
+                    parsed &&
+                    typeof parsed.expiresAt === 'number' &&
+                    Date.now() < parsed.expiresAt &&
+                    Array.isArray(parsed.holidays)
+                ) {
+                    return parsed.holidays;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to read market holidays from localStorage:', error);
+        }
+    }
+
+    const holidays = await getMarketHolidays();
+    if (typeof window !== 'undefined') {
+        try {
+            const cachePayload: CachedMarketHolidays = {
+                timestamp: Date.now(),
+                expiresAt: Date.now() + MARKET_HOLIDAYS_TTL_MS,
+                holidays,
+            };
+            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
+        } catch (error) {
+            console.warn('Failed to save market holidays to localStorage:', error);
+        }
+    }
+    return holidays;
+};
+
+

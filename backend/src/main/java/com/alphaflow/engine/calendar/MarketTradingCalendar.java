@@ -1,59 +1,106 @@
 package com.alphaflow.engine.calendar;
 
-import com.alphaflow.engine.configs.MarketHolidayConfig;
+import com.alphaflow.persistence.entities.MarketHoliday;
 import com.alphaflow.persistence.enums.Country;
+import com.alphaflow.persistence.repositories.MarketHolidayRepository;
+import jakarta.annotation.PostConstruct;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.MonthDay;
 import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MarketTradingCalendar {
 
-  private static final DateTimeFormatter MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern("MM-dd");
-  private static final Map<Country, Set<MonthDay>> HOLIDAYS_BY_COUNTRY =
+  private static final Map<Country, Set<LocalDate>> HOLIDAYS_BY_COUNTRY =
+      new EnumMap<>(Country.class);
+  private static final Map<Country, Map<LocalDate, String>> HOLIDAY_NAMES_BY_COUNTRY =
       new EnumMap<>(Country.class);
 
-  public MarketTradingCalendar(MarketHolidayConfig marketHolidayConfig) {
-    if (marketHolidayConfig != null) {
-      setHolidays(Country.US, marketHolidayConfig.getUs());
-      setHolidays(Country.IN, marketHolidayConfig.getIn());
+  private final MarketHolidayRepository marketHolidayRepository;
+
+  public MarketTradingCalendar(MarketHolidayRepository marketHolidayRepository) {
+    this.marketHolidayRepository = marketHolidayRepository;
+    if (marketHolidayRepository != null) {
+      loadHolidays();
     } else {
-      setHolidays(Country.US, null);
-      setHolidays(Country.IN, null);
+      clearHolidays();
     }
   }
 
-  public static void setHolidays(Country country, List<String> holidays) {
+  @PostConstruct
+  public void initializeHolidays() {
+    if (marketHolidayRepository != null) {
+      loadHolidays();
+    } else {
+      clearHolidays();
+    }
+  }
+
+  public final void loadHolidays() {
+    if (marketHolidayRepository != null) {
+      List<MarketHoliday> holidayList = marketHolidayRepository.findAllByOrderByHolidayDateAsc();
+      Map<Country, Set<LocalDate>> datesMap = new EnumMap<>(Country.class);
+      Map<Country, Map<LocalDate, String>> namesMap = new EnumMap<>(Country.class);
+
+      for (Country country : Country.values()) {
+        datesMap.put(country, new HashSet<>());
+        namesMap.put(country, new HashMap<>());
+      }
+
+      for (MarketHoliday holiday : holidayList) {
+        datesMap.get(holiday.getCountry()).add(holiday.getHolidayDate());
+        namesMap.get(holiday.getCountry()).put(holiday.getHolidayDate(), holiday.getName());
+      }
+
+      for (Country country : Country.values()) {
+        HOLIDAYS_BY_COUNTRY.put(country, Set.copyOf(datesMap.get(country)));
+        HOLIDAY_NAMES_BY_COUNTRY.put(country, Map.copyOf(namesMap.get(country)));
+      }
+    } else {
+      clearHolidays();
+    }
+  }
+
+  public static void clearHolidays() {
+    for (Country country : Country.values()) {
+      HOLIDAYS_BY_COUNTRY.put(country, Set.of());
+      HOLIDAY_NAMES_BY_COUNTRY.put(country, Map.of());
+    }
+  }
+
+  public static void setHolidays(Country country, Map<LocalDate, String> holidays) {
     if (holidays != null) {
-      Set<MonthDay> parsed =
-          holidays.stream()
-              .map(holiday -> MonthDay.parse(holiday.trim(), MONTH_DAY_FORMATTER))
-              .collect(Collectors.toUnmodifiableSet());
-      HOLIDAYS_BY_COUNTRY.put(country, parsed);
+      HOLIDAYS_BY_COUNTRY.put(country, Set.copyOf(holidays.keySet()));
+      HOLIDAY_NAMES_BY_COUNTRY.put(country, Map.copyOf(holidays));
     } else {
       HOLIDAYS_BY_COUNTRY.put(country, Set.of());
+      HOLIDAY_NAMES_BY_COUNTRY.put(country, Map.of());
     }
   }
 
-  public static Set<MonthDay> getHolidays(Country country) {
+  public static Set<LocalDate> getHolidays(Country country) {
     return HOLIDAYS_BY_COUNTRY.getOrDefault(country, Set.of());
+  }
+
+  public static Optional<String> getHolidayName(LocalDate date, Country country) {
+    return Optional.ofNullable(HOLIDAY_NAMES_BY_COUNTRY.getOrDefault(country, Map.of()).get(date));
   }
 
   public static boolean isTradingDay(LocalDate date, Country country) {
     DayOfWeek dayOfWeek = date.getDayOfWeek();
     if (dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY) {
-      return !getHolidays(country).contains(MonthDay.from(date));
+      return !getHolidays(country).contains(date);
     } else {
       return false;
     }
