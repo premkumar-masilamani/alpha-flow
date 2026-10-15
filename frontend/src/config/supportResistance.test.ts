@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
     SUPPORT_RESISTANCE_RANGE_PCT,
-    calculateTypicalPrice,
-    calculateMidpointBounds,
     filterSupportResistances,
 } from './supportResistance';
 import { type DailyCandleData, type SupportResistanceData } from '../services/api';
@@ -21,23 +19,6 @@ describe('supportResistance config and filtering', () => {
         expect(SUPPORT_RESISTANCE_RANGE_PCT).toBe(0.25);
     });
 
-    it('calculates typical price correctly ((high + low + close) / 3)', () => {
-        const tp = calculateTypicalPrice(mockCandle);
-        expect(tp).toBe(100);
-    });
-
-    it('calculates midpoint bounds with default rangePct', () => {
-        const bounds = calculateMidpointBounds(mockCandle);
-        expect(bounds.minMidpoint).toBeCloseTo(75);
-        expect(bounds.maxMidpoint).toBeCloseTo(125);
-    });
-
-    it('calculates midpoint bounds with custom rangePct', () => {
-        const bounds = calculateMidpointBounds(mockCandle, 0.10);
-        expect(bounds.minMidpoint).toBeCloseTo(90);
-        expect(bounds.maxMidpoint).toBeCloseTo(110);
-    });
-
     describe('filterSupportResistances', () => {
         const mockLevels: SupportResistanceData[] = [
             {
@@ -54,7 +35,7 @@ describe('supportResistance config and filtering', () => {
                 priceDate: '2026-05-29',
                 zoneBottom: 73,
                 zoneTop: 77,
-                zoneMidpoint: 75, // Exact lower boundary
+                zoneMidpoint: 75, // Exact lower boundary (100 * 0.75)
                 touchCount: 2,
                 levelType: 'SUPPORT',
             },
@@ -62,7 +43,7 @@ describe('supportResistance config and filtering', () => {
                 priceDate: '2026-05-29',
                 zoneBottom: 123,
                 zoneTop: 127,
-                zoneMidpoint: 125, // Exact upper boundary
+                zoneMidpoint: 125, // Exact upper boundary (100 * 1.25)
                 touchCount: 3,
                 levelType: 'RESISTANCE',
             },

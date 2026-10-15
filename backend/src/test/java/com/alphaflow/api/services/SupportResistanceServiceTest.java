@@ -20,7 +20,6 @@ import org.junit.jupiter.api.Test;
 
 class SupportResistanceServiceTest {
 
-  private TickerService tickerService;
   private DailySupportResistanceRepository dailyRepo;
   private WeeklySupportResistanceRepository weeklyRepo;
   private SupportResistanceService service;
@@ -28,10 +27,9 @@ class SupportResistanceServiceTest {
 
   @BeforeEach
   void setUp() {
-    tickerService = mock(TickerService.class);
     dailyRepo = mock(DailySupportResistanceRepository.class);
     weeklyRepo = mock(WeeklySupportResistanceRepository.class);
-    service = new SupportResistanceService(tickerService, dailyRepo, weeklyRepo);
+    service = new SupportResistanceService(dailyRepo, weeklyRepo);
     ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
   }
 
@@ -106,33 +104,5 @@ class SupportResistanceServiceTest {
     LocalDate date = LocalDate.of(2026, 5, 29);
     assertThrows(
         IllegalArgumentException.class, () -> service.getSupportResistances(ticker, null, date));
-  }
-
-  @Test
-  void testGetDailySupportResistancesConvenienceMethods() {
-    LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(dailyRepo.findByTickerAndPriceDate(ticker, date)).thenReturn(List.of());
-
-    List<SupportResistanceDto> dailyDtoBySymbol = service.getDailySupportResistances("AAPL", date);
-    assertEquals(0, dailyDtoBySymbol.size());
-
-    List<SupportResistanceDto> dailyDtoByEntity = service.getDailySupportResistances(ticker, date);
-    assertEquals(0, dailyDtoByEntity.size());
-  }
-
-  @Test
-  void testGetWeeklySupportResistancesConvenienceMethods() {
-    LocalDate date = LocalDate.of(2026, 5, 29);
-    when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(weeklyRepo.findByTickerAndPriceDate(ticker, date)).thenReturn(List.of());
-
-    List<SupportResistanceDto> weeklyDtoBySymbol =
-        service.getWeeklySupportResistances("AAPL", date);
-    assertEquals(0, weeklyDtoBySymbol.size());
-
-    List<SupportResistanceDto> weeklyDtoByEntity =
-        service.getWeeklySupportResistances(ticker, date);
-    assertEquals(0, weeklyDtoByEntity.size());
   }
 }

@@ -18,15 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class SupportResistanceService {
 
-  private final TickerService tickerService;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
 
   public SupportResistanceService(
-      TickerService tickerService,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository) {
-    this.tickerService = tickerService;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
   }
@@ -45,24 +42,6 @@ public class SupportResistanceService {
       log.error("Unsupported timeframe for support resistance: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-  }
-
-  public List<SupportResistanceDto> getDailySupportResistances(Ticker ticker, LocalDate date) {
-    return getSupportResistances(ticker, Timeframe.DAILY, date);
-  }
-
-  public List<SupportResistanceDto> getDailySupportResistances(String symbol, LocalDate date) {
-    Ticker ticker = tickerService.getTicker(symbol);
-    return getDailySupportResistances(ticker, date);
-  }
-
-  public List<SupportResistanceDto> getWeeklySupportResistances(Ticker ticker, LocalDate date) {
-    return getSupportResistances(ticker, Timeframe.WEEKLY, date);
-  }
-
-  public List<SupportResistanceDto> getWeeklySupportResistances(String symbol, LocalDate date) {
-    Ticker ticker = tickerService.getTicker(symbol);
-    return getWeeklySupportResistances(ticker, date);
   }
 
   private SupportResistanceDto toDto(DailySupportResistance dailySupportResistance) {
