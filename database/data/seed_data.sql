@@ -25,7 +25,8 @@ VALUES ('EMA', 'CLOSE', '{"period": 5}'),
        ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}');
 
 INSERT INTO market_holidays (country, holiday_date, name, description)
-VALUES ('US', '2026-01-01', 'New Year’s Day', NULL),
+VALUES -- US Market 2026
+       ('US', '2026-01-01', 'New Year’s Day', NULL),
        ('US', '2026-01-19', 'Martin Luther King, Jr. Day', NULL),
        ('US', '2026-02-16', 'Washington''s Birthday', NULL),
        ('US', '2026-04-03', 'Good Friday', NULL),
@@ -35,6 +36,8 @@ VALUES ('US', '2026-01-01', 'New Year’s Day', NULL),
        ('US', '2026-09-07', 'Labor Day', NULL),
        ('US', '2026-11-26', 'Thanksgiving Day', NULL),
        ('US', '2026-12-25', 'Christmas Day', NULL),
+
+       -- US Market 2027
        ('US', '2027-01-01', 'New Year’s Day', NULL),
        ('US', '2027-01-18', 'Martin Luther King, Jr. Day', NULL),
        ('US', '2027-02-15', 'Washington''s Birthday', NULL),
@@ -45,6 +48,8 @@ VALUES ('US', '2026-01-01', 'New Year’s Day', NULL),
        ('US', '2027-09-06', 'Labor Day', NULL),
        ('US', '2027-11-25', 'Thanksgiving Day', NULL),
        ('US', '2027-12-24', 'Christmas Day (observed)', NULL),
+
+       -- US Market 2028
        ('US', '2028-01-17', 'Martin Luther King, Jr. Day', NULL),
        ('US', '2028-02-21', 'Washington''s Birthday', NULL),
        ('US', '2028-04-14', 'Good Friday', NULL),
@@ -54,6 +59,8 @@ VALUES ('US', '2026-01-01', 'New Year’s Day', NULL),
        ('US', '2028-09-04', 'Labor Day', NULL),
        ('US', '2028-11-23', 'Thanksgiving Day', NULL),
        ('US', '2028-12-25', 'Christmas Day', NULL),
+
+       -- India Market 2026
        ('IN', '2026-01-15', 'Municipal Corporation Election - Maharashtra', NULL),
        ('IN', '2026-01-26', 'Republic Day', NULL),
        ('IN', '2026-03-03', 'Holi', NULL),
