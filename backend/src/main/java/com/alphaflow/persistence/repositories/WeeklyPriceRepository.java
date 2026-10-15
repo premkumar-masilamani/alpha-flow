@@ -19,8 +19,6 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
   List<WeeklyPrice> findByTickerOrderByPriceDateAsc(Ticker ticker);
 
-  Optional<WeeklyPrice> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
-
   @Query(
       """
             SELECT wp FROM WeeklyPrice wp
@@ -32,30 +30,10 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
   @Query(
       """
-            SELECT wp FROM WeeklyPrice wp
-            JOIN FETCH wp.ticker tk
-            WHERE LOWER(tk.tickerSymbol) = LOWER(:tickerName)
-            ORDER BY wp.priceDate DESC
-          """)
-  List<WeeklyPrice> findLatestByTickerName(String tickerName, Pageable pageable);
-
-  @Query(
-      """
-              SELECT wp.priceDate FROM WeeklyPrice wp
-              WHERE wp.ticker = :ticker
-              ORDER BY wp.priceDate DESC
-            """)
-  List<LocalDate> findRecentPriceDates(Ticker ticker, Pageable pageable);
-
-  @Query(
-      """
               SELECT wp.priceDate FROM WeeklyPrice wp
               WHERE wp.ticker = :ticker
                 AND wp.priceDate <= :endDate
               ORDER BY wp.priceDate DESC
             """)
   List<LocalDate> findRecentPriceDatesUpTo(Ticker ticker, LocalDate endDate, Pageable pageable);
-
-  List<WeeklyPrice> findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
-      Ticker ticker, LocalDate priceDate);
 }
