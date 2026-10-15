@@ -1,4 +1,4 @@
-import { MarketHoliday } from '../services/api';
+import type { MarketHoliday } from '../services/api';
 
 export type MarketCountry = 'IN' | 'US';
 export type MarketStatusType = 'OPEN' | 'HOLIDAY' | 'WEEKEND' | 'PRE_MARKET' | 'AFTER_HOURS';

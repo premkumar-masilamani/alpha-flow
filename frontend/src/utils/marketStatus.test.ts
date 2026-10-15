@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getMarketStatus } from './marketStatus';
-import { MarketHoliday } from '../services/api';
+import type { MarketHoliday } from '../services/api';
 
 describe('getMarketStatus', () => {
     const mockHolidays: MarketHoliday[] = [
