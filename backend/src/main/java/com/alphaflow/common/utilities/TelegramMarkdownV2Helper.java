@@ -11,7 +11,7 @@ public final class TelegramMarkdownV2Helper {
   private TelegramMarkdownV2Helper() {}
 
   public static String escape(String text) {
-    if (text != null && !text.isEmpty()) {
+    if (StringUtil.isNotEmpty(text)) {
       StringBuilder builder = new StringBuilder(text.length() * 2);
       for (int index = 0; index < text.length(); index++) {
         char character = text.charAt(index);

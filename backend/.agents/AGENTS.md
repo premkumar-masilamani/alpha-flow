@@ -191,8 +191,8 @@ if (dailyBars.size() >= MIN_BARS) {
 - **PMD Static Analysis & Code Smells**:
   - Explicitly annotate single-abstract-method service interfaces with `@FunctionalInterface` to comply with PMD's `ImplicitFunctionalInterface` rule.
   - Always provide an explicit character set (e.g. `StandardCharsets.UTF_8`) to `String.getBytes(...)` in tests and network handlers to conform to PMD's `RelianceOnDefaultCharset` check.
-- **Sensitive Credential Sanitization in Error Payloads**:
-  - When logging network errors or persisting failures to audit tables (e.g., `notification_logs`), always sanitize sensitive bot credentials or API tokens (e.g., replacing occurrences with `******`) before logging or DB persistence to prevent secret leakage in diagnostic logs.
+- **Notification Error Persistence**:
+  - Persist the raw error description from external notification providers (such as Telegram) directly to the audit log table (`notification_logs`) to capture the exact failure details.
 
 
 

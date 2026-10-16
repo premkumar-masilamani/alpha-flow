@@ -11,5 +11,7 @@ public class TelegramConfig {
 
   private String apiToken;
   private String chatId;
-  private String messageUrl;
+  private String messageUrl =
+      "https://api.telegram.org/bot{TELEGRAM_API_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}&parse_mode=MarkdownV2";
+  private int maxMessageLength = 4096;
 }

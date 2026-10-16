@@ -35,9 +35,6 @@ public class NotificationLog {
   @EqualsAndHashCode.Include
   private Long notificationLogId;
 
-  @Column(name = "channel", nullable = false, length = 32)
-  private String channel;
-
   @Column(name = "message", nullable = false, length = 4096, columnDefinition = "TEXT")
   private String message;
 
@@ -45,7 +42,7 @@ public class NotificationLog {
   @Column(name = "status", nullable = false, length = 32)
   private NotificationStatus status;
 
-  @Column(name = "error_message", length = 4096, columnDefinition = "TEXT")
+  @Column(name = "error_message", columnDefinition = "TEXT")
   private String errorMessage;
 
   @Column(name = "created_at", nullable = false)
