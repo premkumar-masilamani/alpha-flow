@@ -8,8 +8,6 @@ import {
     getTechnicalAnalysis,
     getSupportResistances,
     getChartPatterns,
-    getQuote,
-    type QuoteData,
     indicatorKey,
     type Ticker,
     type DailyCandleData,
@@ -286,28 +284,6 @@ describe('API Service Layer Tests', () => {
         });
     });
 
-    describe('getQuote', () => {
-        it('should fetch and cache live quote data', async () => {
-            const mockQuote: QuoteData = {
-                currentPrice: 25100.5,
-                timestamp: '2026-09-23T15:30:00Z',
-            };
-
-            mockedAxios.get.mockResolvedValueOnce({ data: mockQuote });
-
-            const res1 = await getQuote('NIFTY50');
-            expect(res1).toEqual(mockQuote);
-            expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/quote')
-            );
-
-            // Second call - served from cache
-            const res2 = await getQuote('NIFTY50');
-            expect(res2).toEqual(mockQuote);
-            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-        });
-    });
-
     describe('getMarketHolidays & getCachedMarketHolidays', () => {
         beforeEach(() => {
             localStorage.clear();
@@ -378,6 +354,40 @@ describe('API Service Layer Tests', () => {
             expect(result).toEqual(mockHolidays);
             expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         });
+
+        it('getCachedMarketHolidays deduplicates concurrent in-flight network requests when cache is cold', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+
+            const [first, second] = await Promise.all([
+                getCachedMarketHolidays(),
+                getCachedMarketHolidays(),
+            ]);
+
+            expect(first).toEqual(mockHolidays);
+            expect(second).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+        });
+
+        it('getCachedMarketHolidays bypasses cached empty array and does not persist empty network response', async () => {
+            const emptyCachePayload = {
+                timestamp: Date.now(),
+                expiresAt: Date.now() + 100_000,
+                holidays: [],
+            };
+            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(emptyCachePayload));
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+
+            const emptyResult = await getCachedMarketHolidays();
+            expect(emptyResult).toEqual([]);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+            // Subsequent call when DB has been seeded should re-fetch and persist
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+            const populatedResult = await getCachedMarketHolidays();
+            expect(populatedResult).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
     });
 });
+
 

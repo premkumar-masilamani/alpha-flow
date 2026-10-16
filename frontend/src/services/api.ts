@@ -39,26 +39,6 @@ const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: nu
 
 export type Timeframe = 'DAILY' | 'WEEKLY' | '15M';
 
-export interface QuoteData {
-    currentPrice: number;
-    timestamp: string;
-}
-
-const quoteDataCache = new Map<string, { data: QuoteData; timestamp: number }>();
-const QUOTE_CACHE_DURATION = 10 * 1000; // 10 seconds
-
-export const getQuote = async (symbol: string, forceFresh = false): Promise<QuoteData> => {
-    const now = Date.now();
-    const cached = quoteDataCache.get(symbol);
-    if (!forceFresh && cached && (now - cached.timestamp < QUOTE_CACHE_DURATION)) {
-        return cached.data;
-    }
-
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/quote`);
-    quoteDataCache.set(symbol, { data: response.data, timestamp: now });
-    return response.data;
-};
-
 export const getCandleData = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
@@ -329,6 +309,8 @@ export const getMarketHolidays = async (): Promise<MarketHoliday[]> => {
     return response.data;
 };
 
+let inFlightHolidaysPromise: Promise<MarketHoliday[]> | null = null;
+
 export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
     if (typeof window !== 'undefined') {
         try {
@@ -339,7 +321,8 @@ export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
                     parsed &&
                     typeof parsed.expiresAt === 'number' &&
                     Date.now() < parsed.expiresAt &&
-                    Array.isArray(parsed.holidays)
+                    Array.isArray(parsed.holidays) &&
+                    parsed.holidays.length > 0
                 ) {
                     return parsed.holidays;
                 }
@@ -349,20 +332,30 @@ export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
         }
     }
 
-    const holidays = await getMarketHolidays();
-    if (typeof window !== 'undefined') {
-        try {
-            const cachePayload: CachedMarketHolidays = {
-                timestamp: Date.now(),
-                expiresAt: Date.now() + MARKET_HOLIDAYS_TTL_MS,
-                holidays,
-            };
-            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
-        } catch (error) {
-            console.warn('Failed to save market holidays to localStorage:', error);
-        }
+    if (!inFlightHolidaysPromise) {
+        inFlightHolidaysPromise = getMarketHolidays()
+            .then((holidays) => {
+                if (typeof window !== 'undefined' && Array.isArray(holidays) && holidays.length > 0) {
+                    try {
+                        const cachePayload: CachedMarketHolidays = {
+                            timestamp: Date.now(),
+                            expiresAt: Date.now() + MARKET_HOLIDAYS_TTL_MS,
+                            holidays,
+                        };
+                        localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
+                    } catch (error) {
+                        console.warn('Failed to save market holidays to localStorage:', error);
+                    }
+                }
+                return holidays;
+            })
+            .finally(() => {
+                inFlightHolidaysPromise = null;
+            });
     }
-    return holidays;
+
+    return inFlightHolidaysPromise;
 };
+
 
 

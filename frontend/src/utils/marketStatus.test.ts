@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getMarketStatus } from './marketStatus';
+import {
+    getMarketStatus,
+    getExpectedIntradayDateKey,
+    getCalendarDayRange,
+    getDayNonTradingReason,
+} from './marketStatus';
 import type { MarketHoliday } from '../services/api';
 
 describe('getMarketStatus', () => {
@@ -100,5 +105,70 @@ describe('getMarketStatus', () => {
         expect(usStatus.isOpen).toBe(false);
         expect(usStatus.statusType).toBe('AFTER_HOURS');
         expect(usStatus.displayMessage).toBe('Closed (Opens 09:30 EST)');
+    });
+});
+
+describe('getExpectedIntradayDateKey', () => {
+    it('returns the current market dateKey for IN and US markets across any time or day', () => {
+        // Friday 2026-10-16 at 09:31 IST (04:01 UTC)
+        const fridayOpenIn = new Date('2026-10-16T04:01:00Z');
+        expect(getExpectedIntradayDateKey(fridayOpenIn, 'IN')).toBe('2026-10-16');
+
+        // Friday 2026-10-16 at 10:00 EDT (14:00 UTC)
+        const fridayOpenUs = new Date('2026-10-16T14:00:00Z');
+        expect(getExpectedIntradayDateKey(fridayOpenUs, 'US')).toBe('2026-10-16');
+
+        // Saturday 2026-10-17 at 08:10 IST (02:40 UTC)
+        const saturdayMorningIn = new Date('2026-10-17T02:40:00Z');
+        expect(getExpectedIntradayDateKey(saturdayMorningIn, 'IN')).toBe('2026-10-17');
+    });
+});
+
+describe('getCalendarDayRange', () => {
+    it('generates every consecutive calendar day from startDateKey to endDateKey inclusive', () => {
+        expect(getCalendarDayRange('2026-10-15', '2026-10-18')).toEqual([
+            '2026-10-15',
+            '2026-10-16',
+            '2026-10-17',
+            '2026-10-18',
+        ]);
+    });
+
+    it('returns empty array when start is after end or malformed', () => {
+        expect(getCalendarDayRange('2026-10-18', '2026-10-15')).toEqual([]);
+        expect(getCalendarDayRange('invalid', '2026-10-15')).toEqual([]);
+    });
+});
+
+describe('getDayNonTradingReason', () => {
+    const mockHolidays: MarketHoliday[] = [
+        {
+            id: 1,
+            country: 'IN',
+            holidayDate: '2026-11-24',
+            name: 'Prakash Gurpurb Sri Guru Nanak Dev',
+        },
+    ];
+
+    it('identifies Saturday and Sunday as WEEKEND', () => {
+        expect(getDayNonTradingReason('2026-10-17', 'IN', mockHolidays)).toEqual({
+            type: 'WEEKEND',
+            label: 'Saturday',
+        });
+        expect(getDayNonTradingReason('2026-10-18', 'IN', mockHolidays)).toEqual({
+            type: 'WEEKEND',
+            label: 'Sunday',
+        });
+    });
+
+    it('identifies market holidays with the specific holiday name', () => {
+        expect(getDayNonTradingReason('2026-11-24', 'IN', mockHolidays)).toEqual({
+            type: 'HOLIDAY',
+            label: 'Prakash Gurpurb Sri Guru Nanak Dev',
+        });
+    });
+
+    it('returns null on regular trading weekdays', () => {
+        expect(getDayNonTradingReason('2026-10-16', 'IN', mockHolidays)).toBeNull();
     });
 });

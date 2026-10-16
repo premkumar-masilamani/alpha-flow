@@ -8,7 +8,7 @@ const Header: React.FC = () => {
     const [holidays, setHolidays] = useState<MarketHoliday[]>([]);
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+        const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
         return () => clearInterval(timer);
     }, []);
 
@@ -41,7 +41,6 @@ const Header: React.FC = () => {
     const formattedTime = currentTime.toLocaleTimeString(undefined, {
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
         hour12: true
     });
 

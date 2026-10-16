@@ -12,9 +12,10 @@ VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
        ('^GSPC', 'S&P 500', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
        ('^DJI', 'Dow Jones Industrial Average', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
        ('^IXIC', 'NASDAQ Composite', 'INDEX', 'US', true, 'YAHOO_FINANCE'),
-       ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE');
+       ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE')
+ON CONFLICT (ticker_symbol) DO NOTHING;
 
-INSERT INTO public.indicator_definitions (indicator_type, source, params)
+INSERT INTO indicator_definitions (indicator_type, source, params)
 VALUES ('EMA', 'CLOSE', '{"period": 5}'),
        ('EMA', 'CLOSE', '{"period": 13}'),
        ('EMA', 'CLOSE', '{"period": 26}'),
@@ -22,7 +23,8 @@ VALUES ('EMA', 'CLOSE', '{"period": 5}'),
        ('STOCHASTIC', 'CLOSE', '{"k": 14, "kSmooth": 3, "dSmooth": 3}'),
        ('SMA', 'VOLUME', '{"period": 20}'),
        ('MACD', 'CLOSE', '{"fast": 12, "slow": 26, "signal": 9}'),
-       ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}');
+       ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}')
+ON CONFLICT (indicator_type, source, params) DO NOTHING;
 
 INSERT INTO market_holidays (country, holiday_date, name)
 VALUES -- US Market 2026

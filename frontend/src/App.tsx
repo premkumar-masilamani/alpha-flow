@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Chart from "./components/Chart";
 import IndicatorControls from "./components/IndicatorControls";
+import PriceSummaryBanner from "./components/PriceSummaryBanner";
 import CandlestickPatternModal from "./components/CandlestickPatternModal";
 import ChartPatternModal from "./components/ChartPatternModal";
 import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
@@ -12,8 +13,6 @@ import { SUPPORT_RESISTANCE_RANGE_PCT, filterSupportResistances } from "./config
 import {
   type DailyCandleData,
   getCandleData,
-  getQuote,
-  type QuoteData,
   getIndicatorConfigs,
   getIndicatorSeries,
   getTickers,
@@ -30,7 +29,16 @@ import {
   getSupportResistances,
   getChartPatterns,
   type ChartPatternData,
+  getCachedMarketHolidays,
+  type MarketHoliday,
 } from "./services/api";
+import {
+  getMarketStatus,
+  getExpectedIntradayDateKey,
+  getCalendarDayRange,
+  getDayNonTradingReason,
+  type MarketCountry,
+} from "./utils/marketStatus";
 import {
   Loader2,
   ChevronLeft,
@@ -167,13 +175,29 @@ function App() {
   const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
 
   // Intraday states
-  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [rawIntradayCandles, setRawIntradayCandles] = useState<DailyCandleData[]>([]);
   const [selectedIntradayDay, setSelectedIntradayDay] = useState<string | null>(null);
   const [intradayLoading, setIntradayLoading] = useState(false);
   const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
   const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
+  const [marketHolidays, setMarketHolidays] = useState<MarketHoliday[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCachedMarketHolidays()
+      .then((data) => {
+        if (isMounted) {
+          setMarketHolidays(data);
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to load market holidays:", error);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setSelectedIntradayDay(null);
@@ -181,11 +205,37 @@ function App() {
     setLoadingOlderIntraday(false);
   }, [selectedTicker]);
 
-  // Calculate distinct available days sorted chronologically
+  const selectedTickerObj = useMemo(() => {
+    return tickers.find((t) => t.symbol === selectedTicker);
+  }, [tickers, selectedTicker]);
+
+  const selectedTickerCountry: MarketCountry = selectedTickerObj?.country ?? "IN";
+  const selectedTickerName = selectedTickerObj?.name;
+
+  const tickerCountryRef = useRef<MarketCountry>(selectedTickerCountry);
+  const marketHolidaysRef = useRef<MarketHoliday[]>(marketHolidays);
+
+  useEffect(() => {
+    tickerCountryRef.current = selectedTickerCountry;
+    marketHolidaysRef.current = marketHolidays;
+  }, [selectedTickerCountry, marketHolidays]);
+
+  const expectedIntradayDay = useMemo(() => {
+    return getExpectedIntradayDateKey(new Date(), selectedTickerCountry);
+  }, [selectedTickerCountry]);
+
+  // Calculate all calendar days from oldest available candle day up to expected current date
   const distinctDays = useMemo(() => {
     const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
-    return Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
-  }, [rawIntradayCandles]);
+    const candleDays = Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
+    if (candleDays.length === 0) {
+      return expectedIntradayDay ? [expectedIntradayDay] : [];
+    }
+    const startDay = candleDays[0];
+    const lastCandleDay = candleDays[candleDays.length - 1];
+    const endDay = lastCandleDay > expectedIntradayDay ? lastCandleDay : expectedIntradayDay;
+    return getCalendarDayRange(startDay, endDay);
+  }, [rawIntradayCandles, expectedIntradayDay]);
 
   // Determine active day: selected day if valid, otherwise defaults to latest available day
   const activeDay = useMemo(() => {
@@ -201,15 +251,29 @@ function App() {
     return distinctDays.indexOf(activeDay);
   }, [distinctDays, activeDay]);
 
-  const canGoPrev = (activeDayIndex > 0) || hasOlderIntraday;
+  const canGoPrev = (activeDayIndex > 0) || (hasOlderIntraday && rawIntradayCandles.length > 0);
   const canGoNext = activeDayIndex >= 0 && activeDayIndex < distinctDays.length - 1;
 
   const fetchOlderIntradayCandles = async (autoSelectPrev = false) => {
     if (loadingOlderIntraday || !hasOlderIntraday || !selectedTicker) return;
     setLoadingOlderIntraday(true);
     try {
-      const oldestDay = distinctDays.length > 0 ? distinctDays[0] : null;
-      const older = await getCandleData(selectedTicker, "15M", 0, 250, false, oldestDay || undefined);
+      const candleDays = Array.from(new Set(rawIntradayCandles.map((c) => getLocalDateKey(c.date)))).sort();
+      const oldestDay = candleDays.length > 0 ? candleDays[0] : null;
+      let queryEndDate: string | undefined;
+      if (oldestDay) {
+        const parts = oldestDay.split("-").map(Number);
+        if (parts.length === 3) {
+          const prevUtc = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] - 1));
+          const y = prevUtc.getUTCFullYear();
+          const m = String(prevUtc.getUTCMonth() + 1).padStart(2, "0");
+          const d = String(prevUtc.getUTCDate()).padStart(2, "0");
+          queryEndDate = `${y}-${m}-${d}`;
+        } else {
+          queryEndDate = oldestDay;
+        }
+      }
+      const older = await getCandleData(selectedTicker, "15M", 0, 250, false, queryEndDate);
       const strictlyOlder = oldestDay
         ? older.filter((c) => getLocalDateKey(c.date) < oldestDay)
         : older;
@@ -220,7 +284,13 @@ function App() {
       }
 
       const olderDays = Array.from(new Set(strictlyOlder.map((c) => getLocalDateKey(c.date)))).sort();
-      const prevDayToSelect = olderDays[olderDays.length - 1];
+      let prevDayToSelect = olderDays[olderDays.length - 1];
+      if (oldestDay && olderDays.length > 0) {
+        const bridgedRange = getCalendarDayRange(olderDays[0], oldestDay);
+        if (bridgedRange.length >= 2) {
+          prevDayToSelect = bridgedRange[bridgedRange.length - 2];
+        }
+      }
 
       setRawIntradayCandles((prev) => {
         const merged = [...strictlyOlder, ...prev];
@@ -241,7 +311,7 @@ function App() {
   const goToPrevDay = () => {
     if (activeDayIndex > 0) {
       setSelectedIntradayDay(distinctDays[activeDayIndex - 1]);
-      if (activeDayIndex <= 2 && hasOlderIntraday && !loadingOlderIntraday) {
+      if (activeDayIndex <= 5 && hasOlderIntraday && !loadingOlderIntraday) {
         fetchOlderIntradayCandles(false);
       }
     } else if (hasOlderIntraday && !loadingOlderIntraday) {
@@ -258,38 +328,25 @@ function App() {
   const intradayCandles = useMemo(() => {
     if (!activeDay) return [];
     const filtered = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === activeDay);
-    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
-
-    const isLatest = activeDayIndex === distinctDays.length - 1;
-    if (isLatest && sorted.length > 0 && quoteData && quoteData.currentPrice > 0) {
-      const lastIndex = sorted.length - 1;
-      const lastCandle = sorted[lastIndex];
-      const ltp = Number(quoteData.currentPrice);
-      sorted[lastIndex] = {
-        ...lastCandle,
-        high: Math.max(Number(lastCandle.high), ltp),
-        low: Math.min(Number(lastCandle.low), ltp),
-        close: ltp,
-      };
-    }
-    return sorted;
-  }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData]);
+    return [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+  }, [rawIntradayCandles, activeDay]);
 
   const { prevDayHigh, prevDayLow, prevDayClose } = useMemo(() => {
-    if (activeDayIndex > 0) {
-      const prevDayKey = distinctDays[activeDayIndex - 1];
-      const prevCandles = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === prevDayKey);
-      if (prevCandles.length > 0) {
-        const sortedPrev = [...prevCandles].sort((a, b) => a.date.localeCompare(b.date));
+    if (activeDay) {
+      const priorCandles = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) < activeDay);
+      if (priorCandles.length > 0) {
+        const sortedPrior = [...priorCandles].sort((a, b) => a.date.localeCompare(b.date));
+        const latestPriorDayKey = getLocalDateKey(sortedPrior[sortedPrior.length - 1].date);
+        const prevCandles = sortedPrior.filter((c) => getLocalDateKey(c.date) === latestPriorDayKey);
         return {
           prevDayHigh: Math.max(...prevCandles.map((c) => Number(c.high))),
           prevDayLow: Math.min(...prevCandles.map((c) => Number(c.low))),
-          prevDayClose: Number(sortedPrev[sortedPrev.length - 1].close),
+          prevDayClose: Number(prevCandles[prevCandles.length - 1].close),
         };
       }
     }
     return { prevDayHigh: null, prevDayLow: null, prevDayClose: null };
-  }, [rawIntradayCandles, distinctDays, activeDayIndex]);
+  }, [rawIntradayCandles, activeDay]);
 
   const filteredSupportResistances = useMemo(() => {
     if (chartCandleData.length === 0) {
@@ -593,7 +650,7 @@ function App() {
     };
   }, [selectedTicker, timeframe, showChartPatterns]);
 
-  // Fetch intraday candle data and live quote when selectedTicker or activeTab is intraday
+  // Fetch intraday candle data when selectedTicker or activeTab is intraday
   useEffect(() => {
     if (activeTab !== "intraday" || !selectedTicker) {
       return;
@@ -606,31 +663,33 @@ function App() {
         setIntradayError(null);
       }
       try {
-        const [rawCandles, quote] = await Promise.all([
-          getCandleData(selectedTicker, "15M", 0, 250, !isInitial).catch((err) => {
-            console.warn("Failed to fetch 15m candle data:", err);
-            return [] as DailyCandleData[];
-          }),
-          getQuote(selectedTicker, true).catch((err) => {
-            console.warn("Failed to fetch live quote:", err);
-            return null as QuoteData | null;
-          }),
-        ]);
+        const rawCandles = await getCandleData(selectedTicker, "15M", 0, 250, !isInitial).catch((err) => {
+          console.warn("Failed to fetch 15m candle data:", err);
+          return [] as DailyCandleData[];
+        });
 
         if (!active) return;
 
-        const hasValidQuote = quote && Number(quote.currentPrice) > 0;
-        if (rawCandles.length === 0 && !hasValidQuote) {
+        if (rawCandles.length === 0) {
           if (isInitial) {
-            setIntradayError("No data available for this ticker");
             setRawIntradayCandles([]);
-            setQuoteData(null);
+            setHasOlderIntraday(false);
           }
           return;
         }
 
-        setRawIntradayCandles(rawCandles);
-        setQuoteData(quote);
+        if (isInitial) {
+          setRawIntradayCandles(rawCandles);
+        } else {
+          setRawIntradayCandles((prev) => {
+            if (prev.length === 0) return rawCandles;
+            const byDate = new Map(prev.map((c) => [c.date, c]));
+            for (const c of rawCandles) {
+              byDate.set(c.date, c);
+            }
+            return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+          });
+        }
       } catch (err) {
         if (active && isInitial) {
           console.error("Failed to load intraday data:", err);
@@ -646,8 +705,11 @@ function App() {
     fetchIntraday(true);
 
     const intervalTimer = setInterval(() => {
-      fetchIntraday(false);
-    }, 30_000);
+      const status = getMarketStatus(new Date(), tickerCountryRef.current, marketHolidaysRef.current);
+      if (status.isOpen) {
+        fetchIntraday(false);
+      }
+    }, 60_000);
 
     return () => {
       active = false;
@@ -757,63 +819,94 @@ function App() {
   };
 
   const renderOverview = () => {
-    if (analysisError === "stale") {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
-            <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
-            <h3 className="text-lg font-bold text-white">Technical Analysis Not Yet Complete</h3>
-            <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
-              Technical analysis data has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
-            </p>
-          </div>
-        </div>
-      );
-    }
-
     if (analysisError === "server") {
+      const bannerDate = expectedIntradayDay ? formatSectionDate(expectedIntradayDay) : null;
       return (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
-          <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
-            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-rose-500/10 text-rose-400">
-              <Info size={24} />
+        <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+          <PriceSummaryBanner
+            ltp={null}
+            change={null}
+            changePct={null}
+            changeSubtitle="(vs prev close)"
+            open={null}
+            high={null}
+            low={null}
+            close={null}
+            volume={null}
+            date={bannerDate}
+          />
+          <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center p-8 text-center">
+            <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
+              <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-rose-500/10 text-rose-400">
+                <Info size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-white">Service Unavailable</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Could not reach the backend service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-white">Service Unavailable</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Could not reach the backend service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
-            </p>
           </div>
         </div>
       );
     }
 
-    if (!analysisData || !analysisData.candle) {
-      if (loading) {
-        return (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
-            <Loader2 className="animate-spin text-blue-500" size={32} />
-            <p className="text-sm font-semibold text-slate-400">
-              Loading technical analysis...
-            </p>
-          </div>
-        );
-      }
+    if (analysisError === "stale" || !analysisData || !analysisData.candle) {
+      const bannerDate = expectedIntradayDay ? formatSectionDate(expectedIntradayDay) : null;
       return (
-        <div className="flex-1 flex items-center justify-center text-slate-500">
-          No data available for this ticker
+        <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+          <PriceSummaryBanner
+            ltp={null}
+            change={null}
+            changePct={null}
+            changeSubtitle="(vs prev close)"
+            open={null}
+            high={null}
+            low={null}
+            close={null}
+            volume={null}
+            date={bannerDate}
+          />
+          <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center p-8">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center text-slate-500 gap-3">
+                <Loader2 className="animate-spin text-blue-500" size={32} />
+                <p className="text-sm font-semibold text-slate-400">Loading technical analysis...</p>
+              </div>
+            ) : (
+              <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+                <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+                <h3 className="text-lg font-bold text-white">Positional Data Unavailable</h3>
+                <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+                  Positional data or daily/weekly price data is not available for{" "}
+                  <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                  {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
 
     const { candle, dailyIndicators, weeklyIndicators } = analysisData;
-    const priceChange = candle.close - candle.open;
-    const priceChangePct = pctChange(priceChange, candle.open);
+    const priorDailyCandle =
+      chartCandleData.length > 1 ? chartCandleData[chartCandleData.length - 2] : null;
+    const overviewChangeBase = priorDailyCandle ? priorDailyCandle.close : candle.open;
+    const priceChange =
+      overviewChangeBase !== null && overviewChangeBase > 0
+        ? candle.close - overviewChangeBase
+        : null;
+    const priceChangePct =
+      priceChange !== null && overviewChangeBase !== null && overviewChangeBase > 0
+        ? pctChange(priceChange, overviewChangeBase)
+        : null;
+    const priceChangeSubtitle = priorDailyCandle ? "(vs prev close)" : "(vs open)";
 
     const renderRecentPatterns = (patterns: CandlestickPatternData[], candles: DailyCandleData[]) => {
       if (patterns.length === 0) {
         return (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-            <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+            <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
               <div className="flex items-center gap-3">
                 <button
@@ -863,8 +956,8 @@ function App() {
       const details = getCandlestickPatternDetails(latestPattern);
 
       return (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+          <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
             <div className="flex items-center gap-3">
               <button
@@ -879,7 +972,7 @@ function App() {
               </span>
             </div>
           </div>
-          <div className="p-6">
+          <div className="p-4">
             <div
               className={`relative overflow-hidden p-5 rounded-xl border transition-all duration-300 ${
                 isBullish
@@ -983,8 +1076,8 @@ function App() {
     const renderChartPatterns = (patterns: ChartPatternData[], candles: DailyCandleData[]) => {
       if (patterns.length === 0) {
         return (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-            <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+            <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-base font-bold text-white">Chart Patterns</h2>
               <div className="flex items-center gap-3">
                 <button
@@ -999,7 +1092,7 @@ function App() {
                 </span>
               </div>
             </div>
-            <div className="p-6 text-center text-slate-500 text-sm italic">
+            <div className="p-4 text-center text-slate-500 text-sm italic">
               No active or completed chart patterns detected.
             </div>
           </div>
@@ -1010,8 +1103,8 @@ function App() {
       const sortedPatterns = [...patterns].sort((a, b) => b.endDate.localeCompare(a.endDate));
 
       return (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+          <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Chart Patterns</h2>
             <div className="flex items-center gap-3">
               <button
@@ -1026,7 +1119,7 @@ function App() {
               </span>
             </div>
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-4 space-y-4">
             {sortedPatterns.map((pattern) => {
               const details = getChartPatternDetails(pattern.patternType) || getChartPatternDetails(pattern.displayName);
               const isBullish = pattern.sentiment.startsWith("BULLISH");
@@ -1233,8 +1326,8 @@ function App() {
     };
 
     const renderIndicatorTable = (title: string, date: string, indicators: IndicatorSeries[]) => (
-      <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
-        <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+      <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+        <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
           <h2 className="text-base font-bold text-white">{title}</h2>
           <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
             {date || 'N/A'}
@@ -1291,71 +1384,31 @@ function App() {
     const weeklyDate = weeklyIndicators[0]?.points[0]?.date || '';
 
     return (
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
-        {/* Quick Stats Card */}
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur">
-          <div className="flex justify-between items-center mb-6">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-              OHLCV Technical Analysis
-            </div>
-            <div className="text-xs px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 font-semibold text-slate-300 font-mono">
-              {formatSectionDate(candle.date)}
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-6">
-            <span className="text-4xl font-extrabold text-white">
-              {Number(candle.close).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 4,
-              })}
-            </span>
-            <span
-              className={`text-sm font-bold flex items-center px-2 py-0.5 rounded-full ${
-                priceChange >= 0
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-rose-500/10 text-rose-400"
-              }`}
-            >
-              {priceChange >= 0 ? "+" : ""}
-              {priceChangePct.toFixed(2)}%
-            </span>
-          </div>
-          <div className="border-t border-slate-800/80 pt-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Open</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.open).toFixed(2)}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950 text-slate-200">
+        {/* Summary Banner */}
+        <PriceSummaryBanner
+          ltp={candle.close}
+          change={priceChange}
+          changePct={priceChangePct}
+          changeSubtitle={priceChangeSubtitle}
+          open={candle.open}
+          high={candle.high}
+          low={candle.low}
+          close={candle.close}
+          volume={candle.vol}
+          date={formatSectionDate(candle.date)}
+        />
+
+        {/* Support and Resistance Section */}
+        {filteredSupportResistances.length > 0 && (
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-4 shadow-lg backdrop-blur">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-bold text-white">Support & Resistance Zones</h2>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                {formatSectionDate(candle.date)}
               </span>
             </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">High</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.high).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Low</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.low).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Close</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.close).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Volume</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.vol).toLocaleString()}
-              </span>
-            </div>
-          </div>
-          
-          {/* Support and Resistance Section */}
-          {filteredSupportResistances.length > 0 && (
-            <div className="border-t border-slate-800/80 pt-4 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-emerald-500/80 block text-xs uppercase tracking-wider mb-2 font-bold">Support Zones</span>
                 <div className="space-y-1">
@@ -1385,8 +1438,8 @@ function App() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Recent Candlestick Patterns */}
         {renderRecentPatterns(overviewPatterns, recentDailyCandles)}
@@ -1411,116 +1464,58 @@ function App() {
       );
     }
 
-    const hasValidQuoteData = quoteData && Number(quoteData.currentPrice) > 0;
-    if (intradayError || (rawIntradayCandles.length === 0 && !hasValidQuoteData)) {
-      return (
-        <div className="flex-1 flex items-center justify-center text-slate-500">
-          No data available for this ticker
-        </div>
-      );
-    }
+    const hasCandlesForActiveDay = intradayCandles.length > 0;
+    const latestCandle = hasCandlesForActiveDay ? intradayCandles[intradayCandles.length - 1] : null;
+    const firstCandle = hasCandlesForActiveDay ? intradayCandles[0] : null;
 
-    const isLatestDay = activeDayIndex === distinctDays.length - 1;
-    const latestCandle = intradayCandles.length > 0 ? intradayCandles[intradayCandles.length - 1] : null;
-    const firstCandle = intradayCandles.length > 0 ? intradayCandles[0] : null;
-
-    const ltp = isLatestDay
-      ? (quoteData?.currentPrice ?? (latestCandle ? latestCandle.close : 0))
-      : (latestCandle ? latestCandle.close : 0);
-    const openPrice = firstCandle ? firstCandle.open : 0;
-    const highPrice = intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0;
-    const lowPrice = intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0;
-    const closePrice = latestCandle ? latestCandle.close : ltp;
+    const ltp: number | null = latestCandle ? Number(latestCandle.close) : null;
+    const openPrice = firstCandle ? Number(firstCandle.open) : null;
+    const highPrice = hasCandlesForActiveDay
+      ? Math.max(...intradayCandles.map((c) => Number(c.high)))
+      : null;
+    const lowPrice = hasCandlesForActiveDay
+      ? Math.min(...intradayCandles.map((c) => Number(c.low)))
+      : null;
+    const closePrice = latestCandle ? Number(latestCandle.close) : null;
 
     const changeBase = prevDayClose ?? openPrice;
-    const change = changeBase > 0 ? (isLatestDay ? ltp - changeBase : closePrice - changeBase) : 0;
-    const pct = pctChange(change, changeBase);
-    const isPositive = change >= 0;
+    const referencePrice = closePrice;
+    const hasValidChange = referencePrice !== null && changeBase !== null && changeBase > 0;
+    const change = hasValidChange ? referencePrice - changeBase : 0;
+    const pct = hasValidChange ? pctChange(change, changeBase) : 0;
 
-    const chartDate = latestCandle?.date || (isLatestDay ? quoteData?.timestamp : null);
+    const chartDate = latestCandle?.date || activeDay || expectedIntradayDay;
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
+    const totalDayVolume = hasCandlesForActiveDay
+      ? intradayCandles.reduce((acc, c) => acc + (Number(c.vol) || 0), 0)
+      : null;
+    const nonTradingReason = activeDay
+      ? getDayNonTradingReason(activeDay, selectedTickerCountry, marketHolidays)
+      : null;
 
     return (
       <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
         {/* Quote / Summary Banner */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-4 shadow-lg backdrop-blur flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last Traded Price</div>
-              <div className="text-2xl font-bold font-mono text-white mt-0.5">
-                {ltp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Change <span className="text-[10px] text-slate-500 font-normal lowercase">(vs last day close)</span>
-              </div>
-              <div
-                className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
-                  isPositive ? "text-emerald-400" : "text-rose-400"
-                }`}
-              >
-                {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                <span>
-                  {isPositive ? "+" : ""}
-                  {change.toFixed(2)} ({isPositive ? "+" : ""}
-                  {pct.toFixed(2)}%)
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Open:</span>
-              <span className="text-slate-200 font-semibold">{openPrice.toFixed(2)}</span>
-            </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">High:</span>
-              <span className="text-slate-200 font-semibold">{highPrice.toFixed(2)}</span>
-            </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Low:</span>
-              <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
-            </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Close:</span>
-              <span className="text-slate-200 font-semibold">{closePrice.toFixed(2)}</span>
-            </div>
-            {chartDateFormatted && chartDateFormatted !== "N/A" && (
-              <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
-                <button
-                  onClick={goToPrevDay}
-                  disabled={!canGoPrev || loadingOlderIntraday}
-                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
-                  title="Previous day"
-                  aria-label="Previous day"
-                >
-                  {loadingOlderIntraday && activeDayIndex === 0 ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <ChevronLeft size={14} />
-                  )}
-                </button>
-                <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
-                  {chartDateFormatted}
-                </span>
-                <button
-                  onClick={goToNextDay}
-                  disabled={!canGoNext || loadingOlderIntraday}
-                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-r"
-                  title="Next day"
-                  aria-label="Next day"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-            <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
-              15m
-            </span>
-          </div>
-        </div>
+        <PriceSummaryBanner
+          ltp={ltp}
+          change={hasValidChange ? change : null}
+          changePct={hasValidChange ? pct : null}
+          changeSubtitle="(vs last day close)"
+          open={openPrice}
+          high={highPrice}
+          low={lowPrice}
+          close={closePrice}
+          volume={totalDayVolume}
+          date={chartDateFormatted}
+          traversal={{
+            canGoPrev,
+            canGoNext,
+            onPrev: goToPrevDay,
+            onNext: goToNextDay,
+            loadingOlder: loadingOlderIntraday,
+            isAtBoundary: activeDayIndex === 0,
+          }}
+        />
 
         {/* 15m Candlestick Chart */}
         <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
@@ -1538,14 +1533,64 @@ function App() {
               onLoadOlderData={() => {}}
             />
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3 p-8">
               {intradayLoading ? (
                 <>
                   <Loader2 className="animate-spin text-blue-500" size={32} />
                   <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
                 </>
               ) : (
-                "No chart candles recorded yet for this session"
+                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+                  <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+                  <h3 className="text-lg font-bold text-white">
+                    {intradayError
+                      ? "Failed to Load Intraday Data"
+                      : rawIntradayCandles.length === 0
+                        ? "Intraday Data Unavailable"
+                        : nonTradingReason?.type === "WEEKEND"
+                          ? "Market Closed — Weekend"
+                          : nonTradingReason?.type === "HOLIDAY"
+                            ? `Market Closed — ${nonTradingReason.label}`
+                            : "Awaiting Intraday Data"}
+                  </h3>
+                  <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+                    {intradayError ? (
+                      <>
+                        Failed to load 15-minute intraday data for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                        {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                        Please check your network connection or try again later.
+                      </>
+                    ) : rawIntradayCandles.length === 0 ? (
+                      <>
+                        Intraday data is not available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                        {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                      </>
+                    ) : nonTradingReason?.type === "WEEKEND" ? (
+                      <>
+                        No 15-minute intraday data is available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> on{" "}
+                        <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span> because the
+                        market is closed for the weekend ({nonTradingReason.label}).
+                      </>
+                    ) : nonTradingReason?.type === "HOLIDAY" ? (
+                      <>
+                        No 15-minute intraday data is available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> on{" "}
+                        <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span> because the
+                        market is closed for <span className="font-semibold text-amber-300">{nonTradingReason.label}</span>.
+                      </>
+                    ) : (
+                      <>
+                        15-minute intraday candles for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> have not yet
+                        been populated for{" "}
+                        <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span>.
+                      </>
+                    )}
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -1562,6 +1607,28 @@ function App() {
         </div>
       );
     }
+
+    const latestChartCandle =
+      chartCandleData.length > 0
+        ? chartCandleData[chartCandleData.length - 1]
+        : (analysisData?.candle ?? null);
+    const priorChartCandle =
+      chartCandleData.length > 1 ? chartCandleData[chartCandleData.length - 2] : null;
+
+    const chartChangeBase = priorChartCandle
+      ? priorChartCandle.close
+      : (latestChartCandle ? latestChartCandle.open : null);
+    const chartPriceChange =
+      latestChartCandle && chartChangeBase !== null && chartChangeBase > 0
+        ? latestChartCandle.close - chartChangeBase
+        : null;
+    const chartPriceChangePct =
+      chartPriceChange !== null && chartChangeBase !== null && chartChangeBase > 0
+        ? pctChange(chartPriceChange, chartChangeBase)
+        : null;
+    const chartPriceChangeSubtitle = priorChartCandle
+      ? "(vs prev close)"
+      : (latestChartCandle ? "(vs open)" : undefined);
 
     return (
       <>
@@ -1585,7 +1652,7 @@ function App() {
                 {selectedTicker}
               </h2>
               <p className="text-slate-400 text-sm">
-                {tickers.find((t) => t.symbol === selectedTicker)?.name}
+                {selectedTickerName}
               </p>
             </div>
           </div>
@@ -1637,6 +1704,26 @@ function App() {
         ) : activeTab === "charts" ? (
           <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
             {selectedTicker && (
+              <PriceSummaryBanner
+                ltp={latestChartCandle ? latestChartCandle.close : null}
+                change={chartPriceChange}
+                changePct={chartPriceChangePct}
+                changeSubtitle={chartPriceChangeSubtitle}
+                open={latestChartCandle ? latestChartCandle.open : null}
+                high={latestChartCandle ? latestChartCandle.high : null}
+                low={latestChartCandle ? latestChartCandle.low : null}
+                close={latestChartCandle ? latestChartCandle.close : null}
+                volume={latestChartCandle ? latestChartCandle.vol : null}
+                date={
+                  latestChartCandle?.date
+                    ? formatSectionDate(latestChartCandle.date)
+                    : expectedIntradayDay
+                      ? formatSectionDate(expectedIntradayDay)
+                      : null
+                }
+              />
+            )}
+            {selectedTicker && chartCandleData.length > 0 && (
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <IndicatorControls
@@ -1738,14 +1825,22 @@ function App() {
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3 p-8">
                   {loading ? (
                     <>
                       <Loader2 className="animate-spin text-blue-500" size={32} />
                       <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
                     </>
                   ) : (
-                    "No data available for this ticker"
+                    <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+                      <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+                      <h3 className="text-lg font-bold text-white">Daily & Weekly Price Data Unavailable</h3>
+                      <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+                        Positional data or daily/weekly price data is not available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                        {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
