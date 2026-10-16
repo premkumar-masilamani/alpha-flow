@@ -2,8 +2,9 @@ package com.alphaflow.engine.strategies;
 
 import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.utils.TelegramMarkdownV2Helper;
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
-import com.alphaflow.engine.strategies.model.TickerStrategyState;
+import com.alphaflow.engine.strategies.model.SakthIntradayStrategyState;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -29,7 +30,7 @@ public class SakthIntradayStrategy {
 
   private final DailyPriceRepository dailyPriceRepository;
   private final NotificationService notificationService;
-  private final ConcurrentMap<Long, TickerStrategyState> stateMap = new ConcurrentHashMap<>();
+  private final ConcurrentMap<Long, SakthIntradayStrategyState> stateMap = new ConcurrentHashMap<>();
 
   public SakthIntradayStrategy(
       DailyPriceRepository dailyPriceRepository, NotificationService notificationService) {
@@ -41,42 +42,58 @@ public class SakthIntradayStrategy {
     LocalDate sessionDate =
         liveQuote.getQuoteTime().atZoneSameInstant(MarketConstants.IST_ZONE).toLocalDate();
 
-    TickerStrategyState state =
+    SakthIntradayStrategyState state =
         stateMap.compute(
             ticker.getTickerId(),
             (tickerId, existingState) -> {
               if (existingState != null && sessionDate.equals(existingState.getSessionDate())) {
                 return existingState;
               } else {
-                return new TickerStrategyState(sessionDate);
+                return new SakthIntradayStrategyState(sessionDate);
               }
             });
 
-    LocalDate previousTradingDateLimit = sessionDate.minusDays(1);
-    List<DailyPrice> recentPrices =
-        dailyPriceRepository.findLatestByTickerAndEndDate(
-            ticker, previousTradingDateLimit, PageRequest.of(0, 1));
+    ensurePreviousTradingDayResolved(ticker, sessionDate, state);
 
-    if (!recentPrices.isEmpty()) {
-      DailyPrice previousDayPrice = recentPrices.getFirst();
-      BigDecimal previousDayHigh = previousDayPrice.getPriceHigh();
-      BigDecimal previousDayLow = previousDayPrice.getPriceLow();
+    if (state.getPreviousDayHigh() != null) {
+      BigDecimal previousDayHigh = state.getPreviousDayHigh();
+      BigDecimal previousDayLow = state.getPreviousDayLow();
       BigDecimal currentPrice = liveQuote.getLastPrice();
 
       evaluateBearCase(ticker, liveQuote, state, currentPrice, previousDayLow);
       evaluateBullCase(ticker, liveQuote, state, currentPrice, previousDayHigh);
-    } else {
-      log.warn(
-          "Skipping SakthIntradayStrategy evaluation for {}: no prior daily prices found before {}",
-          ticker.getTickerSymbol(),
-          previousTradingDateLimit);
+    }
+  }
+
+  private synchronized void ensurePreviousTradingDayResolved(
+      Ticker ticker, LocalDate sessionDate, SakthIntradayStrategyState state) {
+    if (!state.isPreviousDayResolved()) {
+      LocalDate previousTradingDate =
+          MarketTradingCalendar.getPreviousTradingDay(sessionDate, ticker.getCountry());
+      state.setPreviousTradingDate(previousTradingDate);
+
+      List<DailyPrice> recentPrices =
+          dailyPriceRepository.findLatestByTickerAndEndDate(
+              ticker, previousTradingDate, PageRequest.of(0, 1));
+
+      if (!recentPrices.isEmpty()) {
+        DailyPrice previousDayPrice = recentPrices.getFirst();
+        state.setPreviousDayHigh(previousDayPrice.getPriceHigh());
+        state.setPreviousDayLow(previousDayPrice.getPriceLow());
+      } else {
+        log.warn(
+            "Skipping SakthIntradayStrategy evaluation for {}: no prior daily prices found on or before {}",
+            ticker.getTickerSymbol(),
+            previousTradingDate);
+      }
+      state.setPreviousDayResolved(true);
     }
   }
 
   private void evaluateBearCase(
       Ticker ticker,
       LiveQuote liveQuote,
-      TickerStrategyState state,
+      SakthIntradayStrategyState state,
       BigDecimal currentPrice,
       BigDecimal previousDayLow) {
     if (!state.isBearBreachNotified()) {
@@ -101,7 +118,7 @@ public class SakthIntradayStrategy {
   private void evaluateBullCase(
       Ticker ticker,
       LiveQuote liveQuote,
-      TickerStrategyState state,
+      SakthIntradayStrategyState state,
       BigDecimal currentPrice,
       BigDecimal previousDayHigh) {
     if (!state.isBullBreachNotified()) {
@@ -134,7 +151,7 @@ public class SakthIntradayStrategy {
 
   private String buildBearBreachMessage(
       Ticker ticker, LiveQuote liveQuote, BigDecimal previousDayLow) {
-    return "🚨 *"
+    return "*"
         + TelegramMarkdownV2Helper.escape("[BEARISH ALERT] Previous Day Low Breached")
         + "*\n"
         + "*Ticker:* "
@@ -157,7 +174,7 @@ public class SakthIntradayStrategy {
 
   private String buildBearReversalMessage(
       Ticker ticker, LiveQuote liveQuote, BigDecimal lowestPrice, BigDecimal previousDayLow) {
-    return "🟢 *"
+    return "*"
         + TelegramMarkdownV2Helper.escape("[BULLISH REVERSAL] 70-Point Bounce from Low")
         + "*\n"
         + "*Ticker:* "
@@ -182,7 +199,7 @@ public class SakthIntradayStrategy {
 
   private String buildBullBreachMessage(
       Ticker ticker, LiveQuote liveQuote, BigDecimal previousDayHigh) {
-    return "🚨 *"
+    return "*"
         + TelegramMarkdownV2Helper.escape("[BULLISH ALERT] Previous Day High Breached")
         + "*\n"
         + "*Ticker:* "
@@ -205,7 +222,7 @@ public class SakthIntradayStrategy {
 
   private String buildBullReversalMessage(
       Ticker ticker, LiveQuote liveQuote, BigDecimal highestPrice, BigDecimal previousDayHigh) {
-    return "🔴 *"
+    return "*"
         + TelegramMarkdownV2Helper.escape("[BEARISH REVERSAL] 70-Point Pullback from High")
         + "*\n"
         + "*Ticker:* "

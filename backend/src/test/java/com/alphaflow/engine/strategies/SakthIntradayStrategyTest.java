@@ -1,9 +1,12 @@
 package com.alphaflow.engine.strategies;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -13,19 +16,24 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.exceptions.NotificationException;
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.PageRequest;
 
 class SakthIntradayStrategyTest {
 
@@ -41,12 +49,22 @@ class SakthIntradayStrategyTest {
     notificationService = mock(NotificationService.class);
     strategy = new SakthIntradayStrategy(dailyPriceRepository, notificationService);
 
-    ticker = Ticker.builder().tickerId(101L).tickerSymbol("NIFTY50").build();
+    ticker =
+        Ticker.builder()
+            .tickerId(101L)
+            .tickerSymbol("NIFTY50")
+            .country(Country.IN)
+            .build();
     baseQuoteTime =
         LocalDate.of(2026, 10, 16)
             .atTime(10, 30, 0)
             .atZone(MarketConstants.IST_ZONE)
             .toOffsetDateTime();
+  }
+
+  @AfterEach
+  void tearDown() {
+    MarketTradingCalendar.clearHolidays();
   }
 
   private DailyPrice createPreviousDailyPrice(
@@ -90,7 +108,7 @@ class SakthIntradayStrategyTest {
   }
 
   @Test
-  void testBearishPdlBreach_TriggersNotification1() {
+  void testBearishPdlBreach_TriggersNotification1WithoutIcons() {
     DailyPrice previousDayPrice =
         createPreviousDailyPrice(
             LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
@@ -107,6 +125,9 @@ class SakthIntradayStrategyTest {
     assertTrue(sentMessage.contains("NIFTY50"));
     assertTrue(sentMessage.contains("23980"));
     assertTrue(sentMessage.contains("24000"));
+    assertFalse(sentMessage.contains("🚨"));
+    assertFalse(sentMessage.contains("🟢"));
+    assertFalse(sentMessage.contains("🔴"));
   }
 
   @Test
@@ -148,7 +169,7 @@ class SakthIntradayStrategyTest {
   }
 
   @Test
-  void testBearishBounce_TriggersNotification2_AndIgnoresSubsequentTicks() {
+  void testBearishBounce_TriggersNotification2_AndIgnoresSubsequentTicks_AndCallsDbOnce() {
     DailyPrice previousDayPrice =
         createPreviousDailyPrice(
             LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
@@ -170,15 +191,21 @@ class SakthIntradayStrategyTest {
     assertTrue(secondMessage.contains("23990"));
     assertTrue(secondMessage.contains("23920"));
     assertTrue(secondMessage.contains("+70 points from low"));
+    assertFalse(secondMessage.contains("🚨"));
+    assertFalse(secondMessage.contains("🟢"));
+    assertFalse(secondMessage.contains("🔴"));
 
     // Third tick: Further fluctuations -> NO third notification
     LiveQuote quote3 = createLiveQuote(new BigDecimal("24050.00"), baseQuoteTime.plusMinutes(2));
     strategy.evaluateAndNotify(ticker, quote3);
     verify(notificationService, times(2)).sendNotification(anyString());
+
+    // DB call should be executed ONLY ONCE for the session date
+    verify(dailyPriceRepository, times(1)).findLatestByTickerAndEndDate(any(), any(), any());
   }
 
   @Test
-  void testBullishPdhBreach_TriggersNotification1() {
+  void testBullishPdhBreach_TriggersNotification1WithoutIcons() {
     DailyPrice previousDayPrice =
         createPreviousDailyPrice(
             LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
@@ -195,6 +222,9 @@ class SakthIntradayStrategyTest {
     assertTrue(sentMessage.contains("NIFTY50"));
     assertTrue(sentMessage.contains("24510"));
     assertTrue(sentMessage.contains("24500"));
+    assertFalse(sentMessage.contains("🚨"));
+    assertFalse(sentMessage.contains("🟢"));
+    assertFalse(sentMessage.contains("🔴"));
   }
 
   @Test
@@ -258,6 +288,9 @@ class SakthIntradayStrategyTest {
     assertTrue(secondMessage.contains("24510"));
     assertTrue(secondMessage.contains("24580"));
     assertTrue(secondMessage.contains("-70 points from high"));
+    assertFalse(secondMessage.contains("🚨"));
+    assertFalse(secondMessage.contains("🟢"));
+    assertFalse(secondMessage.contains("🔴"));
 
     // Third tick: Further fluctuations -> NO third notification
     LiveQuote quote3 = createLiveQuote(new BigDecimal("24450.00"), baseQuoteTime.plusMinutes(2));
@@ -308,5 +341,60 @@ class SakthIntradayStrategyTest {
 
     // Notification 1 fires again for the new day because state was reset
     verify(notificationService, times(2)).sendNotification(anyString());
+  }
+
+  @Test
+  void testMondaySession_ResolvesPreviousFridayTradingDay() {
+    // Monday 2026-10-19 -> previous trading day is Friday 2026-10-16
+    OffsetDateTime mondayTime =
+        LocalDate.of(2026, 10, 19)
+            .atTime(10, 0, 0)
+            .atZone(MarketConstants.IST_ZONE)
+            .toOffsetDateTime();
+    LocalDate expectedFriday = LocalDate.of(2026, 10, 16);
+
+    DailyPrice fridayPrice =
+        createPreviousDailyPrice(expectedFriday, new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+    when(dailyPriceRepository.findLatestByTickerAndEndDate(
+            eq(ticker), eq(expectedFriday), eq(PageRequest.of(0, 1))))
+        .thenReturn(List.of(fridayPrice));
+
+    LiveQuote quote = createLiveQuote(new BigDecimal("23950.00"), mondayTime);
+    strategy.evaluateAndNotify(ticker, quote);
+
+    ArgumentCaptor<LocalDate> dateCaptor = ArgumentCaptor.forClass(LocalDate.class);
+    verify(dailyPriceRepository)
+        .findLatestByTickerAndEndDate(eq(ticker), dateCaptor.capture(), eq(PageRequest.of(0, 1)));
+    assertEquals(expectedFriday, dateCaptor.getValue());
+    verify(notificationService, times(1)).sendNotification(anyString());
+  }
+
+  @Test
+  void testHolidayBeforeSession_ResolvesPriorActiveTradingDay() {
+    // If Friday 2026-10-16 was a holiday, Monday 2026-10-19 resolves to Thursday 2026-10-15
+    MarketTradingCalendar.setHolidays(
+        Country.IN, Map.of(LocalDate.of(2026, 10, 16), "Test Holiday"));
+
+    OffsetDateTime mondayTime =
+        LocalDate.of(2026, 10, 19)
+            .atTime(10, 0, 0)
+            .atZone(MarketConstants.IST_ZONE)
+            .toOffsetDateTime();
+    LocalDate expectedThursday = LocalDate.of(2026, 10, 15);
+
+    DailyPrice thursdayPrice =
+        createPreviousDailyPrice(expectedThursday, new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+    when(dailyPriceRepository.findLatestByTickerAndEndDate(
+            eq(ticker), eq(expectedThursday), eq(PageRequest.of(0, 1))))
+        .thenReturn(List.of(thursdayPrice));
+
+    LiveQuote quote = createLiveQuote(new BigDecimal("23950.00"), mondayTime);
+    strategy.evaluateAndNotify(ticker, quote);
+
+    ArgumentCaptor<LocalDate> dateCaptor = ArgumentCaptor.forClass(LocalDate.class);
+    verify(dailyPriceRepository)
+        .findLatestByTickerAndEndDate(eq(ticker), dateCaptor.capture(), eq(PageRequest.of(0, 1)));
+    assertEquals(expectedThursday, dateCaptor.getValue());
+    verify(notificationService, times(1)).sendNotification(anyString());
   }
 }
