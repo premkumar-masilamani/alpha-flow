@@ -877,7 +877,7 @@ function App() {
                 <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
                 <h3 className="text-lg font-bold text-white">Positional Data Unavailable</h3>
                 <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
-                  Positional data or daily/weekly price data is not available for{" "}
+                  Daily and weekly price data is not available for{" "}
                   <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
                   {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
                 </p>
@@ -1836,7 +1836,7 @@ function App() {
                       <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
                       <h3 className="text-lg font-bold text-white">Daily & Weekly Price Data Unavailable</h3>
                       <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
-                        Positional data or daily/weekly price data is not available for{" "}
+                        Daily and weekly price data is not available for{" "}
                         <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
                         {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
                       </p>

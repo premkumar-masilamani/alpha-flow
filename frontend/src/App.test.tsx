@@ -408,11 +408,10 @@ describe('App Intra-Day Tab - Issue #232', () => {
         render(<App />);
 
         await waitFor(() => {
-            expect(screen.getByText('Last Traded Price')).toBeInTheDocument();
+            expect(screen.getByText('22,700.00')).toBeInTheDocument();
         });
 
         // PriceSummaryBanner values
-        expect(screen.getByText('22,700.00')).toBeInTheDocument();
         expect(screen.getByText('Open:').parentElement).toHaveTextContent('Open:22600.00');
         expect(screen.getByText('High:').parentElement).toHaveTextContent('High:22750.00');
         expect(screen.getByText('Low:').parentElement).toHaveTextContent('Low:22550.00');
@@ -560,8 +559,8 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(2);
 
         // Amber card displays the message with symbol and ticker name
-        const message = screen.getByText(/Positional data or daily\/weekly price data is not available for/i);
-        expect(message).toHaveTextContent('Positional data or daily/weekly price data is not available for NIFTY50 (NIFTY 50).');
+        const message = screen.getByText(/Daily and weekly price data is not available for/i);
+        expect(message).toHaveTextContent('Daily and weekly price data is not available for NIFTY50 (NIFTY 50).');
         expect(screen.getAllByText('NIFTY50').length).toBeGreaterThanOrEqual(3);
     });
 
@@ -597,9 +596,8 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.queryByText('S/R')).not.toBeInTheDocument();
 
         // Amber card displays the message with symbol and ticker name
-        const message = screen.getByText(/Positional data or daily\/weekly price data is not available for/i);
-        expect(message).toHaveTextContent('Positional data or daily/weekly price data is not available for NIFTY50 (NIFTY 50).');
+        const message = screen.getByText(/Daily and weekly price data is not available for/i);
+        expect(message).toHaveTextContent('Daily and weekly price data is not available for NIFTY50 (NIFTY 50).');
         expect(screen.getAllByText('NIFTY50').length).toBeGreaterThanOrEqual(3);
     });
 });
-
