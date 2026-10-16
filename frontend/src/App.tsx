@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
 import Chart from "./components/Chart";
 import IndicatorControls from "./components/IndicatorControls";
+import PriceSummaryBanner from "./components/PriceSummaryBanner";
 import CandlestickPatternModal from "./components/CandlestickPatternModal";
 import ChartPatternModal from "./components/ChartPatternModal";
 import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
@@ -1351,70 +1352,30 @@ function App() {
 
     return (
       <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
-        {/* Quick Stats Card */}
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur">
-          <div className="flex justify-between items-center mb-6">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">
-              OHLCV Technical Analysis
-            </div>
-            <div className="text-xs px-2.5 py-1 rounded-md bg-slate-800 border border-slate-700 font-semibold text-slate-300 font-mono">
-              {formatSectionDate(candle.date)}
-            </div>
-          </div>
-          <div className="flex items-baseline gap-2 mb-6">
-            <span className="text-4xl font-extrabold text-white">
-              {Number(candle.close).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 4,
-              })}
-            </span>
-            <span
-              className={`text-sm font-bold flex items-center px-2 py-0.5 rounded-full ${
-                priceChange >= 0
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-rose-500/10 text-rose-400"
-              }`}
-            >
-              {priceChange >= 0 ? "+" : ""}
-              {priceChangePct.toFixed(2)}%
-            </span>
-          </div>
-          <div className="border-t border-slate-800/80 pt-4 grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Open</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.open).toFixed(2)}
+        {/* Summary Banner */}
+        <PriceSummaryBanner
+          ltp={candle.close}
+          change={priceChange}
+          changePct={priceChangePct}
+          changeSubtitle="(vs open)"
+          open={candle.open}
+          high={candle.high}
+          low={candle.low}
+          close={candle.close}
+          volume={candle.vol}
+          date={formatSectionDate(candle.date)}
+        />
+
+        {/* Support and Resistance Section */}
+        {filteredSupportResistances.length > 0 && (
+          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-base font-bold text-white">Support & Resistance Zones</h2>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
+                {formatSectionDate(candle.date)}
               </span>
             </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">High</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.high).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Low</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.low).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Close</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.close).toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-xs uppercase tracking-wider mb-1">Volume</span>
-              <span className="text-slate-300 font-bold font-mono">
-                {Number(candle.vol).toLocaleString()}
-              </span>
-            </div>
-          </div>
-          
-          {/* Support and Resistance Section */}
-          {filteredSupportResistances.length > 0 && (
-            <div className="border-t border-slate-800/80 pt-4 mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-emerald-500/80 block text-xs uppercase tracking-wider mb-2 font-bold">Support Zones</span>
                 <div className="space-y-1">
@@ -1444,8 +1405,8 @@ function App() {
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Recent Candlestick Patterns */}
         {renderRecentPatterns(overviewPatterns, recentDailyCandles)}
@@ -1497,7 +1458,6 @@ function App() {
     const hasValidChange = referencePrice !== null && changeBase !== null && changeBase > 0;
     const change = hasValidChange ? referencePrice - changeBase : 0;
     const pct = hasValidChange ? pctChange(change, changeBase) : 0;
-    const isPositive = change >= 0;
 
     const chartDate = latestCandle?.date || activeDay;
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
@@ -1508,90 +1468,25 @@ function App() {
     return (
       <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
         {/* Quote / Summary Banner */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-4 shadow-lg backdrop-blur flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last Traded Price</div>
-              <div className="text-2xl font-bold font-mono text-white mt-0.5">
-                {ltp !== null
-                  ? ltp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                  : "—"}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Change <span className="text-[10px] text-slate-500 font-normal lowercase">(vs last day close)</span>
-              </div>
-              {hasValidChange ? (
-                <div
-                  className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
-                    isPositive ? "text-emerald-400" : "text-rose-400"
-                  }`}
-                >
-                  {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                  <span>
-                    {isPositive ? "+" : ""}
-                    {change.toFixed(2)} ({isPositive ? "+" : ""}
-                    {pct.toFixed(2)}%)
-                  </span>
-                </div>
-              ) : (
-                <div className="text-base font-bold font-mono text-slate-400 mt-0.5">—</div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Open:</span>
-              <span className="text-slate-200 font-semibold">{openPrice !== null ? openPrice.toFixed(2) : "—"}</span>
-            </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">High:</span>
-              <span className="text-slate-200 font-semibold">{highPrice !== null ? highPrice.toFixed(2) : "—"}</span>
-            </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Low:</span>
-              <span className="text-slate-200 font-semibold">{lowPrice !== null ? lowPrice.toFixed(2) : "—"}</span>
-            </div>
-            <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
-              <span className="text-slate-400 mr-1.5">Close:</span>
-              <span className="text-slate-200 font-semibold">{closePrice !== null ? closePrice.toFixed(2) : "—"}</span>
-            </div>
-            {chartDateFormatted && chartDateFormatted !== "N/A" && (
-              <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
-                <button
-                  onClick={goToPrevDay}
-                  disabled={!canGoPrev || (activeDayIndex === 0 && loadingOlderIntraday)}
-                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
-                  title="Previous day"
-                  aria-label="Previous day"
-                >
-                  {loadingOlderIntraday && activeDayIndex === 0 ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <ChevronLeft size={14} />
-                  )}
-                </button>
-                <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
-                  {chartDateFormatted}
-                </span>
-                <button
-                  onClick={goToNextDay}
-                  disabled={!canGoNext || loadingOlderIntraday}
-                  className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-r"
-                  title="Next day"
-                  aria-label="Next day"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-            <span className="px-2.5 py-1 text-xs font-bold rounded bg-blue-900/40 text-blue-400 border border-blue-800/50 uppercase">
-              15m
-            </span>
-          </div>
-        </div>
+        <PriceSummaryBanner
+          ltp={ltp}
+          change={hasValidChange ? change : null}
+          changePct={hasValidChange ? pct : null}
+          changeSubtitle="(vs last day close)"
+          open={openPrice}
+          high={highPrice}
+          low={lowPrice}
+          close={closePrice}
+          date={chartDateFormatted}
+          traversal={{
+            canGoPrev,
+            canGoNext,
+            onPrev: goToPrevDay,
+            onNext: goToNextDay,
+            loadingOlder: loadingOlderIntraday,
+            isAtBoundary: activeDayIndex === 0,
+          }}
+        />
 
         {/* 15m Candlestick Chart */}
         <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
@@ -1667,6 +1562,28 @@ function App() {
       );
     }
 
+    const latestChartCandle =
+      chartCandleData.length > 0
+        ? chartCandleData[chartCandleData.length - 1]
+        : (analysisData?.candle ?? null);
+    const priorChartCandle =
+      chartCandleData.length > 1 ? chartCandleData[chartCandleData.length - 2] : null;
+
+    const chartChangeBase = priorChartCandle
+      ? priorChartCandle.close
+      : (latestChartCandle ? latestChartCandle.open : null);
+    const chartPriceChange =
+      latestChartCandle && chartChangeBase !== null && chartChangeBase > 0
+        ? latestChartCandle.close - chartChangeBase
+        : null;
+    const chartPriceChangePct =
+      chartPriceChange !== null && chartChangeBase !== null && chartChangeBase > 0
+        ? pctChange(chartPriceChange, chartChangeBase)
+        : null;
+    const chartPriceChangeSubtitle = priorChartCandle
+      ? "(vs prev close)"
+      : (latestChartCandle ? "(vs open)" : undefined);
+
     return (
       <>
         {/* Ticker Header & Tab bar */}
@@ -1740,6 +1657,20 @@ function App() {
           renderOverview()
         ) : activeTab === "charts" ? (
           <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+            {selectedTicker && (
+              <PriceSummaryBanner
+                ltp={latestChartCandle ? latestChartCandle.close : null}
+                change={chartPriceChange}
+                changePct={chartPriceChangePct}
+                changeSubtitle={chartPriceChangeSubtitle}
+                open={latestChartCandle ? latestChartCandle.open : null}
+                high={latestChartCandle ? latestChartCandle.high : null}
+                low={latestChartCandle ? latestChartCandle.low : null}
+                close={latestChartCandle ? latestChartCandle.close : null}
+                volume={latestChartCandle ? latestChartCandle.vol : null}
+                date={latestChartCandle?.date ? formatSectionDate(latestChartCandle.date) : null}
+              />
+            )}
             {selectedTicker && (
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
