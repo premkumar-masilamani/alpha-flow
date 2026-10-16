@@ -39,26 +39,6 @@ const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: nu
 
 export type Timeframe = 'DAILY' | 'WEEKLY' | '15M';
 
-export interface QuoteData {
-    currentPrice: number;
-    timestamp: string;
-}
-
-const quoteDataCache = new Map<string, { data: QuoteData; timestamp: number }>();
-const QUOTE_CACHE_DURATION = 10 * 1000; // 10 seconds
-
-export const getQuote = async (symbol: string, forceFresh = false): Promise<QuoteData> => {
-    const now = Date.now();
-    const cached = quoteDataCache.get(symbol);
-    if (!forceFresh && cached && (now - cached.timestamp < QUOTE_CACHE_DURATION)) {
-        return cached.data;
-    }
-
-    const response = await axios.get(`${API_BASE_URL}/tickers/${symbol}/quote`);
-    quoteDataCache.set(symbol, { data: response.data, timestamp: now });
-    return response.data;
-};
-
 export const getCandleData = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',

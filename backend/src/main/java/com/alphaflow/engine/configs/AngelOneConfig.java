@@ -21,8 +21,6 @@ public class AngelOneConfig {
       "https://apiconnect.angelone.in/rest/auth/angelbroking/user/v1/loginByPassword";
   private String candleUrl =
       "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData";
-  private String quoteUrl =
-      "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote";
   private long delayMilliseconds = 1000;
   private Duration tokenTtl = Duration.ofSeconds(72000);
   private LocalTime sessionStartTime = LocalTime.of(9, 15);

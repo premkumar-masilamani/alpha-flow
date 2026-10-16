@@ -6,9 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
-import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.DailyPriceService;
-import com.alphaflow.api.services.QuoteService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.api.services.WeeklyPriceService;
 import com.alphaflow.common.enums.Timeframe;
@@ -27,7 +25,6 @@ class PriceControllerTest {
   void testGetPriceDataForTicker() {
     DailyPriceService dailyPriceService = mock(DailyPriceService.class);
     WeeklyPriceService weeklyPriceService = mock(WeeklyPriceService.class);
-    QuoteService quoteService = mock(QuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
@@ -48,7 +45,7 @@ class PriceControllerTest {
     when(weeklyPriceService.getWeeklyPrice(ticker, 0, 250)).thenReturn(List.of(dto));
 
     PriceController controller =
-        new PriceController(dailyPriceService, weeklyPriceService, quoteService, tickerService);
+        new PriceController(dailyPriceService, weeklyPriceService, tickerService);
 
     // DAILY
     List<OhlcvDto> dailyRes = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 250);
@@ -58,17 +55,6 @@ class PriceControllerTest {
     // WEEKLY
     List<OhlcvDto> weeklyRes = controller.getPriceDataForTicker("AAPL", Timeframe.WEEKLY, 0, 250);
     assertEquals(1, weeklyRes.size());
-
-    // Quote
-    QuoteDto mockQuote =
-        QuoteDto.builder()
-            .currentPrice(BigDecimal.valueOf(150.0))
-            .timestamp("2026-05-29T10:00:00Z")
-            .build();
-    when(quoteService.getQuote(ticker)).thenReturn(mockQuote);
-    QuoteDto quoteRes = controller.getQuoteForTicker("AAPL");
-    assertEquals(BigDecimal.valueOf(150.0), quoteRes.currentPrice());
-    assertEquals("2026-05-29T10:00:00Z", quoteRes.timestamp());
 
     // Unsupported timeframe
     assertThrows(
@@ -87,7 +73,6 @@ class PriceControllerTest {
   void testGetPriceDataForTickerSizeClamping() {
     DailyPriceService dailyPriceService = mock(DailyPriceService.class);
     WeeklyPriceService weeklyPriceService = mock(WeeklyPriceService.class);
-    QuoteService quoteService = mock(QuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker = Ticker.builder().tickerSymbol("AAPL").isActive(true).build();
@@ -97,7 +82,7 @@ class PriceControllerTest {
     when(dailyPriceService.getDailyPrice(ticker, 0, 1)).thenReturn(List.of());
 
     PriceController controller =
-        new PriceController(dailyPriceService, weeklyPriceService, quoteService, tickerService);
+        new PriceController(dailyPriceService, weeklyPriceService, tickerService);
 
     List<OhlcvDto> clampedMax = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, 5000);
     assertEquals(0, clampedMax.size());

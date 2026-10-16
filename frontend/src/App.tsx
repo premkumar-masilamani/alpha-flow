@@ -12,8 +12,6 @@ import { SUPPORT_RESISTANCE_RANGE_PCT, filterSupportResistances } from "./config
 import {
   type DailyCandleData,
   getCandleData,
-  getQuote,
-  type QuoteData,
   getIndicatorConfigs,
   getIndicatorSeries,
   getTickers,
@@ -34,6 +32,7 @@ import {
   type MarketHoliday,
 } from "./services/api";
 import {
+  getMarketStatus,
   getExpectedIntradayDateKey,
   getCalendarDayRange,
   getDayNonTradingReason,
@@ -175,7 +174,6 @@ function App() {
   const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
 
   // Intraday states
-  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   const [rawIntradayCandles, setRawIntradayCandles] = useState<DailyCandleData[]>([]);
   const [selectedIntradayDay, setSelectedIntradayDay] = useState<string | null>(null);
   const [intradayLoading, setIntradayLoading] = useState(false);
@@ -211,6 +209,14 @@ function App() {
     return matched?.country ?? "IN";
   }, [tickers, selectedTicker]);
 
+  const tickerCountryRef = useRef<MarketCountry>(selectedTickerCountry);
+  const marketHolidaysRef = useRef<MarketHoliday[]>(marketHolidays);
+
+  useEffect(() => {
+    tickerCountryRef.current = selectedTickerCountry;
+    marketHolidaysRef.current = marketHolidays;
+  }, [selectedTickerCountry, marketHolidays]);
+
   const expectedIntradayDay = useMemo(() => {
     return getExpectedIntradayDateKey(new Date(), selectedTickerCountry);
   }, [selectedTickerCountry]);
@@ -219,15 +225,14 @@ function App() {
   const distinctDays = useMemo(() => {
     const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
     const candleDays = Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
-    const hasValidQuote = quoteData !== null && Number(quoteData.currentPrice) > 0;
-    if (candleDays.length === 0 && !hasValidQuote) {
+    if (candleDays.length === 0) {
       return [];
     }
-    const startDay = candleDays.length > 0 ? candleDays[0] : expectedIntradayDay;
-    const lastCandleDay = candleDays.length > 0 ? candleDays[candleDays.length - 1] : expectedIntradayDay;
+    const startDay = candleDays[0];
+    const lastCandleDay = candleDays[candleDays.length - 1];
     const endDay = lastCandleDay > expectedIntradayDay ? lastCandleDay : expectedIntradayDay;
     return getCalendarDayRange(startDay, endDay);
-  }, [rawIntradayCandles, quoteData, expectedIntradayDay]);
+  }, [rawIntradayCandles, expectedIntradayDay]);
 
   // Determine active day: selected day if valid, otherwise defaults to latest available day
   const activeDay = useMemo(() => {
@@ -320,24 +325,8 @@ function App() {
   const intradayCandles = useMemo(() => {
     if (!activeDay) return [];
     const filtered = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === activeDay);
-    const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
-
-    const isCurrentSessionDay = expectedIntradayDay
-      ? activeDay === expectedIntradayDay
-      : activeDayIndex === distinctDays.length - 1;
-    if (isCurrentSessionDay && sorted.length > 0 && quoteData && quoteData.currentPrice > 0) {
-      const lastIndex = sorted.length - 1;
-      const lastCandle = sorted[lastIndex];
-      const ltp = Number(quoteData.currentPrice);
-      sorted[lastIndex] = {
-        ...lastCandle,
-        high: Math.max(Number(lastCandle.high), ltp),
-        low: Math.min(Number(lastCandle.low), ltp),
-        close: ltp,
-      };
-    }
-    return sorted;
-  }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData, expectedIntradayDay]);
+    return [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+  }, [rawIntradayCandles, activeDay]);
 
   const { prevDayHigh, prevDayLow, prevDayClose } = useMemo(() => {
     if (activeDay) {
@@ -658,7 +647,7 @@ function App() {
     };
   }, [selectedTicker, timeframe, showChartPatterns]);
 
-  // Fetch intraday candle data and live quote when selectedTicker or activeTab is intraday
+  // Fetch intraday candle data when selectedTicker or activeTab is intraday
   useEffect(() => {
     if (activeTab !== "intraday" || !selectedTicker) {
       return;
@@ -671,25 +660,17 @@ function App() {
         setIntradayError(null);
       }
       try {
-        const [rawCandles, quote] = await Promise.all([
-          getCandleData(selectedTicker, "15M", 0, 250, !isInitial).catch((err) => {
-            console.warn("Failed to fetch 15m candle data:", err);
-            return [] as DailyCandleData[];
-          }),
-          getQuote(selectedTicker, true).catch((err) => {
-            console.warn("Failed to fetch live quote:", err);
-            return null as QuoteData | null;
-          }),
-        ]);
+        const rawCandles = await getCandleData(selectedTicker, "15M", 0, 250, !isInitial).catch((err) => {
+          console.warn("Failed to fetch 15m candle data:", err);
+          return [] as DailyCandleData[];
+        });
 
         if (!active) return;
 
-        const hasValidQuote = quote && Number(quote.currentPrice) > 0;
-        if (rawCandles.length === 0 && !hasValidQuote) {
+        if (rawCandles.length === 0) {
           if (isInitial) {
             setIntradayError("No data available for this ticker");
             setRawIntradayCandles([]);
-            setQuoteData(null);
           }
           return;
         }
@@ -706,7 +687,6 @@ function App() {
             return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
           });
         }
-        setQuoteData(quote);
       } catch (err) {
         if (active && isInitial) {
           console.error("Failed to load intraday data:", err);
@@ -722,8 +702,11 @@ function App() {
     fetchIntraday(true);
 
     const intervalTimer = setInterval(() => {
-      fetchIntraday(false);
-    }, 30_000);
+      const status = getMarketStatus(new Date(), tickerCountryRef.current, marketHolidaysRef.current);
+      if (status.isOpen) {
+        fetchIntraday(false);
+      }
+    }, 60_000);
 
     return () => {
       active = false;
@@ -1487,8 +1470,7 @@ function App() {
       );
     }
 
-    const hasValidQuoteData = Boolean(quoteData && Number(quoteData.currentPrice) > 0);
-    if (intradayError || (rawIntradayCandles.length === 0 && !hasValidQuoteData)) {
+    if (intradayError || rawIntradayCandles.length === 0) {
       return (
         <div className="flex-1 flex items-center justify-center text-slate-500">
           No data available for this ticker
@@ -1496,18 +1478,11 @@ function App() {
       );
     }
 
-    const isCurrentSessionDay = expectedIntradayDay
-      ? activeDay === expectedIntradayDay
-      : activeDayIndex === distinctDays.length - 1;
     const hasCandlesForActiveDay = intradayCandles.length > 0;
     const latestCandle = hasCandlesForActiveDay ? intradayCandles[intradayCandles.length - 1] : null;
     const firstCandle = hasCandlesForActiveDay ? intradayCandles[0] : null;
 
-    const ltp: number | null = isCurrentSessionDay
-      ? (hasValidQuoteData && quoteData
-          ? Number(quoteData.currentPrice)
-          : (latestCandle ? Number(latestCandle.close) : null))
-      : (latestCandle ? Number(latestCandle.close) : null);
+    const ltp: number | null = latestCandle ? Number(latestCandle.close) : null;
     const openPrice = firstCandle ? Number(firstCandle.open) : null;
     const highPrice = hasCandlesForActiveDay
       ? Math.max(...intradayCandles.map((c) => Number(c.high)))
@@ -1518,13 +1493,13 @@ function App() {
     const closePrice = latestCandle ? Number(latestCandle.close) : null;
 
     const changeBase = prevDayClose ?? openPrice;
-    const referencePrice = isCurrentSessionDay ? ltp : closePrice;
+    const referencePrice = closePrice;
     const hasValidChange = referencePrice !== null && changeBase !== null && changeBase > 0;
     const change = hasValidChange ? referencePrice - changeBase : 0;
     const pct = hasValidChange ? pctChange(change, changeBase) : 0;
     const isPositive = change >= 0;
 
-    const chartDate = latestCandle?.date || activeDay || (isCurrentSessionDay ? quoteData?.timestamp : null);
+    const chartDate = latestCandle?.date || activeDay;
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
     const nonTradingReason = activeDay
       ? getDayNonTradingReason(activeDay, selectedTickerCountry, marketHolidays)

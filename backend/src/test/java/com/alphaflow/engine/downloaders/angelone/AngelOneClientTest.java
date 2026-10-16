@@ -7,7 +7,6 @@ import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.OutputStream;
@@ -15,7 +14,6 @@ import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +36,6 @@ class AngelOneClientTest {
     config = new AngelOneConfig();
     config.setCandleUrl(
         "http://localhost:" + port + "/rest/secure/angelbroking/historical/v1/getCandleData");
-    config.setQuoteUrl("http://localhost:" + port + "/rest/secure/angelbroking/market/v1/quote");
     config.setApiKey("test-key");
     config.setDelayMilliseconds(0);
 
@@ -152,82 +149,6 @@ class AngelOneClientTest {
             "2026-09-23 15:30");
 
     assertTrue(candles.isEmpty());
-    verify(authManager, atLeastOnce()).invalidateSession();
-  }
-
-  @Test
-  void testGetMarketQuoteSuccess() {
-    String quoteJson =
-        """
-        {
-          "status": true,
-          "message": "SUCCESS",
-          "errorcode": "",
-          "data": {
-            "fetched": [
-              {
-                "exchange": "NSE",
-                "tradingSymbol": "NIFTY",
-                "symbolToken": "99926000",
-                "ltp": 25150.25,
-                "exchFeedTime": "23-Sep-2026 15:30:00"
-              }
-            ]
-          }
-        }
-        """;
-
-    server.createContext(
-        "/rest/secure/angelbroking/market/v1/quote",
-        exchange -> {
-          byte[] bytes = quoteJson.getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, bytes.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-          }
-        });
-
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
-
-    assertTrue(quoteOpt.isPresent());
-    AngelOneQuote q = quoteOpt.get();
-    assertEquals(0, new BigDecimal("25150.25").compareTo(q.lastPrice()));
-    assertEquals("23-Sep-2026 15:30:00", q.timestamp());
-  }
-
-  @Test
-  void testGetMarketQuoteNoJwt() {
-    when(authManager.getValidJwtToken()).thenReturn("");
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
-    assertTrue(quoteOpt.isEmpty());
-  }
-
-  @Test
-  void testGetMarketQuoteErrorResponse() {
-    String errorJson =
-        """
-        {
-          "status": false,
-          "message": "Session expired",
-          "errorcode": "AG8001"
-        }
-        """;
-
-    server.createContext(
-        "/rest/secure/angelbroking/market/v1/quote",
-        exchange -> {
-          byte[] bytes = errorJson.getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, bytes.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-          }
-        });
-
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
-    assertTrue(quoteOpt.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
   }
 

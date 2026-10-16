@@ -16,7 +16,6 @@ vi.mock('./services/api', async (importOriginal) => {
         getChartPatterns: vi.fn(),
         getSupportResistances: vi.fn(),
         getCandleData: vi.fn(),
-        getQuote: vi.fn(),
         getCachedMarketHolidays: vi.fn(),
     };
 });
@@ -93,7 +92,7 @@ describe('App Intra-Day Tab - Issue #232', () => {
         vi.useRealTimers();
     });
 
-    it('defaults to today (FRI, OCT 16, 2026), displays Awaiting Intraday Data, live LTP/Change, and "—" OHLC when today has no candles', async () => {
+    it('defaults to today (FRI, OCT 16, 2026), displays Awaiting Intraday Data, and renders "—" for LTP, Change, and OHLC when today has no candles', async () => {
         // Friday, Oct 16, 2026 at 09:31:15 AM IST (04:01:15 UTC)
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
@@ -103,10 +102,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
                 return yesterdayCandles;
             }
             return [];
-        });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22958.5,
-            timestamp: '2026-10-16T09:31:15+05:30',
         });
 
         render(<App />);
@@ -118,9 +113,12 @@ describe('App Intra-Day Tab - Issue #232', () => {
         // Date navigator shows FRI, OCT 16, 2026
         expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(1);
 
-        // Live LTP & Change vs yesterday's close (22958.50 - 22622.70 = +335.80, +1.48%)
-        expect(screen.getByText('22,958.50')).toBeInTheDocument();
-        expect(screen.getByText(/\+335\.80 \(\+1\.48%\)/)).toBeInTheDocument();
+        // LTP & Change show "—" when today has no candles
+        const ltpContainer = screen.getByText('Last Traded Price').parentElement;
+        expect(ltpContainer).toHaveTextContent('Last Traded Price—');
+
+        const changeContainer = screen.getByText(/\(vs last day close\)/i).parentElement?.parentElement;
+        expect(changeContainer).toHaveTextContent('—');
 
         // OHLC pills show "—"
         const openPill = screen.getByText('Open:').parentElement;
@@ -133,7 +131,7 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(closePill).toHaveTextContent('Close:—');
     });
 
-    it('switches to THU, OCT 15, 2026 on clicking Previous day and renders yesterday candles without mutating them with today live quote', async () => {
+    it('switches to THU, OCT 15, 2026 on clicking Previous day and renders yesterday candles', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
 
@@ -142,10 +140,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
                 return yesterdayCandles;
             }
             return [];
-        });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22958.5,
-            timestamp: '2026-10-16T09:31:15+05:30',
         });
 
         render(<App />);
@@ -164,7 +158,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
         // Date navigator shows THU, OCT 15, 2026
         expect(screen.getByText(/Thu, Oct 15, 2026/i)).toBeInTheDocument();
 
-        // Verify yesterday's last candle was NOT mutated by today's live quote (22958.50)
         expect(lastRenderedChartData).toHaveLength(2);
         expect(lastRenderedChartData[1].close).toBe(22622.7);
         expect(lastRenderedChartData[1].high).toBe(22850.0);
@@ -177,7 +170,8 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22622.70');
     });
 
-    it('replaces Awaiting Intraday Data card with the 15m chart when a subsequent 30-second poll returns candles for today', async () => {
+    it('replaces Awaiting Intraday Data card with the 15m chart when a subsequent 1-minute poll returns candles for today while market is open', async () => {
+        // Friday, Oct 16, 2026 at 09:31:15 AM IST (04:01:15 UTC) — market is OPEN
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
 
@@ -201,10 +195,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
             }
             return [];
         });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22960.0,
-            timestamp: '2026-10-16T09:31:45+05:30',
-        });
 
         render(<App />);
 
@@ -213,7 +203,7 @@ describe('App Intra-Day Tab - Issue #232', () => {
         });
 
         await act(async () => {
-            await vi.advanceTimersByTimeAsync(30_000);
+            await vi.advanceTimersByTimeAsync(60_000);
         });
 
         await waitFor(() => {
@@ -221,7 +211,35 @@ describe('App Intra-Day Tab - Issue #232', () => {
         });
         expect(screen.queryByText('Awaiting Intraday Data')).not.toBeInTheDocument();
         expect(screen.getByText('Open:').parentElement).toHaveTextContent('Open:22900.00');
-        expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22960.00');
+        expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22950.00');
+    });
+
+    it('pauses the 1-minute intraday poll when the market is closed', async () => {
+        // Sunday, Oct 18, 2026 at 10:00 AM IST (04:30 UTC) — market is CLOSED (Weekend)
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-18T04:30:00Z'));
+
+        let intradayFetchCount = 0;
+        vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
+            if (tf === '15M') {
+                intradayFetchCount += 1;
+                return yesterdayCandles;
+            }
+            return [];
+        });
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Market Closed — Weekend')).toBeInTheDocument();
+        });
+        expect(intradayFetchCount).toBe(1);
+
+        // Advance 3 minutes while market is closed -> no additional intraday polls should fire
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(180_000);
+        });
+        expect(intradayFetchCount).toBe(1);
     });
 
     it('mentions Weekend when today is Saturday/Sunday and allows traversing back through every single calendar day', async () => {
@@ -234,10 +252,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
                 return yesterdayCandles;
             }
             return [];
-        });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22622.7,
-            timestamp: '2026-10-15T15:30:00+05:30',
         });
 
         render(<App />);
@@ -281,10 +295,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
             }
             return [];
         });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22622.7,
-            timestamp: '2026-11-23T15:30:00+05:30',
-        });
 
         render(<App />);
 
@@ -298,35 +308,7 @@ describe('App Intra-Day Tab - Issue #232', () => {
         ).toHaveTextContent('Prakash Gurpurb Sri Guru Nanak Dev');
     });
 
-    it('renders "—" for LTP and Change when awaiting today candles and quote returns 0', async () => {
-        vi.useFakeTimers({ shouldAdvanceTime: true });
-        vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
-
-        vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
-            if (tf === '15M') {
-                return yesterdayCandles;
-            }
-            return [];
-        });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 0,
-            timestamp: '',
-        });
-
-        render(<App />);
-
-        await waitFor(() => {
-            expect(screen.getByText('Awaiting Intraday Data')).toBeInTheDocument();
-        });
-
-        const ltpContainer = screen.getByText('Last Traded Price').parentElement;
-        expect(ltpContainer).toHaveTextContent('Last Traded Price—');
-
-        const changeContainer = screen.getByText(/\(vs last day close\)/i).parentElement?.parentElement;
-        expect(changeContainer).toHaveTextContent('—');
-    });
-
-    it('preserves older paginated intraday days across subsequent 30-second polls and queries endDate before oldestDay', async () => {
+    it('preserves older paginated intraday days across subsequent 1-minute polls and queries endDate before oldestDay', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
 
@@ -350,10 +332,6 @@ describe('App Intra-Day Tab - Issue #232', () => {
             }
             return [];
         });
-        vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22958.5,
-            timestamp: '2026-10-16T09:31:15+05:30',
-        });
 
         render(<App />);
 
@@ -375,9 +353,9 @@ describe('App Intra-Day Tab - Issue #232', () => {
             expect(screen.getByText(/Wed, Oct 14, 2026/i)).toBeInTheDocument();
         });
 
-        // Advance 30-second poll and verify Oct 14 remains active (not overwritten by latest 250)
+        // Advance 1-minute poll and verify Oct 14 remains active (not overwritten by latest 250)
         await act(async () => {
-            await vi.advanceTimersByTimeAsync(30_000);
+            await vi.advanceTimersByTimeAsync(60_000);
         });
 
         expect(screen.getByText(/Wed, Oct 14, 2026/i)).toBeInTheDocument();

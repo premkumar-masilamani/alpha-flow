@@ -8,8 +8,6 @@ import {
     getTechnicalAnalysis,
     getSupportResistances,
     getChartPatterns,
-    getQuote,
-    type QuoteData,
     indicatorKey,
     type Ticker,
     type DailyCandleData,
@@ -283,28 +281,6 @@ describe('API Service Layer Tests', () => {
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
                 { params: { timeframe: 'daily', page: 0, statuses: 'IN_PROGRESS,COMPLETED' } }
             );
-        });
-    });
-
-    describe('getQuote', () => {
-        it('should fetch and cache live quote data', async () => {
-            const mockQuote: QuoteData = {
-                currentPrice: 25100.5,
-                timestamp: '2026-09-23T15:30:00Z',
-            };
-
-            mockedAxios.get.mockResolvedValueOnce({ data: mockQuote });
-
-            const res1 = await getQuote('NIFTY50');
-            expect(res1).toEqual(mockQuote);
-            expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/quote')
-            );
-
-            // Second call - served from cache
-            const res2 = await getQuote('NIFTY50');
-            expect(res2).toEqual(mockQuote);
-            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         });
     });
 
