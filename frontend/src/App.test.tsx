@@ -325,4 +325,63 @@ describe('App Intra-Day Tab - Issue #232', () => {
         const changeContainer = screen.getByText(/\(vs last day close\)/i).parentElement?.parentElement;
         expect(changeContainer).toHaveTextContent('—');
     });
+
+    it('preserves older paginated intraday days across subsequent 30-second polls and queries endDate before oldestDay', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
+
+        const olderCandles: DailyCandleData[] = [
+            {
+                date: '2026-10-14T09:15:00+05:30',
+                open: 22500.0,
+                high: 22600.0,
+                low: 22480.0,
+                close: 22580.0,
+                vol: 900,
+            },
+        ];
+
+        vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf, _page, _size, _forceFresh, endDate) => {
+            if (tf === '15M') {
+                if (endDate === '2026-10-14') {
+                    return olderCandles;
+                }
+                return yesterdayCandles;
+            }
+            return [];
+        });
+        vi.mocked(api.getQuote).mockResolvedValue({
+            currentPrice: 22958.5,
+            timestamp: '2026-10-16T09:31:15+05:30',
+        });
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Awaiting Intraday Data')).toBeInTheDocument();
+        });
+
+        const prevDayBtn = screen.getByRole('button', { name: /Previous day/i });
+        // Click 1 -> steps to Oct 15 (and prefetches older candles with endDate = '2026-10-14')
+        fireEvent.click(prevDayBtn);
+
+        await waitFor(() => {
+            expect(api.getCandleData).toHaveBeenCalledWith('NIFTY50', '15M', 0, 250, false, '2026-10-14');
+        });
+
+        // Click 2 -> steps to Oct 14
+        fireEvent.click(prevDayBtn);
+        await waitFor(() => {
+            expect(screen.getByText(/Wed, Oct 14, 2026/i)).toBeInTheDocument();
+        });
+
+        // Advance 30-second poll and verify Oct 14 remains active (not overwritten by latest 250)
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(30_000);
+        });
+
+        expect(screen.getByText(/Wed, Oct 14, 2026/i)).toBeInTheDocument();
+        expect(screen.getByText('Open:').parentElement).toHaveTextContent('Open:22500.00');
+    });
 });
+

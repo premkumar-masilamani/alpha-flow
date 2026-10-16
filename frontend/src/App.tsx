@@ -252,7 +252,20 @@ function App() {
     try {
       const candleDays = Array.from(new Set(rawIntradayCandles.map((c) => getLocalDateKey(c.date)))).sort();
       const oldestDay = candleDays.length > 0 ? candleDays[0] : null;
-      const older = await getCandleData(selectedTicker, "15M", 0, 250, false, oldestDay || undefined);
+      let queryEndDate: string | undefined;
+      if (oldestDay) {
+        const parts = oldestDay.split("-").map(Number);
+        if (parts.length === 3) {
+          const prevUtc = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] - 1));
+          const y = prevUtc.getUTCFullYear();
+          const m = String(prevUtc.getUTCMonth() + 1).padStart(2, "0");
+          const d = String(prevUtc.getUTCDate()).padStart(2, "0");
+          queryEndDate = `${y}-${m}-${d}`;
+        } else {
+          queryEndDate = oldestDay;
+        }
+      }
+      const older = await getCandleData(selectedTicker, "15M", 0, 250, false, queryEndDate);
       const strictlyOlder = oldestDay
         ? older.filter((c) => getLocalDateKey(c.date) < oldestDay)
         : older;
@@ -290,7 +303,7 @@ function App() {
   const goToPrevDay = () => {
     if (activeDayIndex > 0) {
       setSelectedIntradayDay(distinctDays[activeDayIndex - 1]);
-      if (activeDayIndex <= 2 && hasOlderIntraday && !loadingOlderIntraday) {
+      if (activeDayIndex <= 5 && hasOlderIntraday && !loadingOlderIntraday) {
         fetchOlderIntradayCandles(false);
       }
     } else if (hasOlderIntraday && !loadingOlderIntraday) {
@@ -681,7 +694,18 @@ function App() {
           return;
         }
 
-        setRawIntradayCandles(rawCandles);
+        if (isInitial) {
+          setRawIntradayCandles(rawCandles);
+        } else {
+          setRawIntradayCandles((prev) => {
+            if (prev.length === 0) return rawCandles;
+            const byDate = new Map(prev.map((c) => [c.date, c]));
+            for (const c of rawCandles) {
+              byDate.set(c.date, c);
+            }
+            return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+          });
+        }
         setQuoteData(quote);
       } catch (err) {
         if (active && isInitial) {
@@ -1563,7 +1587,7 @@ function App() {
               <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
                 <button
                   onClick={goToPrevDay}
-                  disabled={!canGoPrev || loadingOlderIntraday}
+                  disabled={!canGoPrev || (activeDayIndex === 0 && loadingOlderIntraday)}
                   className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
                   title="Previous day"
                   aria-label="Previous day"
