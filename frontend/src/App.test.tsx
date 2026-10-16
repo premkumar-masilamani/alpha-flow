@@ -525,5 +525,81 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.getAllByText('LLY').length).toBeGreaterThanOrEqual(3);
         expect(screen.getAllByText(/Eli Lilly and Company/).length).toBeGreaterThanOrEqual(3);
     });
+
+    it('renders PriceSummaryBanner with dashes and styled amber card on Technical Analysis tab when positional data is unavailable', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
+
+        window.history.replaceState({}, '', '/?ticker=NIFTY50&tab=overview');
+
+        vi.mocked(api.getTickers).mockResolvedValue([
+            {
+                id: 1,
+                symbol: 'NIFTY50',
+                name: 'NIFTY 50',
+                type: 'INDEX',
+                country: 'IN',
+            },
+        ]);
+        vi.mocked(api.getTechnicalAnalysis).mockResolvedValue({
+            symbol: 'NIFTY50',
+            candle: null,
+            dailyIndicators: [],
+            weeklyIndicators: [],
+        });
+        vi.mocked(api.getCandleData).mockResolvedValue([]);
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Positional Data Unavailable')).toBeInTheDocument();
+        });
+
+        // PriceSummaryBanner renders dashes
+        expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(6);
+        expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(2);
+
+        // Amber card displays the message with symbol and ticker name
+        const message = screen.getByText(/Positional data or daily\/weekly price data is not available for/i);
+        expect(message).toHaveTextContent('Positional data or daily/weekly price data is not available for NIFTY50 (NIFTY 50).');
+        expect(screen.getAllByText('NIFTY50').length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('renders PriceSummaryBanner with dashes and styled amber card on Technical Chart tab when daily/weekly data is unavailable', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
+
+        window.history.replaceState({}, '', '/?ticker=NIFTY50&tab=charts');
+
+        vi.mocked(api.getTickers).mockResolvedValue([
+            {
+                id: 1,
+                symbol: 'NIFTY50',
+                name: 'NIFTY 50',
+                type: 'INDEX',
+                country: 'IN',
+            },
+        ]);
+        vi.mocked(api.getCandleData).mockResolvedValue([]);
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Daily & Weekly Price Data Unavailable')).toBeInTheDocument();
+        });
+
+        // PriceSummaryBanner renders dashes
+        expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(6);
+        expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(2);
+
+        // Indicator controls bar should NOT be rendered when there are no chart candles
+        expect(screen.queryByText('Patterns')).not.toBeInTheDocument();
+        expect(screen.queryByText('S/R')).not.toBeInTheDocument();
+
+        // Amber card displays the message with symbol and ticker name
+        const message = screen.getByText(/Positional data or daily\/weekly price data is not available for/i);
+        expect(message).toHaveTextContent('Positional data or daily/weekly price data is not available for NIFTY50 (NIFTY 50).');
+        expect(screen.getAllByText('NIFTY50').length).toBeGreaterThanOrEqual(3);
+    });
 });
 

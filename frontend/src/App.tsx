@@ -819,50 +819,71 @@ function App() {
   };
 
   const renderOverview = () => {
-    if (analysisError === "stale") {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-          <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
-            <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
-            <h3 className="text-lg font-bold text-white">Technical Analysis Not Yet Complete</h3>
-            <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
-              Technical analysis data has not yet been computed or is currently out-of-date for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
-            </p>
-          </div>
-        </div>
-      );
-    }
-
     if (analysisError === "server") {
+      const bannerDate = expectedIntradayDay ? formatSectionDate(expectedIntradayDay) : null;
       return (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-950 text-center">
-          <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
-            <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-rose-500/10 text-rose-400">
-              <Info size={24} />
+        <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+          <PriceSummaryBanner
+            ltp={null}
+            change={null}
+            changePct={null}
+            changeSubtitle="(vs prev close)"
+            open={null}
+            high={null}
+            low={null}
+            close={null}
+            volume={null}
+            date={bannerDate}
+          />
+          <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center p-8 text-center">
+            <div className="max-w-md p-6 bg-slate-900 border border-rose-900/50 rounded-xl shadow-xl space-y-4">
+              <div className="mx-auto flex items-center justify-center w-12 h-12 rounded-full bg-rose-500/10 text-rose-400">
+                <Info size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-white">Service Unavailable</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Could not reach the backend service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-white">Service Unavailable</h3>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Could not reach the backend service for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>.
-            </p>
           </div>
         </div>
       );
     }
 
-    if (!analysisData || !analysisData.candle) {
-      if (loading) {
-        return (
-          <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-3">
-            <Loader2 className="animate-spin text-blue-500" size={32} />
-            <p className="text-sm font-semibold text-slate-400">
-              Loading technical analysis...
-            </p>
-          </div>
-        );
-      }
+    if (analysisError === "stale" || !analysisData || !analysisData.candle) {
+      const bannerDate = expectedIntradayDay ? formatSectionDate(expectedIntradayDay) : null;
       return (
-        <div className="flex-1 flex items-center justify-center text-slate-500">
-          No data available for this ticker
+        <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
+          <PriceSummaryBanner
+            ltp={null}
+            change={null}
+            changePct={null}
+            changeSubtitle="(vs prev close)"
+            open={null}
+            high={null}
+            low={null}
+            close={null}
+            volume={null}
+            date={bannerDate}
+          />
+          <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden flex flex-col items-center justify-center p-8">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center text-slate-500 gap-3">
+                <Loader2 className="animate-spin text-blue-500" size={32} />
+                <p className="text-sm font-semibold text-slate-400">Loading technical analysis...</p>
+              </div>
+            ) : (
+              <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+                <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+                <h3 className="text-lg font-bold text-white">Positional Data Unavailable</h3>
+                <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+                  Positional data or daily/weekly price data is not available for{" "}
+                  <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                  {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       );
     }
@@ -1693,10 +1714,16 @@ function App() {
                 low={latestChartCandle ? latestChartCandle.low : null}
                 close={latestChartCandle ? latestChartCandle.close : null}
                 volume={latestChartCandle ? latestChartCandle.vol : null}
-                date={latestChartCandle?.date ? formatSectionDate(latestChartCandle.date) : null}
+                date={
+                  latestChartCandle?.date
+                    ? formatSectionDate(latestChartCandle.date)
+                    : expectedIntradayDay
+                      ? formatSectionDate(expectedIntradayDay)
+                      : null
+                }
               />
             )}
-            {selectedTicker && (
+            {selectedTicker && chartCandleData.length > 0 && (
               <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 shadow-lg backdrop-blur flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <IndicatorControls
@@ -1798,14 +1825,22 @@ function App() {
                   onLoadOlderData={handleLoadOlderData}
                 />
               ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3 p-8">
                   {loading ? (
                     <>
                       <Loader2 className="animate-spin text-blue-500" size={32} />
                       <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
                     </>
                   ) : (
-                    "No data available for this ticker"
+                    <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+                      <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+                      <h3 className="text-lg font-bold text-white">Daily & Weekly Price Data Unavailable</h3>
+                      <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+                        Positional data or daily/weekly price data is not available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                        {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
