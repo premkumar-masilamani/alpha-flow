@@ -194,5 +194,8 @@ if (dailyBars.size() >= MIN_BARS) {
 - **Notification Error Persistence**:
   - Persist the raw error description from external notification providers (such as Telegram) directly to the audit log table (`notification_logs`) to capture the exact failure details.
 
-
-
+## Real-Time Market Data & Live Quote Pipelines
+- **Deterministic Time Injection in Market-Hours Schedulers**:
+  - For `@Scheduled` jobs gated by market trading calendars and intraday session bounds (`[sessionStartTime, sessionEndTime]`), delegate the zero-arg `@Scheduled` method to an overloaded `run(ZonedDateTime currentMarketTime)` entry point. This keeps wall-clock resolution in a single line while allowing unit tests to deterministically exercise trading-day, pre-open, post-close, and mid-session branches for 100% JaCoCo branch coverage.
+- **In-Progress Intraday Candle Synthesis from Snapshot Quotes**:
+  - When combining finalized candles from `intraday_prices` with the latest quote snapshot from `live_quotes`, floor the quote timestamp in the ticker's market timezone to the timeframe boundary (`(minute / 15) * 15`) and only merge on `page == 0` when within `endDate`. Append a new candle when the bucket exceeds the latest closed candle's timestamp, or update `high`/`low`/`close` in-place when matching the latest bucket.
