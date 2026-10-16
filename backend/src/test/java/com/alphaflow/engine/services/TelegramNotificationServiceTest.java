@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import com.alphaflow.common.enums.NotificationStatus;
 import com.alphaflow.common.exceptions.NotificationException;
 import com.alphaflow.engine.configs.TelegramConfig;
 import com.alphaflow.persistence.entities.NotificationLog;
@@ -99,23 +98,27 @@ class TelegramNotificationServiceTest {
     NotificationLog savedLog = captor.getValue();
 
     assertEquals(message, savedLog.getMessage());
-    assertEquals(NotificationStatus.SENT, savedLog.getStatus());
-    assertNull(savedLog.getErrorMessage());
+    assertNull(savedLog.getError());
     assertNotNull(savedLog.getCreatedAt());
   }
 
   @Test
-  void testSendNotificationTruncationWhenExceedingMaxLimit() {
+  void testSendNotificationTruncationForTelegramPreservesFullMessageInDatabase() {
     String longMessage = "A".repeat(4100);
     service.sendNotification(longMessage);
+
+    String receivedQuery = lastReceivedQuery.get();
+    assertNotNull(receivedQuery);
+    assertTrue(receivedQuery.contains("text="));
+    assertTrue(receivedQuery.contains("..."));
 
     ArgumentCaptor<NotificationLog> captor = ArgumentCaptor.forClass(NotificationLog.class);
     verify(notificationLogRepository).save(captor.capture());
     NotificationLog savedLog = captor.getValue();
 
-    assertEquals(4096, savedLog.getMessage().length());
-    assertTrue(savedLog.getMessage().endsWith("..."));
-    assertEquals(NotificationStatus.SENT, savedLog.getStatus());
+    assertEquals(4100, savedLog.getMessage().length());
+    assertEquals(longMessage, savedLog.getMessage());
+    assertNull(savedLog.getError());
   }
 
   @Test
@@ -133,9 +136,8 @@ class TelegramNotificationServiceTest {
     verify(notificationLogRepository).save(captor.capture());
     NotificationLog savedLog = captor.getValue();
 
-    assertEquals(NotificationStatus.FAILED, savedLog.getStatus());
-    assertNotNull(savedLog.getErrorMessage());
-    assertTrue(savedLog.getErrorMessage().contains("400"));
+    assertNotNull(savedLog.getError());
+    assertTrue(savedLog.getError().contains("400"));
   }
 
   @Test
@@ -153,8 +155,7 @@ class TelegramNotificationServiceTest {
     verify(notificationLogRepository).save(captor.capture());
     NotificationLog savedLog = captor.getValue();
 
-    assertEquals(NotificationStatus.FAILED, savedLog.getStatus());
-    assertNotNull(savedLog.getErrorMessage());
+    assertNotNull(savedLog.getError());
   }
 
   @Test

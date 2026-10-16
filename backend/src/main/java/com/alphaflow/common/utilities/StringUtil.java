@@ -11,12 +11,4 @@ public final class StringUtil {
   public static boolean isEmpty(String text) {
     return text == null || text.isEmpty();
   }
-
-  public static boolean isNotBlank(String text) {
-    return text != null && !text.isBlank();
-  }
-
-  public static boolean isBlank(String text) {
-    return text == null || text.isBlank();
-  }
 }

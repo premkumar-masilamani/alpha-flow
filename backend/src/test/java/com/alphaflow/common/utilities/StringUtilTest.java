@@ -32,22 +32,4 @@ class StringUtilTest {
     assertFalse(StringUtil.isEmpty("   "));
     assertFalse(StringUtil.isEmpty("hello"));
   }
-
-  @Test
-  void testIsNotBlank() {
-    assertFalse(StringUtil.isNotBlank(null));
-    assertFalse(StringUtil.isNotBlank(""));
-    assertFalse(StringUtil.isNotBlank("   "));
-    assertTrue(StringUtil.isNotBlank("hello"));
-    assertTrue(StringUtil.isNotBlank("  hello  "));
-  }
-
-  @Test
-  void testIsBlank() {
-    assertTrue(StringUtil.isBlank(null));
-    assertTrue(StringUtil.isBlank(""));
-    assertTrue(StringUtil.isBlank("   "));
-    assertFalse(StringUtil.isBlank("hello"));
-    assertFalse(StringUtil.isBlank("  hello  "));
-  }
 }

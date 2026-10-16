@@ -1,6 +1,5 @@
 package com.alphaflow.engine.services;
 
-import com.alphaflow.common.enums.NotificationStatus;
 import com.alphaflow.common.exceptions.NotificationException;
 import com.alphaflow.engine.configs.TelegramConfig;
 import com.alphaflow.persistence.entities.NotificationLog;
@@ -34,37 +33,34 @@ public class TelegramNotificationService implements NotificationService {
   public void sendNotification(String message) {
     if (message != null) {
       int maxLength = telegramConfig.getMaxMessageLength();
-      String finalMessage;
+      String messageToSend;
       if (message.length() <= maxLength) {
-        finalMessage = message;
+        messageToSend = message;
       } else {
-        finalMessage = message.substring(0, maxLength - 3) + "...";
+        messageToSend = message.substring(0, maxLength - 3) + "...";
       }
 
-      String targetUri = resolveTargetUri(finalMessage);
-      NotificationStatus status = NotificationStatus.SENT;
-      String errorMessage = null;
+      String targetUri = resolveTargetUri(messageToSend);
+      String error = null;
       Exception capturedException = null;
 
       try {
         restClient.get().uri(URI.create(targetUri)).retrieve().toBodilessEntity();
       } catch (Exception exception) {
-        status = NotificationStatus.FAILED;
-        errorMessage = exception.getMessage();
+        error = exception.getMessage();
         capturedException = exception;
       }
 
       NotificationLog notificationLog =
           NotificationLog.builder()
-              .message(finalMessage)
-              .status(status)
-              .errorMessage(errorMessage)
+              .message(message)
+              .error(error)
               .createdAt(OffsetDateTime.now())
               .build();
       notificationLogRepository.save(notificationLog);
 
       if (capturedException != null) {
-        log.error("Failed to send Telegram notification: {}", errorMessage);
+        log.error("Failed to send Telegram notification: {}", error);
         throw new NotificationException("Failed to send Telegram notification", capturedException);
       }
     } else {
