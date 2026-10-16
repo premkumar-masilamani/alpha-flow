@@ -33,7 +33,7 @@ make lint
 
 ## Project Structure
 ```text
-backend/           # Spring Boot 3.5 / Java 25 / Gradle
+backend/           # Spring Boot 4.1 / Java 27 / Gradle
 frontend/          # React 19 / Vite / TypeScript / Tailwind
 database/          # Postgres 16 / Docker / migrate
 .agents/           # Agent rules and context
