@@ -1,4 +1,4 @@
-package com.alphaflow.common.utilities;
+package com.alphaflow.common.utils;
 
 public final class StringUtil {
 
