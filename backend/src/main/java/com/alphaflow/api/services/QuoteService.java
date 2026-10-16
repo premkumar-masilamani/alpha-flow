@@ -1,11 +1,9 @@
 package com.alphaflow.api.services;
 
 import com.alphaflow.api.dtos.QuoteDto;
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.enums.DataProvider;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -17,26 +15,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class QuoteService {
 
-  private final AngelOneClient angelOneClient;
+  private final LiveQuoteRepository liveQuoteRepository;
 
-  public QuoteService(AngelOneClient angelOneClient) {
-    this.angelOneClient = angelOneClient;
+  public QuoteService(LiveQuoteRepository liveQuoteRepository) {
+    this.liveQuoteRepository = liveQuoteRepository;
   }
 
   public QuoteDto getQuote(Ticker ticker) {
-    if (ticker.getDataProvider() == DataProvider.ANGEL_ONE) {
-      String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
-      Optional<AngelOneQuote> quoteOpt =
-          angelOneClient.getMarketQuote(MarketConstants.EXCHANGE_NSE, token);
-      if (quoteOpt.isPresent()) {
-        AngelOneQuote quote = quoteOpt.get();
-        return QuoteDto.builder()
-            .currentPrice(quote.lastPrice())
-            .timestamp(quote.timestamp())
-            .build();
-      }
+    Optional<LiveQuote> liveQuoteOptional = liveQuoteRepository.findByTicker(ticker);
+    if (liveQuoteOptional.isPresent()) {
+      LiveQuote liveQuote = liveQuoteOptional.get();
+      return QuoteDto.builder()
+          .currentPrice(liveQuote.getLastPrice())
+          .timestamp(liveQuote.getQuoteTime().toString())
+          .build();
+    } else {
+      log.debug("No live quote found in database for ticker: {}", ticker.getTickerSymbol());
+      return QuoteDto.builder().currentPrice(BigDecimal.ZERO).timestamp("").build();
     }
-
-    return QuoteDto.builder().currentPrice(BigDecimal.ZERO).timestamp("").build();
   }
 }

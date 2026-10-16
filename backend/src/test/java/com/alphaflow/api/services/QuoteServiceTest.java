@@ -6,29 +6,30 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.QuoteDto;
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.DataProvider;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class QuoteServiceTest {
 
-  private AngelOneClient client;
+  private LiveQuoteRepository liveQuoteRepository;
   private QuoteService quoteService;
 
   @BeforeEach
   void setUp() {
-    client = mock(AngelOneClient.class);
-    quoteService = new QuoteService(client);
+    liveQuoteRepository = mock(LiveQuoteRepository.class);
+    quoteService = new QuoteService(liveQuoteRepository);
   }
 
   @Test
-  void testGetQuoteAngelOneLiveSuccess() {
+  void testGetQuoteReturnsPersistedLiveQuoteWhenPresent() {
     Ticker ticker =
         Ticker.builder()
             .tickerSymbol("NIFTY50")
@@ -36,20 +37,27 @@ class QuoteServiceTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    AngelOneQuote liveQuote = new AngelOneQuote(new BigDecimal("25100.00"), "2026-09-23 15:30:00");
+    OffsetDateTime quoteTime =
+        OffsetDateTime.of(2026, 9, 23, 15, 30, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
+    LiveQuote liveQuote =
+        LiveQuote.builder()
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("25100.0000"))
+            .volume(BigDecimal.ZERO)
+            .quoteTime(quoteTime)
+            .build();
 
-    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
-        .thenReturn(Optional.of(liveQuote));
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
 
-    QuoteDto dto = quoteService.getQuote(ticker);
+    QuoteDto quoteDto = quoteService.getQuote(ticker);
 
-    assertNotNull(dto);
-    assertEquals(new BigDecimal("25100.00"), dto.currentPrice());
-    assertEquals("2026-09-23 15:30:00", dto.timestamp());
+    assertNotNull(quoteDto);
+    assertEquals(new BigDecimal("25100.0000"), quoteDto.currentPrice());
+    assertEquals(quoteTime.toString(), quoteDto.timestamp());
   }
 
   @Test
-  void testGetQuoteAngelOneEmptyResponse() {
+  void testGetQuoteReturnsZeroWhenNotPresentInDatabase() {
     Ticker ticker =
         Ticker.builder()
             .tickerSymbol("NIFTY50")
@@ -57,29 +65,12 @@ class QuoteServiceTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
-        .thenReturn(Optional.empty());
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.empty());
 
-    QuoteDto dto = quoteService.getQuote(ticker);
+    QuoteDto quoteDto = quoteService.getQuote(ticker);
 
-    assertNotNull(dto);
-    assertEquals(BigDecimal.ZERO, dto.currentPrice());
-    assertEquals("", dto.timestamp());
-  }
-
-  @Test
-  void testGetQuoteYahooFinanceReturnsEmpty() {
-    Ticker ticker =
-        Ticker.builder()
-            .tickerSymbol("AAPL")
-            .tickerName("Apple Inc.")
-            .dataProvider(DataProvider.YAHOO_FINANCE)
-            .build();
-
-    QuoteDto dto = quoteService.getQuote(ticker);
-
-    assertNotNull(dto);
-    assertEquals(BigDecimal.ZERO, dto.currentPrice());
-    assertEquals("", dto.timestamp());
+    assertNotNull(quoteDto);
+    assertEquals(BigDecimal.ZERO, quoteDto.currentPrice());
+    assertEquals("", quoteDto.timestamp());
   }
 }

@@ -214,6 +214,56 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22950.00');
     });
 
+    it('updates the latest price on the intraday chart when a 1-minute poll returns an updated in-progress live candle', async () => {
+        // Friday, Oct 16, 2026 at 09:20:00 AM IST (03:50:00 UTC) — market is OPEN
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-16T03:50:00Z'));
+
+        let pollCount = 0;
+        const initialLiveCandle: DailyCandleData = {
+            date: '2026-10-16T09:15:00+05:30',
+            open: 22900.0,
+            high: 22950.0,
+            low: 22890.0,
+            close: 22940.0,
+            vol: 1000,
+        };
+        const updatedLiveCandle: DailyCandleData = {
+            date: '2026-10-16T09:15:00+05:30',
+            open: 22900.0,
+            high: 23025.5,
+            low: 22890.0,
+            close: 23025.5,
+            vol: 1200,
+        };
+
+        vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
+            if (tf === '15M') {
+                pollCount += 1;
+                if (pollCount === 1) {
+                    return [...yesterdayCandles, initialLiveCandle];
+                }
+                return [...yesterdayCandles, updatedLiveCandle];
+            }
+            return [];
+        });
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22940.00');
+        });
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(60_000);
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:23025.50');
+        });
+        expect(screen.getByText('High:').parentElement).toHaveTextContent('High:23025.50');
+    });
+
     it('pauses the 1-minute intraday poll when the market is closed', async () => {
         // Sunday, Oct 18, 2026 at 10:00 AM IST (04:30 UTC) — market is CLOSED (Weekend)
         vi.useFakeTimers({ shouldAdvanceTime: true });

@@ -1,41 +1,60 @@
 package com.alphaflow.api.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.persistence.entities.IntradayPrice;
+import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
 
 class IntradayPriceServiceTest {
 
+  private static final ZoneOffset IST_OFFSET = ZoneOffset.ofHoursMinutes(5, 30);
+
+  private IntradayPriceRepository intradayPriceRepository;
+  private LiveQuoteRepository liveQuoteRepository;
+  private IntradayPriceService intradayPriceService;
+  private Ticker ticker;
+  private LocalDate testDate;
+  private OffsetDateTime endDateTime;
+
+  @BeforeEach
+  void setUp() {
+    intradayPriceRepository = mock(IntradayPriceRepository.class);
+    liveQuoteRepository = mock(LiveQuoteRepository.class);
+    intradayPriceService = new IntradayPriceService(intradayPriceRepository, liveQuoteRepository);
+    ticker = Ticker.builder().tickerSymbol("NIFTY50").country(Country.IN).isActive(true).build();
+    testDate = LocalDate.of(2026, 9, 23);
+    endDateTime =
+        testDate.atTime(LocalTime.MAX).atZone(ticker.getCountry().getZoneId()).toOffsetDateTime();
+  }
+
   @Test
-  void testGetIntradayPriceWithValidTimeframe() {
-    IntradayPriceRepository repo = mock(IntradayPriceRepository.class);
-    IntradayPriceService service = new IntradayPriceService(repo);
+  void testGetIntradayPriceWithoutLiveQuote() {
+    OffsetDateTime firstTime = OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, IST_OFFSET);
+    OffsetDateTime secondTime = OffsetDateTime.of(2026, 9, 23, 9, 30, 0, 0, IST_OFFSET);
 
-    Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
-
-    OffsetDateTime t1 =
-        OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
-    OffsetDateTime t2 =
-        OffsetDateTime.of(2026, 9, 23, 9, 30, 0, 0, ZoneOffset.ofHoursMinutes(5, 30));
-
-    IntradayPrice p1 =
+    IntradayPrice firstBar =
         IntradayPrice.builder()
             .ticker(ticker)
             .timeframe("15M")
-            .priceTime(t1)
+            .priceTime(firstTime)
             .priceOpen(new BigDecimal("25000.0000"))
             .priceHigh(new BigDecimal("25050.0000"))
             .priceLow(new BigDecimal("24990.0000"))
@@ -43,11 +62,11 @@ class IntradayPriceServiceTest {
             .volume(BigDecimal.ZERO)
             .build();
 
-    IntradayPrice p2 =
+    IntradayPrice secondBar =
         IntradayPrice.builder()
             .ticker(ticker)
             .timeframe("15M")
-            .priceTime(t2)
+            .priceTime(secondTime)
             .priceOpen(new BigDecimal("25040.0000"))
             .priceHigh(new BigDecimal("25080.0000"))
             .priceLow(new BigDecimal("25030.0000"))
@@ -55,60 +74,204 @@ class IntradayPriceServiceTest {
             .volume(BigDecimal.ZERO)
             .build();
 
-    when(repo.findLatestByTickerAndTimeframe(
-            ticker, IntradayTimeframe._15M.getValue(), PageRequest.of(0, 250)))
-        .thenReturn(List.of(p2, p1));
+    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of(secondBar, firstBar));
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.empty());
 
-    List<OhlcvDto> result = service.getIntradayPrice(ticker, IntradayTimeframe._15M, 0, 250);
+    List<OhlcvDto> result =
+        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, testDate, 0, 250);
 
     assertEquals(2, result.size());
-    assertEquals(t1, result.getFirst().priceDate());
-    assertEquals(t2, result.get(1).priceDate());
-
-    // Calling with null endDate delegates to getIntradayPrice(ticker, timeframe, page, size)
-    List<OhlcvDto> resultNullEndDate =
-        service.getIntradayPrice(
-            ticker, IntradayTimeframe._15M, (java.time.LocalDate) null, 0, 250);
-    assertEquals(2, resultNullEndDate.size());
-
-    // Calling with non-null endDate queries findLatestByTickerAndTimeframeAndEndDate
-    java.time.LocalDate endDate = java.time.LocalDate.of(2026, 9, 23);
-    java.time.OffsetDateTime endDateTime =
-        endDate
-            .atTime(java.time.LocalTime.MAX)
-            .atZone(ticker.getCountry().getZoneId())
-            .toOffsetDateTime();
-    when(repo.findLatestByTickerAndTimeframeAndEndDate(
-            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
-        .thenReturn(List.of(p1));
-
-    List<OhlcvDto> resultWithEndDate =
-        service.getIntradayPrice(ticker, IntradayTimeframe._15M, endDate, 0, 250);
-    assertEquals(1, resultWithEndDate.size());
-    assertEquals(t1, resultWithEndDate.getFirst().priceDate());
+    assertEquals(firstTime, result.getFirst().priceDate());
+    assertEquals(secondTime, result.get(1).priceDate());
   }
 
   @Test
-  void testGetIntradayPriceThrowsWhenTimeframeNull() {
-    IntradayPriceRepository repo = mock(IntradayPriceRepository.class);
-    IntradayPriceService service = new IntradayPriceService(repo);
+  void testGetIntradayPriceAppendsNewInProgressCandleWhenQuoteInNewBucket() {
+    OffsetDateTime firstTime = OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, IST_OFFSET);
+    IntradayPrice firstBar =
+        IntradayPrice.builder()
+            .ticker(ticker)
+            .timeframe("15M")
+            .priceTime(firstTime)
+            .priceOpen(new BigDecimal("25000.0000"))
+            .priceHigh(new BigDecimal("25050.0000"))
+            .priceLow(new BigDecimal("24990.0000"))
+            .priceClose(new BigDecimal("25040.0000"))
+            .volume(BigDecimal.ZERO)
+            .build();
 
-    Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
+    OffsetDateTime quoteTime = OffsetDateTime.of(2026, 9, 23, 9, 37, 25, 0, IST_OFFSET);
+    LiveQuote liveQuote =
+        LiveQuote.builder()
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("25120.5000"))
+            .volume(new BigDecimal("100.0000"))
+            .quoteTime(quoteTime)
+            .build();
 
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            service.getIntradayPrice(
-                ticker, (com.alphaflow.common.enums.IntradayTimeframe) null, 0, 250));
+    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of(firstBar));
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
 
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            service.getIntradayPrice(
-                ticker,
-                (com.alphaflow.common.enums.IntradayTimeframe) null,
-                java.time.LocalDate.now(),
-                0,
-                250));
+    List<OhlcvDto> result =
+        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, testDate, 0, 250);
+
+    assertEquals(2, result.size());
+    OhlcvDto liveCandle = result.getLast();
+    assertEquals(OffsetDateTime.of(2026, 9, 23, 9, 30, 0, 0, IST_OFFSET), liveCandle.priceDate());
+    assertEquals(new BigDecimal("25120.5000"), liveCandle.priceOpen());
+    assertEquals(new BigDecimal("25120.5000"), liveCandle.priceHigh());
+    assertEquals(new BigDecimal("25120.5000"), liveCandle.priceLow());
+    assertEquals(new BigDecimal("25120.5000"), liveCandle.priceClose());
+    assertEquals(new BigDecimal("100.0000"), liveCandle.volume());
+  }
+
+  @Test
+  void testGetIntradayPriceSynthesizesCandleWhenClosedCandlesListEmpty() {
+    OffsetDateTime quoteTime = OffsetDateTime.of(2026, 9, 23, 9, 18, 0, 0, IST_OFFSET);
+    LiveQuote liveQuote =
+        LiveQuote.builder()
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("25010.0000"))
+            .volume(BigDecimal.ZERO)
+            .quoteTime(quoteTime)
+            .build();
+
+    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of());
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
+
+    List<OhlcvDto> result =
+        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, testDate, 0, 250);
+
+    assertEquals(1, result.size());
+    assertEquals(
+        OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, IST_OFFSET), result.getFirst().priceDate());
+    assertEquals(new BigDecimal("25010.0000"), result.getFirst().priceClose());
+  }
+
+  @Test
+  void testGetIntradayPriceUpdatesExistingCandleWhenQuoteInSameBucket() {
+    OffsetDateTime bucketTime = OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, IST_OFFSET);
+    IntradayPrice existingBar =
+        IntradayPrice.builder()
+            .ticker(ticker)
+            .timeframe("15M")
+            .priceTime(bucketTime)
+            .priceOpen(new BigDecimal("25000.0000"))
+            .priceHigh(new BigDecimal("25050.0000"))
+            .priceLow(new BigDecimal("24990.0000"))
+            .priceClose(new BigDecimal("25040.0000"))
+            .volume(new BigDecimal("500.0000"))
+            .build();
+
+    OffsetDateTime quoteTime = OffsetDateTime.of(2026, 9, 23, 9, 22, 0, 0, IST_OFFSET);
+    LiveQuote liveQuote =
+        LiveQuote.builder()
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("25080.0000"))
+            .volume(BigDecimal.ZERO)
+            .quoteTime(quoteTime)
+            .build();
+
+    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of(existingBar));
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
+
+    List<OhlcvDto> result =
+        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, testDate, 0, 250);
+
+    assertEquals(1, result.size());
+    OhlcvDto updatedCandle = result.getFirst();
+    assertEquals(bucketTime, updatedCandle.priceDate());
+    assertEquals(new BigDecimal("25000.0000"), updatedCandle.priceOpen());
+    assertEquals(new BigDecimal("25080.0000"), updatedCandle.priceHigh());
+    assertEquals(new BigDecimal("24990.0000"), updatedCandle.priceLow());
+    assertEquals(new BigDecimal("25080.0000"), updatedCandle.priceClose());
+    assertEquals(new BigDecimal("500.0000"), updatedCandle.volume());
+  }
+
+  @Test
+  void testGetIntradayPriceUpdatesExistingCandleWhenQuoteLowerThanCandleLow() {
+    OffsetDateTime bucketTime = OffsetDateTime.of(2026, 9, 23, 9, 15, 0, 0, IST_OFFSET);
+    IntradayPrice existingBar =
+        IntradayPrice.builder()
+            .ticker(ticker)
+            .timeframe("15M")
+            .priceTime(bucketTime)
+            .priceOpen(new BigDecimal("25000.0000"))
+            .priceHigh(new BigDecimal("25050.0000"))
+            .priceLow(new BigDecimal("24990.0000"))
+            .priceClose(new BigDecimal("25040.0000"))
+            .volume(new BigDecimal("500.0000"))
+            .build();
+
+    OffsetDateTime quoteTime = OffsetDateTime.of(2026, 9, 23, 9, 22, 0, 0, IST_OFFSET);
+    LiveQuote liveQuote =
+        LiveQuote.builder()
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("24980.0000"))
+            .volume(BigDecimal.ZERO)
+            .quoteTime(quoteTime)
+            .build();
+
+    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of(existingBar));
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
+
+    List<OhlcvDto> result =
+        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, testDate, 0, 250);
+
+    assertEquals(1, result.size());
+    OhlcvDto updatedCandle = result.getFirst();
+    assertEquals(bucketTime, updatedCandle.priceDate());
+    assertEquals(new BigDecimal("25000.0000"), updatedCandle.priceOpen());
+    assertEquals(new BigDecimal("25050.0000"), updatedCandle.priceHigh());
+    assertEquals(new BigDecimal("24980.0000"), updatedCandle.priceLow());
+    assertEquals(new BigDecimal("24980.0000"), updatedCandle.priceClose());
+    assertEquals(new BigDecimal("500.0000"), updatedCandle.volume());
+  }
+
+  @Test
+  void testGetIntradayPriceIgnoresStaleLiveQuoteOlderThanOrEqualLatestClosedCandle() {
+    OffsetDateTime latestBarTime = OffsetDateTime.of(2026, 9, 23, 10, 0, 0, 0, IST_OFFSET);
+    IntradayPrice latestBar =
+        IntradayPrice.builder()
+            .ticker(ticker)
+            .timeframe("15M")
+            .priceTime(latestBarTime)
+            .priceOpen(new BigDecimal("25000.0000"))
+            .priceHigh(new BigDecimal("25050.0000"))
+            .priceLow(new BigDecimal("24990.0000"))
+            .priceClose(new BigDecimal("25040.0000"))
+            .volume(BigDecimal.ZERO)
+            .build();
+
+    OffsetDateTime olderQuoteTime = OffsetDateTime.of(2026, 9, 23, 9, 35, 0, 0, IST_OFFSET);
+    LiveQuote staleQuote =
+        LiveQuote.builder()
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("24950.0000"))
+            .volume(BigDecimal.ZERO)
+            .quoteTime(olderQuoteTime)
+            .build();
+
+    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, IntradayTimeframe._15M.getValue(), endDateTime, PageRequest.of(0, 250)))
+        .thenReturn(List.of(latestBar));
+    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(staleQuote));
+
+    List<OhlcvDto> result =
+        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, testDate, 0, 250);
+
+    assertEquals(1, result.size());
+    assertEquals(latestBarTime, result.getFirst().priceDate());
+    assertEquals(new BigDecimal("25040.0000"), result.getFirst().priceClose());
   }
 }

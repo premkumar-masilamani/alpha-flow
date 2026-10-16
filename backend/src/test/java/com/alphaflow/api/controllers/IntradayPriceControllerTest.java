@@ -2,6 +2,7 @@ package com.alphaflow.api.controllers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -11,6 +12,7 @@ import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -25,7 +27,8 @@ class IntradayPriceControllerTest {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
     TickerService tickerService = mock(TickerService.class);
 
-    Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
+    Ticker ticker =
+        Ticker.builder().tickerSymbol("NIFTY50").country(Country.IN).isActive(true).build();
     when(tickerService.getTicker("NIFTY50")).thenReturn(ticker);
 
     OffsetDateTime candleTime =
@@ -39,26 +42,29 @@ class IntradayPriceControllerTest {
             new BigDecimal("25040.00"),
             new BigDecimal("1000.00"));
 
-    LocalDate endDate = LocalDate.of(2026, 9, 23);
+    LocalDate explicitEndDate = LocalDate.of(2026, 9, 23);
+    LocalDate todayInMarket = LocalDate.now(ticker.getCountry().getZoneId());
 
-    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, null, 0, 250))
+    when(intradayPriceService.getIntradayPrice(
+            ticker, IntradayTimeframe._15M, todayInMarket, 0, 250))
         .thenReturn(List.of(dto));
-    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, endDate, 0, 250))
+    when(intradayPriceService.getIntradayPrice(
+            ticker, IntradayTimeframe._15M, explicitEndDate, 0, 250))
         .thenReturn(List.of(dto));
 
     IntradayPriceController controller =
         new IntradayPriceController(intradayPriceService, tickerService);
 
-    // Call without endDate
+    // Call without endDate (resolves to today)
     List<OhlcvDto> resultWithoutEndDate =
         controller.getIntradayPriceDataForTicker("NIFTY50", IntradayTimeframe._15M, 0, 250, null);
     assertEquals(1, resultWithoutEndDate.size());
     assertEquals(candleTime, resultWithoutEndDate.getFirst().priceDate());
 
-    // Call with endDate
+    // Call with explicit endDate
     List<OhlcvDto> resultWithEndDate =
         controller.getIntradayPriceDataForTicker(
-            "NIFTY50", IntradayTimeframe._15M, 0, 250, endDate);
+            "NIFTY50", IntradayTimeframe._15M, 0, 250, explicitEndDate);
     assertEquals(1, resultWithEndDate.size());
     assertEquals(candleTime, resultWithEndDate.getFirst().priceDate());
   }
@@ -68,12 +74,17 @@ class IntradayPriceControllerTest {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
     TickerService tickerService = mock(TickerService.class);
 
-    Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
+    Ticker ticker =
+        Ticker.builder().tickerSymbol("NIFTY50").country(Country.IN).isActive(true).build();
     when(tickerService.getTicker("NIFTY50")).thenReturn(ticker);
 
-    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, null, 0, 1000))
+    LocalDate todayInMarket = LocalDate.now(ticker.getCountry().getZoneId());
+
+    when(intradayPriceService.getIntradayPrice(
+            eq(ticker), eq(IntradayTimeframe._15M), eq(todayInMarket), eq(0), eq(1000)))
         .thenReturn(List.of());
-    when(intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, null, 0, 1))
+    when(intradayPriceService.getIntradayPrice(
+            eq(ticker), eq(IntradayTimeframe._15M), eq(todayInMarket), eq(0), eq(1)))
         .thenReturn(List.of());
 
     IntradayPriceController controller =
@@ -93,7 +104,8 @@ class IntradayPriceControllerTest {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
     TickerService tickerService = mock(TickerService.class);
 
-    Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").isActive(true).build();
+    Ticker ticker =
+        Ticker.builder().tickerSymbol("NIFTY50").country(Country.IN).isActive(true).build();
     when(tickerService.getTicker("NIFTY50")).thenReturn(ticker);
 
     IntradayPriceController controller =
