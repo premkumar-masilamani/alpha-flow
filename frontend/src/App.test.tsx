@@ -379,9 +379,7 @@ describe('App Intra-Day Tab - Issue #232', () => {
         });
         vi.mocked(api.getSupportResistances).mockResolvedValue([
             {
-                id: 1,
-                symbol: 'NIFTY50',
-                timeframe: 'DAILY',
+                priceDate: '2026-10-16',
                 levelType: 'SUPPORT',
                 zoneBottom: 22500,
                 zoneTop: 22550,

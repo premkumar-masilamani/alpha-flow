@@ -15,7 +15,7 @@ VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
        ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE')
 ON CONFLICT (ticker_symbol) DO NOTHING;
 
-INSERT INTO public.indicator_definitions (indicator_type, source, params)
+INSERT INTO indicator_definitions (indicator_type, source, params)
 VALUES ('EMA', 'CLOSE', '{"period": 5}'),
        ('EMA', 'CLOSE', '{"period": 13}'),
        ('EMA', 'CLOSE', '{"period": 26}'),

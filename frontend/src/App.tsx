@@ -866,14 +866,24 @@ function App() {
     }
 
     const { candle, dailyIndicators, weeklyIndicators } = analysisData;
-    const priceChange = candle.close - candle.open;
-    const priceChangePct = pctChange(priceChange, candle.open);
+    const priorDailyCandle =
+      chartCandleData.length > 1 ? chartCandleData[chartCandleData.length - 2] : null;
+    const overviewChangeBase = priorDailyCandle ? priorDailyCandle.close : candle.open;
+    const priceChange =
+      overviewChangeBase !== null && overviewChangeBase > 0
+        ? candle.close - overviewChangeBase
+        : null;
+    const priceChangePct =
+      priceChange !== null && overviewChangeBase !== null && overviewChangeBase > 0
+        ? pctChange(priceChange, overviewChangeBase)
+        : null;
+    const priceChangeSubtitle = priorDailyCandle ? "(vs prev close)" : "(vs open)";
 
     const renderRecentPatterns = (patterns: CandlestickPatternData[], candles: DailyCandleData[]) => {
       if (patterns.length === 0) {
         return (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-            <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+            <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
               <div className="flex items-center gap-3">
                 <button
@@ -923,8 +933,8 @@ function App() {
       const details = getCandlestickPatternDetails(latestPattern);
 
       return (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+          <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Latest Candlestick Pattern</h2>
             <div className="flex items-center gap-3">
               <button
@@ -939,7 +949,7 @@ function App() {
               </span>
             </div>
           </div>
-          <div className="p-6">
+          <div className="p-4">
             <div
               className={`relative overflow-hidden p-5 rounded-xl border transition-all duration-300 ${
                 isBullish
@@ -1043,8 +1053,8 @@ function App() {
     const renderChartPatterns = (patterns: ChartPatternData[], candles: DailyCandleData[]) => {
       if (patterns.length === 0) {
         return (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-            <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+            <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
               <h2 className="text-base font-bold text-white">Chart Patterns</h2>
               <div className="flex items-center gap-3">
                 <button
@@ -1059,7 +1069,7 @@ function App() {
                 </span>
               </div>
             </div>
-            <div className="p-6 text-center text-slate-500 text-sm italic">
+            <div className="p-4 text-center text-slate-500 text-sm italic">
               No active or completed chart patterns detected.
             </div>
           </div>
@@ -1070,8 +1080,8 @@ function App() {
       const sortedPatterns = [...patterns].sort((a, b) => b.endDate.localeCompare(a.endDate));
 
       return (
-        <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur">
-          <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+        <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+          <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
             <h2 className="text-base font-bold text-white">Chart Patterns</h2>
             <div className="flex items-center gap-3">
               <button
@@ -1086,7 +1096,7 @@ function App() {
               </span>
             </div>
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-4 space-y-4">
             {sortedPatterns.map((pattern) => {
               const details = getChartPatternDetails(pattern.patternType) || getChartPatternDetails(pattern.displayName);
               const isBullish = pattern.sentiment.startsWith("BULLISH");
@@ -1293,8 +1303,8 @@ function App() {
     };
 
     const renderIndicatorTable = (title: string, date: string, indicators: IndicatorSeries[]) => (
-      <div className="bg-slate-900/40 border border-slate-800 rounded-xl overflow-hidden shadow-xl backdrop-blur mb-6">
-        <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
+      <div className="bg-slate-900/60 border border-slate-800 rounded-lg overflow-hidden shadow-lg backdrop-blur">
+        <div className="px-4 py-3 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
           <h2 className="text-base font-bold text-white">{title}</h2>
           <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
             {date || 'N/A'}
@@ -1351,13 +1361,13 @@ function App() {
     const weeklyDate = weeklyIndicators[0]?.points[0]?.date || '';
 
     return (
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-950 text-slate-200">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950 text-slate-200">
         {/* Summary Banner */}
         <PriceSummaryBanner
           ltp={candle.close}
           change={priceChange}
           changePct={priceChangePct}
-          changeSubtitle="(vs open)"
+          changeSubtitle={priceChangeSubtitle}
           open={candle.open}
           high={candle.high}
           low={candle.low}
@@ -1368,7 +1378,7 @@ function App() {
 
         {/* Support and Resistance Section */}
         {filteredSupportResistances.length > 0 && (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-6 shadow-xl backdrop-blur">
+          <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-4 shadow-lg backdrop-blur">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-base font-bold text-white">Support & Resistance Zones</h2>
               <span className="text-xs px-2.5 py-1 rounded-md bg-slate-800/80 border border-slate-700 font-semibold text-slate-300 font-mono">
@@ -1461,6 +1471,9 @@ function App() {
 
     const chartDate = latestCandle?.date || activeDay;
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
+    const totalDayVolume = hasCandlesForActiveDay
+      ? intradayCandles.reduce((acc, c) => acc + (Number(c.vol) || 0), 0)
+      : null;
     const nonTradingReason = activeDay
       ? getDayNonTradingReason(activeDay, selectedTickerCountry, marketHolidays)
       : null;
@@ -1477,6 +1490,7 @@ function App() {
           high={highPrice}
           low={lowPrice}
           close={closePrice}
+          volume={totalDayVolume}
           date={chartDateFormatted}
           traversal={{
             canGoPrev,

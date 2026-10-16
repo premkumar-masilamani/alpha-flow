@@ -20,6 +20,7 @@ class AngelOneConfigTest {
     config.setTotpKey("test-totp-key");
     config.setLoginUrl("https://login.example.com");
     config.setCandleUrl("https://candle.example.com");
+    config.setQuoteUrl("https://quote.example.com");
     config.setDelayMilliseconds(1500L);
     config.setTokenTtl(Duration.ofSeconds(3600));
     config.setSessionStartTime(LocalTime.of(9, 15));
@@ -33,6 +34,7 @@ class AngelOneConfigTest {
     assertEquals("test-totp-key", config.getTotpKey());
     assertEquals("https://login.example.com", config.getLoginUrl());
     assertEquals("https://candle.example.com", config.getCandleUrl());
+    assertEquals("https://quote.example.com", config.getQuoteUrl());
     assertEquals(1500L, config.getDelayMilliseconds());
     assertEquals(Duration.ofSeconds(3600L), config.getTokenTtl());
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());
@@ -54,6 +56,9 @@ class AngelOneConfigTest {
     assertEquals(
         "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData",
         config.getCandleUrl());
+    assertEquals(
+        "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote",
+        config.getQuoteUrl());
     assertEquals(1000L, config.getDelayMilliseconds());
     assertEquals(Duration.ofSeconds(72000), config.getTokenTtl());
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());

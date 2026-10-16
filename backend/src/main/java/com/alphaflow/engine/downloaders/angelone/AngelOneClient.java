@@ -4,6 +4,7 @@ import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
+import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -142,6 +144,68 @@ public class AngelOneClient {
       }
     }
     return Collections.emptyList();
+  }
+
+  public Optional<AngelOneQuote> getMarketQuote(String exchange, String symbolToken) {
+    Map<String, Object> body = new HashMap<>();
+    body.put("mode", "FULL");
+    body.put("exchangeTokens", Map.of(exchange, List.of(symbolToken)));
+
+    for (int attempt = 1; attempt <= 2; attempt++) {
+      String jwt = authManager.getValidJwtToken();
+      if (jwt == null || jwt.isBlank()) {
+        return Optional.empty();
+      }
+
+      try {
+        ResponseEntity<String> response =
+            restClient
+                .post()
+                .uri(config.getQuoteUrl())
+                .headers(
+                    headers ->
+                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                .body(body)
+                .retrieve()
+                .toEntity(String.class);
+
+        String responseBody = response.getBody();
+        if (responseBody == null) {
+          return Optional.empty();
+        }
+
+        JsonNode root = objectMapper.readTree(responseBody);
+        if (root.path("status").asBoolean(false)) {
+          JsonNode fetchedList = root.path("data").path("fetched");
+          if (fetchedList.isArray() && !fetchedList.isEmpty()) {
+            JsonNode item = fetchedList.get(0);
+            BigDecimal ltp =
+                item.hasNonNull("ltp")
+                    ? new BigDecimal(item.path("ltp").asText())
+                    : BigDecimal.ZERO;
+
+            String timestamp =
+                item.hasNonNull("exchFeedTime")
+                    ? item.path("exchFeedTime").asText()
+                    : OffsetDateTime.now(IST_ZONE).toString();
+
+            return Optional.of(new AngelOneQuote(ltp, timestamp));
+          }
+        } else {
+          String errorCode = root.path("errorcode").asText();
+          if ("AG8001".equalsIgnoreCase(errorCode)) {
+            authManager.invalidateSession();
+          }
+        }
+      } catch (Exception e) {
+        log.warn("Attempt {}/2 failed to fetch quote from Angel One: {}", attempt, e.getMessage());
+        if (attempt == 1) {
+          authManager.invalidateSession();
+          sleep(config.getDelayMilliseconds());
+        }
+      }
+    }
+    return Optional.empty();
   }
 
   OffsetDateTime parseTimestamp(String raw) {

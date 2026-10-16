@@ -116,11 +116,11 @@ export const PriceSummaryBanner: React.FC<PriceSummaryBannerProps> = ({
             {close !== null && close !== undefined ? Number(close).toFixed(2) : "—"}
           </span>
         </div>
-        {volume !== undefined && volume !== null && (
+        {volume !== undefined && (
           <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
             <span className="text-slate-400 mr-1.5">Vol:</span>
             <span className="text-slate-200 font-semibold">
-              {Number(volume).toLocaleString()}
+              {volume !== null ? Number(volume).toLocaleString() : "—"}
             </span>
           </div>
         )}
@@ -140,7 +140,7 @@ export const PriceSummaryBanner: React.FC<PriceSummaryBannerProps> = ({
                   <ChevronLeft size={14} />
                 )}
               </button>
-              <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40">
+              <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40 font-mono">
                 {date}
               </span>
               <button
