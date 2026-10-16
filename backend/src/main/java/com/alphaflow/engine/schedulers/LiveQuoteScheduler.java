@@ -5,7 +5,7 @@ import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
-import com.alphaflow.engine.services.NotificationService;
+import com.alphaflow.engine.strategies.SakthIntradayStrategy;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -32,7 +32,7 @@ public class LiveQuoteScheduler {
   private final AngelOneClient angelOneClient;
   private final TickerRepository tickerRepository;
   private final LiveQuoteRepository liveQuoteRepository;
-  private final NotificationService notificationService;
+  private final SakthIntradayStrategy sakthIntradayStrategy;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public LiveQuoteScheduler(
@@ -40,12 +40,12 @@ public class LiveQuoteScheduler {
       AngelOneClient angelOneClient,
       TickerRepository tickerRepository,
       LiveQuoteRepository liveQuoteRepository,
-      NotificationService notificationService) {
+      SakthIntradayStrategy sakthIntradayStrategy) {
     this.angelOneConfig = angelOneConfig;
     this.angelOneClient = angelOneClient;
     this.tickerRepository = tickerRepository;
     this.liveQuoteRepository = liveQuoteRepository;
-    this.notificationService = notificationService;
+    this.sakthIntradayStrategy = sakthIntradayStrategy;
   }
 
   @Scheduled(cron = "0 * 9-15 * * MON-FRI", zone = MarketConstants.TIMEZONE_KOLKATA)
@@ -89,8 +89,7 @@ public class LiveQuoteScheduler {
       Optional<LiveQuote> persistedQuoteOptional = fetchAndPersistQuote(ticker, currentTimestamp);
       if (persistedQuoteOptional.isPresent()) {
         LiveQuote persistedQuote = persistedQuoteOptional.get();
-        evaluateAlertConditions(ticker, persistedQuote);
-        dispatchAlertNotifications(ticker, persistedQuote);
+        sakthIntradayStrategy.evaluateAndNotify(ticker, persistedQuote);
       } else {
         log.warn(
             "Skipping alert and notification tasks: no live quote fetched for {}",
@@ -140,21 +139,5 @@ public class LiveQuoteScheduler {
           rawTimestamp);
       return fallbackTimestamp;
     }
-  }
-
-  private void evaluateAlertConditions(Ticker ticker, LiveQuote liveQuote) {
-    log.debug(
-        "Evaluating alert conditions for {}: price={} at {}",
-        ticker.getTickerSymbol(),
-        liveQuote.getLastPrice(),
-        liveQuote.getQuoteTime());
-  }
-
-  private void dispatchAlertNotifications(Ticker ticker, LiveQuote liveQuote) {
-    log.debug(
-        "Placeholder notification check for {}: price={} via {}",
-        ticker.getTickerSymbol(),
-        liveQuote.getLastPrice(),
-        notificationService.getClass().getSimpleName());
   }
 }
