@@ -14,7 +14,7 @@ all: dev
 
 dev:
 	@echo "Running application in dev mode with hot-reloading..."
-	$(GRADLE) bootRun --continuous $(DEV_FLAGS)
+	$(GRADLE) bootRun --continuous --daemon --parallel --build-cache --no-configuration-cache --console=plain
 
 test:
 	@echo "Running unit tests..."
