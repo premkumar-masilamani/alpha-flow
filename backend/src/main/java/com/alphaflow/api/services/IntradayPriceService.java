@@ -38,39 +38,23 @@ public class IntradayPriceService {
   }
 
   public List<OhlcvDto> getIntradayPrice(
-      Ticker ticker, IntradayTimeframe timeframe, int page, int size) {
-    return getIntradayPrice(ticker, timeframe, null, page, size);
-  }
-
-  public List<OhlcvDto> getIntradayPrice(
       Ticker ticker, IntradayTimeframe timeframe, LocalDate endDate, int page, int size) {
-    if (timeframe != null) {
-      ZoneId marketZone = ticker.getCountry().getZoneId();
-      List<IntradayPrice> persistedPrices;
-      if (endDate != null) {
-        OffsetDateTime endDateTime =
-            endDate.atTime(LocalTime.MAX).atZone(marketZone).toOffsetDateTime();
-        persistedPrices =
-            intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
-                ticker, timeframe.getValue(), endDateTime, PageRequest.of(page, size));
-      } else {
-        persistedPrices =
-            intradayPriceRepository.findLatestByTickerAndTimeframe(
-                ticker, timeframe.getValue(), PageRequest.of(page, size));
-      }
+    ZoneId marketZone = ticker.getCountry().getZoneId();
+    OffsetDateTime endDateTime =
+        endDate.atTime(LocalTime.MAX).atZone(marketZone).toOffsetDateTime();
+    List<IntradayPrice> persistedPrices =
+        intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+            ticker, timeframe.getValue(), endDateTime, PageRequest.of(page, size));
 
-      List<OhlcvDto> candles =
-          new ArrayList<>(
-              persistedPrices.stream()
-                  .sorted(Comparator.comparing(IntradayPrice::getPriceTime))
-                  .map(OhlcvMapper::toDto)
-                  .toList());
+    List<OhlcvDto> candles =
+        new ArrayList<>(
+            persistedPrices.stream()
+                .sorted(Comparator.comparing(IntradayPrice::getPriceTime))
+                .map(OhlcvMapper::toDto)
+                .toList());
 
-      mergeLiveQuote(ticker, marketZone, candles);
-      return candles;
-    } else {
-      throw new IllegalArgumentException("Timeframe must not be null");
-    }
+    mergeLiveQuote(ticker, marketZone, candles);
+    return candles;
   }
 
   private void mergeLiveQuote(Ticker ticker, ZoneId marketZone, List<OhlcvDto> candles) {

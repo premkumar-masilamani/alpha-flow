@@ -50,10 +50,6 @@ public class LiveQuote {
   @Column(name = "quote_time", nullable = false)
   private OffsetDateTime quoteTime;
 
-  @Column(name = "created_at", nullable = false)
-  @Builder.Default
-  private OffsetDateTime createdAt = OffsetDateTime.now();
-
   @Column(name = "updated_at", nullable = false)
   @Builder.Default
   private OffsetDateTime updatedAt = OffsetDateTime.now();

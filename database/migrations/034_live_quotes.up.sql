@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS public.live_quotes (
     last_price NUMERIC(18, 4) NOT NULL,
     volume NUMERIC(18, 4) NOT NULL DEFAULT 0,
     quote_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     CONSTRAINT fk_live_quotes_ticker FOREIGN KEY (ticker_id) REFERENCES public.tickers (ticker_id) ON DELETE CASCADE,
     CONSTRAINT uk_live_quotes_ticker UNIQUE (ticker_id)

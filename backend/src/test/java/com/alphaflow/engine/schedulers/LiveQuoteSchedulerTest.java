@@ -92,7 +92,7 @@ class LiveQuoteSchedulerTest {
 
   @Test
   void testRunInsertsNewLiveQuoteDuringMarketHours() {
-    ZonedDateTime marketTime =
+    final ZonedDateTime marketTime =
         ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, MarketConstants.IST_ZONE);
     OffsetDateTime quoteTimestamp =
         ZonedDateTime.of(2026, 10, 16, 9, 59, 58, 0, MarketConstants.IST_ZONE).toOffsetDateTime();
@@ -117,13 +117,12 @@ class LiveQuoteSchedulerTest {
     assertEquals(new BigDecimal("25125.75"), savedQuote.getLastPrice());
     assertEquals(BigDecimal.ZERO, savedQuote.getVolume());
     assertEquals(quoteTimestamp, savedQuote.getQuoteTime());
-    assertEquals(marketTime.toOffsetDateTime(), savedQuote.getCreatedAt());
     assertEquals(marketTime.toOffsetDateTime(), savedQuote.getUpdatedAt());
   }
 
   @Test
   void testRunUpdatesExistingLiveQuoteAndUsesFallbackTimestampWhenNonIso() {
-    ZonedDateTime marketTime =
+    final ZonedDateTime marketTime =
         ZonedDateTime.of(2026, 10, 16, 10, 15, 0, 0, MarketConstants.IST_ZONE);
     OffsetDateTime initialCreated =
         ZonedDateTime.of(2026, 10, 16, 9, 15, 0, 0, MarketConstants.IST_ZONE).toOffsetDateTime();
@@ -135,7 +134,6 @@ class LiveQuoteSchedulerTest {
             .lastPrice(new BigDecimal("25000.00"))
             .volume(BigDecimal.ZERO)
             .quoteTime(initialCreated)
-            .createdAt(initialCreated)
             .updatedAt(initialCreated)
             .build();
 
@@ -158,7 +156,6 @@ class LiveQuoteSchedulerTest {
     assertEquals(10L, updatedQuote.getLiveQuoteId());
     assertEquals(new BigDecimal("25200.50"), updatedQuote.getLastPrice());
     assertEquals(marketTime.toOffsetDateTime(), updatedQuote.getQuoteTime());
-    assertEquals(initialCreated, updatedQuote.getCreatedAt());
     assertEquals(marketTime.toOffsetDateTime(), updatedQuote.getUpdatedAt());
   }
 

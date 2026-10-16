@@ -120,7 +120,6 @@ public class LiveQuoteScheduler {
                 .lastPrice(marketQuote.lastPrice())
                 .volume(BigDecimal.ZERO)
                 .quoteTime(quoteTime)
-                .createdAt(currentTimestamp)
                 .updatedAt(currentTimestamp)
                 .build();
       }

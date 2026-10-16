@@ -50,7 +50,10 @@ public class IntradayPriceController {
     Ticker ticker = tickerService.getTicker(symbol);
 
     if (timeframe == IntradayTimeframe._15M) {
-      return intradayPriceService.getIntradayPrice(ticker, timeframe, endDate, page, finalSize);
+      LocalDate resolvedEndDate =
+          (endDate != null) ? endDate : LocalDate.now(ticker.getCountry().getZoneId());
+      return intradayPriceService.getIntradayPrice(
+          ticker, timeframe, resolvedEndDate, page, finalSize);
     } else {
       log.error("Unsupported timeframe for intraday price data: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
