@@ -205,10 +205,12 @@ function App() {
     setLoadingOlderIntraday(false);
   }, [selectedTicker]);
 
-  const selectedTickerCountry: MarketCountry = useMemo(() => {
-    const matched = tickers.find((t) => t.symbol === selectedTicker);
-    return matched?.country ?? "IN";
+  const selectedTickerObj = useMemo(() => {
+    return tickers.find((t) => t.symbol === selectedTicker);
   }, [tickers, selectedTicker]);
+
+  const selectedTickerCountry: MarketCountry = selectedTickerObj?.country ?? "IN";
+  const selectedTickerName = selectedTickerObj?.name;
 
   const tickerCountryRef = useRef<MarketCountry>(selectedTickerCountry);
   const marketHolidaysRef = useRef<MarketHoliday[]>(marketHolidays);
@@ -227,7 +229,7 @@ function App() {
     const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
     const candleDays = Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
     if (candleDays.length === 0) {
-      return [];
+      return expectedIntradayDay ? [expectedIntradayDay] : [];
     }
     const startDay = candleDays[0];
     const lastCandleDay = candleDays[candleDays.length - 1];
@@ -249,7 +251,7 @@ function App() {
     return distinctDays.indexOf(activeDay);
   }, [distinctDays, activeDay]);
 
-  const canGoPrev = (activeDayIndex > 0) || hasOlderIntraday;
+  const canGoPrev = (activeDayIndex > 0) || (hasOlderIntraday && rawIntradayCandles.length > 0);
   const canGoNext = activeDayIndex >= 0 && activeDayIndex < distinctDays.length - 1;
 
   const fetchOlderIntradayCandles = async (autoSelectPrev = false) => {
@@ -670,8 +672,8 @@ function App() {
 
         if (rawCandles.length === 0) {
           if (isInitial) {
-            setIntradayError("No data available for this ticker");
             setRawIntradayCandles([]);
+            setHasOlderIntraday(false);
           }
           return;
         }
@@ -1441,14 +1443,6 @@ function App() {
       );
     }
 
-    if (intradayError || rawIntradayCandles.length === 0) {
-      return (
-        <div className="flex-1 flex items-center justify-center text-slate-500">
-          No data available for this ticker
-        </div>
-      );
-    }
-
     const hasCandlesForActiveDay = intradayCandles.length > 0;
     const latestCandle = hasCandlesForActiveDay ? intradayCandles[intradayCandles.length - 1] : null;
     const firstCandle = hasCandlesForActiveDay ? intradayCandles[0] : null;
@@ -1469,7 +1463,7 @@ function App() {
     const change = hasValidChange ? referencePrice - changeBase : 0;
     const pct = hasValidChange ? pctChange(change, changeBase) : 0;
 
-    const chartDate = latestCandle?.date || activeDay;
+    const chartDate = latestCandle?.date || activeDay || expectedIntradayDay;
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
     const totalDayVolume = hasCandlesForActiveDay
       ? intradayCandles.reduce((acc, c) => acc + (Number(c.vol) || 0), 0)
@@ -1528,14 +1522,31 @@ function App() {
                 <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
                   <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
                   <h3 className="text-lg font-bold text-white">
-                    {nonTradingReason?.type === "WEEKEND"
-                      ? "Market Closed — Weekend"
-                      : nonTradingReason?.type === "HOLIDAY"
-                        ? `Market Closed — ${nonTradingReason.label}`
-                        : "Awaiting Intraday Data"}
+                    {intradayError
+                      ? "Failed to Load Intraday Data"
+                      : rawIntradayCandles.length === 0
+                        ? "Intraday Data Unavailable"
+                        : nonTradingReason?.type === "WEEKEND"
+                          ? "Market Closed — Weekend"
+                          : nonTradingReason?.type === "HOLIDAY"
+                            ? `Market Closed — ${nonTradingReason.label}`
+                            : "Awaiting Intraday Data"}
                   </h3>
                   <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
-                    {nonTradingReason?.type === "WEEKEND" ? (
+                    {intradayError ? (
+                      <>
+                        Failed to load 15-minute intraday data for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                        {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                        Please check your network connection or try again later.
+                      </>
+                    ) : rawIntradayCandles.length === 0 ? (
+                      <>
+                        Intraday data is not available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span>
+                        {selectedTickerName && selectedTickerName !== selectedTicker ? ` (${selectedTickerName})` : ""}.
+                      </>
+                    ) : nonTradingReason?.type === "WEEKEND" ? (
                       <>
                         No 15-minute intraday data is available for{" "}
                         <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> on{" "}
@@ -1620,7 +1631,7 @@ function App() {
                 {selectedTicker}
               </h2>
               <p className="text-slate-400 text-sm">
-                {tickers.find((t) => t.symbol === selectedTicker)?.name}
+                {selectedTickerName}
               </p>
             </div>
           </div>

@@ -479,5 +479,51 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.queryByRole('button', { name: /next day/i })).not.toBeInTheDocument();
         expect(screen.queryByText('15m')).not.toBeInTheDocument();
     });
+
+    it('renders PriceSummaryBanner with dashes and styled amber card for US stock when intraday data is unavailable', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-16T14:30:00Z')); // Friday in US market hours
+
+        window.history.replaceState({}, '', '/?ticker=LLY&tab=intraday');
+
+        vi.mocked(api.getTickers).mockResolvedValue([
+            {
+                id: 2,
+                symbol: 'LLY',
+                name: 'Eli Lilly and Company',
+                type: 'STOCK',
+                country: 'US',
+            },
+        ]);
+
+        vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
+            if (tf === '15M') {
+                return [];
+            }
+            return [];
+        });
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Intraday Data Unavailable')).toBeInTheDocument();
+        });
+
+        // PriceSummaryBanner renders dashes
+        expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(6);
+        expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(2);
+
+        // Traversal buttons should be disabled
+        const prevBtn = screen.getByRole('button', { name: /previous day/i });
+        const nextBtn = screen.getByRole('button', { name: /next day/i });
+        expect(prevBtn).toBeDisabled();
+        expect(nextBtn).toBeDisabled();
+
+        // Amber card displays the message with symbol and ticker name
+        const message = screen.getByText(/Intraday data is not available for/i);
+        expect(message).toHaveTextContent('Intraday data is not available for LLY (Eli Lilly and Company).');
+        expect(screen.getAllByText('LLY').length).toBeGreaterThanOrEqual(3);
+        expect(screen.getAllByText(/Eli Lilly and Company/).length).toBeGreaterThanOrEqual(3);
+    });
 });
 
