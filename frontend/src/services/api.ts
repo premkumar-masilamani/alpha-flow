@@ -329,6 +329,8 @@ export const getMarketHolidays = async (): Promise<MarketHoliday[]> => {
     return response.data;
 };
 
+let inFlightHolidaysPromise: Promise<MarketHoliday[]> | null = null;
+
 export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
     if (typeof window !== 'undefined') {
         try {
@@ -349,20 +351,30 @@ export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
         }
     }
 
-    const holidays = await getMarketHolidays();
-    if (typeof window !== 'undefined') {
-        try {
-            const cachePayload: CachedMarketHolidays = {
-                timestamp: Date.now(),
-                expiresAt: Date.now() + MARKET_HOLIDAYS_TTL_MS,
-                holidays,
-            };
-            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
-        } catch (error) {
-            console.warn('Failed to save market holidays to localStorage:', error);
-        }
+    if (!inFlightHolidaysPromise) {
+        inFlightHolidaysPromise = getMarketHolidays()
+            .then((holidays) => {
+                if (typeof window !== 'undefined') {
+                    try {
+                        const cachePayload: CachedMarketHolidays = {
+                            timestamp: Date.now(),
+                            expiresAt: Date.now() + MARKET_HOLIDAYS_TTL_MS,
+                            holidays,
+                        };
+                        localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
+                    } catch (error) {
+                        console.warn('Failed to save market holidays to localStorage:', error);
+                    }
+                }
+                return holidays;
+            })
+            .finally(() => {
+                inFlightHolidaysPromise = null;
+            });
     }
-    return holidays;
+
+    return inFlightHolidaysPromise;
 };
+
 
 

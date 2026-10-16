@@ -378,6 +378,20 @@ describe('API Service Layer Tests', () => {
             expect(result).toEqual(mockHolidays);
             expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         });
+
+        it('getCachedMarketHolidays deduplicates concurrent in-flight network requests when cache is cold', async () => {
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+
+            const [first, second] = await Promise.all([
+                getCachedMarketHolidays(),
+                getCachedMarketHolidays(),
+            ]);
+
+            expect(first).toEqual(mockHolidays);
+            expect(second).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+        });
     });
 });
+
 

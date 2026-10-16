@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getMarketStatus } from './marketStatus';
+import { getMarketStatus, getExpectedIntradayDateKey } from './marketStatus';
 import type { MarketHoliday } from '../services/api';
 
 describe('getMarketStatus', () => {
@@ -102,3 +102,55 @@ describe('getMarketStatus', () => {
         expect(usStatus.displayMessage).toBe('Closed (Opens 09:30 EST)');
     });
 });
+
+describe('getExpectedIntradayDateKey', () => {
+    const mockHolidays: MarketHoliday[] = [
+        {
+            id: 1,
+            country: 'US',
+            holidayDate: '2026-01-19',
+            name: 'Martin Luther King, Jr. Day',
+        },
+        {
+            id: 2,
+            country: 'IN',
+            holidayDate: '2026-11-24',
+            name: 'Prakash Gurpurb Sri Guru Nanak Dev',
+        },
+    ];
+
+    it('returns the market dateKey when the market is OPEN on a trading day', () => {
+        // Friday 2026-10-16 at 09:31 IST (04:01 UTC)
+        const fridayOpenIn = new Date('2026-10-16T04:01:00Z');
+        expect(getExpectedIntradayDateKey(fridayOpenIn, 'IN', mockHolidays)).toBe('2026-10-16');
+
+        // Friday 2026-10-16 at 10:00 EDT (14:00 UTC)
+        const fridayOpenUs = new Date('2026-10-16T14:00:00Z');
+        expect(getExpectedIntradayDateKey(fridayOpenUs, 'US', mockHolidays)).toBe('2026-10-16');
+    });
+
+    it('returns the market dateKey during AFTER_HOURS on a trading day', () => {
+        // Friday 2026-10-16 at 16:30 IST (11:00 UTC)
+        const fridayAfterHoursIn = new Date('2026-10-16T11:00:00Z');
+        expect(getExpectedIntradayDateKey(fridayAfterHoursIn, 'IN', mockHolidays)).toBe('2026-10-16');
+
+        // Friday 2026-10-16 at 17:00 EDT (21:00 UTC)
+        const fridayAfterHoursUs = new Date('2026-10-16T21:00:00Z');
+        expect(getExpectedIntradayDateKey(fridayAfterHoursUs, 'US', mockHolidays)).toBe('2026-10-16');
+    });
+
+    it('returns null during PRE_MARKET, WEEKEND, and HOLIDAY states', () => {
+        // Pre-market: Friday 2026-10-16 at 08:30 IST (03:00 UTC)
+        const fridayPreMarketIn = new Date('2026-10-16T03:00:00Z');
+        expect(getExpectedIntradayDateKey(fridayPreMarketIn, 'IN', mockHolidays)).toBeNull();
+
+        // Weekend: Saturday 2026-10-17 at 10:00 IST (04:30 UTC)
+        const saturdayIn = new Date('2026-10-17T04:30:00Z');
+        expect(getExpectedIntradayDateKey(saturdayIn, 'IN', mockHolidays)).toBeNull();
+
+        // Holiday: Tuesday 2026-11-24 at 10:30 IST (05:00 UTC)
+        const holidayIn = new Date('2026-11-24T05:00:00Z');
+        expect(getExpectedIntradayDateKey(holidayIn, 'IN', mockHolidays)).toBeNull();
+    });
+});
+

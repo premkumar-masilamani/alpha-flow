@@ -146,3 +146,18 @@ export const getMarketStatus = (
         displayMessage: `Closed (Opens ${openTimeStr})`,
     };
 };
+
+export const getExpectedIntradayDateKey = (
+    now: Date,
+    country: MarketCountry,
+    holidays: MarketHoliday[]
+): string | null => {
+    const config = MARKET_CONFIGS[country];
+    const status = getMarketStatus(now, country, holidays);
+    if (status.statusType === 'OPEN' || status.statusType === 'AFTER_HOURS') {
+        const { dateKey } = getMarketParts(now, config.timeZone);
+        return dateKey;
+    }
+    return null;
+};
+

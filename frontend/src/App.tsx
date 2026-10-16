@@ -30,7 +30,10 @@ import {
   getSupportResistances,
   getChartPatterns,
   type ChartPatternData,
+  getCachedMarketHolidays,
+  type MarketHoliday,
 } from "./services/api";
+import { getExpectedIntradayDateKey, type MarketCountry } from "./utils/marketStatus";
 import {
   Loader2,
   ChevronLeft,
@@ -174,6 +177,23 @@ function App() {
   const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
   const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
+  const [marketHolidays, setMarketHolidays] = useState<MarketHoliday[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getCachedMarketHolidays()
+      .then((data) => {
+        if (isMounted) {
+          setMarketHolidays(data);
+        }
+      })
+      .catch((error) => {
+        console.warn("Failed to load market holidays:", error);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setSelectedIntradayDay(null);
@@ -181,11 +201,30 @@ function App() {
     setLoadingOlderIntraday(false);
   }, [selectedTicker]);
 
+  const selectedTickerCountry: MarketCountry = useMemo(() => {
+    const matched = tickers.find((t) => t.symbol === selectedTicker);
+    return matched?.country ?? "IN";
+  }, [tickers, selectedTicker]);
+
+  const expectedIntradayDay = useMemo(() => {
+    return getExpectedIntradayDateKey(new Date(), selectedTickerCountry, marketHolidays);
+  }, [selectedTickerCountry, marketHolidays, rawIntradayCandles, quoteData]);
+
   // Calculate distinct available days sorted chronologically
   const distinctDays = useMemo(() => {
     const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
-    return Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
-  }, [rawIntradayCandles]);
+    const days = Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
+    const hasValidQuote = quoteData !== null && Number(quoteData.currentPrice) > 0;
+    if (
+      expectedIntradayDay &&
+      (rawIntradayCandles.length > 0 || hasValidQuote) &&
+      !days.includes(expectedIntradayDay)
+    ) {
+      days.push(expectedIntradayDay);
+      days.sort();
+    }
+    return days;
+  }, [rawIntradayCandles, quoteData, expectedIntradayDay]);
 
   // Determine active day: selected day if valid, otherwise defaults to latest available day
   const activeDay = useMemo(() => {
@@ -208,7 +247,8 @@ function App() {
     if (loadingOlderIntraday || !hasOlderIntraday || !selectedTicker) return;
     setLoadingOlderIntraday(true);
     try {
-      const oldestDay = distinctDays.length > 0 ? distinctDays[0] : null;
+      const candleDays = Array.from(new Set(rawIntradayCandles.map((c) => getLocalDateKey(c.date)))).sort();
+      const oldestDay = candleDays.length > 0 ? candleDays[0] : null;
       const older = await getCandleData(selectedTicker, "15M", 0, 250, false, oldestDay || undefined);
       const strictlyOlder = oldestDay
         ? older.filter((c) => getLocalDateKey(c.date) < oldestDay)
@@ -260,8 +300,10 @@ function App() {
     const filtered = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === activeDay);
     const sorted = [...filtered].sort((a, b) => a.date.localeCompare(b.date));
 
-    const isLatest = activeDayIndex === distinctDays.length - 1;
-    if (isLatest && sorted.length > 0 && quoteData && quoteData.currentPrice > 0) {
+    const isCurrentSessionDay = expectedIntradayDay
+      ? activeDay === expectedIntradayDay
+      : activeDayIndex === distinctDays.length - 1;
+    if (isCurrentSessionDay && sorted.length > 0 && quoteData && quoteData.currentPrice > 0) {
       const lastIndex = sorted.length - 1;
       const lastCandle = sorted[lastIndex];
       const ltp = Number(quoteData.currentPrice);
@@ -273,7 +315,7 @@ function App() {
       };
     }
     return sorted;
-  }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData]);
+  }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData, expectedIntradayDay]);
 
   const { prevDayHigh, prevDayLow, prevDayClose } = useMemo(() => {
     if (activeDayIndex > 0) {
@@ -1411,7 +1453,7 @@ function App() {
       );
     }
 
-    const hasValidQuoteData = quoteData && Number(quoteData.currentPrice) > 0;
+    const hasValidQuoteData = Boolean(quoteData && Number(quoteData.currentPrice) > 0);
     if (intradayError || (rawIntradayCandles.length === 0 && !hasValidQuoteData)) {
       return (
         <div className="flex-1 flex items-center justify-center text-slate-500">
@@ -1420,24 +1462,35 @@ function App() {
       );
     }
 
-    const isLatestDay = activeDayIndex === distinctDays.length - 1;
-    const latestCandle = intradayCandles.length > 0 ? intradayCandles[intradayCandles.length - 1] : null;
-    const firstCandle = intradayCandles.length > 0 ? intradayCandles[0] : null;
+    const isCurrentSessionDay = expectedIntradayDay
+      ? activeDay === expectedIntradayDay
+      : activeDayIndex === distinctDays.length - 1;
+    const hasCandlesForActiveDay = intradayCandles.length > 0;
+    const latestCandle = hasCandlesForActiveDay ? intradayCandles[intradayCandles.length - 1] : null;
+    const firstCandle = hasCandlesForActiveDay ? intradayCandles[0] : null;
 
-    const ltp = isLatestDay
-      ? (quoteData?.currentPrice ?? (latestCandle ? latestCandle.close : 0))
-      : (latestCandle ? latestCandle.close : 0);
-    const openPrice = firstCandle ? firstCandle.open : 0;
-    const highPrice = intradayCandles.length > 0 ? Math.max(...intradayCandles.map((c) => Number(c.high))) : 0;
-    const lowPrice = intradayCandles.length > 0 ? Math.min(...intradayCandles.map((c) => Number(c.low))) : 0;
-    const closePrice = latestCandle ? latestCandle.close : ltp;
+    const ltp: number | null = isCurrentSessionDay
+      ? (hasValidQuoteData && quoteData
+          ? Number(quoteData.currentPrice)
+          : (latestCandle ? Number(latestCandle.close) : null))
+      : (latestCandle ? Number(latestCandle.close) : null);
+    const openPrice = firstCandle ? Number(firstCandle.open) : null;
+    const highPrice = hasCandlesForActiveDay
+      ? Math.max(...intradayCandles.map((c) => Number(c.high)))
+      : null;
+    const lowPrice = hasCandlesForActiveDay
+      ? Math.min(...intradayCandles.map((c) => Number(c.low)))
+      : null;
+    const closePrice = latestCandle ? Number(latestCandle.close) : null;
 
     const changeBase = prevDayClose ?? openPrice;
-    const change = changeBase > 0 ? (isLatestDay ? ltp - changeBase : closePrice - changeBase) : 0;
-    const pct = pctChange(change, changeBase);
+    const referencePrice = isCurrentSessionDay ? ltp : closePrice;
+    const hasValidChange = referencePrice !== null && changeBase !== null && changeBase > 0;
+    const change = hasValidChange ? referencePrice - changeBase : 0;
+    const pct = hasValidChange ? pctChange(change, changeBase) : 0;
     const isPositive = change >= 0;
 
-    const chartDate = latestCandle?.date || (isLatestDay ? quoteData?.timestamp : null);
+    const chartDate = latestCandle?.date || activeDay || (isCurrentSessionDay ? quoteData?.timestamp : null);
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
 
     return (
@@ -1448,44 +1501,50 @@ function App() {
             <div>
               <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Last Traded Price</div>
               <div className="text-2xl font-bold font-mono text-white mt-0.5">
-                {ltp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {ltp !== null
+                  ? ltp.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : "—"}
               </div>
             </div>
             <div>
               <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 Change <span className="text-[10px] text-slate-500 font-normal lowercase">(vs last day close)</span>
               </div>
-              <div
-                className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
-                  isPositive ? "text-emerald-400" : "text-rose-400"
-                }`}
-              >
-                {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                <span>
-                  {isPositive ? "+" : ""}
-                  {change.toFixed(2)} ({isPositive ? "+" : ""}
-                  {pct.toFixed(2)}%)
-                </span>
-              </div>
+              {hasValidChange ? (
+                <div
+                  className={`text-base font-bold font-mono flex items-center gap-1 mt-0.5 ${
+                    isPositive ? "text-emerald-400" : "text-rose-400"
+                  }`}
+                >
+                  {isPositive ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                  <span>
+                    {isPositive ? "+" : ""}
+                    {change.toFixed(2)} ({isPositive ? "+" : ""}
+                    {pct.toFixed(2)}%)
+                  </span>
+                </div>
+              ) : (
+                <div className="text-base font-bold font-mono text-slate-400 mt-0.5">—</div>
+              )}
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs font-mono">
             <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
               <span className="text-slate-400 mr-1.5">Open:</span>
-              <span className="text-slate-200 font-semibold">{openPrice.toFixed(2)}</span>
+              <span className="text-slate-200 font-semibold">{openPrice !== null ? openPrice.toFixed(2) : "—"}</span>
             </div>
             <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
               <span className="text-slate-400 mr-1.5">High:</span>
-              <span className="text-slate-200 font-semibold">{highPrice.toFixed(2)}</span>
+              <span className="text-slate-200 font-semibold">{highPrice !== null ? highPrice.toFixed(2) : "—"}</span>
             </div>
             <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
               <span className="text-slate-400 mr-1.5">Low:</span>
-              <span className="text-slate-200 font-semibold">{lowPrice.toFixed(2)}</span>
+              <span className="text-slate-200 font-semibold">{lowPrice !== null ? lowPrice.toFixed(2) : "—"}</span>
             </div>
             <div className="bg-slate-800/80 px-3 py-1.5 rounded border border-slate-700">
               <span className="text-slate-400 mr-1.5">Close:</span>
-              <span className="text-slate-200 font-semibold">{closePrice.toFixed(2)}</span>
+              <span className="text-slate-200 font-semibold">{closePrice !== null ? closePrice.toFixed(2) : "—"}</span>
             </div>
             {chartDateFormatted && chartDateFormatted !== "N/A" && (
               <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
@@ -1538,14 +1597,20 @@ function App() {
               onLoadOlderData={() => {}}
             />
           ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3 p-8">
               {intradayLoading ? (
                 <>
                   <Loader2 className="animate-spin text-blue-500" size={32} />
                   <p className="text-sm font-semibold text-slate-400">Loading chart data...</p>
                 </>
               ) : (
-                "No chart candles recorded yet for this session"
+                <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
+                  <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
+                  <h3 className="text-lg font-bold text-white">Awaiting Intraday Data</h3>
+                  <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
+                    15-minute intraday candles for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> have not yet been populated for <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span>.
+                  </p>
+                </div>
               )}
             </div>
           )}
