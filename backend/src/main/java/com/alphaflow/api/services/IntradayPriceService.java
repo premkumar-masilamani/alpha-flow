@@ -66,28 +66,19 @@ public class IntradayPriceService {
                   .map(OhlcvMapper::toDto)
                   .toList());
 
-      if (page == 0) {
-        mergeLiveQuote(ticker, marketZone, endDate, candles);
-      } else {
-        log.debug(
-            "Skipping live quote merge for ticker {} on historical page {}",
-            ticker.getTickerSymbol(),
-            page);
-      }
-
+      mergeLiveQuote(ticker, marketZone, candles);
       return candles;
     } else {
       throw new IllegalArgumentException("Timeframe must not be null");
     }
   }
 
-  private void mergeLiveQuote(
-      Ticker ticker, ZoneId marketZone, LocalDate endDate, List<OhlcvDto> candles) {
+  private void mergeLiveQuote(Ticker ticker, ZoneId marketZone, List<OhlcvDto> candles) {
     Optional<LiveQuote> liveQuoteOptional = liveQuoteRepository.findByTicker(ticker);
     if (liveQuoteOptional.isPresent()) {
       LiveQuote liveQuote = liveQuoteOptional.get();
-      ZonedDateTime quoteZoned = liveQuote.getQuoteTime().atZoneSameInstant(marketZone);
-      if (endDate == null || !quoteZoned.toLocalDate().isAfter(endDate)) {
+      if (candles.isEmpty() || liveQuote.getQuoteTime().isAfter(candles.getLast().priceDate())) {
+        ZonedDateTime quoteZoned = liveQuote.getQuoteTime().atZoneSameInstant(marketZone);
         int flooredMinute = (quoteZoned.getMinute() / 15) * 15;
         OffsetDateTime bucketTime =
             quoteZoned.withMinute(flooredMinute).withSecond(0).withNano(0).toOffsetDateTime();
@@ -102,7 +93,7 @@ public class IntradayPriceService {
                   .priceClose(quotePrice)
                   .volume(liveQuote.getVolume())
                   .build());
-        } else if (bucketTime.isEqual(candles.getLast().priceDate())) {
+        } else {
           OhlcvDto latestCandle = candles.getLast();
           candles.set(
               candles.size() - 1,
@@ -114,19 +105,13 @@ public class IntradayPriceService {
                   .priceClose(quotePrice)
                   .volume(latestCandle.volume())
                   .build());
-        } else {
-          log.debug(
-              "Live quote bucket {} for ticker {} precedes latest closed candle {}",
-              bucketTime,
-              ticker.getTickerSymbol(),
-              candles.getLast().priceDate());
         }
       } else {
         log.debug(
-            "Skipping live quote on {} for ticker {} beyond requested endDate {}",
-            quoteZoned.toLocalDate(),
+            "Live quote time {} for ticker {} is not after latest candle time {}",
+            liveQuote.getQuoteTime(),
             ticker.getTickerSymbol(),
-            endDate);
+            candles.getLast().priceDate());
       }
     } else {
       log.debug("No live quote available to merge for ticker {}", ticker.getTickerSymbol());

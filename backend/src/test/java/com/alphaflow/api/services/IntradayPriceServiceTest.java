@@ -210,7 +210,7 @@ class IntradayPriceServiceTest {
   }
 
   @Test
-  void testGetIntradayPriceIgnoresStaleLiveQuoteOlderThanLatestClosedCandle() {
+  void testGetIntradayPriceIgnoresStaleLiveQuoteOlderThanOrEqualLatestClosedCandle() {
     OffsetDateTime latestBarTime = OffsetDateTime.of(2026, 9, 23, 10, 0, 0, 0, IST_OFFSET);
     IntradayPrice latestBar =
         IntradayPrice.builder()
@@ -244,73 +244,6 @@ class IntradayPriceServiceTest {
     assertEquals(1, result.size());
     assertEquals(latestBarTime, result.getFirst().priceDate());
     assertEquals(new BigDecimal("25040.0000"), result.getFirst().priceClose());
-  }
-
-  @Test
-  void testGetIntradayPriceSkipsLiveQuoteWhenPageGreaterThanZeroOrBeyondEndDate() {
-    OffsetDateTime barTime = OffsetDateTime.of(2026, 9, 22, 15, 15, 0, 0, IST_OFFSET);
-    IntradayPrice historicalBar =
-        IntradayPrice.builder()
-            .ticker(ticker)
-            .timeframe("15M")
-            .priceTime(barTime)
-            .priceOpen(new BigDecimal("25000.0000"))
-            .priceHigh(new BigDecimal("25050.0000"))
-            .priceLow(new BigDecimal("24990.0000"))
-            .priceClose(new BigDecimal("25040.0000"))
-            .volume(BigDecimal.ZERO)
-            .build();
-
-    OffsetDateTime quoteTime = OffsetDateTime.of(2026, 9, 23, 9, 20, 0, 0, IST_OFFSET);
-    LiveQuote liveQuote =
-        LiveQuote.builder()
-            .ticker(ticker)
-            .lastPrice(new BigDecimal("25100.0000"))
-            .volume(BigDecimal.ZERO)
-            .quoteTime(quoteTime)
-            .build();
-
-    when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
-
-    // Case 1: page > 0 skips live quote merge
-    when(intradayPriceRepository.findLatestByTickerAndTimeframe(
-            ticker, IntradayTimeframe._15M.getValue(), PageRequest.of(1, 250)))
-        .thenReturn(List.of(historicalBar));
-
-    List<OhlcvDto> pagedResult =
-        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, 1, 250);
-    assertEquals(1, pagedResult.size());
-
-    // Case 2: endDate before live quote date skips live quote merge
-    LocalDate priorEndDate = LocalDate.of(2026, 9, 22);
-    OffsetDateTime priorEndDateTime =
-        priorEndDate
-            .atTime(LocalTime.MAX)
-            .atZone(ticker.getCountry().getZoneId())
-            .toOffsetDateTime();
-    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
-            ticker, IntradayTimeframe._15M.getValue(), priorEndDateTime, PageRequest.of(0, 250)))
-        .thenReturn(List.of(historicalBar));
-
-    List<OhlcvDto> priorDateResult =
-        intradayPriceService.getIntradayPrice(ticker, IntradayTimeframe._15M, priorEndDate, 0, 250);
-    assertEquals(1, priorDateResult.size());
-
-    // Case 3: endDate equal to live quote date includes live quote
-    LocalDate matchingEndDate = LocalDate.of(2026, 9, 23);
-    OffsetDateTime matchingEndDateTime =
-        matchingEndDate
-            .atTime(LocalTime.MAX)
-            .atZone(ticker.getCountry().getZoneId())
-            .toOffsetDateTime();
-    when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
-            ticker, IntradayTimeframe._15M.getValue(), matchingEndDateTime, PageRequest.of(0, 250)))
-        .thenReturn(List.of(historicalBar));
-
-    List<OhlcvDto> matchingDateResult =
-        intradayPriceService.getIntradayPrice(
-            ticker, IntradayTimeframe._15M, matchingEndDate, 0, 250);
-    assertEquals(2, matchingDateResult.size());
   }
 
   @Test

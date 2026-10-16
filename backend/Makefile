@@ -5,7 +5,7 @@ endif
 
 
 GRADLE := ./gradlew
-DEV_FLAGS   := --daemon --parallel --build-cache --configuration-cache
+DEV_FLAGS   := --daemon --parallel --build-cache --no-configuration-cache --console=plain
 PROD_FLAGS  := --no-daemon --parallel --build-cache --configuration-cache
 
 .PHONY: dev test coverage lint build
@@ -14,7 +14,7 @@ all: dev
 
 dev:
 	@echo "Running application in dev mode with hot-reloading..."
-	$(GRADLE) bootRun --continuous --daemon --parallel --build-cache --no-configuration-cache --console=plain
+	$(GRADLE) bootRun --continuous $(DEV_FLAGS)
 
 test:
 	@echo "Running unit tests..."
