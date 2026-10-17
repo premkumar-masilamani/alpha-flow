@@ -13,13 +13,12 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SakthIntradayStrategyState {
+public class SakthiIntradayStrategyState {
 
   private LocalDate sessionDate;
   private LocalDate previousTradingDate;
   private BigDecimal previousDayHigh;
   private BigDecimal previousDayLow;
-  private boolean previousDayResolved;
 
   private boolean bearBreachNotified;
   private BigDecimal bearLowestPrice;
@@ -28,7 +27,7 @@ public class SakthIntradayStrategyState {
   private BigDecimal bullHighestPrice;
   private boolean bullReversalNotified;
 
-  public SakthIntradayStrategyState(LocalDate sessionDate) {
+  public SakthiIntradayStrategyState(LocalDate sessionDate) {
     this.sessionDate = sessionDate;
   }
 
@@ -37,7 +36,6 @@ public class SakthIntradayStrategyState {
     this.previousTradingDate = null;
     this.previousDayHigh = null;
     this.previousDayLow = null;
-    this.previousDayResolved = false;
     this.bearBreachNotified = false;
     this.bearLowestPrice = null;
     this.bearReversalNotified = false;

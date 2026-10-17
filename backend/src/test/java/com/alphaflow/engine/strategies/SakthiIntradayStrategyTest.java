@@ -35,11 +35,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 
-class SakthIntradayStrategyTest {
+class SakthiIntradayStrategyTest {
 
   private DailyPriceRepository dailyPriceRepository;
   private NotificationService notificationService;
-  private SakthIntradayStrategy strategy;
+  private SakthiIntradayStrategy strategy;
   private Ticker ticker;
   private OffsetDateTime baseQuoteTime;
 
@@ -47,7 +47,7 @@ class SakthIntradayStrategyTest {
   void setUp() {
     dailyPriceRepository = mock(DailyPriceRepository.class);
     notificationService = mock(NotificationService.class);
-    strategy = new SakthIntradayStrategy(dailyPriceRepository, notificationService);
+    strategy = new SakthiIntradayStrategy(dailyPriceRepository, notificationService);
 
     ticker =
         Ticker.builder()
@@ -89,7 +89,7 @@ class SakthIntradayStrategyTest {
     when(dailyPriceRepository.findLatestByTickerAndEndDate(any(), any(), any()))
         .thenReturn(Collections.emptyList());
 
-    assertDoesNotThrow(() -> strategy.evaluateAndNotify(ticker, quote));
+    assertDoesNotThrow(() -> strategy.execute(ticker, quote));
     verify(notificationService, never()).sendNotification(anyString());
   }
 
@@ -102,7 +102,7 @@ class SakthIntradayStrategyTest {
         .thenReturn(List.of(previousDayPrice));
 
     LiveQuote quote = createLiveQuote(new BigDecimal("24250.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote);
+    strategy.execute(ticker, quote);
 
     verify(notificationService, never()).sendNotification(anyString());
   }
@@ -116,7 +116,7 @@ class SakthIntradayStrategyTest {
         .thenReturn(List.of(previousDayPrice));
 
     LiveQuote quote = createLiveQuote(new BigDecimal("23980.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote);
+    strategy.execute(ticker, quote);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService, times(1)).sendNotification(captor.capture());
@@ -140,12 +140,12 @@ class SakthIntradayStrategyTest {
 
     // First tick breaches PDL (24000) at 23980 -> Notification 1
     LiveQuote quote1 = createLiveQuote(new BigDecimal("23980.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote1);
+    strategy.execute(ticker, quote1);
     verify(notificationService, times(1)).sendNotification(anyString());
 
     // Second tick makes a lower low at 23920 -> updates lowest price, NO notification 2
     LiveQuote quote2 = createLiveQuote(new BigDecimal("23920.00"), baseQuoteTime.plusMinutes(1));
-    strategy.evaluateAndNotify(ticker, quote2);
+    strategy.execute(ticker, quote2);
     verify(notificationService, times(1)).sendNotification(anyString());
   }
 
@@ -159,11 +159,11 @@ class SakthIntradayStrategyTest {
 
     // First tick breaches PDL at 23920
     LiveQuote quote1 = createLiveQuote(new BigDecimal("23920.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote1);
+    strategy.execute(ticker, quote1);
 
     // Bounce of only 30 points (23950 < 23920 + 70) -> NO notification 2
     LiveQuote quote2 = createLiveQuote(new BigDecimal("23950.00"), baseQuoteTime.plusMinutes(1));
-    strategy.evaluateAndNotify(ticker, quote2);
+    strategy.execute(ticker, quote2);
 
     verify(notificationService, times(1)).sendNotification(anyString());
   }
@@ -178,11 +178,11 @@ class SakthIntradayStrategyTest {
 
     // First tick: Breach PDL at 23920
     LiveQuote quote1 = createLiveQuote(new BigDecimal("23920.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote1);
+    strategy.execute(ticker, quote1);
 
     // Second tick: Bounce 70 points to 23990 (>= 23920 + 70) -> Notification 2
     LiveQuote quote2 = createLiveQuote(new BigDecimal("23990.00"), baseQuoteTime.plusMinutes(1));
-    strategy.evaluateAndNotify(ticker, quote2);
+    strategy.execute(ticker, quote2);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService, times(2)).sendNotification(captor.capture());
@@ -197,7 +197,7 @@ class SakthIntradayStrategyTest {
 
     // Third tick: Further fluctuations -> NO third notification
     LiveQuote quote3 = createLiveQuote(new BigDecimal("24050.00"), baseQuoteTime.plusMinutes(2));
-    strategy.evaluateAndNotify(ticker, quote3);
+    strategy.execute(ticker, quote3);
     verify(notificationService, times(2)).sendNotification(anyString());
 
     // DB call should be executed ONLY ONCE for the session date
@@ -213,7 +213,7 @@ class SakthIntradayStrategyTest {
         .thenReturn(List.of(previousDayPrice));
 
     LiveQuote quote = createLiveQuote(new BigDecimal("24510.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote);
+    strategy.execute(ticker, quote);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService, times(1)).sendNotification(captor.capture());
@@ -237,12 +237,12 @@ class SakthIntradayStrategyTest {
 
     // First tick breaches PDH (24500) at 24520 -> Notification 1
     LiveQuote quote1 = createLiveQuote(new BigDecimal("24520.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote1);
+    strategy.execute(ticker, quote1);
     verify(notificationService, times(1)).sendNotification(anyString());
 
     // Second tick makes higher high at 24580 -> updates highest price, NO notification 2
     LiveQuote quote2 = createLiveQuote(new BigDecimal("24580.00"), baseQuoteTime.plusMinutes(1));
-    strategy.evaluateAndNotify(ticker, quote2);
+    strategy.execute(ticker, quote2);
     verify(notificationService, times(1)).sendNotification(anyString());
   }
 
@@ -256,11 +256,11 @@ class SakthIntradayStrategyTest {
 
     // First tick breaches PDH at 24580
     LiveQuote quote1 = createLiveQuote(new BigDecimal("24580.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote1);
+    strategy.execute(ticker, quote1);
 
     // Pullback of only 30 points (24550 > 24580 - 70) -> NO notification 2
     LiveQuote quote2 = createLiveQuote(new BigDecimal("24550.00"), baseQuoteTime.plusMinutes(1));
-    strategy.evaluateAndNotify(ticker, quote2);
+    strategy.execute(ticker, quote2);
 
     verify(notificationService, times(1)).sendNotification(anyString());
   }
@@ -275,11 +275,11 @@ class SakthIntradayStrategyTest {
 
     // First tick breaches PDH at 24580 -> Notification 1
     LiveQuote quote1 = createLiveQuote(new BigDecimal("24580.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, quote1);
+    strategy.execute(ticker, quote1);
 
     // Second tick: Pullback of 70 points to 24510 (<= 24580 - 70) -> Notification 2
     LiveQuote quote2 = createLiveQuote(new BigDecimal("24510.00"), baseQuoteTime.plusMinutes(1));
-    strategy.evaluateAndNotify(ticker, quote2);
+    strategy.execute(ticker, quote2);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService, times(2)).sendNotification(captor.capture());
@@ -294,7 +294,7 @@ class SakthIntradayStrategyTest {
 
     // Third tick: Further fluctuations -> NO third notification
     LiveQuote quote3 = createLiveQuote(new BigDecimal("24450.00"), baseQuoteTime.plusMinutes(2));
-    strategy.evaluateAndNotify(ticker, quote3);
+    strategy.execute(ticker, quote3);
     verify(notificationService, times(2)).sendNotification(anyString());
   }
 
@@ -312,7 +312,7 @@ class SakthIntradayStrategyTest {
 
     LiveQuote quote = createLiveQuote(new BigDecimal("23950.00"), baseQuoteTime);
 
-    assertDoesNotThrow(() -> strategy.evaluateAndNotify(ticker, quote));
+    assertDoesNotThrow(() -> strategy.execute(ticker, quote));
     verify(notificationService, times(1)).sendNotification(anyString());
   }
 
@@ -331,13 +331,13 @@ class SakthIntradayStrategyTest {
 
     // Day 1: PDL breach at 23980
     LiveQuote day1Quote = createLiveQuote(new BigDecimal("23980.00"), baseQuoteTime);
-    strategy.evaluateAndNotify(ticker, day1Quote);
+    strategy.execute(ticker, day1Quote);
     verify(notificationService, times(1)).sendNotification(anyString());
 
     // Day 2 (date rollover): Quote on new day breaches new PDL at 23750 (< 23800)
     OffsetDateTime nextDayTime = baseQuoteTime.plusDays(1);
     LiveQuote day2Quote = createLiveQuote(new BigDecimal("23750.00"), nextDayTime);
-    strategy.evaluateAndNotify(ticker, day2Quote);
+    strategy.execute(ticker, day2Quote);
 
     // Notification 1 fires again for the new day because state was reset
     verify(notificationService, times(2)).sendNotification(anyString());
@@ -360,7 +360,7 @@ class SakthIntradayStrategyTest {
         .thenReturn(List.of(fridayPrice));
 
     LiveQuote quote = createLiveQuote(new BigDecimal("23950.00"), mondayTime);
-    strategy.evaluateAndNotify(ticker, quote);
+    strategy.execute(ticker, quote);
 
     ArgumentCaptor<LocalDate> dateCaptor = ArgumentCaptor.forClass(LocalDate.class);
     verify(dailyPriceRepository)
@@ -389,7 +389,7 @@ class SakthIntradayStrategyTest {
         .thenReturn(List.of(thursdayPrice));
 
     LiveQuote quote = createLiveQuote(new BigDecimal("23950.00"), mondayTime);
-    strategy.evaluateAndNotify(ticker, quote);
+    strategy.execute(ticker, quote);
 
     ArgumentCaptor<LocalDate> dateCaptor = ArgumentCaptor.forClass(LocalDate.class);
     verify(dailyPriceRepository)

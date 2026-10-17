@@ -4,7 +4,7 @@ import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.utils.TelegramMarkdownV2Helper;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
-import com.alphaflow.engine.strategies.model.SakthIntradayStrategyState;
+import com.alphaflow.engine.strategies.model.SakthiIntradayStrategyState;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class SakthIntradayStrategy {
+public class SakthiIntradayStrategy {
 
   public static final BigDecimal REBOUND_THRESHOLD_POINTS = new BigDecimal("70");
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
@@ -30,32 +30,32 @@ public class SakthIntradayStrategy {
 
   private final DailyPriceRepository dailyPriceRepository;
   private final NotificationService notificationService;
-  private final ConcurrentMap<Long, SakthIntradayStrategyState> stateMap = new ConcurrentHashMap<>();
+  private final ConcurrentMap<Long, SakthiIntradayStrategyState> stateMap = new ConcurrentHashMap<>();
 
-  public SakthIntradayStrategy(
+  public SakthiIntradayStrategy(
       DailyPriceRepository dailyPriceRepository, NotificationService notificationService) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.notificationService = notificationService;
   }
 
-  public void evaluateAndNotify(Ticker ticker, LiveQuote liveQuote) {
+  public void execute(Ticker ticker, LiveQuote liveQuote) {
     LocalDate sessionDate =
         liveQuote.getQuoteTime().atZoneSameInstant(MarketConstants.IST_ZONE).toLocalDate();
 
-    SakthIntradayStrategyState state =
+    SakthiIntradayStrategyState state =
         stateMap.compute(
             ticker.getTickerId(),
             (tickerId, existingState) -> {
               if (existingState != null && sessionDate.equals(existingState.getSessionDate())) {
                 return existingState;
               } else {
-                return new SakthIntradayStrategyState(sessionDate);
+                return new SakthiIntradayStrategyState(sessionDate);
               }
             });
 
-    ensurePreviousTradingDayResolved(ticker, sessionDate, state);
+    fetchPreviousTradingDayData(ticker, sessionDate, state);
 
-    if (state.getPreviousDayHigh() != null) {
+    if (state.getPreviousTradingDate() != null) {
       BigDecimal previousDayHigh = state.getPreviousDayHigh();
       BigDecimal previousDayLow = state.getPreviousDayLow();
       BigDecimal currentPrice = liveQuote.getLastPrice();
@@ -65,12 +65,11 @@ public class SakthIntradayStrategy {
     }
   }
 
-  private synchronized void ensurePreviousTradingDayResolved(
-      Ticker ticker, LocalDate sessionDate, SakthIntradayStrategyState state) {
-    if (!state.isPreviousDayResolved()) {
+  private synchronized void fetchPreviousTradingDayData(
+      Ticker ticker, LocalDate sessionDate, SakthiIntradayStrategyState state) {
+    if (state.getPreviousTradingDate() == null) {
       LocalDate previousTradingDate =
           MarketTradingCalendar.getPreviousTradingDay(sessionDate, ticker.getCountry());
-      state.setPreviousTradingDate(previousTradingDate);
 
       List<DailyPrice> recentPrices =
           dailyPriceRepository.findLatestByTickerAndEndDate(
@@ -78,22 +77,22 @@ public class SakthIntradayStrategy {
 
       if (!recentPrices.isEmpty()) {
         DailyPrice previousDayPrice = recentPrices.getFirst();
+        state.setPreviousTradingDate(previousTradingDate);
         state.setPreviousDayHigh(previousDayPrice.getPriceHigh());
         state.setPreviousDayLow(previousDayPrice.getPriceLow());
       } else {
         log.warn(
-            "Skipping SakthIntradayStrategy evaluation for {}: no prior daily prices found on or before {}",
+            "Skipping SakthiIntradayStrategy evaluation for {}: no prior daily prices found on or before {}",
             ticker.getTickerSymbol(),
             previousTradingDate);
       }
-      state.setPreviousDayResolved(true);
     }
   }
 
   private void evaluateBearCase(
       Ticker ticker,
       LiveQuote liveQuote,
-      SakthIntradayStrategyState state,
+      SakthiIntradayStrategyState state,
       BigDecimal currentPrice,
       BigDecimal previousDayLow) {
     if (!state.isBearBreachNotified()) {
@@ -118,7 +117,7 @@ public class SakthIntradayStrategy {
   private void evaluateBullCase(
       Ticker ticker,
       LiveQuote liveQuote,
-      SakthIntradayStrategyState state,
+      SakthiIntradayStrategyState state,
       BigDecimal currentPrice,
       BigDecimal previousDayHigh) {
     if (!state.isBullBreachNotified()) {

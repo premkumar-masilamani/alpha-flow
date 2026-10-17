@@ -482,6 +482,8 @@ describe('App Intra-Day Tab - Issue #232', () => {
     });
 
     it('renders PriceSummaryBanner in Technical Chart tab with static date and no timeframe badge', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
         window.history.replaceState({}, '', '/?ticker=NIFTY50&tab=charts');
         vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
             if (tf === 'DAILY') {

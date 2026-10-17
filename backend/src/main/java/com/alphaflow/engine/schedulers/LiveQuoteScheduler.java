@@ -5,7 +5,7 @@ import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
-import com.alphaflow.engine.strategies.SakthIntradayStrategy;
+import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -32,7 +32,7 @@ public class LiveQuoteScheduler {
   private final AngelOneClient angelOneClient;
   private final TickerRepository tickerRepository;
   private final LiveQuoteRepository liveQuoteRepository;
-  private final SakthIntradayStrategy sakthIntradayStrategy;
+  private final SakthiIntradayStrategy sakthiIntradayStrategy;
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public LiveQuoteScheduler(
@@ -40,12 +40,12 @@ public class LiveQuoteScheduler {
       AngelOneClient angelOneClient,
       TickerRepository tickerRepository,
       LiveQuoteRepository liveQuoteRepository,
-      SakthIntradayStrategy sakthIntradayStrategy) {
+      SakthiIntradayStrategy sakthiIntradayStrategy) {
     this.angelOneConfig = angelOneConfig;
     this.angelOneClient = angelOneClient;
     this.tickerRepository = tickerRepository;
     this.liveQuoteRepository = liveQuoteRepository;
-    this.sakthIntradayStrategy = sakthIntradayStrategy;
+    this.sakthiIntradayStrategy = sakthiIntradayStrategy;
   }
 
   @Scheduled(cron = "0 * 9-15 * * MON-FRI", zone = MarketConstants.TIMEZONE_KOLKATA)
@@ -89,7 +89,7 @@ public class LiveQuoteScheduler {
       Optional<LiveQuote> persistedQuoteOptional = fetchAndPersistQuote(ticker, currentTimestamp);
       if (persistedQuoteOptional.isPresent()) {
         LiveQuote persistedQuote = persistedQuoteOptional.get();
-        sakthIntradayStrategy.evaluateAndNotify(ticker, persistedQuote);
+        sakthiIntradayStrategy.execute(ticker, persistedQuote);
       } else {
         log.warn(
             "Skipping alert and notification tasks: no live quote fetched for {}",

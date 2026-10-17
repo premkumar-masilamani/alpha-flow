@@ -15,7 +15,7 @@ import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
-import com.alphaflow.engine.strategies.SakthIntradayStrategy;
+import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -41,7 +41,7 @@ class LiveQuoteSchedulerTest {
   private AngelOneClient angelOneClient;
   private TickerRepository tickerRepository;
   private LiveQuoteRepository liveQuoteRepository;
-  private SakthIntradayStrategy sakthIntradayStrategy;
+  private SakthiIntradayStrategy sakthiIntradayStrategy;
   private LiveQuoteScheduler liveQuoteScheduler;
   private Ticker niftyTicker;
 
@@ -55,7 +55,7 @@ class LiveQuoteSchedulerTest {
     angelOneClient = mock(AngelOneClient.class);
     tickerRepository = mock(TickerRepository.class);
     liveQuoteRepository = mock(LiveQuoteRepository.class);
-    sakthIntradayStrategy = mock(SakthIntradayStrategy.class);
+    sakthiIntradayStrategy = mock(SakthiIntradayStrategy.class);
 
     liveQuoteScheduler =
         new LiveQuoteScheduler(
@@ -63,7 +63,7 @@ class LiveQuoteSchedulerTest {
             angelOneClient,
             tickerRepository,
             liveQuoteRepository,
-            sakthIntradayStrategy);
+                sakthiIntradayStrategy);
 
     niftyTicker =
         Ticker.builder()
@@ -111,7 +111,7 @@ class LiveQuoteSchedulerTest {
 
     ArgumentCaptor<LiveQuote> quoteCaptor = ArgumentCaptor.forClass(LiveQuote.class);
     verify(liveQuoteRepository, times(1)).save(quoteCaptor.capture());
-    verify(sakthIntradayStrategy, times(1)).evaluateAndNotify(niftyTicker, quoteCaptor.getValue());
+    verify(sakthiIntradayStrategy, times(1)).execute(niftyTicker, quoteCaptor.getValue());
 
     LiveQuote savedQuote = quoteCaptor.getValue();
     assertEquals(niftyTicker, savedQuote.getTicker());
@@ -174,7 +174,7 @@ class LiveQuoteSchedulerTest {
     liveQuoteScheduler.run(marketTime);
 
     verify(liveQuoteRepository, never()).save(any());
-    verify(sakthIntradayStrategy, never()).evaluateAndNotify(any(), any());
+    verify(sakthiIntradayStrategy, never()).execute(any(), any());
   }
 
   @Test
