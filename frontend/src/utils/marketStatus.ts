@@ -149,15 +149,11 @@ export const getMarketStatus = (
 
 export const getExpectedIntradayDateKey = (
     now: Date,
-    country: MarketCountry,
-    holidays: MarketHoliday[]
-): string | null => {
+    country: MarketCountry
+): string => {
     const config = MARKET_CONFIGS[country];
-    const status = getMarketStatus(now, country, holidays);
-    if (status.statusType === 'OPEN' || status.statusType === 'AFTER_HOURS') {
-        const { dateKey } = getMarketParts(now, config.timeZone);
-        return dateKey;
-    }
-    return null;
+    const { dateKey } = getMarketParts(now, config.timeZone);
+    return dateKey;
 };
+
 

@@ -30,8 +30,6 @@ import {
   getSupportResistances,
   getChartPatterns,
   type ChartPatternData,
-  getCachedMarketHolidays,
-  type MarketHoliday,
 } from "./services/api";
 import { getExpectedIntradayDateKey, type MarketCountry } from "./utils/marketStatus";
 import {
@@ -177,38 +175,37 @@ function App() {
   const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
   const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
-  const [marketHolidays, setMarketHolidays] = useState<MarketHoliday[]>([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    getCachedMarketHolidays()
-      .then((data) => {
-        if (isMounted) {
-          setMarketHolidays(data);
-        }
-      })
-      .catch((error) => {
-        console.warn("Failed to load market holidays:", error);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    setSelectedIntradayDay(null);
-    setHasOlderIntraday(true);
-    setLoadingOlderIntraday(false);
-  }, [selectedTicker]);
 
   const selectedTickerCountry: MarketCountry = useMemo(() => {
     const matched = tickers.find((t) => t.symbol === selectedTicker);
     return matched?.country ?? "IN";
   }, [tickers, selectedTicker]);
 
-  const expectedIntradayDay = useMemo(() => {
-    return getExpectedIntradayDateKey(new Date(), selectedTickerCountry, marketHolidays);
-  }, [selectedTickerCountry, marketHolidays, rawIntradayCandles, quoteData]);
+  const [expectedIntradayDay, setExpectedIntradayDay] = useState<string>(() =>
+    getExpectedIntradayDateKey(new Date(), "IN"),
+  );
+
+  useEffect(() => {
+    const syncDateKey = () => {
+      const nextDateKey = getExpectedIntradayDateKey(new Date(), selectedTickerCountry);
+      setExpectedIntradayDay((prev) => {
+        if (prev !== nextDateKey) {
+          setSelectedIntradayDay(null);
+          return nextDateKey;
+        }
+        return prev;
+      });
+    };
+    syncDateKey();
+    const timer = setInterval(syncDateKey, 1000);
+    return () => clearInterval(timer);
+  }, [selectedTickerCountry]);
+
+  useEffect(() => {
+    setSelectedIntradayDay(null);
+    setHasOlderIntraday(true);
+    setLoadingOlderIntraday(false);
+  }, [selectedTicker]);
 
   // Calculate distinct available days sorted chronologically
   const distinctDays = useMemo(() => {

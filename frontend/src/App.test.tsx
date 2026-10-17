@@ -217,20 +217,29 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22960.00');
     });
 
-    it('defaults directly to the last completed trading session on weekends or pre-market without showing Awaiting Intraday Data', async () => {
-        // Saturday, Oct 17, 2026 at 10:00 AM IST (04:30 UTC)
+    it('displays Awaiting Intraday Data for the new current date when system clock is advanced (e.g., Sat, Oct 17, 2026 08:10 AM IST)', async () => {
+        // Start on Friday, Oct 16, 2026 with Oct 16 candles present
         vi.useFakeTimers({ shouldAdvanceTime: true });
-        vi.setSystemTime(new Date('2026-10-17T04:30:00Z'));
+        vi.setSystemTime(new Date('2026-10-16T05:30:00Z'));
+
+        const oct16Candle: DailyCandleData = {
+            date: '2026-10-16T09:15:00+05:30',
+            open: 23065.1,
+            high: 23149.85,
+            low: 22913.8,
+            close: 23109.65,
+            vol: 1500,
+        };
 
         vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
             if (tf === '15M') {
-                return yesterdayCandles;
+                return [...yesterdayCandles, oct16Candle];
             }
             return [];
         });
         vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 22622.7,
-            timestamp: '2026-10-15T15:30:00+05:30',
+            currentPrice: 23109.65,
+            timestamp: '2026-10-16T10:45:00+05:30',
         });
 
         render(<App />);
@@ -239,8 +248,16 @@ describe('App Intra-Day Tab - Issue #232', () => {
             expect(screen.getByTestId('mock-chart')).toBeInTheDocument();
         });
 
-        expect(screen.queryByText('Awaiting Intraday Data')).not.toBeInTheDocument();
-        expect(screen.getByText(/Thu, Oct 15, 2026/i)).toBeInTheDocument();
+        // Manually advance system clock to Saturday, Oct 17, 2026 at 08:10:17 AM IST (02:40:17 UTC)
+        await act(async () => {
+            vi.setSystemTime(new Date('2026-10-17T02:40:17Z'));
+            await vi.advanceTimersByTimeAsync(1_000);
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('Awaiting Intraday Data')).toBeInTheDocument();
+        });
+        expect(screen.getAllByText(/Sat, Oct 17, 2026/i).length).toBeGreaterThanOrEqual(1);
     });
 
     it('renders "—" for LTP and Change when awaiting today candles and quote returns 0', async () => {
