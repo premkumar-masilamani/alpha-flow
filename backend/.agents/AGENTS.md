@@ -199,3 +199,10 @@ if (dailyBars.size() >= MIN_BARS) {
   - For `@Scheduled` jobs gated by market trading calendars and intraday session bounds (`[sessionStartTime, sessionEndTime]`), delegate the zero-arg `@Scheduled` method to an overloaded `run(ZonedDateTime currentMarketTime)` entry point. This keeps wall-clock resolution in a single line while allowing unit tests to deterministically exercise trading-day, pre-open, post-close, and mid-session branches for 100% JaCoCo branch coverage.
 - **In-Progress Intraday Candle Synthesis from Snapshot Quotes**:
   - When combining finalized candles from `intraday_prices` with the latest quote snapshot from `live_quotes`, merge whenever `candles.isEmpty()` or the quote timestamp is after the latest candle's timestamp (`liveQuote.getQuoteTime().isAfter(candles.getLast().priceDate())`). Floor the quote timestamp in the ticker's market timezone to the timeframe boundary (`(minute / 15) * 15`). Append a new candle when the bucket exceeds the latest closed candle's timestamp, or update `high`/`low`/`close` in-place when matching the latest bucket.
+
+## Derivatives & Options Analytics
+- **Angel One Scrip Master Strike Price Scaling**:
+  - In Angel One's `OpenAPIScripMaster.json`, option strike prices are expressed in paise (multiplied by 100, e.g. `2540000.00` for strike `25400`). Always normalize option strikes upon parsing by dividing by 100 before computing intrinsic value, time value, or matching against spot prices.
+- **SpotBugs REC_CATCH_EXCEPTION with Spring RestClient and Jackson**:
+  - Catching `Exception` when a try block only invokes `RestClient` (throwing unchecked `RestClientException`) and Jackson `ObjectMapper.readTree` (throwing `JsonProcessingException`) triggers SpotBugs `REC_CATCH_EXCEPTION`. In accordance with AGENTS.md rules to fix warnings without suppressing, catch `(RestClientException | JsonProcessingException e)` explicitly.
+
