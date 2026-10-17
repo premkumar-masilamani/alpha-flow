@@ -9,12 +9,20 @@ class OptionTypeTest {
 
   @Test
   void testFromValidValues() {
-    assertEquals(OptionType.CE, OptionType.from("CE"));
-    assertEquals(OptionType.CE, OptionType.from("ce"));
-    assertEquals(OptionType.CE, OptionType.from(" CE "));
-    assertEquals(OptionType.PE, OptionType.from("PE"));
-    assertEquals(OptionType.PE, OptionType.from("pe"));
-    assertEquals(OptionType.PE, OptionType.from(" PE "));
+    assertEquals(OptionType.CALL, OptionType.from("CALL"));
+    assertEquals(OptionType.CALL, OptionType.from("call"));
+    assertEquals(OptionType.CALL, OptionType.from(" CE "));
+    assertEquals(OptionType.CALL, OptionType.from("ce"));
+    assertEquals(OptionType.PUT, OptionType.from("PUT"));
+    assertEquals(OptionType.PUT, OptionType.from("put"));
+    assertEquals(OptionType.PUT, OptionType.from(" PE "));
+    assertEquals(OptionType.PUT, OptionType.from("pe"));
+  }
+
+  @Test
+  void testGetCode() {
+    assertEquals("CE", OptionType.CALL.getCode());
+    assertEquals("PE", OptionType.PUT.getCode());
   }
 
   @Test

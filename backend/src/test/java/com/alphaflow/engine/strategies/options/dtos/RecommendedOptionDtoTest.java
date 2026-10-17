@@ -25,7 +25,7 @@ class RecommendedOptionDtoTest {
             "NIFTY09NOV2625000PE",
             "12345",
             strike,
-            OptionType.PE,
+            OptionType.PUT,
             expiry,
             12L,
             ltp,
@@ -38,7 +38,7 @@ class RecommendedOptionDtoTest {
     assertEquals("NIFTY09NOV2625000PE", dto.tradingSymbol());
     assertEquals("12345", dto.token());
     assertEquals(strike, dto.strikePrice());
-    assertEquals(OptionType.PE, dto.optionType());
+    assertEquals(OptionType.PUT, dto.optionType());
     assertEquals(expiry, dto.expiryDate());
     assertEquals(12L, dto.daysToExpiry());
     assertEquals(ltp, dto.lastPrice());

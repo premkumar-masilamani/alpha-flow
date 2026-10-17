@@ -20,10 +20,10 @@ class AngelOneOptionGreekTest {
 
     AngelOneOptionGreek greek =
         new AngelOneOptionGreek(
-            strike, OptionType.PE, delta, gamma, theta, vega, iv, volume);
+            strike, OptionType.PUT, delta, gamma, theta, vega, iv, volume);
 
     assertEquals(strike, greek.strikePrice());
-    assertEquals(OptionType.PE, greek.optionType());
+    assertEquals(OptionType.PUT, greek.optionType());
     assertEquals(delta, greek.delta());
     assertEquals(gamma, greek.gamma());
     assertEquals(theta, greek.theta());

@@ -384,7 +384,7 @@ class AngelOneClientTest {
     assertEquals(1, greeks.size());
     AngelOneOptionGreek greek = greeks.get(0);
     assertEquals(new BigDecimal("25400.000000"), greek.strikePrice());
-    assertEquals(OptionType.PE, greek.optionType());
+    assertEquals(OptionType.PUT, greek.optionType());
     assertEquals(new BigDecimal("-0.720000"), greek.delta());
     assertEquals(new BigDecimal("14.200000"), greek.impliedVolatility());
   }

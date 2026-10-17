@@ -19,6 +19,7 @@ import com.alphaflow.common.enums.OptionType;
 import com.alphaflow.common.exceptions.NotificationException;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
+import com.alphaflow.engine.services.NotificationTemplateEngine;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
 import com.alphaflow.persistence.entities.DailyPrice;
@@ -53,9 +54,13 @@ class SakthiIntradayStrategyTest {
     dailyPriceRepository = mock(DailyPriceRepository.class);
     notificationService = mock(NotificationService.class);
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
+    NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
     strategy =
         new SakthiIntradayStrategy(
-            dailyPriceRepository, notificationService, niftyOptionSelectorService);
+            dailyPriceRepository,
+            notificationService,
+            niftyOptionSelectorService,
+            notificationTemplateEngine);
 
     ticker =
         Ticker.builder()
@@ -425,7 +430,7 @@ class SakthiIntradayStrategyTest {
             "NIFTY29OCT2624500PE",
             "84833",
             new BigDecimal("24500.00"),
-            OptionType.PE,
+            OptionType.PUT,
             expiry,
             13L,
             new BigDecimal("650.00"),
@@ -436,7 +441,7 @@ class SakthiIntradayStrategyTest {
             null);
 
     when(niftyOptionSelectorService.selectBestOption(
-            eq(ticker), eq(new BigDecimal("23970.00")), eq(OptionType.PE), any()))
+            eq(ticker), eq(new BigDecimal("23970.00")), eq(OptionType.PUT), any()))
         .thenReturn(Optional.of(putOption));
 
     // Second tick: Rebounds by 70 points to 23970 (>= 23900 + 70)
@@ -478,7 +483,7 @@ class SakthiIntradayStrategyTest {
             "NIFTY29OCT2624000CE",
             "84834",
             new BigDecimal("24000.00"),
-            OptionType.CE,
+            OptionType.CALL,
             expiry,
             13L,
             new BigDecimal("580.00"),
@@ -489,7 +494,7 @@ class SakthiIntradayStrategyTest {
             null);
 
     when(niftyOptionSelectorService.selectBestOption(
-            eq(ticker), eq(new BigDecimal("24530.00")), eq(OptionType.CE), any()))
+            eq(ticker), eq(new BigDecimal("24530.00")), eq(OptionType.CALL), any()))
         .thenReturn(Optional.of(callOption));
 
     // Second tick: Pulls back by 70 points to 24530 (<= 24600 - 70)

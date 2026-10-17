@@ -113,7 +113,7 @@ public class NiftyOptionSelectorService {
 
   private List<AngelOneInstrument> filterByOptionType(
       List<AngelOneInstrument> instruments, OptionType optionType) {
-    String suffix = optionType.name();
+    String suffix = optionType.getCode();
     List<AngelOneInstrument> filtered = new ArrayList<>();
     for (AngelOneInstrument instrument : instruments) {
       if (instrument.symbol().toUpperCase(Locale.ROOT).endsWith(suffix)) {
@@ -150,7 +150,7 @@ public class NiftyOptionSelectorService {
 
     BigDecimal minStrike;
     BigDecimal maxStrike;
-    if (optionType == OptionType.CE) {
+    if (optionType == OptionType.CALL) {
       minStrike = spotPrice.subtract(CALL_LOWER_OFFSET);
       maxStrike = spotPrice.add(CALL_UPPER_OFFSET);
     } else {
@@ -243,7 +243,7 @@ public class NiftyOptionSelectorService {
   private BigDecimal computeIntrinsicValue(
       BigDecimal spotPrice, BigDecimal strikePrice, OptionType optionType) {
     BigDecimal rawDifference;
-    if (optionType == OptionType.CE) {
+    if (optionType == OptionType.CALL) {
       rawDifference = spotPrice.subtract(strikePrice);
     } else {
       rawDifference = strikePrice.subtract(spotPrice);

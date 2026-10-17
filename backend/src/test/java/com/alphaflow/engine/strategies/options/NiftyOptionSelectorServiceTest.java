@@ -69,7 +69,7 @@ class NiftyOptionSelectorServiceTest {
     AngelOneOptionGreek greek =
         new AngelOneOptionGreek(
             new BigDecimal("25400"),
-            OptionType.PE,
+            OptionType.PUT,
             new BigDecimal("-0.72"),
             new BigDecimal("0.001"),
             new BigDecimal("-8.5"),
@@ -80,14 +80,14 @@ class NiftyOptionSelectorServiceTest {
     when(angelOneClient.getOptionGreeks(eq("NIFTY"), any())).thenReturn(List.of(greek));
 
     Optional<RecommendedOptionDto> resultOpt =
-        service.selectBestOption(niftyTicker, spotPrice, OptionType.PE, sessionDate);
+        service.selectBestOption(niftyTicker, spotPrice, OptionType.PUT, sessionDate);
 
     assertTrue(resultOpt.isPresent());
     RecommendedOptionDto result = resultOpt.get();
     assertEquals("NIFTY28OCT2625400PE", result.tradingSymbol());
     assertEquals("1001", result.token());
     assertEquals(0, new BigDecimal("25400").compareTo(result.strikePrice()));
-    assertEquals(OptionType.PE, result.optionType());
+    assertEquals(OptionType.PUT, result.optionType());
     assertEquals(targetExpiry, result.expiryDate());
     assertEquals(12L, result.daysToExpiry());
     assertEquals(0, new BigDecimal("620.00").compareTo(result.lastPrice()));
@@ -122,7 +122,7 @@ class NiftyOptionSelectorServiceTest {
         .thenReturn(Collections.emptyList());
 
     Optional<RecommendedOptionDto> resultOpt =
-        service.selectBestOption(niftyTicker, spotPrice, OptionType.CE, sessionDate);
+        service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);
 
     assertTrue(resultOpt.isPresent());
     RecommendedOptionDto result = resultOpt.get();
@@ -154,7 +154,7 @@ class NiftyOptionSelectorServiceTest {
         .thenReturn(Map.of("3001", new BigDecimal("550.00"), "3002", new BigDecimal("650.00")));
 
     Optional<RecommendedOptionDto> resultOpt =
-        service.selectBestOption(niftyTicker, spotPrice, OptionType.CE, sessionDate);
+        service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);
 
     assertTrue(resultOpt.isPresent());
     assertEquals("NIFTY26OCT2624400CE", resultOpt.get().tradingSymbol());
@@ -164,7 +164,7 @@ class NiftyOptionSelectorServiceTest {
   void testSkipOnHolidayOrWeekend() {
     LocalDate sunday = LocalDate.of(2026, 10, 18);
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PE, sunday);
+        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sunday);
     assertTrue(result.isEmpty());
   }
 
@@ -172,11 +172,11 @@ class NiftyOptionSelectorServiceTest {
   void testSkipOnNonNiftyTicker() {
     Ticker reliance = Ticker.builder().tickerSymbol("RELIANCE.NS").country(Country.IN).build();
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(reliance, new BigDecimal("2500"), OptionType.PE, sessionDate);
+        service.selectBestOption(reliance, new BigDecimal("2500"), OptionType.PUT, sessionDate);
     assertTrue(result.isEmpty());
 
     Optional<RecommendedOptionDto> nullTickerResult =
-        service.selectBestOption(null, new BigDecimal("2500"), OptionType.PE, sessionDate);
+        service.selectBestOption(null, new BigDecimal("2500"), OptionType.PUT, sessionDate);
     assertTrue(nullTickerResult.isEmpty());
   }
 
@@ -184,7 +184,7 @@ class NiftyOptionSelectorServiceTest {
   void testNoMatchingInstrumentsInScripMaster() {
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(Collections.emptyList());
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PE, sessionDate);
+        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sessionDate);
     assertTrue(result.isEmpty());
   }
 
@@ -201,7 +201,7 @@ class NiftyOptionSelectorServiceTest {
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(List.of(inst1, inst2));
 
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PE, sessionDate);
+        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sessionDate);
     assertTrue(result.isEmpty());
   }
 
@@ -215,7 +215,7 @@ class NiftyOptionSelectorServiceTest {
     when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Collections.emptyMap());
 
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PE, sessionDate);
+        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sessionDate);
     assertTrue(result.isEmpty());
   }
 
@@ -230,7 +230,7 @@ class NiftyOptionSelectorServiceTest {
     when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Map.of("1", new BigDecimal("450.00")));
 
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PE, sessionDate);
+        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sessionDate);
     assertTrue(result.isEmpty());
   }
 
@@ -245,7 +245,7 @@ class NiftyOptionSelectorServiceTest {
     when(angelOneClient.getOptionGreeks(any(), any())).thenThrow(new RuntimeException("API error"));
 
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.CE, sessionDate);
+        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.CALL, sessionDate);
 
     assertTrue(result.isPresent());
     assertNull(result.get().delta());
@@ -276,7 +276,7 @@ class NiftyOptionSelectorServiceTest {
     BigDecimal spotPrice = new BigDecimal("25000");
 
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, spotPrice, OptionType.CE, sessionDate);
+        service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);
     assertTrue(result.isPresent());
   }
 
@@ -301,7 +301,7 @@ class NiftyOptionSelectorServiceTest {
     when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Map.of("9001", new BigDecimal("550.00")));
 
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, spotPrice, OptionType.CE, sessionDate);
+        service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);
 
     assertTrue(result.isPresent());
     assertEquals(0, BigDecimal.ZERO.compareTo(result.get().intrinsicValue()));
@@ -312,7 +312,7 @@ class NiftyOptionSelectorServiceTest {
   void testNullTickerSymbol() {
     Ticker nullSymbolTicker = Ticker.builder().tickerSymbol(null).country(Country.IN).build();
     Optional<RecommendedOptionDto> result =
-        service.selectBestOption(nullSymbolTicker, new BigDecimal("25000"), OptionType.CE, sessionDate);
+        service.selectBestOption(nullSymbolTicker, new BigDecimal("25000"), OptionType.CALL, sessionDate);
     assertTrue(result.isEmpty());
   }
 }

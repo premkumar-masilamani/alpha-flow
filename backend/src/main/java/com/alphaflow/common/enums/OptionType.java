@@ -1,14 +1,24 @@
 package com.alphaflow.common.enums;
 
 public enum OptionType {
-  CE,
-  PE;
+  CALL("CE"),
+  PUT("PE");
+
+  private final String code;
+
+  OptionType(String code) {
+    this.code = code;
+  }
+
+  public String getCode() {
+    return code;
+  }
 
   public static OptionType from(String value) {
     if (value != null && !value.isBlank()) {
       String normalized = value.trim().toUpperCase();
       for (OptionType type : values()) {
-        if (type.name().equals(normalized)) {
+        if (type.name().equals(normalized) || type.code.equals(normalized)) {
           return type;
         }
       }
