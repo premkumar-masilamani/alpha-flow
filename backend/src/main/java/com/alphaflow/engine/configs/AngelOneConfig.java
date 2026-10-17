@@ -23,6 +23,10 @@ public class AngelOneConfig {
       "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData";
   private String quoteUrl =
       "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote";
+  private String optionGreeksUrl =
+      "https://apiconnect.angelone.in/rest/secure/angelbroking/marketData/v1/optionGreek";
+  private String scripMasterUrl =
+      "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
   private long delayMilliseconds = 1000;
   private Duration tokenTtl = Duration.ofSeconds(72000);
   private LocalTime sessionStartTime = LocalTime.of(9, 15);
