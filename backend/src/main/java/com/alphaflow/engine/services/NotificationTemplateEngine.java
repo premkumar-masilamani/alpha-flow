@@ -1,59 +1,65 @@
 package com.alphaflow.engine.services;
 
+import freemarker.template.Configuration;
+import freemarker.template.Template;
+import freemarker.template.TemplateException;
+import freemarker.template.TemplateExceptionHandler;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
- * Lightweight notification templating engine that reads template files from classpath,
- * caches them in memory, and replaces placeholders with dynamic values.
+ * Reusable notification templating engine backed by Apache FreeMarker.
+ * Reads templates from the classpath directory {@code templates/}, caches them in memory,
+ * and renders messages by substituting variables.
  */
 @Component
 @Slf4j
 public class NotificationTemplateEngine {
 
   private static final String TEMPLATE_BASE_DIR = "templates/";
-  private final ConcurrentMap<String, String> templateCache = new ConcurrentHashMap<>();
+  private final Configuration freemarkerConfiguration;
+
+  public NotificationTemplateEngine() {
+    this.freemarkerConfiguration = new Configuration(Configuration.VERSION_2_3_34);
+    this.freemarkerConfiguration.setClassLoaderForTemplateLoading(
+        getClass().getClassLoader(), TEMPLATE_BASE_DIR);
+    this.freemarkerConfiguration.setDefaultEncoding(StandardCharsets.UTF_8.name());
+    this.freemarkerConfiguration.setTemplateExceptionHandler(
+        TemplateExceptionHandler.RETHROW_HANDLER);
+    this.freemarkerConfiguration.setLogTemplateExceptions(false);
+    this.freemarkerConfiguration.setWrapUncheckedExceptions(true);
+    this.freemarkerConfiguration.setFallbackOnNullLoopVariable(false);
+  }
 
   public String render(String templatePath, Map<String, String> variables) {
-    String templateContent = getTemplate(templatePath);
-    if (variables != null && !variables.isEmpty()) {
-      String renderedText = templateContent;
-      for (Map.Entry<String, String> entry : variables.entrySet()) {
-        String placeholder = "${" + entry.getKey() + "}";
-        String replacement = entry.getValue() != null ? entry.getValue() : "";
-        renderedText = renderedText.replace(placeholder, replacement);
-      }
-      return renderedText;
-    } else {
-      return templateContent;
-    }
-  }
-
-  public String getTemplate(String templatePath) {
-    return templateCache.computeIfAbsent(templatePath, this::loadTemplateFromClasspath);
-  }
-
-  private String loadTemplateFromClasspath(String templatePath) {
-    String fullResourcePath = TEMPLATE_BASE_DIR + templatePath;
     try {
-      ClassPathResource classPathResource = new ClassPathResource(fullResourcePath);
-      try (InputStream inputStream = classPathResource.getInputStream()) {
-        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+      Template template = freemarkerConfiguration.getTemplate(templatePath);
+      StringWriter writer = new StringWriter();
+      Map<String, Object> model = new HashMap<>();
+      if (variables != null) {
+        for (Map.Entry<String, String> entry : variables.entrySet()) {
+          model.put(entry.getKey(), entry.getValue() != null ? entry.getValue() : "");
+        }
       }
-    } catch (IOException exception) {
-      log.error("Failed to load notification template from classpath: {}", fullResourcePath, exception);
-      throw new IllegalArgumentException("Notification template not found: " + fullResourcePath, exception);
+      template.process(model, writer);
+      return writer.toString();
+    } catch (IOException | TemplateException exception) {
+      log.error(
+          "Failed to render notification template '{}': {}",
+          templatePath,
+          exception.getMessage(),
+          exception);
+      throw new IllegalArgumentException(
+          "Error rendering template: " + templatePath, exception);
     }
   }
 
   public void clearCache() {
-    templateCache.clear();
+    freemarkerConfiguration.clearTemplateCache();
   }
 }

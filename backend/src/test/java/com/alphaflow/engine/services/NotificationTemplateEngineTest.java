@@ -1,6 +1,6 @@
 package com.alphaflow.engine.services;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -37,31 +37,37 @@ class NotificationTemplateEngineTest {
   }
 
   @Test
-  void testRenderNullOrEmptyVariablesReturnsTemplate() {
-    String rawTemplate = engine.getTemplate("notifications/bear_breach.md");
-    assertEquals(rawTemplate, engine.render("notifications/bear_breach.md", null));
-    assertEquals(rawTemplate, engine.render("notifications/bear_breach.md", Collections.emptyMap()));
+  void testRenderNullOrEmptyVariables() {
+    String resultWithNull = engine.render("notifications/bear_breach.md", null);
+    assertNotNull(resultWithNull);
+    assertTrue(resultWithNull.contains("BEARISH ALERT"));
+
+    String resultWithEmpty = engine.render("notifications/bear_breach.md", Collections.emptyMap());
+    assertNotNull(resultWithEmpty);
+    assertTrue(resultWithEmpty.contains("BEARISH ALERT"));
   }
 
   @Test
-  void testRenderWithNullValueReplacesWithEmpty() {
+  void testRenderWithNullValueRendersEmptyString() {
     Map<String, String> vars = Collections.singletonMap("ticker", null);
     String result = engine.render("notifications/bear_breach.md", vars);
+    assertNotNull(result);
     assertTrue(result.contains("*Ticker:* \n"));
   }
 
   @Test
   void testTemplateNotFoundThrowsException() {
+    Map<String, String> emptyMap = Map.of();
     assertThrows(
         IllegalArgumentException.class,
-        () -> engine.getTemplate("notifications/non_existent.md"));
+        () -> engine.render("notifications/non_existent.md", emptyMap));
   }
 
   @Test
   void testClearCache() {
-    engine.getTemplate("notifications/bear_breach.md");
-    engine.clearCache();
-    // Re-accessing after cache clear succeeds by re-reading
-    assertNotNull(engine.getTemplate("notifications/bear_breach.md"));
+    engine.render("notifications/bear_breach.md", Map.of("ticker", "NIFTY"));
+    assertDoesNotThrow(() -> engine.clearCache());
+    String resultAfterClear = engine.render("notifications/bear_breach.md", Map.of("ticker", "NIFTY"));
+    assertNotNull(resultAfterClear);
   }
 }

@@ -289,7 +289,7 @@ class AngelOneClientTest {
         "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/market/v1/quote/bulk");
 
     Map<String, BigDecimal> quotes =
-        client.getMarketQuotes(MarketConstants.EXCHANGE_NFO, List.of("12345", "12346"));
+        client.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, List.of("12345", "12346"));
 
     assertEquals(2, quotes.size());
     assertEquals(0, new BigDecimal("620.50").compareTo(quotes.get("12345")));
@@ -299,11 +299,11 @@ class AngelOneClientTest {
   @Test
   void testGetMarketQuotesNullOrEmpty() {
     Map<String, BigDecimal> nullQuotes =
-        client.getMarketQuotes(MarketConstants.EXCHANGE_NFO, null);
+        client.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, null);
     assertTrue(nullQuotes.isEmpty());
 
     Map<String, BigDecimal> emptyQuotes =
-        client.getMarketQuotes(MarketConstants.EXCHANGE_NFO, List.of());
+        client.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, List.of());
     assertTrue(emptyQuotes.isEmpty());
   }
 
@@ -311,7 +311,7 @@ class AngelOneClientTest {
   void testGetMarketQuotesNoJwt() {
     when(authManager.getValidJwtToken()).thenReturn(null);
     Map<String, BigDecimal> quotes =
-        client.getMarketQuotes(MarketConstants.EXCHANGE_NFO, List.of("12345"));
+        client.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, List.of("12345"));
     assertTrue(quotes.isEmpty());
   }
 
@@ -339,7 +339,7 @@ class AngelOneClientTest {
         "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/market/v1/quote/error");
 
     Map<String, BigDecimal> quotes =
-        client.getMarketQuotes(MarketConstants.EXCHANGE_NFO, List.of("12345"));
+        client.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, List.of("12345"));
     assertTrue(quotes.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
   }

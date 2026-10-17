@@ -11,7 +11,6 @@ public final class MarketConstants {
    * exchange segment identifier for NSE derivatives.
    */
   public static final String EXCHANGE_SEGMENT_NFO = "NFO";
-  public static final String EXCHANGE_NFO = EXCHANGE_SEGMENT_NFO;
   public static final String TIMEZONE_KOLKATA = "Asia/Kolkata";
   public static final ZoneId IST_ZONE = ZoneId.of(TIMEZONE_KOLKATA);
   public static final String TIMEZONE_NEW_YORK = "America/New_York";

@@ -1,2 +1,2 @@
 
-*Greeks:* Delta: ${delta} \| IV: ${iv}% \| Theta: ${theta}
+*Greeks:* Delta: ${delta!} \| IV: ${iv!}% \| Theta: ${theta!}

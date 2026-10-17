@@ -63,7 +63,7 @@ class NiftyOptionSelectorServiceTest {
 
     // Contract 1: Strike 25400, Spot 24850 -> Intrinsic Value = 550. LTP = 620 -> TV = 70.
     // Contract 2: Strike 25500, Spot 24850 -> Intrinsic Value = 650. LTP = 750 -> TV = 100.
-    when(angelOneClient.getMarketQuotes(eq(MarketConstants.EXCHANGE_NFO), any()))
+    when(angelOneClient.getMarketQuotes(eq(MarketConstants.EXCHANGE_SEGMENT_NFO), any()))
         .thenReturn(Map.of("1001", new BigDecimal("620.00"), "1002", new BigDecimal("750.00")));
 
     AngelOneOptionGreek greek =
@@ -115,7 +115,7 @@ class NiftyOptionSelectorServiceTest {
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate))
         .thenReturn(List.of(call1, call2));
 
-    when(angelOneClient.getMarketQuotes(eq(MarketConstants.EXCHANGE_NFO), any()))
+    when(angelOneClient.getMarketQuotes(eq(MarketConstants.EXCHANGE_SEGMENT_NFO), any()))
         .thenReturn(Map.of("2001", new BigDecimal("560.00"), "2002", new BigDecimal("680.00")));
 
     when(angelOneClient.getOptionGreeks(eq("NIFTY"), any()))
@@ -150,7 +150,7 @@ class NiftyOptionSelectorServiceTest {
     // Call A: 24500 -> IV = 500, LTP = 550 -> TV = 50
     // Call B: 24400 -> IV = 600, LTP = 650 -> TV = 50
     // Call B has lower strike (24400 < 24500) -> should pick Call B
-    when(angelOneClient.getMarketQuotes(eq(MarketConstants.EXCHANGE_NFO), any()))
+    when(angelOneClient.getMarketQuotes(eq(MarketConstants.EXCHANGE_SEGMENT_NFO), any()))
         .thenReturn(Map.of("3001", new BigDecimal("550.00"), "3002", new BigDecimal("650.00")));
 
     Optional<RecommendedOptionDto> resultOpt =

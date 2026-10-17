@@ -91,7 +91,7 @@ public class AngelOneScripMasterManager {
               String exchangeSegment = rowNode.path("exch_seg").asText();
               String instrumentType = rowNode.path("instrumenttype").asText();
 
-              if (MarketConstants.EXCHANGE_NFO.equalsIgnoreCase(exchangeSegment)
+              if (MarketConstants.EXCHANGE_SEGMENT_NFO.equalsIgnoreCase(exchangeSegment)
                   && "OPTIDX".equalsIgnoreCase(instrumentType)) {
                 String name = rowNode.path("name").asText().toUpperCase(Locale.ROOT);
                 String token = rowNode.path("token").asText();

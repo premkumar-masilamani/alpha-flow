@@ -189,7 +189,7 @@ public class NiftyOptionSelectorService {
         candidateInstruments.stream().map(AngelOneInstrument::token).toList();
 
     Map<String, BigDecimal> liveQuotes =
-        angelOneClient.getMarketQuotes(MarketConstants.EXCHANGE_NFO, tokens);
+        angelOneClient.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, tokens);
 
     if (!liveQuotes.isEmpty()) {
       AngelOneInstrument bestInstrument = null;
