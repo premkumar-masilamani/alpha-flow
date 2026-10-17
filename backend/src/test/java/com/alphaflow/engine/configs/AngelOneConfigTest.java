@@ -21,6 +21,8 @@ class AngelOneConfigTest {
     config.setLoginUrl("https://login.example.com");
     config.setCandleUrl("https://candle.example.com");
     config.setQuoteUrl("https://quote.example.com");
+    config.setOptionGreeksUrl("https://greeks.example.com");
+    config.setScripMasterUrl("https://master.example.com");
     config.setDelayMilliseconds(1500L);
     config.setTokenTtl(Duration.ofSeconds(3600));
     config.setSessionStartTime(LocalTime.of(9, 15));
@@ -35,6 +37,8 @@ class AngelOneConfigTest {
     assertEquals("https://login.example.com", config.getLoginUrl());
     assertEquals("https://candle.example.com", config.getCandleUrl());
     assertEquals("https://quote.example.com", config.getQuoteUrl());
+    assertEquals("https://greeks.example.com", config.getOptionGreeksUrl());
+    assertEquals("https://master.example.com", config.getScripMasterUrl());
     assertEquals(1500L, config.getDelayMilliseconds());
     assertEquals(Duration.ofSeconds(3600L), config.getTokenTtl());
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());
@@ -59,6 +63,12 @@ class AngelOneConfigTest {
     assertEquals(
         "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote",
         config.getQuoteUrl());
+    assertEquals(
+        "https://apiconnect.angelone.in/rest/secure/angelbroking/marketData/v1/optionGreek",
+        config.getOptionGreeksUrl());
+    assertEquals(
+        "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json",
+        config.getScripMasterUrl());
     assertEquals(1000L, config.getDelayMilliseconds());
     assertEquals(Duration.ofSeconds(72000), config.getTokenTtl());
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());

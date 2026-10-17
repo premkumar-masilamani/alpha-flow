@@ -2,9 +2,12 @@ package com.alphaflow.engine.downloaders.angelone;
 
 import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.IntradayTimeframe;
+import com.alphaflow.common.enums.OptionType;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
+import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -22,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Component
 @Slf4j
@@ -206,6 +210,164 @@ public class AngelOneClient {
       }
     }
     return Optional.empty();
+  }
+
+  public Map<String, BigDecimal> getMarketQuotes(String exchange, List<String> symbolTokens) {
+    if (symbolTokens != null && !symbolTokens.isEmpty()) {
+      Map<String, Object> body = new HashMap<>();
+      body.put("mode", "FULL");
+      body.put("exchangeTokens", Map.of(exchange, symbolTokens));
+
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        String jwt = authManager.getValidJwtToken();
+        if (jwt == null || jwt.isBlank()) {
+          log.warn("Cannot fetch market quotes: no valid Angel One JWT token.");
+          return Collections.emptyMap();
+        }
+
+        try {
+          ResponseEntity<String> response =
+              restClient
+                  .post()
+                  .uri(config.getQuoteUrl())
+                  .headers(
+                      headers ->
+                          networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                  .body(body)
+                  .retrieve()
+                  .toEntity(String.class);
+
+          String responseBody = response.getBody();
+          if (responseBody != null) {
+            JsonNode root = objectMapper.readTree(responseBody);
+            if (root.path("status").asBoolean(false)) {
+              JsonNode fetchedList = root.path("data").path("fetched");
+              if (fetchedList.isArray()) {
+                Map<String, BigDecimal> quotes = new HashMap<>();
+                for (JsonNode item : fetchedList) {
+                  String token = item.path("symbolToken").asText();
+                  if (!token.isBlank()) {
+                    BigDecimal ltp =
+                        item.hasNonNull("ltp")
+                            ? new BigDecimal(item.path("ltp").asText())
+                            : BigDecimal.ZERO;
+                    quotes.put(token, ltp);
+                  }
+                }
+                return quotes;
+              }
+            } else {
+              String errorCode = root.path("errorcode").asText();
+              if ("AG8001".equalsIgnoreCase(errorCode)) {
+                authManager.invalidateSession();
+              }
+            }
+          }
+        } catch (RestClientException | JsonProcessingException e) {
+          log.warn(
+              "Attempt {}/2 failed to fetch quotes from Angel One: {}", attempt, e.getMessage());
+          if (attempt == 1) {
+            authManager.invalidateSession();
+            sleep(config.getDelayMilliseconds());
+          }
+        }
+      }
+      return Collections.emptyMap();
+    } else {
+      return Collections.emptyMap();
+    }
+  }
+
+  public List<AngelOneOptionGreek> getOptionGreeks(String underlyingName, String expiryDate) {
+    if (underlyingName != null
+        && !underlyingName.isBlank()
+        && expiryDate != null
+        && !expiryDate.isBlank()) {
+      Map<String, String> body = new HashMap<>();
+      body.put("name", underlyingName);
+      body.put("expirydate", expiryDate);
+
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        String jwt = authManager.getValidJwtToken();
+        if (jwt == null || jwt.isBlank()) {
+          log.warn("Cannot fetch option greeks: no valid Angel One JWT token.");
+          return Collections.emptyList();
+        }
+
+        try {
+          ResponseEntity<String> response =
+              restClient
+                  .post()
+                  .uri(config.getOptionGreeksUrl())
+                  .headers(
+                      headers ->
+                          networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                  .body(body)
+                  .retrieve()
+                  .toEntity(String.class);
+
+          String responseBody = response.getBody();
+          if (responseBody != null) {
+            JsonNode root = objectMapper.readTree(responseBody);
+            if (root.path("status").asBoolean(false)) {
+              JsonNode dataNode = root.path("data");
+              if (dataNode.isArray()) {
+                List<AngelOneOptionGreek> greeks = new ArrayList<>();
+                for (JsonNode row : dataNode) {
+                  BigDecimal strike =
+                      row.hasNonNull("strikePrice")
+                          ? new BigDecimal(row.path("strikePrice").asText())
+                          : null;
+                  String optionTypeStr = row.path("optionType").asText();
+                  OptionType optionType =
+                      !optionTypeStr.isBlank() ? OptionType.from(optionTypeStr) : null;
+                  BigDecimal delta =
+                      row.hasNonNull("delta") ? new BigDecimal(row.path("delta").asText()) : null;
+                  BigDecimal gamma =
+                      row.hasNonNull("gamma") ? new BigDecimal(row.path("gamma").asText()) : null;
+                  BigDecimal theta =
+                      row.hasNonNull("theta") ? new BigDecimal(row.path("theta").asText()) : null;
+                  BigDecimal vega =
+                      row.hasNonNull("vega") ? new BigDecimal(row.path("vega").asText()) : null;
+                  BigDecimal iv =
+                      row.hasNonNull("impliedVolatility")
+                          ? new BigDecimal(row.path("impliedVolatility").asText())
+                          : null;
+                  BigDecimal volume =
+                      row.hasNonNull("tradeVolume")
+                          ? new BigDecimal(row.path("tradeVolume").asText())
+                          : null;
+
+                  if (strike != null && optionType != null) {
+                    greeks.add(
+                        new AngelOneOptionGreek(
+                            strike, optionType, delta, gamma, theta, vega, iv, volume));
+                  }
+                }
+                return greeks;
+              }
+            } else {
+              String errorCode = root.path("errorcode").asText();
+              if ("AG8001".equalsIgnoreCase(errorCode)) {
+                authManager.invalidateSession();
+              }
+            }
+          }
+        } catch (RestClientException | JsonProcessingException e) {
+          log.warn(
+              "Attempt {}/2 failed to fetch option greeks from Angel One: {}",
+              attempt,
+              e.getMessage());
+          if (attempt == 1) {
+            authManager.invalidateSession();
+            sleep(config.getDelayMilliseconds());
+          }
+        }
+      }
+      return Collections.emptyList();
+    } else {
+      return Collections.emptyList();
+    }
   }
 
   OffsetDateTime parseTimestamp(String raw) {

@@ -15,9 +15,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.common.enums.OptionType;
 import com.alphaflow.common.exceptions.NotificationException;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
+import com.alphaflow.engine.services.NotificationTemplateEngine;
+import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
+import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -29,6 +33,7 @@ import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +44,7 @@ class SakthiIntradayStrategyTest {
 
   private DailyPriceRepository dailyPriceRepository;
   private NotificationService notificationService;
+  private NiftyOptionSelectorService niftyOptionSelectorService;
   private SakthiIntradayStrategy strategy;
   private Ticker ticker;
   private OffsetDateTime baseQuoteTime;
@@ -47,7 +53,14 @@ class SakthiIntradayStrategyTest {
   void setUp() {
     dailyPriceRepository = mock(DailyPriceRepository.class);
     notificationService = mock(NotificationService.class);
-    strategy = new SakthiIntradayStrategy(dailyPriceRepository, notificationService);
+    niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
+    NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
+    strategy =
+        new SakthiIntradayStrategy(
+            dailyPriceRepository,
+            notificationService,
+            niftyOptionSelectorService,
+            notificationTemplateEngine);
 
     ticker =
         Ticker.builder()
@@ -396,5 +409,135 @@ class SakthiIntradayStrategyTest {
         .findLatestByTickerAndEndDate(eq(ticker), dateCaptor.capture(), eq(PageRequest.of(0, 1)));
     assertEquals(expectedThursday, dateCaptor.getValue());
     verify(notificationService, times(1)).sendNotification(anyString());
+  }
+
+  @Test
+  void testBearReversalWithOptionRecommendation_EnrichesTelegramAlertWithPutOption() {
+    DailyPrice previousDayPrice =
+        createPreviousDailyPrice(
+            LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+    when(dailyPriceRepository.findLatestByTickerAndEndDate(any(), any(), any()))
+        .thenReturn(List.of(previousDayPrice));
+
+    // First tick breaches PDL at 23900
+    LiveQuote quote1 = createLiveQuote(new BigDecimal("23900.00"), baseQuoteTime);
+    strategy.execute(ticker, quote1);
+
+    // Prepare mock option recommendation for PUT
+    LocalDate expiry = LocalDate.of(2026, 10, 29);
+    RecommendedOptionDto putOption =
+        new RecommendedOptionDto(
+            "NIFTY29OCT2624500PE",
+            "84833",
+            new BigDecimal("24500.00"),
+            OptionType.PUT,
+            expiry,
+            13L,
+            new BigDecimal("650.00"),
+            new BigDecimal("600.00"),
+            new BigDecimal("50.00"),
+            new BigDecimal("-0.75"),
+            null,
+            null);
+
+    when(niftyOptionSelectorService.selectBestOption(
+            eq(ticker), eq(new BigDecimal("23970.00")), eq(OptionType.PUT), any()))
+        .thenReturn(Optional.of(putOption));
+
+    // Second tick: Rebounds by 70 points to 23970 (>= 23900 + 70)
+    LiveQuote quote2 = createLiveQuote(new BigDecimal("23970.00"), baseQuoteTime.plusMinutes(1));
+    strategy.execute(ticker, quote2);
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService, times(2)).sendNotification(captor.capture());
+    String reversalMessage = captor.getAllValues().get(1);
+
+    assertTrue(reversalMessage.contains("BULLISH REVERSAL"));
+    assertTrue(reversalMessage.contains("RECOMMENDED OPTION"));
+    assertTrue(reversalMessage.contains("BUY PUT"));
+    assertTrue(reversalMessage.contains("NIFTY29OCT2624500PE"));
+    assertTrue(reversalMessage.contains("24500"));
+    assertTrue(reversalMessage.contains("13 DTE"));
+    assertTrue(reversalMessage.contains("650"));
+    assertTrue(reversalMessage.contains("600"));
+    assertTrue(reversalMessage.contains("50"));
+    assertTrue(reversalMessage.contains("Delta:"));
+  }
+
+  @Test
+  void testBullReversalWithOptionRecommendation_EnrichesTelegramAlertWithCallOption() {
+    DailyPrice previousDayPrice =
+        createPreviousDailyPrice(
+            LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+    when(dailyPriceRepository.findLatestByTickerAndEndDate(any(), any(), any()))
+        .thenReturn(List.of(previousDayPrice));
+
+    // First tick breaches PDH at 24600
+    LiveQuote quote1 = createLiveQuote(new BigDecimal("24600.00"), baseQuoteTime);
+    strategy.execute(ticker, quote1);
+
+    // Prepare mock option recommendation for CALL
+    LocalDate expiry = LocalDate.of(2026, 10, 29);
+    RecommendedOptionDto callOption =
+        new RecommendedOptionDto(
+            "NIFTY29OCT2624000CE",
+            "84834",
+            new BigDecimal("24000.00"),
+            OptionType.CALL,
+            expiry,
+            13L,
+            new BigDecimal("580.00"),
+            new BigDecimal("530.00"),
+            new BigDecimal("50.00"),
+            null,
+            null,
+            null);
+
+    when(niftyOptionSelectorService.selectBestOption(
+            eq(ticker), eq(new BigDecimal("24530.00")), eq(OptionType.CALL), any()))
+        .thenReturn(Optional.of(callOption));
+
+    // Second tick: Pulls back by 70 points to 24530 (<= 24600 - 70)
+    LiveQuote quote2 = createLiveQuote(new BigDecimal("24530.00"), baseQuoteTime.plusMinutes(1));
+    strategy.execute(ticker, quote2);
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService, times(2)).sendNotification(captor.capture());
+    String reversalMessage = captor.getAllValues().get(1);
+
+    assertTrue(reversalMessage.contains("BEARISH REVERSAL"));
+    assertTrue(reversalMessage.contains("RECOMMENDED OPTION"));
+    assertTrue(reversalMessage.contains("BUY CALL"));
+    assertTrue(reversalMessage.contains("NIFTY29OCT2624000CE"));
+    assertTrue(reversalMessage.contains("24000"));
+    assertTrue(reversalMessage.contains("580"));
+    assertFalse(reversalMessage.contains("Greeks:"));
+  }
+
+  @Test
+  void testOptionSelectorException_CatchesGracefullyAndSendsNotificationWithFallback() {
+    DailyPrice previousDayPrice =
+        createPreviousDailyPrice(
+            LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+    when(dailyPriceRepository.findLatestByTickerAndEndDate(any(), any(), any()))
+        .thenReturn(List.of(previousDayPrice));
+
+    // First tick breaches PDL at 23900
+    LiveQuote quote1 = createLiveQuote(new BigDecimal("23900.00"), baseQuoteTime);
+    strategy.execute(ticker, quote1);
+
+    when(niftyOptionSelectorService.selectBestOption(any(), any(), any(), any()))
+        .thenThrow(new RuntimeException("Angel One API down"));
+
+    // Second tick: Rebounds by 70 points
+    LiveQuote quote2 = createLiveQuote(new BigDecimal("23970.00"), baseQuoteTime.plusMinutes(1));
+    strategy.execute(ticker, quote2);
+
+    ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
+    verify(notificationService, times(2)).sendNotification(captor.capture());
+    String reversalMessage = captor.getAllValues().get(1);
+
+    assertTrue(reversalMessage.contains("BULLISH REVERSAL"));
+    assertTrue(reversalMessage.contains("No option contract found meeting the ₹500–₹900 premium"));
   }
 }
