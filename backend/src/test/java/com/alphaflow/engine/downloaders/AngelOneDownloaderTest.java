@@ -1,27 +1,40 @@
 package com.alphaflow.engine.downloaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.IntradayTimeframe;
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
+import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.enums.DataProvider;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -30,6 +43,8 @@ class AngelOneDownloaderTest {
   private AngelOneConfig config;
   private AngelOneClient client;
   private IntradayPriceRepository intradayRepo;
+  private TickerRepository tickerRepo;
+  private LiveQuoteRepository liveQuoteRepo;
   private AngelOneDownloader downloader;
   private final ZoneId istZone = MarketConstants.IST_ZONE;
 
@@ -48,7 +63,10 @@ class AngelOneDownloaderTest {
 
     client = mock(AngelOneClient.class);
     intradayRepo = mock(IntradayPriceRepository.class);
-    downloader = new AngelOneDownloader(config, client, intradayRepo);
+    tickerRepo = mock(TickerRepository.class);
+    liveQuoteRepo = mock(LiveQuoteRepository.class);
+    downloader =
+        new AngelOneDownloader(config, client, intradayRepo, tickerRepo, liveQuoteRepo);
   }
 
   @Test
@@ -93,10 +111,14 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    // Set latest time to yesterday at 10:00 AM (guaranteed to be before expectedCompletedTime
-    // regardless of time of day)
-    OffsetDateTime latestTime =
-        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+    OffsetDateTime latestTime = expectedCompletedTime.minusMinutes(30);
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
@@ -124,7 +146,7 @@ class AngelOneDownloaderTest {
     // Candle 3: far in future beyond overallEnd (filtered out by !timestamp.isAfter(overallEnd))
     AngelOneCandle futureCandle =
         new AngelOneCandle(
-            OffsetDateTime.now(istZone).plusDays(5),
+            expectedCompletedTime.plusDays(5),
             new BigDecimal("25075.00"),
             new BigDecimal("25090.00"),
             new BigDecimal("25070.00"),
@@ -161,12 +183,20 @@ class AngelOneDownloaderTest {
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(tickerMap);
 
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+
     // Configure small chunk days and recent backfill start date so it runs in 2 chunks
-    config.setBackfillStartDate(LocalDate.now(istZone).minusDays(3));
+    config.setBackfillStartDate(expectedCompletedTime.toLocalDate().minusDays(3));
     config.setMaxChunkDays(2);
 
     OffsetDateTime chunk1Time =
-        LocalDate.now(istZone).minusDays(2).atTime(10, 0).atZone(istZone).toOffsetDateTime();
+        config.getBackfillStartDate().atTime(10, 0).atZone(istZone).toOffsetDateTime();
     AngelOneCandle candleChunk1 =
         new AngelOneCandle(
             chunk1Time,
@@ -176,8 +206,7 @@ class AngelOneDownloaderTest {
             new BigDecimal("24050"),
             BigDecimal.ONE);
 
-    OffsetDateTime chunk2Time =
-        LocalDate.now(istZone).minusDays(1).atTime(11, 0).atZone(istZone).toOffsetDateTime();
+    OffsetDateTime chunk2Time = expectedCompletedTime.minusMinutes(15);
     AngelOneCandle candleChunk2 =
         new AngelOneCandle(
             chunk2Time,
@@ -212,8 +241,14 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    OffsetDateTime latestTime =
-        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+    OffsetDateTime latestTime = expectedCompletedTime.minusMinutes(30);
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
@@ -223,6 +258,7 @@ class AngelOneDownloaderTest {
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(0, result);
+    verify(client, times(1)).getCandleData(any(), any(), any(), any(), any());
     verify(intradayRepo, never()).saveAll(any());
   }
 
@@ -235,8 +271,14 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
-    OffsetDateTime latestTime =
-        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+    OffsetDateTime latestTime = expectedCompletedTime.minusMinutes(30);
     when(intradayRepo.findLatestPriceTimesForActiveTickers(
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
@@ -256,6 +298,7 @@ class AngelOneDownloaderTest {
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(0, result);
+    verify(client, times(1)).getCandleData(any(), any(), any(), any(), any());
     verify(intradayRepo, never()).saveAll(any());
   }
 
@@ -274,7 +317,15 @@ class AngelOneDownloaderTest {
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(tickerMap);
 
-    config.setBackfillStartDate(LocalDate.now(istZone).minusDays(3));
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+
+    config.setBackfillStartDate(expectedCompletedTime.toLocalDate().minusDays(3));
     config.setMaxChunkDays(1);
     config.setDelayMilliseconds(2000);
 
@@ -311,9 +362,16 @@ class AngelOneDownloaderTest {
             .dataProvider(DataProvider.ANGEL_ONE)
             .build();
 
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+    OffsetDateTime twoHoursAgo = expectedCompletedTime.minusMinutes(30);
+
     Map<Ticker, OffsetDateTime> tickerMap = new LinkedHashMap<>();
-    OffsetDateTime twoHoursAgo =
-        LocalDate.now(istZone).minusDays(1).atTime(10, 0).atZone(istZone).toOffsetDateTime();
     tickerMap.put(ticker1, twoHoursAgo);
     tickerMap.put(ticker2, twoHoursAgo);
 
@@ -339,5 +397,106 @@ class AngelOneDownloaderTest {
 
     int result = downloader.downloadIntradayPrices();
     assertEquals(0, result);
+  }
+
+  @Test
+  void testDownloadLiveQuotesSuccessInsertAndSkipMissing() {
+    Ticker activeTicker1 =
+        Ticker.builder()
+            .tickerId(1L)
+            .tickerSymbol("NIFTY50")
+            .country(Country.IN)
+            .dataProvider(DataProvider.ANGEL_ONE)
+            .isActive(true)
+            .build();
+    Ticker activeTicker2 =
+        Ticker.builder()
+            .tickerId(2L)
+            .tickerSymbol("BANKNIFTY")
+            .country(Country.IN)
+            .dataProvider(DataProvider.ANGEL_ONE)
+            .isActive(true)
+            .build();
+
+    OffsetDateTime currentTimestamp = OffsetDateTime.now(MarketConstants.IST_ZONE);
+
+    when(tickerRepo.findByIsActiveTrueAndCountryAndDataProvider(Country.IN, DataProvider.ANGEL_ONE))
+        .thenReturn(List.of(activeTicker1, activeTicker2));
+
+    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+        .thenReturn(
+            Optional.of(new AngelOneQuote(new BigDecimal("25125.75"), "2026-10-16T10:00:00+05:30")));
+    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926009"))
+        .thenReturn(Optional.empty());
+
+    when(liveQuoteRepo.findByTicker(activeTicker1)).thenReturn(Optional.empty());
+    when(liveQuoteRepo.save(any(LiveQuote.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    List<LiveQuote> results = downloader.downloadLiveQuotes(currentTimestamp);
+
+    assertEquals(1, results.size());
+    LiveQuote saved = results.getFirst();
+    assertEquals(activeTicker1, saved.getTicker());
+    assertEquals(new BigDecimal("25125.75"), saved.getLastPrice());
+    assertEquals(BigDecimal.ZERO, saved.getVolume());
+    verify(liveQuoteRepo, times(1)).save(any(LiveQuote.class));
+  }
+
+  @Test
+  void testDownloadLiveQuoteForTickerUpdatesExisting() {
+    Ticker ticker =
+        Ticker.builder()
+            .tickerId(1L)
+            .tickerSymbol("NIFTY50")
+            .country(Country.IN)
+            .dataProvider(DataProvider.ANGEL_ONE)
+            .isActive(true)
+            .build();
+
+    OffsetDateTime currentTimestamp = OffsetDateTime.now(MarketConstants.IST_ZONE);
+    LiveQuote existing =
+        LiveQuote.builder()
+            .liveQuoteId(10L)
+            .ticker(ticker)
+            .lastPrice(new BigDecimal("24900.00"))
+            .quoteTime(currentTimestamp.minusMinutes(1))
+            .build();
+
+    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+        .thenReturn(
+            Optional.of(new AngelOneQuote(new BigDecimal("25000.00"), "2026-10-16T10:01:00+05:30")));
+    when(liveQuoteRepo.findByTicker(ticker)).thenReturn(Optional.of(existing));
+    when(liveQuoteRepo.save(any(LiveQuote.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    Optional<LiveQuote> updatedOpt = downloader.downloadLiveQuoteForTicker(ticker, currentTimestamp);
+
+    assertTrue(updatedOpt.isPresent());
+    LiveQuote updated = updatedOpt.get();
+    assertEquals(10L, updated.getLiveQuoteId());
+    assertEquals(new BigDecimal("25000.00"), updated.getLastPrice());
+    verify(liveQuoteRepo, times(1)).save(existing);
+  }
+
+  @Test
+  void testDownloadLiveQuoteForTickerEmptyQuote() {
+    Ticker ticker =
+        Ticker.builder()
+            .tickerId(1L)
+            .tickerSymbol("NIFTY50")
+            .country(Country.IN)
+            .dataProvider(DataProvider.ANGEL_ONE)
+            .isActive(true)
+            .build();
+
+    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+        .thenReturn(Optional.empty());
+
+    Optional<LiveQuote> result =
+        downloader.downloadLiveQuoteForTicker(ticker, OffsetDateTime.now(MarketConstants.IST_ZONE));
+
+    assertFalse(result.isPresent());
+    verify(liveQuoteRepo, never()).save(any());
   }
 }

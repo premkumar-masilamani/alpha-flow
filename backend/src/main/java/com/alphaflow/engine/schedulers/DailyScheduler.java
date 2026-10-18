@@ -1,5 +1,6 @@
 package com.alphaflow.engine.schedulers;
 
+import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
@@ -15,9 +16,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/**
+ * Scheduled coordinator for daily price ingestion and downstream technical analysis pipelines.
+ */
 @Component
 @Slf4j
-public class CoreScheduler {
+public class DailyScheduler {
 
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
@@ -29,7 +33,7 @@ public class CoreScheduler {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   @Autowired
-  public CoreScheduler(
+  public DailyScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
       IndicatorCalculator indicatorCalculator,
@@ -46,7 +50,7 @@ public class CoreScheduler {
         false);
   }
 
-  public CoreScheduler(
+  public DailyScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
       WeeklyPriceCalculator weeklyPriceCalculator,
       IndicatorCalculator indicatorCalculator,
@@ -63,19 +67,22 @@ public class CoreScheduler {
     this.enableChartPatterns = enableChartPatterns;
   }
 
-  @Scheduled(cron = "0 0 * * * *")
+  @Scheduled(cron = "0 0 * * * *", zone = MarketConstants.TIMEZONE_KOLKATA)
   public void runScheduledUpdate() {
-    log.info("Starting scheduled data update cycle (on the hour)...");
+    log.info("Starting scheduled daily data update cycle (on the hour)...");
     run();
   }
 
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
-    log.info("Starting initial data update cycle upon startup...");
+    log.info("Starting initial daily data update cycle upon startup...");
     run();
   }
 
+  /**
+   * Executes the daily ingestion and multi-step technical analysis pipeline.
+   */
   public void run() {
     if (running.compareAndSet(false, true)) {
       long cycleStart = System.currentTimeMillis();
@@ -85,31 +92,38 @@ public class CoreScheduler {
         int newlyIngestedRows = yahooFinanceDownloader.downloadDailyPrices();
         log.info(
             "Step 1/6 completed in {}. Newly ingested rows: {}",
-            formatDuration(System.currentTimeMillis() - start),
+            SchedulerUtils.formatDuration(System.currentTimeMillis() - start),
             newlyIngestedRows);
 
         if (newlyIngestedRows > 0) {
           log.info("Step 2/6: Computing weekly candles...");
           start = System.currentTimeMillis();
           weeklyPriceCalculator.computeWeeklyPrices();
-          log.info("Step 2/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+          log.info(
+              "Step 2/6 completed in {}.",
+              SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
 
           log.info("Step 3/6: Computing support and resistances...");
           start = System.currentTimeMillis();
           supportResistanceCalculator.computeSupportResistances();
-          log.info("Step 3/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+          log.info(
+              "Step 3/6 completed in {}.",
+              SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
 
           log.info("Step 4/6: Computing candlestick patterns...");
           start = System.currentTimeMillis();
           candlestickPatternCalculator.computeCandleStickPatterns();
-          log.info("Step 4/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+          log.info(
+              "Step 4/6 completed in {}.",
+              SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
 
           if (enableChartPatterns) {
             log.info("Step 5/6: Computing chart patterns...");
             start = System.currentTimeMillis();
             chartPatternCalculator.computeChartPatterns();
             log.info(
-                "Step 5/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+                "Step 5/6 completed in {}.",
+                SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
           } else {
             log.info("Step 5/6: Computing chart patterns is disabled.");
           }
@@ -117,33 +131,29 @@ public class CoreScheduler {
           log.info("Step 6/6: Computing indicators...");
           start = System.currentTimeMillis();
           indicatorCalculator.computeIndicators();
-          log.info("Step 6/6 completed in {}.", formatDuration(System.currentTimeMillis() - start));
+          log.info(
+              "Step 6/6 completed in {}.",
+              SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
 
           log.info(
-              "Scheduled data update cycle completed successfully in {}.",
-              formatDuration(System.currentTimeMillis() - cycleStart));
+              "Scheduled daily data update cycle completed successfully in {}.",
+              SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart));
         } else {
           log.info(
               "Zero new daily price rows ingested across all tickers. "
                   + "Skipping downstream calculations (Steps 2 to 6). Cycle completed in {}.",
-              formatDuration(System.currentTimeMillis() - cycleStart));
+              SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart));
         }
       } catch (Exception exception) {
         log.error(
-            "Error occurred during scheduled data update cycle after {}",
-            formatDuration(System.currentTimeMillis() - cycleStart),
+            "Error occurred during scheduled daily data update cycle after {}",
+            SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart),
             exception);
       } finally {
         running.set(false);
       }
     } else {
-      log.warn("Data update cycle skipped: a previous run is still in progress.");
+      log.warn("Daily data update cycle skipped: a previous run is still in progress.");
     }
-  }
-
-  private String formatDuration(long ms) {
-    long minutes = ms / 60000;
-    long seconds = (ms % 60000) / 1000;
-    return String.format("%d m %d s (%d ms)", minutes, seconds, ms);
   }
 }

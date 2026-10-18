@@ -18,7 +18,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
-class CoreSchedulerTest {
+class DailySchedulerTest {
 
   @Test
   void testScheduledUpdateSuccessWithChartPatternsDisabledByDefault() {
@@ -32,8 +32,8 @@ class CoreSchedulerTest {
 
     when(downloader.downloadDailyPrices()).thenReturn(5);
 
-    CoreScheduler scheduler =
-        new CoreScheduler(
+    DailyScheduler scheduler =
+        new DailyScheduler(
             downloader,
             weeklyPriceCalculator,
             indicatorCalculator,
@@ -63,8 +63,8 @@ class CoreSchedulerTest {
 
     when(downloader.downloadDailyPrices()).thenReturn(5);
 
-    CoreScheduler scheduler =
-        new CoreScheduler(
+    DailyScheduler scheduler =
+        new DailyScheduler(
             downloader,
             weeklyPriceCalculator,
             indicatorCalculator,
@@ -95,8 +95,8 @@ class CoreSchedulerTest {
 
     when(downloader.downloadDailyPrices()).thenReturn(0);
 
-    CoreScheduler scheduler =
-        new CoreScheduler(
+    DailyScheduler scheduler =
+        new DailyScheduler(
             downloader,
             weeklyPriceCalculator,
             indicatorCalculator,
@@ -126,8 +126,8 @@ class CoreSchedulerTest {
 
     doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadDailyPrices();
 
-    CoreScheduler scheduler =
-        new CoreScheduler(
+    DailyScheduler scheduler =
+        new DailyScheduler(
             downloader,
             weeklyPriceCalculator,
             indicatorCalculator,
@@ -138,7 +138,6 @@ class CoreSchedulerTest {
     scheduler.runOnStartup();
 
     verify(downloader, times(1)).downloadDailyPrices();
-    // Subsequent steps skipped due to exception
     verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
     verify(indicatorCalculator, never()).computeIndicators();
     verify(supportResistanceCalculator, never()).computeSupportResistances();
@@ -159,7 +158,6 @@ class CoreSchedulerTest {
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
 
-    // Block inside the first download call
     doAnswer(
             invocation -> {
               startLatch.countDown();
@@ -169,8 +167,8 @@ class CoreSchedulerTest {
         .when(downloader)
         .downloadDailyPrices();
 
-    CoreScheduler scheduler =
-        new CoreScheduler(
+    DailyScheduler scheduler =
+        new DailyScheduler(
             downloader,
             weeklyPriceCalculator,
             indicatorCalculator,
@@ -178,21 +176,17 @@ class CoreSchedulerTest {
             patternCalculator,
             chartPatternCalculator);
 
-    // Start thread for first invocation
     Thread updateThread = new Thread(scheduler::runScheduledUpdate);
     updateThread.start();
 
-    // Wait for first invocation to start and block
     startLatch.await(2, TimeUnit.SECONDS);
 
     // Call scheduler again in main thread — should skip since updateThread is still running
     scheduler.runOnStartup();
 
-    // Release first thread
     finishLatch.countDown();
     updateThread.join(2000);
 
-    // Verify updateThread executed download, but second call skipped it
     verify(downloader, times(1)).downloadDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();

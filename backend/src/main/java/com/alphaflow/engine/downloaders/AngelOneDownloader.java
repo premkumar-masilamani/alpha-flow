@@ -6,10 +6,17 @@ import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
+import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.alphaflow.engine.schedulers.SchedulerUtils;
 import com.alphaflow.persistence.entities.IntradayPrice;
+import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.enums.DataProvider;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -17,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -30,14 +38,20 @@ public class AngelOneDownloader {
   private final AngelOneConfig config;
   private final AngelOneClient client;
   private final IntradayPriceRepository intradayPriceRepository;
+  private final TickerRepository tickerRepository;
+  private final LiveQuoteRepository liveQuoteRepository;
 
   public AngelOneDownloader(
       AngelOneConfig config,
       AngelOneClient client,
-      IntradayPriceRepository intradayPriceRepository) {
+      IntradayPriceRepository intradayPriceRepository,
+      TickerRepository tickerRepository,
+      LiveQuoteRepository liveQuoteRepository) {
     this.config = config;
     this.client = client;
     this.intradayPriceRepository = intradayPriceRepository;
+    this.tickerRepository = tickerRepository;
+    this.liveQuoteRepository = liveQuoteRepository;
   }
 
   public int downloadIntradayPrices() {
@@ -185,5 +199,69 @@ public class AngelOneDownloader {
     }
 
     return totalIngestedForTicker;
+  }
+
+  /**
+   * Fetches and persists live quotes for all active Angel One Indian tickers.
+   *
+   * @param currentTimestamp current pipeline timestamp
+   * @return list of newly saved or updated live quotes
+   */
+  public List<LiveQuote> downloadLiveQuotes(OffsetDateTime currentTimestamp) {
+    log.info("Starting Angel One live quote download process...");
+    List<Ticker> activeTickers =
+        tickerRepository.findByIsActiveTrueAndCountryAndDataProvider(
+            Country.IN, DataProvider.ANGEL_ONE);
+    List<LiveQuote> savedQuotes = new ArrayList<>();
+    for (Ticker ticker : activeTickers) {
+      Optional<LiveQuote> liveQuoteOptional = downloadLiveQuoteForTicker(ticker, currentTimestamp);
+      if (liveQuoteOptional.isPresent()) {
+        savedQuotes.add(liveQuoteOptional.get());
+      } else {
+        log.warn("Skipping live quote update: no quote returned for {}", ticker.getTickerSymbol());
+      }
+    }
+    log.info(
+        "Angel One live quote download completed. Persisted {} quotes.", savedQuotes.size());
+    return savedQuotes;
+  }
+
+  /**
+   * Fetches and persists a single live quote for the specified ticker.
+   *
+   * @param ticker           ticker to fetch quote for
+   * @param currentTimestamp fallback timestamp to associate with quote
+   * @return persisted LiveQuote if fetched, empty otherwise
+   */
+  public Optional<LiveQuote> downloadLiveQuoteForTicker(
+      Ticker ticker, OffsetDateTime currentTimestamp) {
+    String symbolToken = AngelOneClient.resolveToken(ticker.getTickerSymbol());
+    Optional<AngelOneQuote> marketQuoteOptional =
+        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, symbolToken);
+    if (marketQuoteOptional.isPresent()) {
+      AngelOneQuote marketQuote = marketQuoteOptional.get();
+      OffsetDateTime quoteTime =
+          SchedulerUtils.parseQuoteTimestamp(marketQuote.timestamp(), currentTimestamp);
+      Optional<LiveQuote> existingQuoteOptional = liveQuoteRepository.findByTicker(ticker);
+      LiveQuote liveQuote;
+      if (existingQuoteOptional.isPresent()) {
+        liveQuote = existingQuoteOptional.get();
+        liveQuote.setLastPrice(marketQuote.lastPrice());
+        liveQuote.setQuoteTime(quoteTime);
+        liveQuote.setUpdatedAt(currentTimestamp);
+      } else {
+        liveQuote =
+            LiveQuote.builder()
+                .ticker(ticker)
+                .lastPrice(marketQuote.lastPrice())
+                .volume(BigDecimal.ZERO)
+                .quoteTime(quoteTime)
+                .updatedAt(currentTimestamp)
+                .build();
+      }
+      return Optional.of(liveQuoteRepository.save(liveQuote));
+    } else {
+      return Optional.empty();
+    }
   }
 }
