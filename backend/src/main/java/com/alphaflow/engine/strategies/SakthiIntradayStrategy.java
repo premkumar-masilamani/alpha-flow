@@ -254,22 +254,6 @@ public class SakthiIntradayStrategy {
       RecommendedOptionDto option = recommendedOptionOptional.get();
       String action = optionType == OptionType.PUT ? "BUY PUT" : "BUY CALL";
 
-      String greeksSection = "";
-      if (option.delta() != null || option.impliedVolatility() != null || option.theta() != null) {
-        String deltaStr = option.delta() != null ? formatPrice(option.delta()) : "N/A";
-        String ivStr =
-            option.impliedVolatility() != null
-                ? formatPrice(option.impliedVolatility())
-                : "N/A";
-        String thetaStr = option.theta() != null ? formatPrice(option.theta()) : "N/A";
-
-        Map<String, String> greeksVariables = new HashMap<>();
-        greeksVariables.put("delta", TelegramMarkdownV2Helper.escape(deltaStr));
-        greeksVariables.put("iv", TelegramMarkdownV2Helper.escape(ivStr));
-        greeksVariables.put("theta", TelegramMarkdownV2Helper.escape(thetaStr));
-        greeksSection = notificationTemplateEngine.render("notifications/greeks_details.md", greeksVariables);
-      }
-
       final String expiryStr =
           option.expiryDate().format(OPTION_EXPIRY_FORMATTER).toUpperCase(Locale.ENGLISH)
               + " ("
@@ -284,7 +268,19 @@ public class SakthiIntradayStrategy {
       variables.put("lastPrice", TelegramMarkdownV2Helper.escape(formatPrice(option.lastPrice())));
       variables.put("intrinsicValue", TelegramMarkdownV2Helper.escape(formatPrice(option.intrinsicValue())));
       variables.put("timeValue", TelegramMarkdownV2Helper.escape(formatPrice(option.timeValue())));
-      variables.put("greeksSection", greeksSection);
+
+      if (option.delta() != null || option.impliedVolatility() != null || option.theta() != null) {
+        String deltaStr = option.delta() != null ? formatPrice(option.delta()) : "N/A";
+        String ivStr =
+            option.impliedVolatility() != null
+                ? formatPrice(option.impliedVolatility())
+                : "N/A";
+        String thetaStr = option.theta() != null ? formatPrice(option.theta()) : "N/A";
+
+        variables.put("delta", TelegramMarkdownV2Helper.escape(deltaStr));
+        variables.put("iv", TelegramMarkdownV2Helper.escape(ivStr));
+        variables.put("theta", TelegramMarkdownV2Helper.escape(thetaStr));
+      }
 
       return notificationTemplateEngine.render("notifications/option_details.md", variables);
     } else {

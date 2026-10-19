@@ -203,7 +203,7 @@ class SakthiIntradayStrategyTest {
     assertTrue(secondMessage.contains("BULLISH REVERSAL"));
     assertTrue(secondMessage.contains("23990"));
     assertTrue(secondMessage.contains("23920"));
-    assertTrue(secondMessage.contains("+70 points from low"));
+    assertTrue(secondMessage.contains("+70 points from 23920"));
     assertFalse(secondMessage.contains("🚨"));
     assertFalse(secondMessage.contains("🟢"));
     assertFalse(secondMessage.contains("🔴"));
@@ -300,7 +300,7 @@ class SakthiIntradayStrategyTest {
     assertTrue(secondMessage.contains("BEARISH REVERSAL"));
     assertTrue(secondMessage.contains("24510"));
     assertTrue(secondMessage.contains("24580"));
-    assertTrue(secondMessage.contains("-70 points from high"));
+    assertTrue(secondMessage.contains("-70 points from 24580"));
     assertFalse(secondMessage.contains("🚨"));
     assertFalse(secondMessage.contains("🟢"));
     assertFalse(secondMessage.contains("🔴"));

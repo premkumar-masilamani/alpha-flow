@@ -1,7 +1,9 @@
 *\[BEARISH REVERSAL\] 70\-Point Pullback from High*
 *Ticker:* ${ticker!}
 *Current Price:* ${currentPrice!}
-*Day's High:* ${dayHigh!}
-*Pullback:* \-${pullbackPoints!} points from high
-*PDH Reference:* ${previousDayHigh!}
-*Time:* ${timestamp!}${optionDetails!}
+*Time:* ${timestamp!}
+*Previous Day High:* ${previousDayHigh!}
+*Today High:* ${dayHigh!}
+*Pullback:* \-${pullbackPoints!} points from ${dayHigh!}
+
+${optionDetails!}

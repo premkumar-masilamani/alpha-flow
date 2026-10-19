@@ -128,9 +128,19 @@ class YahooFinanceClientTest {
   }
 
   @Test
+  void testConstructorWithRateLimiter() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    YahooFinanceRateLimiter rateLimiter = new YahooFinanceRateLimiter(config);
+    YahooFinanceClient client = new YahooFinanceClient(config, rateLimiter);
+    assertNotNull(client);
+  }
+
+  @Test
   void testConstructorWithCustomRestClientBuilder() {
     YahooFinanceConfig config = new YahooFinanceConfig();
-    YahooFinanceClient client = new YahooFinanceClient(config, RestClient.builder());
+    YahooFinanceRateLimiter rateLimiter = new YahooFinanceRateLimiter(config);
+    YahooFinanceClient client =
+        new YahooFinanceClient(config, rateLimiter, RestClient.builder());
     assertNotNull(client);
   }
 }

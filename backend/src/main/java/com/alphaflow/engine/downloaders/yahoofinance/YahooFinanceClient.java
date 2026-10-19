@@ -20,12 +20,16 @@ import org.springframework.web.client.RestClientException;
 public class YahooFinanceClient {
 
   private final YahooFinanceConfig config;
+  private final YahooFinanceRateLimiter rateLimiter;
   private final RestClient restClient;
 
   @Autowired
   public YahooFinanceClient(
-      YahooFinanceConfig config, @Autowired(required = false) RestClient.Builder restClientBuilder) {
+      YahooFinanceConfig config,
+      YahooFinanceRateLimiter rateLimiter,
+      @Autowired(required = false) RestClient.Builder restClientBuilder) {
     this.config = config;
+    this.rateLimiter = rateLimiter;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder())
             .defaultHeader(
@@ -35,8 +39,12 @@ public class YahooFinanceClient {
             .build();
   }
 
+  public YahooFinanceClient(YahooFinanceConfig config, YahooFinanceRateLimiter rateLimiter) {
+    this(config, rateLimiter, null);
+  }
+
   public YahooFinanceClient(YahooFinanceConfig config) {
-    this(config, null);
+    this(config, new YahooFinanceRateLimiter(config), null);
   }
 
   public List<DailyPrice> fetchDailyPrices(Ticker ticker, long startTs, long endTs) {
@@ -49,9 +57,9 @@ public class YahooFinanceClient {
               .replace("{start}", String.valueOf(startTs))
               .replace("{end}", String.valueOf(endTs));
 
+      rateLimiter.throttle();
       try {
         String json = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
-        sleep(config.getDelayMilliseconds());
         return YahooResponseParser.parse(json, ticker);
       } catch (RestClientException | IOException exception) {
         log.error(
@@ -64,17 +72,6 @@ public class YahooFinanceClient {
     } else {
       log.warn("Cannot fetch Yahoo Finance daily prices: ticker is null.");
       return Collections.emptyList();
-    }
-  }
-
-  private void sleep(long millis) {
-    if (millis > 0) {
-      try {
-        Thread.sleep(millis);
-      } catch (InterruptedException exception) {
-        Thread.currentThread().interrupt();
-        log.warn("Rate-limit sleep interrupted during Yahoo Finance download: {}", exception.getMessage());
-      }
     }
   }
 }
