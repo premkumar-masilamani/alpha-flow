@@ -165,4 +165,38 @@ class TelegramNotificationServiceTest {
     assertEquals("Notification message cannot be null", exception.getMessage());
     verify(notificationLogRepository, never()).save(any());
   }
+
+  @Test
+  void testSendNotificationUnconfiguredThrowsException() {
+    telegramConfig.setApiToken(null);
+    NotificationException exception =
+        assertThrows(
+            NotificationException.class,
+            () -> service.sendNotification("Unconfigured token message"));
+    assertTrue(exception.getMessage().contains("Telegram API token or chat ID is not configured"));
+
+    telegramConfig.setApiToken("${TELEGRAM_API_TOKEN}");
+    NotificationException unexpandedTokenException =
+        assertThrows(
+            NotificationException.class,
+            () -> service.sendNotification("Unexpanded token message"));
+    assertTrue(unexpandedTokenException.getMessage().contains("Telegram API token or chat ID is not configured"));
+
+    telegramConfig.setApiToken("valid-token");
+    telegramConfig.setChatId("${TELEGRAM_CHAT_ID}");
+    NotificationException unexpandedChatIdException =
+        assertThrows(
+            NotificationException.class,
+            () -> service.sendNotification("Unexpanded chat ID message"));
+    assertTrue(unexpandedChatIdException.getMessage().contains("Telegram API token or chat ID is not configured"));
+  }
+
+  @Test
+  void testSendNotificationWithCustomTokenAndChatId() {
+    service.sendNotification("Custom token message", "override-token", "987654");
+
+    String receivedQuery = lastReceivedQuery.get();
+    assertNotNull(receivedQuery);
+    assertTrue(receivedQuery.contains("chat_id=987654"));
+  }
 }
