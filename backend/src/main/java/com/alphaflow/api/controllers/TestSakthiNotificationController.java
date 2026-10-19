@@ -56,16 +56,8 @@ public class TestSakthiNotificationController {
       @RequestParam(name = "scenario", defaultValue = "bear") String scenario,
       @RequestParam(name = "mockOption", defaultValue = "true") boolean mockOption,
       @RequestParam(name = "sendTelegram", defaultValue = "true") boolean sendTelegram,
-      @RequestParam(name = "customMessage", required = false) String customMessage,
-      @RequestParam(name = "telegramApiToken", required = false) String telegramApiToken,
-      @RequestParam(name = "telegramChatId", required = false) String telegramChatId) {
-    return handleTestNotification(
-        scenario, mockOption, sendTelegram, customMessage, telegramApiToken, telegramChatId);
-  }
-
-  public ResponseEntity<Map<String, Object>> testNotificationGet(
-      String scenario, boolean mockOption, boolean sendTelegram, String customMessage) {
-    return testNotificationGet(scenario, mockOption, sendTelegram, customMessage, null, null);
+      @RequestParam(name = "customMessage", required = false) String customMessage) {
+    return handleTestNotification(scenario, mockOption, sendTelegram, customMessage);
   }
 
   @PostMapping("/notification")
@@ -73,25 +65,12 @@ public class TestSakthiNotificationController {
       @RequestParam(name = "scenario", defaultValue = "bear") String scenario,
       @RequestParam(name = "mockOption", defaultValue = "true") boolean mockOption,
       @RequestParam(name = "sendTelegram", defaultValue = "true") boolean sendTelegram,
-      @RequestParam(name = "customMessage", required = false) String customMessage,
-      @RequestParam(name = "telegramApiToken", required = false) String telegramApiToken,
-      @RequestParam(name = "telegramChatId", required = false) String telegramChatId) {
-    return handleTestNotification(
-        scenario, mockOption, sendTelegram, customMessage, telegramApiToken, telegramChatId);
-  }
-
-  public ResponseEntity<Map<String, Object>> testNotificationPost(
-      String scenario, boolean mockOption, boolean sendTelegram, String customMessage) {
-    return testNotificationPost(scenario, mockOption, sendTelegram, customMessage, null, null);
+      @RequestParam(name = "customMessage", required = false) String customMessage) {
+    return handleTestNotification(scenario, mockOption, sendTelegram, customMessage);
   }
 
   private ResponseEntity<Map<String, Object>> handleTestNotification(
-      String scenario,
-      boolean mockOption,
-      boolean sendTelegram,
-      String customMessage,
-      String telegramApiToken,
-      String telegramChatId) {
+      String scenario, boolean mockOption, boolean sendTelegram, String customMessage) {
     String formattedMessage;
     Optional<RecommendedOptionDto> recommendedOption = Optional.empty();
     OptionType targetOptionType = null;
@@ -203,11 +182,7 @@ public class TestSakthiNotificationController {
 
     if (sendTelegram) {
       try {
-        if (telegramApiToken != null || telegramChatId != null) {
-          notificationService.sendNotification(formattedMessage, telegramApiToken, telegramChatId);
-        } else {
-          notificationService.sendNotification(formattedMessage);
-        }
+        notificationService.sendNotification(formattedMessage);
         telegramSent = true;
         log.info("Test Telegram notification sent successfully for scenario: {}", scenario);
       } catch (Exception exception) {

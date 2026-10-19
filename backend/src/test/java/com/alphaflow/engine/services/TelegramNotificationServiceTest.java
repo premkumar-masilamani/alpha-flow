@@ -193,7 +193,9 @@ class TelegramNotificationServiceTest {
 
   @Test
   void testSendNotificationWithCustomTokenAndChatId() {
-    service.sendNotification("Custom token message", "override-token", "987654");
+    telegramConfig.setApiToken("override-token");
+    telegramConfig.setChatId("987654");
+    service.sendNotification("Custom token message");
 
     String receivedQuery = lastReceivedQuery.get();
     assertNotNull(receivedQuery);

@@ -31,18 +31,8 @@ public class TelegramNotificationService implements NotificationService {
 
   @Override
   public void sendNotification(String message) {
-    sendNotification(message, telegramConfig.getApiToken(), telegramConfig.getChatId());
-  }
-
-  @Override
-  public void sendNotification(String message, String apiToken, String chatId) {
     if (message != null) {
-      String effectiveToken =
-          (apiToken != null && !apiToken.isBlank()) ? apiToken : telegramConfig.getApiToken();
-      String effectiveChatId =
-          (chatId != null && !chatId.isBlank()) ? chatId : telegramConfig.getChatId();
-
-      if (isConfigured(effectiveToken, effectiveChatId)) {
+      if (isConfigured(telegramConfig.getApiToken(), telegramConfig.getChatId())) {
         int maxLength = telegramConfig.getMaxMessageLength();
         String messageToSend;
         if (message.length() <= maxLength) {
@@ -51,7 +41,7 @@ public class TelegramNotificationService implements NotificationService {
           messageToSend = message.substring(0, maxLength - 3) + "...";
         }
 
-        String targetUri = resolveTargetUri(messageToSend, effectiveToken, effectiveChatId);
+        String targetUri = resolveTargetUri(messageToSend);
         String error = null;
         Exception capturedException = null;
 
@@ -104,12 +94,12 @@ public class TelegramNotificationService implements NotificationService {
         && !chatId.startsWith("${");
   }
 
-  private String resolveTargetUri(String message, String apiToken, String chatId) {
+  private String resolveTargetUri(String message) {
     String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
     return telegramConfig
         .getMessageUrl()
-        .replace("{TELEGRAM_API_TOKEN}", apiToken)
-        .replace("{TELEGRAM_CHAT_ID}", chatId)
+        .replace("{TELEGRAM_API_TOKEN}", telegramConfig.getApiToken())
+        .replace("{TELEGRAM_CHAT_ID}", telegramConfig.getChatId())
         .replace("{MESSAGE}", encodedMessage);
   }
 }

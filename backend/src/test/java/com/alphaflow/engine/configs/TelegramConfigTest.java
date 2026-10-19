@@ -27,5 +27,37 @@ class TelegramConfigTest {
     assertEquals("123456789", config.getChatId());
     assertEquals("https://example.com/bot{TELEGRAM_API_TOKEN}/sendMessage", config.getMessageUrl());
     assertEquals(2000, config.getMaxMessageLength());
+    config.validate();
+  }
+
+  @Test
+  void testValidateThrowsWhenApiTokenMissingOrUnexpanded() {
+    TelegramConfig config = new TelegramConfig();
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, config::validate);
+
+    config.setApiToken("  ");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, config::validate);
+
+    config.setApiToken("${TELEGRAM_API_TOKEN}");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, config::validate);
+  }
+
+  @Test
+  void testValidateThrowsWhenChatIdMissingOrUnexpanded() {
+    TelegramConfig config = new TelegramConfig();
+    config.setApiToken("valid-token");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, config::validate);
+
+    config.setChatId("");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, config::validate);
+
+    config.setChatId("${TELEGRAM_CHAT_ID}");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        IllegalStateException.class, config::validate);
   }
 }

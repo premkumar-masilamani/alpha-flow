@@ -181,18 +181,4 @@ class TestSakthiNotificationControllerTest {
     assertFalse((Boolean) body.get("telegramSent"));
     assertEquals("Telegram API network timeout", body.get("telegramError"));
   }
-
-  @Test
-  void testCustomTelegramCredentialsPost() {
-    ResponseEntity<Map<String, Object>> response =
-        controller.testNotificationPost(
-            "bear", true, true, null, "custom-token-123", "custom-chat-456");
-
-    assertEquals(200, response.getStatusCode().value());
-    Map<String, Object> body = response.getBody();
-    assertNotNull(body);
-    assertTrue((Boolean) body.get("telegramSent"));
-    verify(notificationService)
-        .sendNotification(anyString(), org.mockito.ArgumentMatchers.eq("custom-token-123"), org.mockito.ArgumentMatchers.eq("custom-chat-456"));
-  }
 }
