@@ -572,7 +572,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData, type ChartPatternStatus} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, parseBounds, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData, type ChartPatternStatus} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface CandlestickTooltipInfo {
@@ -1014,8 +1014,7 @@ const Chart: React.FC<ChartProps> = ({
                         const matchedConfig = configs.find(
                             (c) => c.type === series.type && c.params === series.params
                         );
-                        const upper = matchedConfig?.bounds?.upper;
-                        const lower = matchedConfig?.bounds?.lower;
+                        const { upper, lower } = parseBounds(matchedConfig?.bounds);
 
                         if (upper !== undefined && upper !== null) {
                             line.createPriceLine({

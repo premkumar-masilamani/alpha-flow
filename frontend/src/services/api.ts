@@ -86,11 +86,19 @@ export interface IndicatorConfig {
     source: string;
     params: string;
     label: string;
-    bounds?: {
-        lower?: number;
-        upper?: number;
-    };
+    bounds?: string;
 }
+
+export const parseBounds = (bounds?: string): { lower?: number; upper?: number } => {
+    if (!bounds) return {};
+    const result: { lower?: number; upper?: number } = {};
+    for (const part of bounds.split(',')) {
+        const [k, v] = part.split('=');
+        if (k === 'lower') result.lower = Number(v);
+        if (k === 'upper') result.upper = Number(v);
+    }
+    return result;
+};
 
 // One bar's reading; `values` is keyed by output name (e.g. MACD -> macd/signal/histogram).
 export interface IndicatorPoint {
