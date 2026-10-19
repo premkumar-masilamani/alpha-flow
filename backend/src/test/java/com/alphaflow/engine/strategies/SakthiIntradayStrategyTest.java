@@ -14,8 +14,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.common.exceptions.NotificationException;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
@@ -71,7 +71,7 @@ class SakthiIntradayStrategyTest {
     baseQuoteTime =
         LocalDate.of(2026, 10, 16)
             .atTime(10, 30, 0)
-            .atZone(MarketConstants.IST_ZONE)
+            .atZone(MarketConfig.IST_ZONE)
             .toOffsetDateTime();
   }
 
@@ -362,7 +362,7 @@ class SakthiIntradayStrategyTest {
     OffsetDateTime mondayTime =
         LocalDate.of(2026, 10, 19)
             .atTime(10, 0, 0)
-            .atZone(MarketConstants.IST_ZONE)
+            .atZone(MarketConfig.IST_ZONE)
             .toOffsetDateTime();
     LocalDate expectedFriday = LocalDate.of(2026, 10, 16);
 
@@ -391,7 +391,7 @@ class SakthiIntradayStrategyTest {
     OffsetDateTime mondayTime =
         LocalDate.of(2026, 10, 19)
             .atTime(10, 0, 0)
-            .atZone(MarketConstants.IST_ZONE)
+            .atZone(MarketConfig.IST_ZONE)
             .toOffsetDateTime();
     LocalDate expectedThursday = LocalDate.of(2026, 10, 15);
 

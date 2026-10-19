@@ -1,8 +1,8 @@
 package com.alphaflow.engine.downloaders.angelone;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.common.enums.IntradayTimeframe;
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
@@ -32,7 +32,7 @@ import org.springframework.web.client.RestClientException;
 @Slf4j
 public class AngelOneClient {
 
-  private static final ZoneId IST_ZONE = MarketConstants.IST_ZONE;
+  private static final ZoneId IST_ZONE = MarketConfig.IST_ZONE;
   private static final DateTimeFormatter CANDLE_TIMESTAMP_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 

@@ -12,7 +12,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
@@ -47,7 +47,7 @@ class AngelOneDownloaderTest {
   private TickerRepository tickerRepo;
   private LiveQuoteRepository liveQuoteRepo;
   private AngelOneDownloader downloader;
-  private final ZoneId istZone = MarketConstants.IST_ZONE;
+  private final ZoneId istZone = MarketConfig.IST_ZONE;
 
   @BeforeEach
   void setUp() {
@@ -154,7 +154,7 @@ class AngelOneDownloaderTest {
             BigDecimal.ONE);
 
     when(client.fetch15mCandles(
-            eq(MarketConstants.EXCHANGE_NSE),
+            eq(MarketConfig.EXCHANGE_NSE),
             eq("99926000"),
             any(),
             any()))
@@ -214,7 +214,7 @@ class AngelOneDownloaderTest {
             BigDecimal.TEN);
 
     when(client.fetch15mCandles(
-            eq(MarketConstants.EXCHANGE_NSE),
+            eq(MarketConfig.EXCHANGE_NSE),
             eq("99926000"),
             any(),
             any()))
@@ -267,7 +267,7 @@ class AngelOneDownloaderTest {
             BigDecimal.ONE);
 
     when(client.fetch15mCandles(
-            eq(MarketConstants.EXCHANGE_NSE),
+            eq(MarketConfig.EXCHANGE_NSE),
             eq("99926000"),
             any(),
             any()))
@@ -368,15 +368,15 @@ class AngelOneDownloaderTest {
             .isActive(true)
             .build();
 
-    OffsetDateTime currentTimestamp = OffsetDateTime.now(MarketConstants.IST_ZONE);
+    OffsetDateTime currentTimestamp = OffsetDateTime.now(MarketConfig.IST_ZONE);
 
     when(tickerRepo.findByIsActiveTrueAndCountryAndDataProvider(Country.IN, DataProvider.ANGEL_ONE))
         .thenReturn(List.of(activeTicker1, activeTicker2));
 
-    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000"))
         .thenReturn(
             Optional.of(new AngelOneQuote(new BigDecimal("25125.75"), "2026-10-16T10:00:00+05:30")));
-    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926009"))
+    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926009"))
         .thenReturn(Optional.empty());
 
     when(liveQuoteRepo.findByTicker(activeTicker1)).thenReturn(Optional.empty());
@@ -404,7 +404,7 @@ class AngelOneDownloaderTest {
             .isActive(true)
             .build();
 
-    OffsetDateTime currentTimestamp = OffsetDateTime.now(MarketConstants.IST_ZONE);
+    OffsetDateTime currentTimestamp = OffsetDateTime.now(MarketConfig.IST_ZONE);
     LiveQuote existing =
         LiveQuote.builder()
             .liveQuoteId(10L)
@@ -413,7 +413,7 @@ class AngelOneDownloaderTest {
             .quoteTime(currentTimestamp.minusMinutes(1))
             .build();
 
-    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000"))
         .thenReturn(
             Optional.of(new AngelOneQuote(new BigDecimal("25000.00"), "2026-10-16T10:01:00+05:30")));
     when(liveQuoteRepo.findByTicker(ticker)).thenReturn(Optional.of(existing));
@@ -441,11 +441,11 @@ class AngelOneDownloaderTest {
             .isActive(true)
             .build();
 
-    when(client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000"))
+    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000"))
         .thenReturn(Optional.empty());
 
     Optional<LiveQuote> result =
-        downloader.downloadLiveQuoteForTicker(ticker, OffsetDateTime.now(MarketConstants.IST_ZONE));
+        downloader.downloadLiveQuoteForTicker(ticker, OffsetDateTime.now(MarketConfig.IST_ZONE));
 
     assertFalse(result.isPresent());
     verify(liveQuoteRepo, never()).save(any());

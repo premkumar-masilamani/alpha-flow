@@ -9,8 +9,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.services.NotificationTemplateEngine;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
@@ -59,7 +59,7 @@ class SakthiNotificationFlowTest {
             .tickerId(1L)
             .tickerSymbol("NIFTY50.NS")
             .build();
-    quoteTime = OffsetDateTime.now(MarketConstants.IST_ZONE);
+    quoteTime = OffsetDateTime.now(MarketConfig.IST_ZONE);
   }
 
   @Test

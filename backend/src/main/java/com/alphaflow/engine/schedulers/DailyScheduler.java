@@ -1,6 +1,6 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
@@ -67,7 +67,7 @@ public class DailyScheduler {
     this.enableChartPatterns = enableChartPatterns;
   }
 
-  @Scheduled(cron = "0 0 * * * *", zone = MarketConstants.TIMEZONE_KOLKATA)
+  @Scheduled(cron = "0 0 * * * *", zone = MarketConfig.TIMEZONE_KOLKATA)
   public void runScheduledUpdate() {
     log.info("Starting scheduled daily data update cycle (on the hour)...");
     run();

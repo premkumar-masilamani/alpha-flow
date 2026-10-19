@@ -1,7 +1,7 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
@@ -80,7 +80,7 @@ public class TestSakthiNotificationController {
     } else {
       boolean isBearScenario = !"bull".equalsIgnoreCase(scenario) && !"bull_reversal".equalsIgnoreCase(scenario) && !"bull_breach".equalsIgnoreCase(scenario);
       targetOptionType = isBearScenario ? OptionType.PUT : OptionType.CALL;
-      OffsetDateTime now = OffsetDateTime.now(MarketConstants.IST_ZONE);
+      OffsetDateTime now = OffsetDateTime.now(MarketConfig.IST_ZONE);
 
       BigDecimal currentPrice;
       BigDecimal extremePrice;

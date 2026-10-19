@@ -1,6 +1,6 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.AngelOneDownloader;
 import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
@@ -37,7 +37,7 @@ public class IntradayScheduler {
     this.sakthiIntradayStrategy = sakthiIntradayStrategy;
   }
 
-  @Scheduled(cron = "0 * 9-15 * * MON-FRI", zone = MarketConstants.TIMEZONE_KOLKATA)
+  @Scheduled(cron = "0 * 9-15 * * MON-FRI", zone = MarketConfig.TIMEZONE_KOLKATA)
   public void runScheduledUpdate() {
     run();
   }
@@ -71,7 +71,7 @@ public class IntradayScheduler {
   }
 
   public void run() {
-    run(ZonedDateTime.now(MarketConstants.IST_ZONE));
+    run(ZonedDateTime.now(MarketConfig.IST_ZONE));
   }
 
   /**

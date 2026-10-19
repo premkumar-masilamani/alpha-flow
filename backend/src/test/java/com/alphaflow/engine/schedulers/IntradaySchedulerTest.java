@@ -9,7 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.AngelOneDownloader;
@@ -75,7 +75,7 @@ class IntradaySchedulerTest {
   @Test
   void testScheduledUpdateExecutesAllStepsDuringMarketHours() {
     ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, MarketConfig.IST_ZONE);
 
     when(downloader.downloadIntradayPrices()).thenReturn(2);
     when(downloader.downloadLiveQuotes(any(OffsetDateTime.class))).thenReturn(List.of(liveQuote));
@@ -135,7 +135,7 @@ class IntradaySchedulerTest {
   void testMarketSessionClosedSkipsExecution() {
     // Saturday
     ZonedDateTime weekend =
-        ZonedDateTime.of(2026, 10, 17, 10, 0, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 17, 10, 0, 0, 0, MarketConfig.IST_ZONE);
 
     scheduler.run(weekend);
 
@@ -147,7 +147,7 @@ class IntradaySchedulerTest {
   @Test
   void testEmptyLiveQuotesSkipsStrategyExecution() {
     ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 11, 0, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 11, 0, 0, 0, MarketConfig.IST_ZONE);
 
     when(downloader.downloadIntradayPrices()).thenReturn(0);
     when(downloader.downloadLiveQuotes(any(OffsetDateTime.class))).thenReturn(List.of());
@@ -162,7 +162,7 @@ class IntradaySchedulerTest {
   @Test
   void testRunHandlesExceptionAndResetsRunningFlag() {
     ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 11, 30, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 11, 30, 0, 0, MarketConfig.IST_ZONE);
 
     doThrow(new RuntimeException("Simulated download failure"))
         .when(downloader)
@@ -177,7 +177,7 @@ class IntradaySchedulerTest {
   @Test
   void testConcurrentExecutionSkipped() throws InterruptedException {
     ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 12, 0, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 12, 0, 0, 0, MarketConfig.IST_ZONE);
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
 

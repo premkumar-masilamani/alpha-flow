@@ -2,7 +2,7 @@ package com.alphaflow.engine.strategies.options.dtos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;

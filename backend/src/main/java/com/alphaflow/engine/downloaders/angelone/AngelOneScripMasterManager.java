@@ -1,6 +1,6 @@
 package com.alphaflow.engine.downloaders.angelone;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneInstrument;
@@ -91,7 +91,7 @@ public class AngelOneScripMasterManager {
               String exchangeSegment = rowNode.path("exch_seg").asText();
               String instrumentType = rowNode.path("instrumenttype").asText();
 
-              if (MarketConstants.EXCHANGE_SEGMENT_NFO.equalsIgnoreCase(exchangeSegment)
+              if (MarketConfig.EXCHANGE_SEGMENT_NFO.equalsIgnoreCase(exchangeSegment)
                   && "OPTIDX".equalsIgnoreCase(instrumentType)) {
                 String name = rowNode.path("name").asText().toUpperCase(Locale.ROOT);
                 String token = rowNode.path("token").asText();

@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.persistence.enums.Country;
 import java.time.LocalTime;
@@ -36,7 +36,7 @@ class SchedulerUtilsTest {
   void testIsMarketSessionOpenDuringTradingHours() {
     // Friday at 10:00 IST
     ZonedDateTime openTime =
-        ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, MarketConfig.IST_ZONE);
     boolean isOpen =
         SchedulerUtils.isMarketSessionOpen(
             openTime, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN);
@@ -47,14 +47,14 @@ class SchedulerUtilsTest {
   void testIsMarketSessionOpenBoundaryTimes() {
     // Exactly at 09:15
     ZonedDateTime startTime =
-        ZonedDateTime.of(2026, 10, 16, 9, 15, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 9, 15, 0, 0, MarketConfig.IST_ZONE);
     assertTrue(
         SchedulerUtils.isMarketSessionOpen(
             startTime, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
 
     // Exactly at 15:30
     ZonedDateTime endTime =
-        ZonedDateTime.of(2026, 10, 16, 15, 30, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 15, 30, 0, 0, MarketConfig.IST_ZONE);
     assertTrue(
         SchedulerUtils.isMarketSessionOpen(
             endTime, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
@@ -64,21 +64,21 @@ class SchedulerUtilsTest {
   void testIsMarketSessionOpenWhenClosed() {
     // Weekend (Saturday)
     ZonedDateTime weekend =
-        ZonedDateTime.of(2026, 10, 17, 10, 0, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 17, 10, 0, 0, 0, MarketConfig.IST_ZONE);
     assertFalse(
         SchedulerUtils.isMarketSessionOpen(
             weekend, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
 
     // Before session start (09:14)
     ZonedDateTime preMarket =
-        ZonedDateTime.of(2026, 10, 16, 9, 14, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 9, 14, 0, 0, MarketConfig.IST_ZONE);
     assertFalse(
         SchedulerUtils.isMarketSessionOpen(
             preMarket, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
 
     // After session end (15:31)
     ZonedDateTime postMarket =
-        ZonedDateTime.of(2026, 10, 16, 15, 31, 0, 0, MarketConstants.IST_ZONE);
+        ZonedDateTime.of(2026, 10, 16, 15, 31, 0, 0, MarketConfig.IST_ZONE);
     assertFalse(
         SchedulerUtils.isMarketSessionOpen(
             postMarket, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
@@ -100,7 +100,7 @@ class SchedulerUtilsTest {
   @Test
   void testParseQuoteTimestampInvalidOrBlankReturnsFallback() {
     OffsetDateTime fallback =
-        OffsetDateTime.of(2026, 10, 16, 12, 0, 0, 0, MarketConstants.IST_ZONE.getRules().getOffset(java.time.Instant.now()));
+        OffsetDateTime.of(2026, 10, 16, 12, 0, 0, 0, MarketConfig.IST_ZONE.getRules().getOffset(java.time.Instant.now()));
 
     assertEquals(fallback, SchedulerUtils.parseQuoteTimestamp("16-Oct-2026 12:00:00", fallback));
     assertEquals(fallback, SchedulerUtils.parseQuoteTimestamp(null, fallback));

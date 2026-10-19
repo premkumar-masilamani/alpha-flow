@@ -1,6 +1,6 @@
 package com.alphaflow.engine.downloaders.angelone.dtos;
 
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import java.math.BigDecimal;
 
 public record AngelOneOptionGreek(

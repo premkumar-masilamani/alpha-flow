@@ -1,8 +1,8 @@
-package com.alphaflow.common.constants;
+package com.alphaflow.engine.configs;
 
 import java.time.ZoneId;
 
-public final class MarketConstants {
+public final class MarketConfig {
 
   public static final String EXCHANGE_NSE = "NSE";
   /**
@@ -16,5 +16,5 @@ public final class MarketConstants {
   public static final String TIMEZONE_NEW_YORK = "America/New_York";
   public static final ZoneId EST_ZONE = ZoneId.of(TIMEZONE_NEW_YORK);
 
-  private MarketConstants() {}
+  private MarketConfig() {}
 }

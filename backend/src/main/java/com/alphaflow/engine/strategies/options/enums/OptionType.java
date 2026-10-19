@@ -1,4 +1,4 @@
-package com.alphaflow.common.enums;
+package com.alphaflow.engine.strategies.options.enums;
 
 public enum OptionType {
   CALL("CE"),

@@ -1,6 +1,6 @@
 package com.alphaflow.engine.downloaders;
 
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
@@ -111,7 +111,7 @@ public class AngelOneDownloader {
     OffsetDateTime effectiveMinTime =
         (latestSavedTime != null) ? latestSavedTime : OffsetDateTime.MIN;
 
-    String exchange = MarketConstants.EXCHANGE_NSE;
+    String exchange = MarketConfig.EXCHANGE_NSE;
     String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
     int totalIngestedForTicker = 0;
 
@@ -200,7 +200,7 @@ public class AngelOneDownloader {
       Ticker ticker, OffsetDateTime currentTimestamp) {
     String symbolToken = AngelOneClient.resolveToken(ticker.getTickerSymbol());
     Optional<AngelOneQuote> marketQuoteOptional =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, symbolToken);
+        client.getMarketQuote(MarketConfig.EXCHANGE_NSE, symbolToken);
     if (marketQuoteOptional.isPresent()) {
       AngelOneQuote marketQuote = marketQuoteOptional.get();
       OffsetDateTime quoteTime =

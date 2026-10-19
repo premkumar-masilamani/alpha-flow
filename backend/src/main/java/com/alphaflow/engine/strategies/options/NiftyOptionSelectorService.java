@@ -1,7 +1,7 @@
 package com.alphaflow.engine.strategies.options;
 
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.AngelOneScripMasterManager;
@@ -189,7 +189,7 @@ public class NiftyOptionSelectorService {
         candidateInstruments.stream().map(AngelOneInstrument::token).toList();
 
     Map<String, BigDecimal> liveQuotes =
-        angelOneClient.getMarketQuotes(MarketConstants.EXCHANGE_SEGMENT_NFO, tokens);
+        angelOneClient.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, tokens);
 
     if (!liveQuotes.isEmpty()) {
       AngelOneInstrument bestInstrument = null;

@@ -1,7 +1,7 @@
 package com.alphaflow.engine.strategies;
 
-import com.alphaflow.common.constants.MarketConstants;
-import com.alphaflow.common.enums.OptionType;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.common.utils.TelegramMarkdownV2Helper;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.services.NotificationService;
@@ -57,7 +57,7 @@ public class SakthiIntradayStrategy {
 
   public void execute(Ticker ticker, LiveQuote liveQuote) {
     LocalDate sessionDate =
-        liveQuote.getQuoteTime().atZoneSameInstant(MarketConstants.IST_ZONE).toLocalDate();
+        liveQuote.getQuoteTime().atZoneSameInstant(MarketConfig.IST_ZONE).toLocalDate();
 
     SakthiIntradayStrategyState state =
         stateMap.compute(
@@ -293,6 +293,6 @@ public class SakthiIntradayStrategy {
   }
 
   private String formatTimestamp(OffsetDateTime timestamp) {
-    return timestamp.atZoneSameInstant(MarketConstants.IST_ZONE).format(DATE_TIME_FORMATTER);
+    return timestamp.atZoneSameInstant(MarketConfig.IST_ZONE).format(DATE_TIME_FORMATTER);
   }
 }
