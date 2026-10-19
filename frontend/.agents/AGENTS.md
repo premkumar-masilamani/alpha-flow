@@ -24,12 +24,14 @@ make check
 - Enforce TypeScript strict mode.
 - Use `lightweight-charts` API strictly for daily candlesticks, volume bars, and overlaying indicators.
 - Specify raw hex colors instead of CSS variables (`var(...)`) for Cytoscape.js visualizer rendering.
+- Explicitly fail fast or render informative error UI when required environment variables (e.g. API endpoints) or parameters are missing.
 
 ### Ask first
 - Modifying core chart plotting defaults or color schemes.
 
 ### Never do
 - Hardcode indicator line/plot colors in the canvas drawing script.
+- Default any environment variable, configuration property, state, or API request parameter unless explicitly specified. Silent fallbacks (e.g. empty string fallbacks for API URLs) are strictly forbidden.
 
 ## Project Structure
 ```text

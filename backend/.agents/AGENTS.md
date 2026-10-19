@@ -29,6 +29,7 @@ make format
 - Explicitly branch on `Timeframe`: always use `if (timeframe == Timeframe.DAILY)` followed by `else if (timeframe == Timeframe.WEEKLY)`. The terminal `else` block must explicitly log an error (`log.error(...)`) and throw `new IllegalArgumentException("Unsupported timeframe: " + timeframe)`.
 - Use descriptive variable and parameter names: Always use full, readable domain names (e.g. `bucket` instead of `b`, `bar` instead of `b`, `dailyPrice` / `weeklyPrice` instead of `d` / `w`, `pivot` instead of `p`, `bucketWidth` instead of `w`, and descriptive lambda parameters like `match`, `candle`, `record`). Standard loop counters (`i`, `j`, `k`) are permitted for indexed loops.
 - Structure conditional branching so the `if` block executes the primary business logic (happy path), while the `else` block handles error, warning, fallback, or insufficient data conditions (the `else` portion should handle the error/warning conditions; the `if` condition should do the actual logic).
+- Fail fast immediately on application startup or execution if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.
@@ -40,7 +41,7 @@ make format
 - Use a fallback `else` or ternary default for `Timeframe` branches without explicit validation.
 - Use cryptic or single-letter variable names (such as `b`, `d`, `w`, `p`, `v`, `r`) for domain models, method parameters, or stream/lambda expressions.
 - Place error, warning, or insufficient data handling inside the `if` block while relegating the actual business logic to the `else` block.
-- Define default values for configuration variables or request parameters unless specifically mentioned.
+- Define default values for configuration variables, environment variables, entity fields, method parameters, or request parameters unless explicitly requested. Silent fallbacks and default property values are strictly forbidden.
 
 ## Project Structure
 ```text
@@ -140,7 +141,7 @@ if (dailyBars.size() >= MIN_BARS) {
 - **DTO Isolation from Schema Renames**: When refactoring entity primary keys to `<entity>_id` formats, maintain existing DTO property names (e.g. `ChartPatternDto.id`) to avoid breaking frontend REST clients.
 - **Atomic Bulk JPQL Deletes for Retention Cleanup**: Prefer `@Modifying @Query("DELETE FROM ...")` single-statement JPQL deletes over Spring Data derived deletion methods (such as `deleteByTickerAndPriceDateLessThan(...)`). Derived delete methods issue individual $N+1$ select queries followed by entity-by-entity deletions, whereas `@Modifying @Query` executes an atomic $O(1)$ database operation.
 - **Window Filtering & Typical Price Boundary Calculations**: When filtering zone midpoint levels within a dynamic percentage window around price action, derive Typical Price ($TP = \frac{\text{high} + \text{low} + \text{close}}{3}$) from the reference candle at scale 12 (`RoundingMode.HALF_UP`). Validate `rangePct` for boundary safety (`rangePct > 0` and finite/non-NaN) and provide an unwindowed fallback when the reference candle is not present.
-- **No Defaults for Config Variables or Request Parameters**: Never provide default values for configuration properties (in `@ConfigurationProperties` classes) or request parameters (`@RequestParam(defaultValue = ...)`) unless specifically mentioned and requested. Configuration properties must be declared without field initializers in Java classes and sourced explicitly from external configuration (`application.properties` / environment variables).
+- **No Defaults for Config Variables or Request Parameters**: Never provide default values for configuration properties (in `@ConfigurationProperties` classes), environment variables, entity fields, or request parameters (`@RequestParam(defaultValue = ...)`) unless specifically mentioned and requested. Configuration properties must be declared without field initializers in Java classes and sourced explicitly from external configuration (`application.properties` / environment variables). Application startup and service execution must fail fast with descriptive exceptions if required configuration variables are missing or unexpanded.
 
 ## Technical Indicators & Mathematical Calculations
 - **BigDecimal Math Precision & Stability**: When computing standard deviation or variance over sliding windows:
