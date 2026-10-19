@@ -2,6 +2,7 @@ package com.alphaflow.engine.downloaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -476,6 +477,7 @@ class AngelOneDownloaderTest {
     LiveQuote updated = updatedOpt.get();
     assertEquals(10L, updated.getLiveQuoteId());
     assertEquals(new BigDecimal("25000.00"), updated.getLastPrice());
+    assertSame(ticker, updated.getTicker());
     verify(liveQuoteRepo, times(1)).save(existing);
   }
 

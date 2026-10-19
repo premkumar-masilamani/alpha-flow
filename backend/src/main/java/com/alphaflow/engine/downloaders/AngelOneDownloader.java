@@ -246,6 +246,7 @@ public class AngelOneDownloader {
       LiveQuote liveQuote;
       if (existingQuoteOptional.isPresent()) {
         liveQuote = existingQuoteOptional.get();
+        liveQuote.setTicker(ticker);
         liveQuote.setLastPrice(marketQuote.lastPrice());
         liveQuote.setQuoteTime(quoteTime);
         liveQuote.setUpdatedAt(currentTimestamp);
@@ -259,7 +260,9 @@ public class AngelOneDownloader {
                 .updatedAt(currentTimestamp)
                 .build();
       }
-      return Optional.of(liveQuoteRepository.save(liveQuote));
+      LiveQuote savedQuote = liveQuoteRepository.save(liveQuote);
+      savedQuote.setTicker(ticker);
+      return Optional.of(savedQuote);
     } else {
       return Optional.empty();
     }

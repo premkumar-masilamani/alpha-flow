@@ -36,7 +36,7 @@ public class LiveQuote {
   private Long liveQuoteId;
 
   @EqualsAndHashCode.Include
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "ticker_id", nullable = false, unique = true)
   private Ticker ticker;
 
