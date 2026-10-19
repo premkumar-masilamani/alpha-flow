@@ -15,15 +15,15 @@ VALUES ('BRK-B', 'Berkshire Hathaway', 'STOCK', 'US', true, 'YAHOO_FINANCE'),
        ('NIFTY50', 'NIFTY 50', 'INDEX', 'IN', true, 'ANGEL_ONE')
 ON CONFLICT (ticker_symbol) DO NOTHING;
 
-INSERT INTO indicator_definitions (indicator_type, source, params)
-VALUES ('EMA', 'CLOSE', '{"period": 5}'),
-       ('EMA', 'CLOSE', '{"period": 13}'),
-       ('EMA', 'CLOSE', '{"period": 26}'),
-       ('RSI', 'CLOSE', '{"period": 14, "upperBound": 70, "lowerBound": 30}'),
-       ('STOCHASTIC', 'CLOSE', '{"k": 14, "kSmooth": 3, "dSmooth": 3, "upperBound": 80, "lowerBound": 20}'),
-       ('SMA', 'VOLUME', '{"period": 20}'),
-       ('MACD', 'CLOSE', '{"fast": 12, "slow": 26, "signal": 9}'),
-       ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}')
+INSERT INTO indicator_definitions (indicator_type, source, params, bounds)
+VALUES ('EMA', 'CLOSE', '{"period": 5}', NULL),
+       ('EMA', 'CLOSE', '{"period": 13}', NULL),
+       ('EMA', 'CLOSE', '{"period": 26}', NULL),
+       ('RSI', 'CLOSE', '{"period": 14}', '{"upperBound": 70, "lowerBound": 30}'),
+       ('STOCHASTIC', 'CLOSE', '{"k": 14, "kSmooth": 3, "dSmooth": 3}', '{"upperBound": 80, "lowerBound": 20}'),
+       ('SMA', 'VOLUME', '{"period": 20}', NULL),
+       ('MACD', 'CLOSE', '{"fast": 12, "slow": 26, "signal": 9}', NULL),
+       ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}', NULL)
 ON CONFLICT (indicator_type, source, params) DO NOTHING;
 
 INSERT INTO market_holidays (country, holiday_date, name)

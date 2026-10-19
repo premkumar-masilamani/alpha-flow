@@ -24,9 +24,9 @@ public class IndicatorMapper {
       Timeframe timeframe, IndicatorDefinition definition) {
     IndicatorParams params = IndicatorParams.of(definition.getParams());
     Integer upperBound =
-        definition.getParams() != null ? definition.getParams().get("upperBound") : null;
+        definition.getBounds() != null ? definition.getBounds().get("upperBound") : null;
     Integer lowerBound =
-        definition.getParams() != null ? definition.getParams().get("lowerBound") : null;
+        definition.getBounds() != null ? definition.getBounds().get("lowerBound") : null;
     return IndicatorConfigDto.builder()
         .timeframe(timeframe.name())
         .type(definition.getType().name())
