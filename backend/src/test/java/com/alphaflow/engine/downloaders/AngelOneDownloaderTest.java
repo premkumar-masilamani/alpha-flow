@@ -228,6 +228,58 @@ class AngelOneDownloaderTest {
   }
 
   @Test
+  void testDownloadDeduplicatesDuplicateCandlesInBatch() {
+    Ticker ticker =
+        Ticker.builder()
+            .tickerSymbol("NIFTY50")
+            .country(Country.IN)
+            .dataProvider(DataProvider.ANGEL_ONE)
+            .build();
+
+    OffsetDateTime expectedCompletedTime =
+        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+            ZonedDateTime.now(istZone),
+            config.getSessionStartTime(),
+            config.getSessionEndTime(),
+            15,
+            Country.IN);
+    OffsetDateTime latestTime = expectedCompletedTime.minusMinutes(30);
+    when(intradayRepo.findLatestPriceTimesForActiveTickers(
+            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
+        .thenReturn(Map.of(ticker, latestTime));
+
+    OffsetDateTime candleTime = expectedCompletedTime.minusMinutes(15);
+    AngelOneCandle candle1 =
+        new AngelOneCandle(
+            candleTime,
+            new BigDecimal("24000"),
+            new BigDecimal("24100"),
+            new BigDecimal("23900"),
+            new BigDecimal("24050"),
+            BigDecimal.ONE);
+    AngelOneCandle candleDuplicate =
+        new AngelOneCandle(
+            candleTime,
+            new BigDecimal("24000"),
+            new BigDecimal("24100"),
+            new BigDecimal("23900"),
+            new BigDecimal("24050"),
+            BigDecimal.ONE);
+
+    when(client.fetch15mCandles(
+            eq(MarketConstants.EXCHANGE_NSE),
+            eq("99926000"),
+            any(),
+            any()))
+        .thenReturn(List.of(candle1, candleDuplicate));
+
+    int result = downloader.downloadIntradayPrices();
+
+    assertEquals(1, result);
+    verify(intradayRepo, times(1)).saveAll(any());
+  }
+
+  @Test
   void testDownloadChunkReturnsEmptyCandles() {
     Ticker ticker =
         Ticker.builder()

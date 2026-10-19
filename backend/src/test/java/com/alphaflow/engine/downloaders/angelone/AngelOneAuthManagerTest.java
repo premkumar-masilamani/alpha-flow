@@ -38,9 +38,11 @@ class AngelOneAuthManagerTest {
     totpGenerator = new TotpGenerator();
     objectMapper = new ObjectMapper();
     AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
+    config.setDelayMilliseconds(0);
+    AngelOneRateLimiter rateLimiter = new AngelOneRateLimiter(config);
     authManager =
         new AngelOneAuthManager(
-            config, totpGenerator, objectMapper, networkHelper, RestClient.builder());
+            config, totpGenerator, objectMapper, networkHelper, rateLimiter, RestClient.builder());
   }
 
   @AfterEach

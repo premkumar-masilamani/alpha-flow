@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +40,7 @@ public class AngelOneClient {
   private final AngelOneAuthManager authManager;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
+  private final AngelOneRateLimiter rateLimiter;
   private final RestClient restClient;
 
   public AngelOneClient(
@@ -46,12 +48,14 @@ public class AngelOneClient {
       AngelOneAuthManager authManager,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
+      AngelOneRateLimiter rateLimiter,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           RestClient.Builder restClientBuilder) {
     this.config = config;
     this.authManager = authManager;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
+    this.rateLimiter = rateLimiter;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
   }
@@ -80,7 +84,7 @@ public class AngelOneClient {
       OffsetDateTime startWindow,
       OffsetDateTime expectedCompletedTime) {
     if (exchange != null && symbolToken != null && startWindow != null && expectedCompletedTime != null) {
-      List<AngelOneCandle> aggregatedCandles = new ArrayList<>();
+      Map<OffsetDateTime, AngelOneCandle> candleMap = new LinkedHashMap<>();
       OffsetDateTime currentWindowStart = startWindow;
       while (currentWindowStart.isBefore(expectedCompletedTime)) {
         OffsetDateTime candidateWindowEnd =
@@ -101,16 +105,15 @@ public class AngelOneClient {
 
         List<AngelOneCandle> chunk =
             getCandleData(exchange, symbolToken, IntradayTimeframe._15M, fromDateStr, toDateStr);
-        if (!chunk.isEmpty()) {
-          aggregatedCandles.addAll(chunk);
+        if (chunk != null) {
+          for (AngelOneCandle candle : chunk) {
+            candleMap.putIfAbsent(candle.timestamp(), candle);
+          }
         }
 
-        currentWindowStart = currentWindowEnd;
-        if (currentWindowStart.isBefore(expectedCompletedTime)) {
-          sleep(config.getDelayMilliseconds());
-        }
+        currentWindowStart = currentWindowEnd.plusMinutes(1);
       }
-      return aggregatedCandles;
+      return new ArrayList<>(candleMap.values());
     } else {
       log.warn("Cannot fetch 15m candles: missing required parameters.");
       return Collections.emptyList();
@@ -133,31 +136,27 @@ public class AngelOneClient {
     body.put("fromdate", fromDate);
     body.put("todate", toDate);
 
-    for (int attempt = 1; attempt <= 2; attempt++) {
-      String jwt = authManager.getValidJwtToken();
-      if (jwt == null || jwt.isBlank()) {
-        log.warn("Cannot fetch candle data: no valid Angel One JWT token.");
-        return Collections.emptyList();
-      }
+    String jwt = authManager.getValidJwtToken();
+    if (jwt == null || jwt.isBlank()) {
+      log.warn("Cannot fetch candle data: no valid Angel One JWT token.");
+      return Collections.emptyList();
+    }
 
-      try {
-        ResponseEntity<String> response =
-            restClient
-                .post()
-                .uri(config.getCandleUrl())
-                .headers(
-                    headers ->
-                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-                .body(body)
-                .retrieve()
-                .toEntity(String.class);
+    try {
+      rateLimiter.throttle();
+      ResponseEntity<String> response =
+          restClient
+              .post()
+              .uri(config.getCandleUrl())
+              .headers(
+                  headers ->
+                      networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+              .body(body)
+              .retrieve()
+              .toEntity(String.class);
 
-        String responseBody = response.getBody();
-        if (responseBody == null) {
-          log.warn("Empty response body from getCandleData");
-          return Collections.emptyList();
-        }
-
+      String responseBody = response.getBody();
+      if (responseBody != null) {
         JsonNode root = objectMapper.readTree(responseBody);
         if (root.path("status").asBoolean(false)) {
           JsonNode dataNode = root.path("data");
@@ -185,14 +184,11 @@ public class AngelOneClient {
             authManager.invalidateSession();
           }
         }
-      } catch (Exception e) {
-        log.warn(
-            "Attempt {}/2 failed to fetch candle data from Angel One: {}", attempt, e.getMessage());
-        if (attempt == 1) {
-          authManager.invalidateSession();
-          sleep(config.getDelayMilliseconds());
-        }
+      } else {
+        log.warn("Empty response body from getCandleData");
       }
+    } catch (RestClientException | JsonProcessingException e) {
+      log.warn("Failed to fetch candle data from Angel One: {}", e.getMessage());
     }
     return Collections.emptyList();
   }
@@ -202,29 +198,26 @@ public class AngelOneClient {
     body.put("mode", "FULL");
     body.put("exchangeTokens", Map.of(exchange, List.of(symbolToken)));
 
-    for (int attempt = 1; attempt <= 2; attempt++) {
-      String jwt = authManager.getValidJwtToken();
-      if (jwt == null || jwt.isBlank()) {
-        return Optional.empty();
-      }
+    String jwt = authManager.getValidJwtToken();
+    if (jwt == null || jwt.isBlank()) {
+      return Optional.empty();
+    }
 
-      try {
-        ResponseEntity<String> response =
-            restClient
-                .post()
-                .uri(config.getQuoteUrl())
-                .headers(
-                    headers ->
-                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-                .body(body)
-                .retrieve()
-                .toEntity(String.class);
+    try {
+      rateLimiter.throttle();
+      ResponseEntity<String> response =
+          restClient
+              .post()
+              .uri(config.getQuoteUrl())
+              .headers(
+                  headers ->
+                      networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+              .body(body)
+              .retrieve()
+              .toEntity(String.class);
 
-        String responseBody = response.getBody();
-        if (responseBody == null) {
-          return Optional.empty();
-        }
-
+      String responseBody = response.getBody();
+      if (responseBody != null) {
         JsonNode root = objectMapper.readTree(responseBody);
         if (root.path("status").asBoolean(false)) {
           JsonNode fetchedList = root.path("data").path("fetched");
@@ -248,13 +241,9 @@ public class AngelOneClient {
             authManager.invalidateSession();
           }
         }
-      } catch (Exception e) {
-        log.warn("Attempt {}/2 failed to fetch quote from Angel One: {}", attempt, e.getMessage());
-        if (attempt == 1) {
-          authManager.invalidateSession();
-          sleep(config.getDelayMilliseconds());
-        }
       }
+    } catch (RestClientException | JsonProcessingException e) {
+      log.warn("Failed to fetch quote from Angel One: {}", e.getMessage());
     }
     return Optional.empty();
   }
@@ -265,59 +254,53 @@ public class AngelOneClient {
       body.put("mode", "FULL");
       body.put("exchangeTokens", Map.of(exchange, symbolTokens));
 
-      for (int attempt = 1; attempt <= 2; attempt++) {
-        String jwt = authManager.getValidJwtToken();
-        if (jwt == null || jwt.isBlank()) {
-          log.warn("Cannot fetch market quotes: no valid Angel One JWT token.");
-          return Collections.emptyMap();
-        }
+      String jwt = authManager.getValidJwtToken();
+      if (jwt == null || jwt.isBlank()) {
+        log.warn("Cannot fetch market quotes: no valid Angel One JWT token.");
+        return Collections.emptyMap();
+      }
 
-        try {
-          ResponseEntity<String> response =
-              restClient
-                  .post()
-                  .uri(config.getQuoteUrl())
-                  .headers(
-                      headers ->
-                          networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-                  .body(body)
-                  .retrieve()
-                  .toEntity(String.class);
+      try {
+        rateLimiter.throttle();
+        ResponseEntity<String> response =
+            restClient
+                .post()
+                .uri(config.getQuoteUrl())
+                .headers(
+                    headers ->
+                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                .body(body)
+                .retrieve()
+                .toEntity(String.class);
 
-          String responseBody = response.getBody();
-          if (responseBody != null) {
-            JsonNode root = objectMapper.readTree(responseBody);
-            if (root.path("status").asBoolean(false)) {
-              JsonNode fetchedList = root.path("data").path("fetched");
-              if (fetchedList.isArray()) {
-                Map<String, BigDecimal> quotes = new HashMap<>();
-                for (JsonNode item : fetchedList) {
-                  String token = item.path("symbolToken").asText();
-                  if (!token.isBlank()) {
-                    BigDecimal ltp =
-                        item.hasNonNull("ltp")
-                            ? new BigDecimal(item.path("ltp").asText())
-                            : BigDecimal.ZERO;
-                    quotes.put(token, ltp);
-                  }
+        String responseBody = response.getBody();
+        if (responseBody != null) {
+          JsonNode root = objectMapper.readTree(responseBody);
+          if (root.path("status").asBoolean(false)) {
+            JsonNode fetchedList = root.path("data").path("fetched");
+            if (fetchedList.isArray()) {
+              Map<String, BigDecimal> quotes = new HashMap<>();
+              for (JsonNode item : fetchedList) {
+                String token = item.path("symbolToken").asText();
+                if (!token.isBlank()) {
+                  BigDecimal ltp =
+                      item.hasNonNull("ltp")
+                          ? new BigDecimal(item.path("ltp").asText())
+                          : BigDecimal.ZERO;
+                  quotes.put(token, ltp);
                 }
-                return quotes;
               }
-            } else {
-              String errorCode = root.path("errorcode").asText();
-              if ("AG8001".equalsIgnoreCase(errorCode)) {
-                authManager.invalidateSession();
-              }
+              return quotes;
+            }
+          } else {
+            String errorCode = root.path("errorcode").asText();
+            if ("AG8001".equalsIgnoreCase(errorCode)) {
+              authManager.invalidateSession();
             }
           }
-        } catch (RestClientException | JsonProcessingException e) {
-          log.warn(
-              "Attempt {}/2 failed to fetch quotes from Angel One: {}", attempt, e.getMessage());
-          if (attempt == 1) {
-            authManager.invalidateSession();
-            sleep(config.getDelayMilliseconds());
-          }
         }
+      } catch (RestClientException | JsonProcessingException e) {
+        log.warn("Failed to fetch quotes from Angel One: {}", e.getMessage());
       }
       return Collections.emptyMap();
     } else {
@@ -334,82 +317,74 @@ public class AngelOneClient {
       body.put("name", underlyingName);
       body.put("expirydate", expiryDate);
 
-      for (int attempt = 1; attempt <= 2; attempt++) {
-        String jwt = authManager.getValidJwtToken();
-        if (jwt == null || jwt.isBlank()) {
-          log.warn("Cannot fetch option greeks: no valid Angel One JWT token.");
-          return Collections.emptyList();
-        }
+      String jwt = authManager.getValidJwtToken();
+      if (jwt == null || jwt.isBlank()) {
+        log.warn("Cannot fetch option greeks: no valid Angel One JWT token.");
+        return Collections.emptyList();
+      }
 
-        try {
-          ResponseEntity<String> response =
-              restClient
-                  .post()
-                  .uri(config.getOptionGreeksUrl())
-                  .headers(
-                      headers ->
-                          networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-                  .body(body)
-                  .retrieve()
-                  .toEntity(String.class);
+      try {
+        rateLimiter.throttle();
+        ResponseEntity<String> response =
+            restClient
+                .post()
+                .uri(config.getOptionGreeksUrl())
+                .headers(
+                    headers ->
+                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+                .body(body)
+                .retrieve()
+                .toEntity(String.class);
 
-          String responseBody = response.getBody();
-          if (responseBody != null) {
-            JsonNode root = objectMapper.readTree(responseBody);
-            if (root.path("status").asBoolean(false)) {
-              JsonNode dataNode = root.path("data");
-              if (dataNode.isArray()) {
-                List<AngelOneOptionGreek> greeks = new ArrayList<>();
-                for (JsonNode row : dataNode) {
-                  BigDecimal strike =
-                      row.hasNonNull("strikePrice")
-                          ? new BigDecimal(row.path("strikePrice").asText())
-                          : null;
-                  String optionTypeStr = row.path("optionType").asText();
-                  OptionType optionType =
-                      !optionTypeStr.isBlank() ? OptionType.from(optionTypeStr) : null;
-                  BigDecimal delta =
-                      row.hasNonNull("delta") ? new BigDecimal(row.path("delta").asText()) : null;
-                  BigDecimal gamma =
-                      row.hasNonNull("gamma") ? new BigDecimal(row.path("gamma").asText()) : null;
-                  BigDecimal theta =
-                      row.hasNonNull("theta") ? new BigDecimal(row.path("theta").asText()) : null;
-                  BigDecimal vega =
-                      row.hasNonNull("vega") ? new BigDecimal(row.path("vega").asText()) : null;
-                  BigDecimal iv =
-                      row.hasNonNull("impliedVolatility")
-                          ? new BigDecimal(row.path("impliedVolatility").asText())
-                          : null;
-                  BigDecimal volume =
-                      row.hasNonNull("tradeVolume")
-                          ? new BigDecimal(row.path("tradeVolume").asText())
-                          : null;
+        String responseBody = response.getBody();
+        if (responseBody != null) {
+          JsonNode root = objectMapper.readTree(responseBody);
+          if (root.path("status").asBoolean(false)) {
+            JsonNode dataNode = root.path("data");
+            if (dataNode.isArray()) {
+              List<AngelOneOptionGreek> greeks = new ArrayList<>();
+              for (JsonNode row : dataNode) {
+                BigDecimal strike =
+                    row.hasNonNull("strikePrice")
+                        ? new BigDecimal(row.path("strikePrice").asText())
+                        : null;
+                String optionTypeStr = row.path("optionType").asText();
+                OptionType optionType =
+                    !optionTypeStr.isBlank() ? OptionType.from(optionTypeStr) : null;
+                BigDecimal delta =
+                    row.hasNonNull("delta") ? new BigDecimal(row.path("delta").asText()) : null;
+                BigDecimal gamma =
+                    row.hasNonNull("gamma") ? new BigDecimal(row.path("gamma").asText()) : null;
+                BigDecimal theta =
+                    row.hasNonNull("theta") ? new BigDecimal(row.path("theta").asText()) : null;
+                BigDecimal vega =
+                    row.hasNonNull("vega") ? new BigDecimal(row.path("vega").asText()) : null;
+                BigDecimal iv =
+                    row.hasNonNull("impliedVolatility")
+                        ? new BigDecimal(row.path("impliedVolatility").asText())
+                        : null;
+                BigDecimal volume =
+                    row.hasNonNull("tradeVolume")
+                        ? new BigDecimal(row.path("tradeVolume").asText())
+                        : null;
 
-                  if (strike != null && optionType != null) {
-                    greeks.add(
-                        new AngelOneOptionGreek(
-                            strike, optionType, delta, gamma, theta, vega, iv, volume));
-                  }
+                if (strike != null && optionType != null) {
+                  greeks.add(
+                      new AngelOneOptionGreek(
+                          strike, optionType, delta, gamma, theta, vega, iv, volume));
                 }
-                return greeks;
               }
-            } else {
-              String errorCode = root.path("errorcode").asText();
-              if ("AG8001".equalsIgnoreCase(errorCode)) {
-                authManager.invalidateSession();
-              }
+              return greeks;
+            }
+          } else {
+            String errorCode = root.path("errorcode").asText();
+            if ("AG8001".equalsIgnoreCase(errorCode)) {
+              authManager.invalidateSession();
             }
           }
-        } catch (RestClientException | JsonProcessingException e) {
-          log.warn(
-              "Attempt {}/2 failed to fetch option greeks from Angel One: {}",
-              attempt,
-              e.getMessage());
-          if (attempt == 1) {
-            authManager.invalidateSession();
-            sleep(config.getDelayMilliseconds());
-          }
         }
+      } catch (RestClientException | JsonProcessingException e) {
+        log.warn("Failed to fetch option greeks from Angel One: {}", e.getMessage());
       }
       return Collections.emptyList();
     } else {
@@ -428,14 +403,6 @@ public class AngelOneClient {
       } catch (Exception ex) {
         return OffsetDateTime.now(IST_ZONE);
       }
-    }
-  }
-
-  private void sleep(long millis) {
-    try {
-      Thread.sleep(millis);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
     }
   }
 }

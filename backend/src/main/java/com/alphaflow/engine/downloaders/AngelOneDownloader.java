@@ -21,6 +21,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -115,11 +116,12 @@ public class AngelOneDownloader {
         client.fetch15mCandles(exchange, token, chunkStart, expectedCompletedTime);
 
     if (!candles.isEmpty()) {
-      List<IntradayPrice> toSave = new ArrayList<>();
+      Map<OffsetDateTime, IntradayPrice> toSaveMap = new LinkedHashMap<>();
       for (AngelOneCandle candle : candles) {
         if (candle.timestamp().isAfter(effectiveMinTime)
             && !candle.timestamp().isAfter(expectedCompletedTime)) {
-          toSave.add(
+          toSaveMap.putIfAbsent(
+              candle.timestamp(),
               IntradayPrice.builder()
                   .ticker(ticker)
                   .timeframe(IntradayTimeframe._15M.getValue())
@@ -133,6 +135,7 @@ public class AngelOneDownloader {
         }
       }
 
+      List<IntradayPrice> toSave = new ArrayList<>(toSaveMap.values());
       if (!toSave.isEmpty()) {
         intradayPriceRepository.saveAll(toSave);
         totalIngestedForTicker = toSave.size();

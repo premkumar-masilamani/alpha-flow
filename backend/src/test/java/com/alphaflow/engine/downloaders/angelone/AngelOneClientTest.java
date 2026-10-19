@@ -20,6 +20,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,8 +54,10 @@ class AngelOneClientTest {
 
     objectMapper = new ObjectMapper();
     AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
+    AngelOneRateLimiter rateLimiter = new AngelOneRateLimiter(config);
     client =
-        new AngelOneClient(config, authManager, objectMapper, networkHelper, RestClient.builder());
+        new AngelOneClient(
+            config, authManager, objectMapper, networkHelper, rateLimiter, RestClient.builder());
   }
 
   @AfterEach
@@ -471,21 +474,17 @@ class AngelOneClientTest {
 
   @Test
   void testFetch15mCandlesMultiChunk() {
-    String jsonResponse =
-        """
-        {
-          "status": true,
-          "message": "SUCCESS",
-          "errorcode": "",
-          "data": [
-            ["2026-09-23T09:15:00+05:30", 25000.5, 25050.0, 24980.25, 25040.0, 15000]
-          ]
-        }
-        """;
+    AtomicInteger callCount = new AtomicInteger(0);
 
     server.createContext(
         "/rest/secure/angelbroking/historical/v1/getCandleData/multichunk",
         exchange -> {
+          int call = callCount.incrementAndGet();
+          String ts = (call == 1) ? "2026-09-23T09:15:00+05:30" : "2026-09-24T09:15:00+05:30";
+          String jsonResponse =
+              "{\"status\": true, \"message\": \"SUCCESS\", \"errorcode\": \"\", \"data\": [[\""
+                  + ts
+                  + "\", 25000.5, 25050.0, 24980.25, 25040.0, 15000]]}";
           byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().set("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, bytes.length);
@@ -502,6 +501,41 @@ class AngelOneClientTest {
     List<AngelOneCandle> candles =
         client.fetch15mCandles(MarketConstants.EXCHANGE_NSE, "99926000", start, end);
     assertEquals(2, candles.size());
+  }
+
+  @Test
+  void testFetch15mCandlesMultiChunkDeduplicatesOverlappingCandles() {
+    String jsonResponse =
+        """
+        {
+          "status": true,
+          "message": "SUCCESS",
+          "errorcode": "",
+          "data": [
+            ["2026-09-23T09:15:00+05:30", 25000.5, 25050.0, 24980.25, 25040.0, 15000]
+          ]
+        }
+        """;
+
+    server.createContext(
+        "/rest/secure/angelbroking/historical/v1/getCandleData/dedup",
+        exchange -> {
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    config.setCandleUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/historical/v1/getCandleData/dedup");
+
+    OffsetDateTime start = OffsetDateTime.now(MarketConstants.IST_ZONE).minusDays(250);
+    OffsetDateTime end = OffsetDateTime.now(MarketConstants.IST_ZONE);
+
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(MarketConstants.EXCHANGE_NSE, "99926000", start, end);
+    assertEquals(1, candles.size(), "Expected overlapping identical candles across chunks to be deduplicated");
   }
 
   @Test
