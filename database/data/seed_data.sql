@@ -19,8 +19,8 @@ INSERT INTO indicator_definitions (indicator_type, source, params, bounds)
 VALUES ('EMA', 'CLOSE', '{"period": 5}', NULL),
        ('EMA', 'CLOSE', '{"period": 13}', NULL),
        ('EMA', 'CLOSE', '{"period": 26}', NULL),
-       ('RSI', 'CLOSE', '{"period": 14}', '{"upperBound": 70, "lowerBound": 30}'),
-       ('STOCHASTIC', 'CLOSE', '{"k": 14, "kSmooth": 3, "dSmooth": 3}', '{"upperBound": 80, "lowerBound": 20}'),
+       ('RSI', 'CLOSE', '{"period": 14}', '{"lower": 30, "upper": 70}'),
+       ('STOCHASTIC', 'CLOSE', '{"k": 14, "kSmooth": 3, "dSmooth": 3}', '{"lower": 20, "upper": 80}'),
        ('SMA', 'VOLUME', '{"period": 20}', NULL),
        ('MACD', 'CLOSE', '{"fast": 12, "slow": 26, "signal": 9}', NULL),
        ('BB', 'CLOSE', '{"period": 20, "stdDev": 2}', NULL)

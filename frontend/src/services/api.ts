@@ -86,8 +86,10 @@ export interface IndicatorConfig {
     source: string;
     params: string;
     label: string;
-    upperBound?: number;
-    lowerBound?: number;
+    bounds?: {
+        lower?: number;
+        upper?: number;
+    };
 }
 
 // One bar's reading; `values` is keyed by output name (e.g. MACD -> macd/signal/histogram).

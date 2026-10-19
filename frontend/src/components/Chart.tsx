@@ -1014,8 +1014,8 @@ const Chart: React.FC<ChartProps> = ({
                         const matchedConfig = configs.find(
                             (c) => c.type === series.type && c.params === series.params
                         );
-                        const upper = matchedConfig?.upperBound;
-                        const lower = matchedConfig?.lowerBound;
+                        const upper = matchedConfig?.bounds?.upper;
+                        const lower = matchedConfig?.bounds?.lower;
 
                         if (upper !== undefined && upper !== null) {
                             line.createPriceLine({

@@ -88,7 +88,7 @@ class IndicatorMapperTest {
             .indicatorType(IndicatorType.RSI)
             .source(PriceSource.CLOSE)
             .params(Map.of("period", 14))
-            .bounds(Map.of("upperBound", 70, "lowerBound", 30))
+            .bounds(Map.of("lower", 30, "upper", 70))
             .build();
 
     IndicatorConfigDto boundedDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, boundedDef);
@@ -96,8 +96,7 @@ class IndicatorMapperTest {
     assertEquals("RSI", boundedDto.type());
     assertEquals("CLOSE", boundedDto.source());
     assertEquals("period=14", boundedDto.params());
-    assertEquals(Integer.valueOf(70), boundedDto.upperBound());
-    assertEquals(Integer.valueOf(30), boundedDto.lowerBound());
+    assertEquals(Map.of("lower", 30, "upper", 70), boundedDto.bounds());
 
     IndicatorDefinition unboundedDef =
         IndicatorDefinition.builder()
@@ -111,8 +110,7 @@ class IndicatorMapperTest {
     IndicatorConfigDto unboundedDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, unboundedDef);
     assertEquals("EMA", unboundedDto.type());
     assertEquals("period=20", unboundedDto.params());
-    assertNull(unboundedDto.upperBound());
-    assertNull(unboundedDto.lowerBound());
+    assertNull(unboundedDto.bounds());
   }
 
   @Test
