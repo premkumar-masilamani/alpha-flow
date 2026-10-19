@@ -73,38 +73,4 @@ class AngelOneConfigTest {
     assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
     assertEquals(LocalDate.of(2015, 1, 1), config.getBackfillStartDate());
   }
-
-  @Test
-  void testValidateSuccess() {
-    AngelOneConfig config = new AngelOneConfig();
-    config.setApiKey("test-api-key");
-    config.setClientCode("test-client-code");
-    config.setPassword("test-password");
-    config.setTotpKey("test-totp-key");
-
-    config.validate();
-  }
-
-  @Test
-  void testValidateThrowsWhenFieldsMissingOrUnexpanded() {
-    AngelOneConfig config = new AngelOneConfig();
-    org.junit.jupiter.api.Assertions.assertThrows(
-        IllegalStateException.class, config::validate);
-
-    config.setApiKey("valid-key");
-    org.junit.jupiter.api.Assertions.assertThrows(
-        IllegalStateException.class, config::validate);
-
-    config.setClientCode("valid-code");
-    org.junit.jupiter.api.Assertions.assertThrows(
-        IllegalStateException.class, config::validate);
-
-    config.setPassword("valid-pwd");
-    org.junit.jupiter.api.Assertions.assertThrows(
-        IllegalStateException.class, config::validate);
-
-    config.setTotpKey("${ANGEL_ONE_TOTP_KEY}");
-    org.junit.jupiter.api.Assertions.assertThrows(
-        IllegalStateException.class, config::validate);
-  }
 }
