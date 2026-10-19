@@ -38,7 +38,7 @@ public class NiftyOptionSelectorService {
   private static final BigDecimal CALL_UPPER_OFFSET = new BigDecimal("200");
   private static final BigDecimal PUT_LOWER_OFFSET = new BigDecimal("200");
   private static final BigDecimal PUT_UPPER_OFFSET = new BigDecimal("1200");
-  private static final int MAX_CANDIDATE_BATCH_SIZE = 50;
+  private static final int ANGEL_ONE_MAX_QUOTE_TOKENS_LIMIT = 50;
 
   private static final DateTimeFormatter GREEKS_EXPIRY_FORMATTER =
       new DateTimeFormatterBuilder()
@@ -169,11 +169,11 @@ public class NiftyOptionSelectorService {
     List<AngelOneInstrument> candidateList =
         !corridorMatches.isEmpty() ? corridorMatches : expiryMatches;
 
-    if (candidateList.size() > MAX_CANDIDATE_BATCH_SIZE) {
+    if (candidateList.size() > ANGEL_ONE_MAX_QUOTE_TOKENS_LIMIT) {
       candidateList.sort(
           Comparator.comparing(
               candidate -> candidate.strike().subtract(spotPrice).abs()));
-      return candidateList.subList(0, MAX_CANDIDATE_BATCH_SIZE);
+      return candidateList.subList(0, ANGEL_ONE_MAX_QUOTE_TOKENS_LIMIT);
     } else {
       return candidateList;
     }

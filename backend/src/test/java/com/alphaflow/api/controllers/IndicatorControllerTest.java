@@ -22,7 +22,7 @@ class IndicatorControllerTest {
     TickerService tickerService = mock(TickerService.class);
 
     IndicatorConfigDto configDto =
-        new IndicatorConfigDto("DAILY", "EMA", "CLOSE", "period=14", "EMA (14)");
+        new IndicatorConfigDto("DAILY", "EMA", "CLOSE", "period=14", "EMA (14)", null, null);
 
     when(service.getConfiguredIndicators()).thenReturn(List.of(configDto));
 

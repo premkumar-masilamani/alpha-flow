@@ -28,7 +28,6 @@ class AngelOneConfigTest {
     config.setSessionStartTime(LocalTime.of(9, 15));
     config.setSessionEndTime(LocalTime.of(15, 30));
     config.setBackfillStartDate(LocalDate.of(2015, 1, 1));
-    config.setMaxChunkDays(200);
 
     assertEquals("test-api-key", config.getApiKey());
     assertEquals("test-client-code", config.getClientCode());
@@ -44,7 +43,6 @@ class AngelOneConfigTest {
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());
     assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
     assertEquals(LocalDate.of(2015, 1, 1), config.getBackfillStartDate());
-    assertEquals(200, config.getMaxChunkDays());
   }
 
   @Test
@@ -74,7 +72,6 @@ class AngelOneConfigTest {
     assertEquals(LocalTime.of(9, 15), config.getSessionStartTime());
     assertEquals(LocalTime.of(15, 30), config.getSessionEndTime());
     assertEquals(LocalDate.of(2015, 1, 1), config.getBackfillStartDate());
-    assertEquals(200, config.getMaxChunkDays());
   }
 
   @Test

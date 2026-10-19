@@ -1014,18 +1014,8 @@ const Chart: React.FC<ChartProps> = ({
                         const matchedConfig = configs.find(
                             (c) => c.type === series.type && c.params === series.params
                         );
-                        let upper = matchedConfig?.upperBound;
-                        let lower = matchedConfig?.lowerBound;
-
-                        // Fallback defaults
-                        if (upper === undefined || upper === null) {
-                            if (series.type === 'RSI') upper = 70;
-                            else if (series.type === 'STOCHASTIC') upper = 80;
-                        }
-                        if (lower === undefined || lower === null) {
-                            if (series.type === 'RSI') lower = 30;
-                            else if (series.type === 'STOCHASTIC') lower = 20;
-                        }
+                        const upper = matchedConfig?.upperBound;
+                        const lower = matchedConfig?.lowerBound;
 
                         if (upper !== undefined && upper !== null) {
                             line.createPriceLine({

@@ -2,10 +2,14 @@ package com.alphaflow.api.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.util.Map;
@@ -74,6 +78,37 @@ class IndicatorMapperTest {
         "BB (20)",
         IndicatorMapper.label(
             IndicatorType.BB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
+  }
+
+  @Test
+  void testToConfigDtoWithBoundsAndWithoutBounds() {
+    IndicatorDefinition boundedDef =
+        IndicatorDefinition.builder()
+            .indicatorDefinitionId(1L)
+            .indicatorType(IndicatorType.RSI)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 14, "upperBound", 70, "lowerBound", 30))
+            .build();
+
+    IndicatorConfigDto boundedDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, boundedDef);
+    assertEquals("DAILY", boundedDto.timeframe());
+    assertEquals("RSI", boundedDto.type());
+    assertEquals("CLOSE", boundedDto.source());
+    assertEquals(Integer.valueOf(70), boundedDto.upperBound());
+    assertEquals(Integer.valueOf(30), boundedDto.lowerBound());
+
+    IndicatorDefinition unboundedDef =
+        IndicatorDefinition.builder()
+            .indicatorDefinitionId(2L)
+            .indicatorType(IndicatorType.EMA)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 20))
+            .build();
+
+    IndicatorConfigDto unboundedDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, unboundedDef);
+    assertEquals("EMA", unboundedDto.type());
+    assertNull(unboundedDto.upperBound());
+    assertNull(unboundedDto.lowerBound());
   }
 
   @Test

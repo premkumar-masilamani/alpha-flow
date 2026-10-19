@@ -110,23 +110,7 @@ export const indicatorKey = (i: {type: string; source: string; params: string}):
 
 export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
     const response = await axios.get(`${API_BASE_URL}/indicator-definitions`);
-    return response.data.map((config: IndicatorConfig) => {
-        if (config.type === 'RSI') {
-            return {
-                ...config,
-                upperBound: 70,
-                lowerBound: 30,
-            };
-        }
-        if (config.type === 'STOCHASTIC') {
-            return {
-                ...config,
-                upperBound: 80,
-                lowerBound: 20,
-            };
-        }
-        return config;
-    });
+    return response.data;
 };
 
 // Cache indicator series per symbol+timeframe, mirroring the candle cache (backend re-syncs hourly).

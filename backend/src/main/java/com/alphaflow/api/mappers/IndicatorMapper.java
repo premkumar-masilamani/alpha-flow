@@ -23,12 +23,18 @@ public class IndicatorMapper {
   public static IndicatorConfigDto toConfigDto(
       Timeframe timeframe, IndicatorDefinition definition) {
     IndicatorParams params = IndicatorParams.of(definition.getParams());
+    Integer upperBound =
+        definition.getParams() != null ? definition.getParams().get("upperBound") : null;
+    Integer lowerBound =
+        definition.getParams() != null ? definition.getParams().get("lowerBound") : null;
     return IndicatorConfigDto.builder()
         .timeframe(timeframe.name())
         .type(definition.getType().name())
         .source(definition.getSource().name())
         .params(params.canonical())
         .label(label(definition.getType(), definition.getSource(), params))
+        .upperBound(upperBound)
+        .lowerBound(lowerBound)
         .build();
   }
 

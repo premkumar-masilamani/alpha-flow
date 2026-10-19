@@ -59,7 +59,6 @@ class AngelOneDownloaderTest {
     config.setDelayMilliseconds(0);
     config.setSessionStartTime(LocalTime.of(9, 15));
     config.setSessionEndTime(LocalTime.of(15, 30));
-    config.setMaxChunkDays(200);
     config.setBackfillStartDate(LocalDate.of(2015, 1, 1));
 
     client = mock(AngelOneClient.class);
@@ -79,7 +78,7 @@ class AngelOneDownloaderTest {
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(0, result);
-    verify(client, never()).getCandleData(any(), any(), any(), any(), any());
+    verify(client, never()).fetch15mCandles(any(), any(), any(), any());
   }
 
   @Test
@@ -100,7 +99,7 @@ class AngelOneDownloaderTest {
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(0, result);
-    verify(client, never()).getCandleData(any(), any(), any(), any(), any());
+    verify(client, never()).fetch15mCandles(any(), any(), any(), any());
   }
 
   @Test
@@ -154,10 +153,9 @@ class AngelOneDownloaderTest {
             new BigDecimal("25085.00"),
             BigDecimal.ONE);
 
-    when(client.getCandleData(
+    when(client.fetch15mCandles(
             eq(MarketConstants.EXCHANGE_NSE),
             eq("99926000"),
-            eq(IntradayTimeframe._15M),
             any(),
             any()))
         .thenReturn(List.of(oldCandle, validCandle, futureCandle));
@@ -192,9 +190,7 @@ class AngelOneDownloaderTest {
             15,
             Country.IN);
 
-    // Configure small chunk days and recent backfill start date so it runs in 2 chunks
     config.setBackfillStartDate(expectedCompletedTime.toLocalDate().minusDays(3));
-    config.setMaxChunkDays(2);
 
     OffsetDateTime chunk1Time =
         config.getBackfillStartDate().atTime(10, 0).atZone(istZone).toOffsetDateTime();
@@ -217,20 +213,18 @@ class AngelOneDownloaderTest {
             new BigDecimal("24120"),
             BigDecimal.TEN);
 
-    when(client.getCandleData(
+    when(client.fetch15mCandles(
             eq(MarketConstants.EXCHANGE_NSE),
             eq("99926000"),
-            eq(IntradayTimeframe._15M),
             any(),
             any()))
-        .thenReturn(List.of(candleChunk1))
-        .thenReturn(List.of(candleChunk2));
+        .thenReturn(List.of(candleChunk1, candleChunk2));
 
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(2, result);
-    verify(client, times(2)).getCandleData(any(), any(), any(), any(), any());
-    verify(intradayRepo, times(2)).saveAll(any());
+    verify(client, times(1)).fetch15mCandles(any(), any(), any(), any());
+    verify(intradayRepo, times(1)).saveAll(any());
   }
 
   @Test
@@ -254,12 +248,12 @@ class AngelOneDownloaderTest {
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, latestTime));
 
-    when(client.getCandleData(any(), any(), any(), any(), any())).thenReturn(List.of());
+    when(client.fetch15mCandles(any(), any(), any(), any())).thenReturn(List.of());
 
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(0, result);
-    verify(client, times(1)).getCandleData(any(), any(), any(), any(), any());
+    verify(client, times(1)).fetch15mCandles(any(), any(), any(), any());
     verify(intradayRepo, never()).saveAll(any());
   }
 
@@ -294,110 +288,13 @@ class AngelOneDownloaderTest {
             new BigDecimal("25040.00"),
             BigDecimal.ZERO);
 
-    when(client.getCandleData(any(), any(), any(), any(), any())).thenReturn(List.of(oldCandle));
+    when(client.fetch15mCandles(any(), any(), any(), any())).thenReturn(List.of(oldCandle));
 
     int result = downloader.downloadIntradayPrices();
 
     assertEquals(0, result);
-    verify(client, times(1)).getCandleData(any(), any(), any(), any(), any());
+    verify(client, times(1)).fetch15mCandles(any(), any(), any(), any());
     verify(intradayRepo, never()).saveAll(any());
-  }
-
-  @Test
-  void testDownloadInterruptedDuringChunkDelay() {
-    Ticker ticker =
-        Ticker.builder()
-            .tickerSymbol("NIFTY50")
-            .country(Country.IN)
-            .dataProvider(DataProvider.ANGEL_ONE)
-            .build();
-
-    Map<Ticker, OffsetDateTime> tickerMap = new LinkedHashMap<>();
-    tickerMap.put(ticker, null);
-    when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
-        .thenReturn(tickerMap);
-
-    OffsetDateTime expectedCompletedTime =
-        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
-            ZonedDateTime.now(istZone),
-            config.getSessionStartTime(),
-            config.getSessionEndTime(),
-            15,
-            Country.IN);
-
-    config.setBackfillStartDate(expectedCompletedTime.toLocalDate().minusDays(3));
-    config.setMaxChunkDays(1);
-    config.setDelayMilliseconds(2000);
-
-    when(client.getCandleData(any(), any(), any(), any(), any())).thenReturn(List.of());
-
-    Thread mainThread = Thread.currentThread();
-    new Thread(
-            () -> {
-              try {
-                Thread.sleep(50);
-              } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-              }
-              mainThread.interrupt();
-            })
-        .start();
-
-    int result = downloader.downloadIntradayPrices();
-    assertEquals(0, result);
-  }
-
-  @Test
-  void testDownloadInterruptedDuringTickerDelay() {
-    Ticker ticker1 =
-        Ticker.builder()
-            .tickerSymbol("NIFTY50")
-            .country(Country.IN)
-            .dataProvider(DataProvider.ANGEL_ONE)
-            .build();
-    Ticker ticker2 =
-        Ticker.builder()
-            .tickerSymbol("BANKNIFTY")
-            .country(Country.IN)
-            .dataProvider(DataProvider.ANGEL_ONE)
-            .build();
-
-    OffsetDateTime expectedCompletedTime =
-        MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
-            ZonedDateTime.now(istZone),
-            config.getSessionStartTime(),
-            config.getSessionEndTime(),
-            15,
-            Country.IN);
-    OffsetDateTime twoHoursAgo = expectedCompletedTime.minusMinutes(30);
-
-    Map<Ticker, OffsetDateTime> tickerMap = new LinkedHashMap<>();
-    tickerMap.put(ticker1, twoHoursAgo);
-    tickerMap.put(ticker2, twoHoursAgo);
-
-    when(intradayRepo.findLatestPriceTimesForActiveTickers(
-            DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
-        .thenReturn(tickerMap);
-
-    config.setDelayMilliseconds(2000);
-
-    when(client.getCandleData(any(), any(), any(), any(), any())).thenReturn(List.of());
-
-    Thread mainThread = Thread.currentThread();
-    new Thread(
-            () -> {
-              try {
-                Thread.sleep(50);
-              } catch (InterruptedException exception) {
-                Thread.currentThread().interrupt();
-              }
-              mainThread.interrupt();
-            })
-        .start();
-
-    int result = downloader.downloadIntradayPrices();
-    assertEquals(0, result);
   }
 
   @Test

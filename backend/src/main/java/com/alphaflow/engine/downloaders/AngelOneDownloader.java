@@ -20,7 +20,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +30,6 @@ import org.springframework.stereotype.Component;
 @Component
 @Slf4j
 public class AngelOneDownloader {
-
-  private static final DateTimeFormatter DATE_TIME_FORMATTER =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
   private final AngelOneConfig config;
   private final AngelOneClient client;
@@ -79,14 +75,6 @@ public class AngelOneDownloader {
       if (latestSavedTime == null || latestSavedTime.isBefore(expectedCompletedTime)) {
         int ingestedRows = downloadDataForTicker(ticker, latestSavedTime, expectedCompletedTime);
         totalNewlyIngestedRows += ingestedRows;
-
-        try {
-          Thread.sleep(config.getDelayMilliseconds());
-        } catch (InterruptedException exception) {
-          Thread.currentThread().interrupt();
-          log.warn("Angel One download process interrupted during delay.");
-          break;
-        }
       } else {
         log.info(
             "{}: up to date (latest saved: {}, expected: {}). Skipping.",
@@ -123,79 +111,48 @@ public class AngelOneDownloader {
     String token = AngelOneClient.resolveToken(ticker.getTickerSymbol());
     int totalIngestedForTicker = 0;
 
-    OffsetDateTime currentWindowStart = chunkStart;
-    while (currentWindowStart.isBefore(expectedCompletedTime)) {
-      OffsetDateTime candidateWindowEnd = currentWindowStart.plusDays(config.getMaxChunkDays());
-      OffsetDateTime currentWindowEnd =
-          candidateWindowEnd.isBefore(expectedCompletedTime)
-              ? candidateWindowEnd
-              : expectedCompletedTime;
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(exchange, token, chunkStart, expectedCompletedTime);
 
-      String fromDateStr = currentWindowStart.format(DATE_TIME_FORMATTER);
-      String toDateStr = currentWindowEnd.format(DATE_TIME_FORMATTER);
-
-      log.info(
-          "Syncing 15m candles for {} (token: {}) from {} to {}",
-          ticker.getTickerSymbol(),
-          token,
-          fromDateStr,
-          toDateStr);
-
-      List<AngelOneCandle> candles =
-          client.getCandleData(exchange, token, IntradayTimeframe._15M, fromDateStr, toDateStr);
-
-      if (!candles.isEmpty()) {
-        List<IntradayPrice> toSave = new ArrayList<>();
-        for (AngelOneCandle candle : candles) {
-          if (candle.timestamp().isAfter(effectiveMinTime)
-              && !candle.timestamp().isAfter(expectedCompletedTime)) {
-            toSave.add(
-                IntradayPrice.builder()
-                    .ticker(ticker)
-                    .timeframe(IntradayTimeframe._15M.getValue())
-                    .priceTime(candle.timestamp())
-                    .priceOpen(candle.open())
-                    .priceHigh(candle.high())
-                    .priceLow(candle.low())
-                    .priceClose(candle.close())
-                    .volume(candle.volume())
-                    .build());
-          }
+    if (!candles.isEmpty()) {
+      List<IntradayPrice> toSave = new ArrayList<>();
+      for (AngelOneCandle candle : candles) {
+        if (candle.timestamp().isAfter(effectiveMinTime)
+            && !candle.timestamp().isAfter(expectedCompletedTime)) {
+          toSave.add(
+              IntradayPrice.builder()
+                  .ticker(ticker)
+                  .timeframe(IntradayTimeframe._15M.getValue())
+                  .priceTime(candle.timestamp())
+                  .priceOpen(candle.open())
+                  .priceHigh(candle.high())
+                  .priceLow(candle.low())
+                  .priceClose(candle.close())
+                  .volume(candle.volume())
+                  .build());
         }
+      }
 
-        if (!toSave.isEmpty()) {
-          intradayPriceRepository.saveAll(toSave);
-          effectiveMinTime = toSave.getLast().getPriceTime();
-          totalIngestedForTicker += toSave.size();
-          log.info(
-              "Successfully synced {} new 15-minute candles for {}",
-              toSave.size(),
-              ticker.getTickerSymbol());
-        } else {
-          log.info(
-              "No new 15-minute data points to save for ticker {} in chunk {} to {}.",
-              ticker.getTickerSymbol(),
-              fromDateStr,
-              toDateStr);
-        }
+      if (!toSave.isEmpty()) {
+        intradayPriceRepository.saveAll(toSave);
+        totalIngestedForTicker = toSave.size();
+        log.info(
+            "Successfully synced {} new 15-minute candles for {}",
+            toSave.size(),
+            ticker.getTickerSymbol());
       } else {
         log.info(
-            "No candle data returned for {} in chunk {} to {}.",
+            "No new 15-minute data points to save for ticker {} from {} to {}.",
             ticker.getTickerSymbol(),
-            fromDateStr,
-            toDateStr);
+            chunkStart,
+            expectedCompletedTime);
       }
-
-      currentWindowStart = currentWindowEnd;
-      if (currentWindowStart.isBefore(expectedCompletedTime)) {
-        try {
-          Thread.sleep(config.getDelayMilliseconds());
-        } catch (InterruptedException exception) {
-          Thread.currentThread().interrupt();
-          log.warn("Download process interrupted during chunk delay.");
-          break;
-        }
-      }
+    } else {
+      log.info(
+          "No candle data returned for {} from {} to {}.",
+          ticker.getTickerSymbol(),
+          chunkStart,
+          expectedCompletedTime);
     }
 
     return totalIngestedForTicker;

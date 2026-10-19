@@ -16,6 +16,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -430,5 +431,84 @@ class AngelOneClientTest {
     List<AngelOneOptionGreek> greeks = client.getOptionGreeks("NIFTY", "31OCT2024");
     assertTrue(greeks.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
+  }
+
+  @Test
+  void testFetch15mCandlesSuccess() {
+    String jsonResponse =
+        """
+        {
+          "status": true,
+          "message": "SUCCESS",
+          "errorcode": "",
+          "data": [
+            ["2026-09-23T09:15:00+05:30", 25000.5, 25050.0, 24980.25, 25040.0, 15000]
+          ]
+        }
+        """;
+
+    server.createContext(
+        "/rest/secure/angelbroking/historical/v1/getCandleData/fetch15m",
+        exchange -> {
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    config.setCandleUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/historical/v1/getCandleData/fetch15m");
+
+    OffsetDateTime start = OffsetDateTime.now(MarketConstants.IST_ZONE).minusDays(10);
+    OffsetDateTime end = OffsetDateTime.now(MarketConstants.IST_ZONE);
+
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(MarketConstants.EXCHANGE_NSE, "99926000", start, end);
+    assertFalse(candles.isEmpty());
+    assertEquals(1, candles.size());
+  }
+
+  @Test
+  void testFetch15mCandlesMultiChunk() {
+    String jsonResponse =
+        """
+        {
+          "status": true,
+          "message": "SUCCESS",
+          "errorcode": "",
+          "data": [
+            ["2026-09-23T09:15:00+05:30", 25000.5, 25050.0, 24980.25, 25040.0, 15000]
+          ]
+        }
+        """;
+
+    server.createContext(
+        "/rest/secure/angelbroking/historical/v1/getCandleData/multichunk",
+        exchange -> {
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    config.setCandleUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/historical/v1/getCandleData/multichunk");
+
+    OffsetDateTime start = OffsetDateTime.now(MarketConstants.IST_ZONE).minusDays(250);
+    OffsetDateTime end = OffsetDateTime.now(MarketConstants.IST_ZONE);
+
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(MarketConstants.EXCHANGE_NSE, "99926000", start, end);
+    assertEquals(2, candles.size());
+  }
+
+  @Test
+  void testFetch15mCandlesMissingParams() {
+    assertTrue(client.fetch15mCandles(null, "99926000", OffsetDateTime.now(), OffsetDateTime.now()).isEmpty());
+    assertTrue(client.fetch15mCandles("NSE", null, OffsetDateTime.now(), OffsetDateTime.now()).isEmpty());
+    assertTrue(client.fetch15mCandles("NSE", "99926000", null, OffsetDateTime.now()).isEmpty());
+    assertTrue(client.fetch15mCandles("NSE", "99926000", OffsetDateTime.now(), null).isEmpty());
   }
 }

@@ -70,6 +70,53 @@ public class AngelOneClient {
     return timeframe != null ? timeframe.getValue() : "";
   }
 
+  public static final int ANGEL_ONE_15M_MAX_CHUNK_DAYS = 200;
+  private static final DateTimeFormatter CHUNK_DATE_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+  public List<AngelOneCandle> fetch15mCandles(
+      String exchange,
+      String symbolToken,
+      OffsetDateTime startWindow,
+      OffsetDateTime expectedCompletedTime) {
+    if (exchange != null && symbolToken != null && startWindow != null && expectedCompletedTime != null) {
+      List<AngelOneCandle> aggregatedCandles = new ArrayList<>();
+      OffsetDateTime currentWindowStart = startWindow;
+      while (currentWindowStart.isBefore(expectedCompletedTime)) {
+        OffsetDateTime candidateWindowEnd =
+            currentWindowStart.plusDays(ANGEL_ONE_15M_MAX_CHUNK_DAYS);
+        OffsetDateTime currentWindowEnd =
+            candidateWindowEnd.isBefore(expectedCompletedTime)
+                ? candidateWindowEnd
+                : expectedCompletedTime;
+
+        String fromDateStr = currentWindowStart.format(CHUNK_DATE_TIME_FORMATTER);
+        String toDateStr = currentWindowEnd.format(CHUNK_DATE_TIME_FORMATTER);
+
+        log.info(
+            "Syncing 15m candles for token {} from {} to {}",
+            symbolToken,
+            fromDateStr,
+            toDateStr);
+
+        List<AngelOneCandle> chunk =
+            getCandleData(exchange, symbolToken, IntradayTimeframe._15M, fromDateStr, toDateStr);
+        if (!chunk.isEmpty()) {
+          aggregatedCandles.addAll(chunk);
+        }
+
+        currentWindowStart = currentWindowEnd;
+        if (currentWindowStart.isBefore(expectedCompletedTime)) {
+          sleep(config.getDelayMilliseconds());
+        }
+      }
+      return aggregatedCandles;
+    } else {
+      log.warn("Cannot fetch 15m candles: missing required parameters.");
+      return Collections.emptyList();
+    }
+  }
+
   public List<AngelOneCandle> getCandleData(
       String exchange,
       String symbolToken,

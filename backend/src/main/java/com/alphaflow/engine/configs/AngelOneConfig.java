@@ -40,7 +40,6 @@ public class AngelOneConfig {
   private LocalTime sessionStartTime = LocalTime.of(9, 15);
   private LocalTime sessionEndTime = LocalTime.of(15, 30);
   private LocalDate backfillStartDate = LocalDate.of(2015, 1, 1);
-  private int maxChunkDays = 200;
 
   @PostConstruct
   public void validate() {
