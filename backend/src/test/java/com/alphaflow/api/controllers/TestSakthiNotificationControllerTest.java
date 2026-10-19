@@ -8,12 +8,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.OptionType;
-import com.alphaflow.engine.downloaders.AngelOneDownloader;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.services.NotificationTemplateEngine;
 import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
@@ -33,14 +31,12 @@ class TestSakthiNotificationControllerTest {
   private NotificationService notificationService;
   private NiftyOptionSelectorService niftyOptionSelectorService;
   private SakthiIntradayStrategy sakthiIntradayStrategy;
-  private AngelOneDownloader angelOneDownloader;
   private TestSakthiNotificationController controller;
 
   @BeforeEach
   void setUp() {
     notificationService = mock(NotificationService.class);
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
-    angelOneDownloader = mock(AngelOneDownloader.class);
     DailyPriceRepository dailyPriceRepository = mock(DailyPriceRepository.class);
     NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
     sakthiIntradayStrategy =
@@ -51,7 +47,7 @@ class TestSakthiNotificationControllerTest {
             notificationTemplateEngine);
     controller =
         new TestSakthiNotificationController(
-            notificationService, sakthiIntradayStrategy, niftyOptionSelectorService, angelOneDownloader);
+            notificationService, sakthiIntradayStrategy, niftyOptionSelectorService);
   }
 
   @Test
@@ -184,21 +180,5 @@ class TestSakthiNotificationControllerTest {
     assertNotNull(body);
     assertFalse((Boolean) body.get("telegramSent"));
     assertEquals("Telegram API network timeout", body.get("telegramError"));
-  }
-
-  @Test
-  void testSyncIntradayPostAndGet() {
-    when(angelOneDownloader.downloadIntradayPrices()).thenReturn(150);
-
-    ResponseEntity<Map<String, Object>> postResponse = controller.syncIntradayPost();
-    assertEquals(200, postResponse.getStatusCode().value());
-    assertEquals("SUCCESS", postResponse.getBody().get("status"));
-    assertEquals(150, postResponse.getBody().get("newlyIngestedCandles"));
-
-    ResponseEntity<Map<String, Object>> getResponse = controller.syncIntradayGet();
-    assertEquals(200, getResponse.getStatusCode().value());
-    assertEquals("SUCCESS", getResponse.getBody().get("status"));
-    assertEquals(150, getResponse.getBody().get("newlyIngestedCandles"));
-    verify(angelOneDownloader, times(2)).downloadIntradayPrices();
   }
 }

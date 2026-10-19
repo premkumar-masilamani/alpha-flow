@@ -3,7 +3,6 @@ package com.alphaflow.api.controllers;
 import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.OptionType;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
-import com.alphaflow.engine.downloaders.AngelOneDownloader;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
@@ -41,30 +40,15 @@ public class TestSakthiNotificationController {
   private final NotificationService notificationService;
   private final SakthiIntradayStrategy sakthiIntradayStrategy;
   private final NiftyOptionSelectorService niftyOptionSelectorService;
-  private final AngelOneDownloader angelOneDownloader;
 
   @Autowired
   public TestSakthiNotificationController(
       NotificationService notificationService,
       SakthiIntradayStrategy sakthiIntradayStrategy,
-      NiftyOptionSelectorService niftyOptionSelectorService,
-      AngelOneDownloader angelOneDownloader) {
+      NiftyOptionSelectorService niftyOptionSelectorService) {
     this.notificationService = notificationService;
     this.sakthiIntradayStrategy = sakthiIntradayStrategy;
     this.niftyOptionSelectorService = niftyOptionSelectorService;
-    this.angelOneDownloader = angelOneDownloader;
-  }
-
-  @PostMapping("/sync-intraday")
-  public ResponseEntity<Map<String, Object>> syncIntradayPost() {
-    log.info("Manual trigger received to sync Angel One 15-minute intraday prices...");
-    int newlyIngested = angelOneDownloader.downloadIntradayPrices();
-    return ResponseEntity.ok(Map.of("status", "SUCCESS", "newlyIngestedCandles", newlyIngested));
-  }
-
-  @GetMapping("/sync-intraday")
-  public ResponseEntity<Map<String, Object>> syncIntradayGet() {
-    return syncIntradayPost();
   }
 
   @GetMapping("/notification")
