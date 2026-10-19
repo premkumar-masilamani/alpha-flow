@@ -3,9 +3,13 @@ package com.alphaflow.api.services;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.api.mappers.OhlcvMapper;
 import com.alphaflow.common.enums.IntradayTimeframe;
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
+import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.downloaders.AngelOneDownloader;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.DataProvider;
 import com.alphaflow.persistence.repositories.IntradayPriceRepository;
 import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
@@ -30,11 +34,18 @@ public class IntradayPriceService {
 
   private final IntradayPriceRepository intradayPriceRepository;
   private final LiveQuoteRepository liveQuoteRepository;
+  private final AngelOneDownloader angelOneDownloader;
+  private final AngelOneConfig angelOneConfig;
 
   public IntradayPriceService(
-      IntradayPriceRepository intradayPriceRepository, LiveQuoteRepository liveQuoteRepository) {
+      IntradayPriceRepository intradayPriceRepository,
+      LiveQuoteRepository liveQuoteRepository,
+      AngelOneDownloader angelOneDownloader,
+      AngelOneConfig angelOneConfig) {
     this.intradayPriceRepository = intradayPriceRepository;
     this.liveQuoteRepository = liveQuoteRepository;
+    this.angelOneDownloader = angelOneDownloader;
+    this.angelOneConfig = angelOneConfig;
   }
 
   public List<OhlcvDto> getIntradayPrice(
@@ -45,6 +56,37 @@ public class IntradayPriceService {
     List<IntradayPrice> persistedPrices =
         intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
             ticker, timeframe.getValue(), endDateTime, PageRequest.of(page, size));
+
+    if (page == 0 && ticker.getDataProvider() == DataProvider.ANGEL_ONE) {
+      OffsetDateTime expectedCompletedTime =
+          MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
+              ZonedDateTime.now(marketZone),
+              angelOneConfig.getSessionStartTime(),
+              angelOneConfig.getSessionEndTime(),
+              15,
+              ticker.getCountry());
+
+      if (!persistedPrices.isEmpty()
+          && !persistedPrices.getFirst().getPriceTime().isBefore(expectedCompletedTime)) {
+        log.debug(
+            "Intraday prices for {} are already up to date.", ticker.getTickerSymbol());
+      } else {
+        log.info(
+            "Intraday prices for {} are missing or outdated. Syncing now...",
+            ticker.getTickerSymbol());
+        try {
+          angelOneDownloader.downloadIntradayPrices();
+          persistedPrices =
+              intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
+                  ticker, timeframe.getValue(), endDateTime, PageRequest.of(page, size));
+        } catch (Exception exception) {
+          log.error(
+              "Failed to sync intraday prices for {}: {}",
+              ticker.getTickerSymbol(),
+              exception.getMessage());
+        }
+      }
+    }
 
     List<OhlcvDto> candles =
         new ArrayList<>(

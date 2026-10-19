@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
@@ -51,7 +53,8 @@ public class AngelOneDownloader {
     this.liveQuoteRepository = liveQuoteRepository;
   }
 
-  public int downloadIntradayPrices() {
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public synchronized int downloadIntradayPrices() {
     log.info("Starting Angel One 15-minute intraday data download process...");
 
     Map<Ticker, OffsetDateTime> latestSavedTimes =
