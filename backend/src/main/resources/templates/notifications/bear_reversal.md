@@ -1,4 +1,4 @@
-*\[BULLISH REVERSAL\] 70\-Point Bounce from Low*
+*\[BULLISH REVERSAL\] 70\-Point Reversal from Low*
 *Ticker:* ${ticker!}
 *Current Price:* ${currentPrice!}
 *Day's Low:* ${dayLow!}

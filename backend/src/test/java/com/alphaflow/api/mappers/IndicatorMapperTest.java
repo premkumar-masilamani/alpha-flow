@@ -81,49 +81,21 @@ class IndicatorMapperTest {
   }
 
   @Test
-  void testToConfigDtoWithBoundsAndWithoutBounds() {
-    IndicatorDefinition boundedDef =
+  void testToConfigDto() {
+    IndicatorDefinition def =
         IndicatorDefinition.builder()
             .indicatorDefinitionId(1L)
             .indicatorType(IndicatorType.RSI)
             .source(PriceSource.CLOSE)
             .params(Map.of("period", 14))
-            .bounds(Map.of("lower", 30, "upper", 70))
             .build();
 
-    IndicatorConfigDto boundedDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, boundedDef);
-    assertEquals("DAILY", boundedDto.timeframe());
-    assertEquals("RSI", boundedDto.type());
-    assertEquals("CLOSE", boundedDto.source());
-    assertEquals("period=14", boundedDto.params());
-    assertEquals("lower=30,upper=70", boundedDto.bounds());
-
-    IndicatorDefinition unboundedDef =
-        IndicatorDefinition.builder()
-            .indicatorDefinitionId(2L)
-            .indicatorType(IndicatorType.EMA)
-            .source(PriceSource.CLOSE)
-            .params(Map.of("period", 20))
-            .bounds(null)
-            .build();
-
-    IndicatorConfigDto unboundedDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, unboundedDef);
-    assertEquals("EMA", unboundedDto.type());
-    assertEquals("period=20", unboundedDto.params());
-    assertNull(unboundedDto.bounds());
-
-    IndicatorDefinition emptyBoundsDef =
-        IndicatorDefinition.builder()
-            .indicatorDefinitionId(3L)
-            .indicatorType(IndicatorType.BB)
-            .source(PriceSource.CLOSE)
-            .params(Map.of("period", 20, "stdDev", 2))
-            .bounds(Map.of())
-            .build();
-
-    IndicatorConfigDto emptyBoundsDto = IndicatorMapper.toConfigDto(Timeframe.DAILY, emptyBoundsDef);
-    assertEquals("BB", emptyBoundsDto.type());
-    assertNull(emptyBoundsDto.bounds());
+    IndicatorConfigDto dto = IndicatorMapper.toConfigDto(Timeframe.DAILY, def);
+    assertEquals("DAILY", dto.timeframe());
+    assertEquals("RSI", dto.type());
+    assertEquals("CLOSE", dto.source());
+    assertEquals("period=14", dto.params());
+    assertEquals("RSI (14)", dto.label());
   }
 
   @Test

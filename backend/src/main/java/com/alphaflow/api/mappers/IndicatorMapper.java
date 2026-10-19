@@ -4,7 +4,6 @@ import com.alphaflow.api.dtos.IndicatorConfigDto;
 import com.alphaflow.api.dtos.IndicatorPointDto;
 import com.alphaflow.api.dtos.IndicatorSeriesDto;
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.indicators.dtos.IndicatorBounds;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
@@ -24,14 +23,12 @@ public class IndicatorMapper {
   public static IndicatorConfigDto toConfigDto(
       Timeframe timeframe, IndicatorDefinition definition) {
     IndicatorParams params = IndicatorParams.of(definition.getParams());
-    IndicatorBounds bounds = IndicatorBounds.of(definition.getBounds());
     return IndicatorConfigDto.builder()
         .timeframe(timeframe.name())
         .type(definition.getType().name())
         .source(definition.getSource().name())
         .params(params.canonical())
         .label(label(definition.getType(), definition.getSource(), params))
-        .bounds(bounds != null ? bounds.canonical() : null)
         .build();
   }
 

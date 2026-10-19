@@ -39,10 +39,6 @@ public class IndicatorDefinition {
   @Column(name = "params", nullable = false)
   private Map<String, Integer> params;
 
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(name = "bounds")
-  private Map<String, Integer> bounds;
-
   public IndicatorType getType() {
     return indicatorType;
   }

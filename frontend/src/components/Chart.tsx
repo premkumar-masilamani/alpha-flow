@@ -572,7 +572,7 @@ const getIndicatorColor = (type: string, source: string, params: string, outputN
     return rules.default || null;
 };
 
-import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, parseBounds, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData, type ChartPatternStatus} from '../services/api';
+import {type DailyCandleData, type IndicatorSeries, indicatorKey, type IndicatorConfig, type CandlestickPatternData, type SupportResistanceData, type LevelType, type ChartPatternData, type ChartPatternStatus} from '../services/api';
 import {RefreshCw} from 'lucide-react';
 
 interface CandlestickTooltipInfo {
@@ -1009,12 +1009,17 @@ const Chart: React.FC<ChartProps> = ({
                     }, paneIndex);
                     line.setData(points);
 
-                    // Add dynamic bounds lines from backend config for subpane oscillator series
+                    // Add hardcoded bounds lines for subpane oscillator series
                     if (placement === 'oscillator') {
-                        const matchedConfig = configs.find(
-                            (c) => c.type === series.type && c.params === series.params
-                        );
-                        const { upper, lower } = parseBounds(matchedConfig?.bounds);
+                        let upper: number | undefined;
+                        let lower: number | undefined;
+                        if (series.type === 'RSI') {
+                            upper = 70;
+                            lower = 30;
+                        } else if (series.type === 'STOCHASTIC') {
+                            upper = 80;
+                            lower = 20;
+                        }
 
                         if (upper !== undefined && upper !== null) {
                             line.createPriceLine({

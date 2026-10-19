@@ -34,6 +34,7 @@ public class AngelOneConfig {
    */
   private String scripMasterUrl =
       "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json";
+
   private long delayMilliseconds = 1000;
   private Duration tokenTtl = Duration.ofSeconds(72000);
   private LocalTime sessionStartTime = LocalTime.of(9, 15);

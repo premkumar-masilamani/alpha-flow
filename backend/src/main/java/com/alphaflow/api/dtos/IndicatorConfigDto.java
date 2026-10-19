@@ -11,5 +11,4 @@ public record IndicatorConfigDto(
     @JsonProperty("type") String type,
     @JsonProperty("source") String source,
     @JsonProperty("params") String params,
-    @JsonProperty("label") String label,
-    @JsonProperty("bounds") String bounds) {}
+    @JsonProperty("label") String label) {}

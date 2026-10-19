@@ -16,7 +16,6 @@ import {
     getMarketHolidays,
     getCachedMarketHolidays,
     type MarketHoliday,
-    parseBounds,
     STORAGE_KEY_MARKET_HOLIDAYS
 } from './api';
 
@@ -114,30 +113,6 @@ describe('API Service Layer Tests', () => {
             const result = await getIndicatorConfigs();
             expect(result).toEqual(mockConfigs);
             expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/indicator-definitions'));
-        });
-
-        it('should return indicator configs with bounds directly from API response', async () => {
-            const mockConfigs = [
-                { timeframe: 'DAILY' as const, type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)', bounds: 'lower=30,upper=70' },
-                { timeframe: 'DAILY' as const, type: 'STOCHASTIC', source: 'CLOSE', params: 'k=14,kSmooth=3,dSmooth=3', label: 'Stoch(14,3,3)', bounds: 'lower=20,upper=80' }
-            ];
-
-            mockedAxios.get.mockResolvedValueOnce({ data: mockConfigs });
-
-            const result = await getIndicatorConfigs();
-            expect(result).toEqual(mockConfigs);
-        });
-    });
-
-    describe('parseBounds', () => {
-        it('should parse valid bounds string into lower and upper numbers', () => {
-            expect(parseBounds('lower=30,upper=70')).toEqual({ lower: 30, upper: 70 });
-            expect(parseBounds('lower=20,upper=80')).toEqual({ lower: 20, upper: 80 });
-        });
-
-        it('should return empty object for undefined or empty string', () => {
-            expect(parseBounds(undefined)).toEqual({});
-            expect(parseBounds('')).toEqual({});
         });
     });
 
