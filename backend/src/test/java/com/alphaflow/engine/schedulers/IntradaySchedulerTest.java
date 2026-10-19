@@ -91,6 +91,44 @@ class IntradaySchedulerTest {
   void testRunScheduledUpdateAndRunOnStartupDelegateToRun() {
     scheduler.runScheduledUpdate();
     scheduler.runOnStartup();
+    verify(downloader, times(1)).downloadIntradayPrices();
+  }
+
+  @Test
+  void testSyncIntradayPricesOnStartupExceptionHandled() {
+    doThrow(new RuntimeException("Simulated startup failure"))
+        .when(downloader)
+        .downloadIntradayPrices();
+
+    scheduler.syncIntradayPricesOnStartup();
+    verify(downloader, times(1)).downloadIntradayPrices();
+  }
+
+  @Test
+  void testSyncIntradayPricesOnStartupConcurrentSkipped() throws Exception {
+    CountDownLatch startLatch = new CountDownLatch(1);
+    CountDownLatch finishLatch = new CountDownLatch(1);
+
+    doAnswer(
+            invocation -> {
+              startLatch.countDown();
+              finishLatch.await(5, TimeUnit.SECONDS);
+              return 0;
+            })
+        .when(downloader)
+        .downloadIntradayPrices();
+
+    Thread thread = new Thread(() -> scheduler.syncIntradayPricesOnStartup());
+    thread.start();
+
+    startLatch.await(2, TimeUnit.SECONDS);
+    // Second invocation skipped because first is still running
+    scheduler.syncIntradayPricesOnStartup();
+
+    finishLatch.countDown();
+    thread.join(2000);
+
+    verify(downloader, times(1)).downloadIntradayPrices();
   }
 
   @Test

@@ -39,7 +39,6 @@ public class IntradayScheduler {
 
   @Scheduled(cron = "0 * 9-15 * * MON-FRI", zone = MarketConstants.TIMEZONE_KOLKATA)
   public void runScheduledUpdate() {
-    log.info("Starting scheduled Angel One intraday update cycle...");
     run();
   }
 
@@ -47,7 +46,28 @@ public class IntradayScheduler {
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
     log.info("Starting initial Angel One intraday sync upon startup...");
+    syncIntradayPricesOnStartup();
     run();
+  }
+
+  public void syncIntradayPricesOnStartup() {
+    if (running.compareAndSet(false, true)) {
+      try {
+        log.info("Step 1/1: Syncing Angel One 15-minute intraday candles on startup...");
+        long start = System.currentTimeMillis();
+        int newlyIngestedCandles = angelOneDownloader.downloadIntradayPrices();
+        log.info(
+            "Startup intraday sync completed in {}. Newly ingested candles: {}",
+            SchedulerUtils.formatDuration(System.currentTimeMillis() - start),
+            newlyIngestedCandles);
+      } catch (Exception exception) {
+        log.error("Error occurred during startup intraday candle sync", exception);
+      } finally {
+        running.set(false);
+      }
+    } else {
+      log.warn("Startup intraday candle sync skipped: an update is already in progress.");
+    }
   }
 
   public void run() {
@@ -66,6 +86,7 @@ public class IntradayScheduler {
         angelOneConfig.getSessionEndTime(),
         Country.IN)) {
       if (running.compareAndSet(false, true)) {
+        log.info("Starting scheduled Angel One intraday update cycle...");
         long cycleStart = System.currentTimeMillis();
         try {
           log.info("Step 1/3: Syncing Angel One 15-minute intraday candles...");
