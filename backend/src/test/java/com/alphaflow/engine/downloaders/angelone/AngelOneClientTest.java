@@ -3,9 +3,11 @@ package com.alphaflow.engine.downloaders.angelone;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.configs.YahooFinanceConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,8 +16,10 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,8 +51,10 @@ class AngelOneClientTest {
 
     objectMapper = new ObjectMapper();
     AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
+    RateLimiter rateLimiter = new RateLimiter(config, new YahooFinanceConfig());
     client =
-        new AngelOneClient(config, authManager, objectMapper, networkHelper, RestClient.builder());
+        new AngelOneClient(
+            config, authManager, objectMapper, networkHelper, rateLimiter, RestClient.builder());
   }
 
   @AfterEach
@@ -93,7 +99,7 @@ class AngelOneClientTest {
 
     List<AngelOneCandle> candles =
         client.getCandleData(
-            MarketConstants.EXCHANGE_NSE,
+            MarketConfig.EXCHANGE_NSE,
             "99926000",
             IntradayTimeframe._15M,
             "2026-09-23 09:15",
@@ -113,7 +119,7 @@ class AngelOneClientTest {
     when(authManager.getValidJwtToken()).thenReturn(null);
     List<AngelOneCandle> candles =
         client.getCandleData(
-            MarketConstants.EXCHANGE_NSE,
+            MarketConfig.EXCHANGE_NSE,
             "99926000",
             IntradayTimeframe._15M,
             "2026-09-23 09:15",
@@ -145,7 +151,7 @@ class AngelOneClientTest {
 
     List<AngelOneCandle> candles =
         client.getCandleData(
-            MarketConstants.EXCHANGE_NSE,
+            MarketConfig.EXCHANGE_NSE,
             "99926000",
             IntradayTimeframe._15M,
             "2026-09-23 09:15",
@@ -156,8 +162,20 @@ class AngelOneClientTest {
   }
 
   @Test
-  void testGetMarketQuoteSuccess() {
-    String quoteJson =
+  void testResolveToken() {
+    assertEquals("99926000", AngelOneClient.resolveToken("NIFTY50"));
+    assertEquals("UNKNOWN", AngelOneClient.resolveToken("UNKNOWN"));
+  }
+
+  @Test
+  void testMapToAngelOneInterval() {
+    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval(IntradayTimeframe._15M));
+    assertEquals("", AngelOneClient.mapToAngelOneInterval(null));
+  }
+
+  @Test
+  void testGetMarketQuotesSuccess() {
+    String jsonResponse =
         """
         {
           "status": true,
@@ -166,11 +184,15 @@ class AngelOneClientTest {
           "data": {
             "fetched": [
               {
-                "exchange": "NSE",
-                "tradingSymbol": "NIFTY",
-                "symbolToken": "99926000",
-                "ltp": 25150.25,
+                "exchange": "NFO",
+                "symbolToken": "12345",
+                "ltp": 620.50,
                 "exchFeedTime": "23-Sep-2026 15:30:00"
+              },
+              {
+                "exchange": "NFO",
+                "symbolToken": "12346",
+                "ltp": 710.00
               }
             ]
           }
@@ -178,45 +200,60 @@ class AngelOneClientTest {
         """;
 
     server.createContext(
-        "/rest/secure/angelbroking/market/v1/quote",
+        "/rest/secure/angelbroking/market/v1/quote/bulk",
         exchange -> {
-          byte[] bytes = quoteJson.getBytes(StandardCharsets.UTF_8);
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, bytes.length);
           try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
           }
         });
+    config.setQuoteUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/market/v1/quote/bulk");
 
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
+    Map<String, AngelOneQuote> quotes =
+        client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345", "12346"));
 
-    assertTrue(quoteOpt.isPresent());
-    AngelOneQuote q = quoteOpt.get();
-    assertEquals(0, new BigDecimal("25150.25").compareTo(q.lastPrice()));
-    assertEquals("23-Sep-2026 15:30:00", q.timestamp());
+    assertEquals(2, quotes.size());
+    assertEquals(0, new BigDecimal("620.50").compareTo(quotes.get("12345").lastPrice()));
+    assertEquals("23-Sep-2026 15:30:00", quotes.get("12345").timestamp());
+    assertEquals(0, new BigDecimal("710.00").compareTo(quotes.get("12346").lastPrice()));
+    assertNotNull(quotes.get("12346").timestamp());
   }
 
   @Test
-  void testGetMarketQuoteNoJwt() {
-    when(authManager.getValidJwtToken()).thenReturn("");
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
-    assertTrue(quoteOpt.isEmpty());
+  void testGetMarketQuotesNullOrEmpty() {
+    Map<String, AngelOneQuote> nullQuotes =
+        client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, null);
+    assertTrue(nullQuotes.isEmpty());
+
+    Map<String, AngelOneQuote> emptyQuotes =
+        client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of());
+    assertTrue(emptyQuotes.isEmpty());
   }
 
   @Test
-  void testGetMarketQuoteErrorResponse() {
+  void testGetMarketQuotesNoJwt() {
+    when(authManager.getValidJwtToken()).thenReturn(null);
+    Map<String, AngelOneQuote> quotes =
+        client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345"));
+    assertTrue(quotes.isEmpty());
+  }
+
+  @Test
+  void testGetMarketQuotesErrorResponseAndInvalidToken() {
     String errorJson =
         """
         {
           "status": false,
-          "message": "Session expired",
+          "message": "Invalid token",
           "errorcode": "AG8001"
         }
         """;
 
     server.createContext(
-        "/rest/secure/angelbroking/market/v1/quote",
+        "/rest/secure/angelbroking/market/v1/quote/error",
         exchange -> {
           byte[] bytes = errorJson.getBytes(StandardCharsets.UTF_8);
           exchange.sendResponseHeaders(200, bytes.length);
@@ -224,24 +261,122 @@ class AngelOneClientTest {
             os.write(bytes);
           }
         });
+    config.setQuoteUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/market/v1/quote/error");
 
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConstants.EXCHANGE_NSE, "99926000");
-    assertTrue(quoteOpt.isEmpty());
+    Map<String, AngelOneQuote> quotes =
+        client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345"));
+    assertTrue(quotes.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
   }
 
   @Test
-  void testResolveToken() {
-    assertEquals("99926000", AngelOneClient.resolveToken("NIFTY50"));
-    assertEquals("99926000", AngelOneClient.resolveToken("nifty50"));
-    assertEquals("99926000", AngelOneClient.resolveToken("NIFTY 50"));
-    assertEquals("UNKNOWN", AngelOneClient.resolveToken("UNKNOWN"));
+  void testFetch15mCandlesSuccess() {
+    String jsonResponse =
+        """
+        {
+          "status": true,
+          "message": "SUCCESS",
+          "errorcode": "",
+          "data": [
+            ["2026-09-23T09:15:00+05:30", 25000.5, 25050.0, 24980.25, 25040.0, 15000]
+          ]
+        }
+        """;
+
+    server.createContext(
+        "/rest/secure/angelbroking/historical/v1/getCandleData/fetch15m",
+        exchange -> {
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    config.setCandleUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/historical/v1/getCandleData/fetch15m");
+
+    OffsetDateTime start = OffsetDateTime.now(MarketConfig.IST_ZONE).minusDays(10);
+    OffsetDateTime end = OffsetDateTime.now(MarketConfig.IST_ZONE);
+
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(MarketConfig.EXCHANGE_NSE, "99926000", start, end);
+    assertFalse(candles.isEmpty());
+    assertEquals(1, candles.size());
   }
 
   @Test
-  void testMapToAngelOneInterval() {
-    assertEquals("FIFTEEN_MINUTE", AngelOneClient.mapToAngelOneInterval(IntradayTimeframe._15M));
-    assertEquals("", AngelOneClient.mapToAngelOneInterval(null));
+  void testFetch15mCandlesMultiChunk() {
+    AtomicInteger callCount = new AtomicInteger(0);
+
+    server.createContext(
+        "/rest/secure/angelbroking/historical/v1/getCandleData/multichunk",
+        exchange -> {
+          int call = callCount.incrementAndGet();
+          String ts = (call == 1) ? "2026-09-23T09:15:00+05:30" : "2026-09-24T09:15:00+05:30";
+          String jsonResponse =
+              "{\"status\": true, \"message\": \"SUCCESS\", \"errorcode\": \"\", \"data\": [[\""
+                  + ts
+                  + "\", 25000.5, 25050.0, 24980.25, 25040.0, 15000]]}";
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    config.setCandleUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/historical/v1/getCandleData/multichunk");
+
+    OffsetDateTime start = OffsetDateTime.now(MarketConfig.IST_ZONE).minusDays(250);
+    OffsetDateTime end = OffsetDateTime.now(MarketConfig.IST_ZONE);
+
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(MarketConfig.EXCHANGE_NSE, "99926000", start, end);
+    assertEquals(2, candles.size());
+  }
+
+  @Test
+  void testFetch15mCandlesMultiChunkDeduplicatesOverlappingCandles() {
+    String jsonResponse =
+        """
+        {
+          "status": true,
+          "message": "SUCCESS",
+          "errorcode": "",
+          "data": [
+            ["2026-09-23T09:15:00+05:30", 25000.5, 25050.0, 24980.25, 25040.0, 15000]
+          ]
+        }
+        """;
+
+    server.createContext(
+        "/rest/secure/angelbroking/historical/v1/getCandleData/dedup",
+        exchange -> {
+          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, bytes.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
+          }
+        });
+    config.setCandleUrl(
+        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/historical/v1/getCandleData/dedup");
+
+    OffsetDateTime start = OffsetDateTime.now(MarketConfig.IST_ZONE).minusDays(250);
+    OffsetDateTime end = OffsetDateTime.now(MarketConfig.IST_ZONE);
+
+    List<AngelOneCandle> candles =
+        client.fetch15mCandles(MarketConfig.EXCHANGE_NSE, "99926000", start, end);
+    assertEquals(1, candles.size(), "Expected overlapping identical candles across chunks to be deduplicated");
+  }
+
+  @Test
+  void testFetch15mCandlesMissingParams() {
+    assertTrue(client.fetch15mCandles(null, "99926000", OffsetDateTime.now(), OffsetDateTime.now()).isEmpty());
+    assertTrue(client.fetch15mCandles("NSE", null, OffsetDateTime.now(), OffsetDateTime.now()).isEmpty());
+    assertTrue(client.fetch15mCandles("NSE", "99926000", null, OffsetDateTime.now()).isEmpty());
+    assertTrue(client.fetch15mCandles("NSE", "99926000", OffsetDateTime.now(), null).isEmpty());
   }
 }

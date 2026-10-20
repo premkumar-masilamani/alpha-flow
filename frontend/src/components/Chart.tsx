@@ -1009,22 +1009,16 @@ const Chart: React.FC<ChartProps> = ({
                     }, paneIndex);
                     line.setData(points);
 
-                    // Add dynamic bounds lines from backend config for subpane oscillator series
+                    // Add hardcoded bounds lines for subpane oscillator series
                     if (placement === 'oscillator') {
-                        const matchedConfig = configs.find(
-                            (c) => c.type === series.type && c.params === series.params
-                        );
-                        let upper = matchedConfig?.upperBound;
-                        let lower = matchedConfig?.lowerBound;
-
-                        // Fallback defaults
-                        if (upper === undefined || upper === null) {
-                            if (series.type === 'RSI') upper = 70;
-                            else if (series.type === 'STOCHASTIC') upper = 80;
-                        }
-                        if (lower === undefined || lower === null) {
-                            if (series.type === 'RSI') lower = 30;
-                            else if (series.type === 'STOCHASTIC') lower = 20;
+                        let upper: number | undefined;
+                        let lower: number | undefined;
+                        if (series.type === 'RSI') {
+                            upper = 70;
+                            lower = 30;
+                        } else if (series.type === 'STOCHASTIC') {
+                            upper = 80;
+                            lower = 20;
                         }
 
                         if (upper !== undefined && upper !== null) {

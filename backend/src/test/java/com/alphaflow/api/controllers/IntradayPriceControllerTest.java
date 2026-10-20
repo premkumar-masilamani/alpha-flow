@@ -7,7 +7,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.api.dtos.OhlcvDto;
+import com.alphaflow.api.dtos.QuoteDto;
 import com.alphaflow.api.services.IntradayPriceService;
+import com.alphaflow.api.services.LiveQuoteService;
 import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.common.exceptions.ResourceNotFoundException;
@@ -25,6 +27,7 @@ class IntradayPriceControllerTest {
   @Test
   void testGetIntradayPriceDataForTickerSuccess() {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
+    LiveQuoteService liveQuoteService = mock(LiveQuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker =
@@ -53,7 +56,7 @@ class IntradayPriceControllerTest {
         .thenReturn(List.of(dto));
 
     IntradayPriceController controller =
-        new IntradayPriceController(intradayPriceService, tickerService);
+        new IntradayPriceController(intradayPriceService, liveQuoteService, tickerService);
 
     // Call without endDate (resolves to today)
     List<OhlcvDto> resultWithoutEndDate =
@@ -67,11 +70,23 @@ class IntradayPriceControllerTest {
             "NIFTY50", IntradayTimeframe._15M, 0, 250, explicitEndDate);
     assertEquals(1, resultWithEndDate.size());
     assertEquals(candleTime, resultWithEndDate.getFirst().priceDate());
+
+    // Quote
+    QuoteDto mockQuote =
+        QuoteDto.builder()
+            .currentPrice(BigDecimal.valueOf(25040.0))
+            .timestamp("2026-09-23T09:15:00+05:30")
+            .build();
+    when(liveQuoteService.getQuote(ticker)).thenReturn(mockQuote);
+    QuoteDto quoteRes = controller.getQuoteForTicker("NIFTY50");
+    assertEquals(BigDecimal.valueOf(25040.0), quoteRes.currentPrice());
+    assertEquals("2026-09-23T09:15:00+05:30", quoteRes.timestamp());
   }
 
   @Test
   void testGetIntradayPriceDataForTickerSizeClamping() {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
+    LiveQuoteService liveQuoteService = mock(LiveQuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker =
@@ -88,7 +103,7 @@ class IntradayPriceControllerTest {
         .thenReturn(List.of());
 
     IntradayPriceController controller =
-        new IntradayPriceController(intradayPriceService, tickerService);
+        new IntradayPriceController(intradayPriceService, liveQuoteService, tickerService);
 
     List<OhlcvDto> clampedMax =
         controller.getIntradayPriceDataForTicker("NIFTY50", IntradayTimeframe._15M, 0, 5000, null);
@@ -102,6 +117,7 @@ class IntradayPriceControllerTest {
   @Test
   void testGetIntradayPriceDataForTickerUnsupportedTimeframe() {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
+    LiveQuoteService liveQuoteService = mock(LiveQuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     Ticker ticker =
@@ -109,7 +125,7 @@ class IntradayPriceControllerTest {
     when(tickerService.getTicker("NIFTY50")).thenReturn(ticker);
 
     IntradayPriceController controller =
-        new IntradayPriceController(intradayPriceService, tickerService);
+        new IntradayPriceController(intradayPriceService, liveQuoteService, tickerService);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -119,13 +135,14 @@ class IntradayPriceControllerTest {
   @Test
   void testGetIntradayPriceDataForTickerTickerNotFound() {
     IntradayPriceService intradayPriceService = mock(IntradayPriceService.class);
+    LiveQuoteService liveQuoteService = mock(LiveQuoteService.class);
     TickerService tickerService = mock(TickerService.class);
 
     when(tickerService.getTicker("UNKNOWN"))
         .thenThrow(new ResourceNotFoundException("Ticker not found: UNKNOWN"));
 
     IntradayPriceController controller =
-        new IntradayPriceController(intradayPriceService, tickerService);
+        new IntradayPriceController(intradayPriceService, liveQuoteService, tickerService);
 
     assertThrows(
         ResourceNotFoundException.class,

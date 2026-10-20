@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.configs.YahooFinanceConfig;
+import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
@@ -110,8 +111,9 @@ class YahooFinanceDownloaderTest {
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     YahooFinanceConfig config = createConfig();
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -141,8 +143,9 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     // Verifies both AAPL and MSFT processed, and saveAll was called twice
     assertEquals(4, ingestedRows);
@@ -167,8 +170,9 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
@@ -192,8 +196,9 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -217,8 +222,9 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -230,8 +236,9 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -255,54 +262,12 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
-  }
-
-  @Test
-  void testInterruptedDuringThrottle() {
-    YahooFinanceConfig config = createConfig();
-    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(2000L);
-
-    Ticker t1 = new Ticker();
-    t1.setTickerId(1L);
-    t1.setTickerSymbol("AAPL");
-    t1.setCountry(Country.US);
-    t1.setActive(true);
-    Ticker t2 = new Ticker();
-    t2.setTickerId(2L);
-    t2.setTickerSymbol("MSFT");
-    t2.setCountry(Country.US);
-    t2.setActive(true);
-
-    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
-    latestDates.put(t1, LocalDate.of(2025, 8, 12));
-    latestDates.put(t2, LocalDate.of(2025, 8, 12));
-
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
-
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-
-    Thread mainThread = Thread.currentThread();
-    new Thread(
-            () -> {
-              try {
-                Thread.sleep(200);
-              } catch (InterruptedException ignored) {
-                // expected interrupt during sleep
-              }
-              mainThread.interrupt();
-            })
-        .start();
-
-    downloader.downloadDailyPrices();
-
-    verify(dailyRepo, times(1)).saveAll(any());
   }
 
   @Test
@@ -323,24 +288,11 @@ class YahooFinanceDownloaderTest {
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
-    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
-  }
-
-  @Test
-  void testConstructorWithCustomRestClientBuilder() {
-    YahooFinanceConfig config = createConfig();
-    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
-
-    YahooFinanceDownloader downloader =
-        new YahooFinanceDownloader(
-            config, dailyRepo, org.springframework.web.client.RestClient.builder());
-    int ingestedRows = downloader.downloadDailyPrices();
-
-    assertEquals(0, ingestedRows);
   }
 }

@@ -8,7 +8,9 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -16,6 +18,10 @@ import org.springframework.web.client.RestClient;
 @Slf4j
 @Service
 public class TelegramNotificationService implements NotificationService {
+
+  private static final Set<Character> RESERVED_CHARACTERS =
+      Set.of(
+          '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!');
 
   private final TelegramConfig telegramConfig;
   private final NotificationLogRepository notificationLogRepository;
@@ -27,6 +33,22 @@ public class TelegramNotificationService implements NotificationService {
     this.telegramConfig = telegramConfig;
     this.notificationLogRepository = notificationLogRepository;
     this.restClient = RestClient.builder().build();
+  }
+
+  public static String escape(String text) {
+    if (StringUtils.isNotEmpty(text)) {
+      StringBuilder builder = new StringBuilder(text.length() * 2);
+      for (int index = 0; index < text.length(); index++) {
+        char character = text.charAt(index);
+        if (RESERVED_CHARACTERS.contains(character)) {
+          builder.append('\\');
+        }
+        builder.append(character);
+      }
+      return builder.toString();
+    } else {
+      return text;
+    }
   }
 
   @Override
@@ -59,7 +81,9 @@ public class TelegramNotificationService implements NotificationService {
               .build();
       notificationLogRepository.save(notificationLog);
 
-      if (capturedException != null) {
+      if (capturedException == null) {
+        log.info("Telegram notification sent successfully.");
+      } else {
         log.error("Failed to send Telegram notification: {}", error);
         throw new NotificationException("Failed to send Telegram notification", capturedException);
       }
@@ -73,8 +97,8 @@ public class TelegramNotificationService implements NotificationService {
     String encodedMessage = URLEncoder.encode(message, StandardCharsets.UTF_8);
     return telegramConfig
         .getMessageUrl()
-        .replace("{TELEGRAM_API_TOKEN}", telegramConfig.getApiToken())
-        .replace("{TELEGRAM_CHAT_ID}", telegramConfig.getChatId())
-        .replace("{MESSAGE}", encodedMessage);
+        .replace("{ApiToken}", telegramConfig.getApiToken())
+        .replace("{chatId}", telegramConfig.getChatId())
+        .replace("{message}", encodedMessage);
   }
 }

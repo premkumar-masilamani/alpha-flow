@@ -399,4 +399,46 @@ class MarketTradingCalendarTest {
         MarketTradingCalendar.getExpectedLatestCompletedCandleTime(
             holidayAt11, sessionStart, sessionEnd, candleMinutes, Country.IN));
   }
+
+  @Test
+  void testIsMarketSessionOpenDuringTradingHours() {
+    ZonedDateTime openTime = ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, istZone);
+    assertTrue(
+        MarketTradingCalendar.isMarketSessionOpen(
+            openTime, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
+  }
+
+  @Test
+  void testIsMarketSessionOpenBoundaryTimes() {
+    ZonedDateTime startTime = ZonedDateTime.of(2026, 10, 16, 9, 15, 0, 0, istZone);
+    assertTrue(
+        MarketTradingCalendar.isMarketSessionOpen(
+            startTime, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
+
+    ZonedDateTime endTime = ZonedDateTime.of(2026, 10, 16, 15, 30, 0, 0, istZone);
+    assertTrue(
+        MarketTradingCalendar.isMarketSessionOpen(
+            endTime, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
+  }
+
+  @Test
+  void testIsMarketSessionOpenWhenClosed() {
+    // Weekend (Saturday)
+    ZonedDateTime weekend = ZonedDateTime.of(2026, 10, 17, 10, 0, 0, 0, istZone);
+    assertFalse(
+        MarketTradingCalendar.isMarketSessionOpen(
+            weekend, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
+
+    // Before session start (09:14)
+    ZonedDateTime preMarket = ZonedDateTime.of(2026, 10, 16, 9, 14, 0, 0, istZone);
+    assertFalse(
+        MarketTradingCalendar.isMarketSessionOpen(
+            preMarket, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
+
+    // After session end (15:31)
+    ZonedDateTime postMarket = ZonedDateTime.of(2026, 10, 16, 15, 31, 0, 0, istZone);
+    assertFalse(
+        MarketTradingCalendar.isMarketSessionOpen(
+            postMarket, LocalTime.of(9, 15), LocalTime.of(15, 30), Country.IN));
+  }
 }

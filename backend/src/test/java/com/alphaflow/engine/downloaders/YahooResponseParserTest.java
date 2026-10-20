@@ -10,22 +10,11 @@ import com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class YahooResponseParserTest {
-
-  @Test
-  void testConstructorIsPrivate() throws Exception {
-    Constructor<YahooResponseParser> constructor =
-        YahooResponseParser.class.getDeclaredConstructor();
-    assertTrue(Modifier.isPrivate(constructor.getModifiers()));
-    constructor.setAccessible(true);
-    assertNotNull(constructor.newInstance());
-  }
 
   @Test
   void testParseValidJson() throws IOException {

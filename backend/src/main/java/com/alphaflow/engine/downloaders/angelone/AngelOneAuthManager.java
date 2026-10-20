@@ -1,6 +1,8 @@
 package com.alphaflow.engine.downloaders.angelone;
 
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -11,15 +13,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Component
 @Slf4j
 public class AngelOneAuthManager {
 
   private final AngelOneConfig config;
-  private final TotpGenerator totpGenerator;
+  private final AngelOneTotpGenerator angelOneTotpGenerator;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
+  private final RateLimiter rateLimiter;
   private final RestClient restClient;
 
   private String jwtToken;
@@ -29,15 +33,17 @@ public class AngelOneAuthManager {
 
   public AngelOneAuthManager(
       AngelOneConfig config,
-      TotpGenerator totpGenerator,
+      AngelOneTotpGenerator angelOneTotpGenerator,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
+      RateLimiter rateLimiter,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           RestClient.Builder restClientBuilder) {
     this.config = config;
-    this.totpGenerator = totpGenerator;
+    this.angelOneTotpGenerator = angelOneTotpGenerator;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
+    this.rateLimiter = rateLimiter;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
   }
@@ -60,20 +66,9 @@ public class AngelOneAuthManager {
   }
 
   public synchronized boolean login() {
-    if (config.getApiKey() == null
-        || config.getApiKey().isBlank()
-        || config.getClientCode() == null
-        || config.getClientCode().isBlank()
-        || config.getPassword() == null
-        || config.getPassword().isBlank()
-        || config.getTotpKey() == null
-        || config.getTotpKey().isBlank()) {
-      log.warn("Angel One credentials are incomplete. Skipping authentication.");
-      return false;
-    }
-
     try {
-      String totp = totpGenerator.generateCurrentTotp(config.getTotpKey());
+      rateLimiter.throttleAngelOneLogin();
+      String totp = angelOneTotpGenerator.generateCurrentTotp(config.getTotpKey());
       Map<String, String> payload = new HashMap<>();
       payload.put("clientcode", config.getClientCode());
       payload.put("password", config.getPassword());
@@ -89,29 +84,29 @@ public class AngelOneAuthManager {
               .toEntity(String.class);
 
       String responseBody = response.getBody();
-      if (responseBody == null) {
+      if (responseBody != null) {
+        JsonNode root = objectMapper.readTree(responseBody);
+        boolean status = root.path("status").asBoolean(false);
+        if (status) {
+          JsonNode data = root.path("data");
+          this.jwtToken = data.path("jwtToken").asText(null);
+          this.refreshToken = data.path("refreshToken").asText(null);
+          this.feedToken = data.path("feedToken").asText(null);
+          this.tokenGeneratedAt = Instant.now();
+          log.info("Angel One authentication successful for client code: {}", config.getClientCode());
+          return true;
+        } else {
+          log.error(
+              "Angel One login response returned failure: message={}, errorcode={}",
+              root.path("message").asText(),
+              root.path("errorcode").asText());
+          return false;
+        }
+      } else {
         log.error("Angel One login returned empty response body.");
         return false;
       }
-
-      JsonNode root = objectMapper.readTree(responseBody);
-      boolean status = root.path("status").asBoolean(false);
-      if (status) {
-        JsonNode data = root.path("data");
-        this.jwtToken = data.path("jwtToken").asText(null);
-        this.refreshToken = data.path("refreshToken").asText(null);
-        this.feedToken = data.path("feedToken").asText(null);
-        this.tokenGeneratedAt = Instant.now();
-        log.info("Angel One authentication successful for client code: {}", config.getClientCode());
-        return true;
-      } else {
-        log.error(
-            "Angel One login response returned failure: message={}, errorcode={}",
-            root.path("message").asText(),
-            root.path("errorcode").asText());
-        return false;
-      }
-    } catch (Exception e) {
+    } catch (RestClientException | JsonProcessingException e) {
       log.error(
           "Exception occurred while authenticating with Angel One SmartAPI: {}", e.getMessage());
       return false;

@@ -3,7 +3,7 @@ package com.alphaflow.api.mappers;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.alphaflow.api.dtos.OhlcvDto;
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
@@ -35,7 +35,7 @@ class OhlcvMapperTest {
     OhlcvDto dto = OhlcvMapper.toDto(dailyPrice);
 
     assertNotNull(dto);
-    assertEquals(date.atStartOfDay(MarketConstants.IST_ZONE).toOffsetDateTime(), dto.priceDate());
+    assertEquals(date.atStartOfDay(MarketConfig.IST_ZONE).toOffsetDateTime(), dto.priceDate());
     assertEquals(ZoneOffset.ofHoursMinutes(5, 30), dto.priceDate().getOffset());
     assertEquals(new BigDecimal("25000.0000"), dto.priceOpen());
     assertEquals(new BigDecimal("25100.0000"), dto.priceHigh());
@@ -62,9 +62,9 @@ class OhlcvMapperTest {
     OhlcvDto dto = OhlcvMapper.toDto(dailyPrice);
 
     assertNotNull(dto);
-    assertEquals(date.atStartOfDay(MarketConstants.EST_ZONE).toOffsetDateTime(), dto.priceDate());
+    assertEquals(date.atStartOfDay(MarketConfig.EST_ZONE).toOffsetDateTime(), dto.priceDate());
     assertEquals(
-        date.atStartOfDay(MarketConstants.EST_ZONE).getOffset(), dto.priceDate().getOffset());
+        date.atStartOfDay(MarketConfig.EST_ZONE).getOffset(), dto.priceDate().getOffset());
     assertEquals(new BigDecimal("180.0000"), dto.priceOpen());
   }
 
@@ -108,14 +108,14 @@ class OhlcvMapperTest {
     OhlcvDto dto = OhlcvMapper.toDto(weeklyPrice);
 
     assertNotNull(dto);
-    assertEquals(date.atStartOfDay(MarketConstants.EST_ZONE).toOffsetDateTime(), dto.priceDate());
+    assertEquals(date.atStartOfDay(MarketConfig.EST_ZONE).toOffsetDateTime(), dto.priceDate());
   }
 
   @Test
   void testIntradayPriceMapping() {
     Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").country(Country.IN).build();
     OffsetDateTime time =
-        LocalDate.of(2026, 9, 23).atTime(9, 15).atZone(MarketConstants.IST_ZONE).toOffsetDateTime();
+        LocalDate.of(2026, 9, 23).atTime(9, 15).atZone(MarketConfig.IST_ZONE).toOffsetDateTime();
     IntradayPrice intradayPrice =
         IntradayPrice.builder()
             .ticker(ticker)

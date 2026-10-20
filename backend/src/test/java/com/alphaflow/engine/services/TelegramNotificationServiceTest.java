@@ -78,7 +78,7 @@ class TelegramNotificationServiceTest {
     telegramConfig.setChatId("123456");
     telegramConfig.setMessageUrl(
         serverBaseUrl
-            + "/bot{TELEGRAM_API_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}&parse_mode=MarkdownV2");
+            + "/bot{ApiToken}/sendMessage?chat_id={chatId}&text={message}&parse_mode=MarkdownV2");
 
     service = new TelegramNotificationService(telegramConfig, notificationLogRepository);
   }
@@ -125,7 +125,7 @@ class TelegramNotificationServiceTest {
   void testSendNotificationHttpErrorThrowsExceptionAndLogsFailure() {
     telegramConfig.setMessageUrl(
         serverBaseUrl
-            + "/error/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}&parse_mode=MarkdownV2");
+            + "/error/sendMessage?chat_id={chatId}&text={message}&parse_mode=MarkdownV2");
 
     NotificationException exception =
         assertThrows(
@@ -143,7 +143,7 @@ class TelegramNotificationServiceTest {
   @Test
   void testSendNotificationConnectionFailureThrowsException() {
     telegramConfig.setMessageUrl(
-        "http://localhost:1/bot{TELEGRAM_API_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}");
+        "http://localhost:1/bot{ApiToken}/sendMessage?chat_id={chatId}&text={message}");
 
     NotificationException exception =
         assertThrows(
@@ -164,5 +164,41 @@ class TelegramNotificationServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.sendNotification(null));
     assertEquals("Notification message cannot be null", exception.getMessage());
     verify(notificationLogRepository, never()).save(any());
+  }
+
+  @Test
+  void testSendNotificationWithCustomTokenAndChatId() {
+    telegramConfig.setApiToken("override-token");
+    telegramConfig.setChatId("987654");
+    service.sendNotification("Custom token message");
+
+    String receivedQuery = lastReceivedQuery.get();
+    assertNotNull(receivedQuery);
+    assertTrue(receivedQuery.contains("chat_id=987654"));
+  }
+
+  @Test
+  void testEscapeNullAndEmpty() {
+    assertNull(TelegramNotificationService.escape(null));
+    assertEquals("", TelegramNotificationService.escape(""));
+  }
+
+  @Test
+  void testEscapeWithoutSpecialCharacters() {
+    assertEquals("Hello World 123", TelegramNotificationService.escape("Hello World 123"));
+  }
+
+  @Test
+  void testEscapeAllReservedCharacters() {
+    String reservedCharacters = "_*[]()~`>#+-=|{}.!";
+    String expected = "\\_\\*\\[\\]\\(\\)\\~\\`\\>\\#\\+\\-\\=\\|\\{\\}\\.\\!";
+    assertEquals(expected, TelegramNotificationService.escape(reservedCharacters));
+  }
+
+  @Test
+  void testEscapeMixedText() {
+    String rawText = "Breakout on AAPL: Target [150.50] (Score: +5.2)!";
+    String expected = "Breakout on AAPL: Target \\[150\\.50\\] \\(Score: \\+5\\.2\\)\\!";
+    assertEquals(expected, TelegramNotificationService.escape(rawText));
   }
 }

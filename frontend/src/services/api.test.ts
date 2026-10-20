@@ -82,7 +82,7 @@ describe('API Service Layer Tests', () => {
             const result = await getCandleData('NIFTY50', '15M', 0);
             expect(result).toEqual(mockCandles);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/intraday'),
+                expect.stringContaining('/tickers/NIFTY50/candle'),
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m' }) })
             );
         });
@@ -96,7 +96,7 @@ describe('API Service Layer Tests', () => {
             const result = await getCandleData('NIFTY50', '15M', 0, 250, false, '2016-02-05');
             expect(result).toEqual(mockCandles);
             expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/intraday'),
+                expect.stringContaining('/tickers/NIFTY50/candle'),
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m', endDate: '2016-02-05' }) })
             );
         });
@@ -113,21 +113,6 @@ describe('API Service Layer Tests', () => {
             const result = await getIndicatorConfigs();
             expect(result).toEqual(mockConfigs);
             expect(mockedAxios.get).toHaveBeenCalledWith(expect.stringContaining('/indicator-definitions'));
-        });
-
-        it('should enrich RSI and STOCHASTIC indicator configs with bounds', async () => {
-            const mockConfigs = [
-                { timeframe: 'DAILY' as const, type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)' },
-                { timeframe: 'DAILY' as const, type: 'STOCHASTIC', source: 'CLOSE', params: 'k=14,kSmooth=3,dSmooth=3', label: 'Stoch(14,3,3)' }
-            ];
-
-            mockedAxios.get.mockResolvedValueOnce({ data: mockConfigs });
-
-            const result = await getIndicatorConfigs();
-            expect(result).toEqual([
-                { timeframe: 'DAILY', type: 'RSI', source: 'CLOSE', params: 'period=14', label: 'RSI(14)', upperBound: 70, lowerBound: 30 },
-                { timeframe: 'DAILY', type: 'STOCHASTIC', source: 'CLOSE', params: 'k=14,kSmooth=3,dSmooth=3', label: 'Stoch(14,3,3)', upperBound: 80, lowerBound: 20 }
-            ]);
         });
     });
 

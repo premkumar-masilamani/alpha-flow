@@ -23,6 +23,8 @@ make lint
 
 ### Always do
 - Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/`, or `database/` submodules before modifying their files.
+- Fail fast immediately on startup or invocation if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
+- Use `org.apache.commons.lang3.StringUtils` for string blank/empty checks in the backend rather than custom string utility classes.
 
 ### Ask first
 - Modifying scheduled core jobs or the downloader frequency/rate-limiting logic.
@@ -30,6 +32,8 @@ make lint
 ### Never do
 - Commit secrets, private API keys, or `.env` files.
 - Apply database migrations (all migrations are strictly manual—never ever apply them).
+- Default any variable, configuration property, environment variable, or method/request parameter unless explicitly specified. Silent fallbacks are strictly prohibited.
+- Add `isConfigured()` helper methods or runtime configuration presence checks in services; all required environment variables are mandatory at startup.
 
 ## Project Structure
 ```text

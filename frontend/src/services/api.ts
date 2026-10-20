@@ -60,7 +60,7 @@ export const getCandleData = async (
 
     const isIntraday = timeframe === '15M';
     const url = isIntraday
-        ? `${API_BASE_URL}/tickers/${symbol}/intraday`
+        ? `${API_BASE_URL}/tickers/${symbol}/candle`
         : `${API_BASE_URL}/tickers/${symbol}/data`;
     const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page, size };
     if (endDate && isIntraday) {
@@ -86,8 +86,6 @@ export interface IndicatorConfig {
     source: string;
     params: string;
     label: string;
-    upperBound?: number;
-    lowerBound?: number;
 }
 
 // One bar's reading; `values` is keyed by output name (e.g. MACD -> macd/signal/histogram).
@@ -110,23 +108,7 @@ export const indicatorKey = (i: {type: string; source: string; params: string}):
 
 export const getIndicatorConfigs = async (): Promise<IndicatorConfig[]> => {
     const response = await axios.get(`${API_BASE_URL}/indicator-definitions`);
-    return response.data.map((config: IndicatorConfig) => {
-        if (config.type === 'RSI') {
-            return {
-                ...config,
-                upperBound: 70,
-                lowerBound: 30,
-            };
-        }
-        if (config.type === 'STOCHASTIC') {
-            return {
-                ...config,
-                upperBound: 80,
-                lowerBound: 20,
-            };
-        }
-        return config;
-    });
+    return response.data;
 };
 
 // Cache indicator series per symbol+timeframe, mirroring the candle cache (backend re-syncs hourly).

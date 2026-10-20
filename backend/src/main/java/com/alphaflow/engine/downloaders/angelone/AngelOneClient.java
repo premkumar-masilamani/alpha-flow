@@ -1,10 +1,12 @@
 package com.alphaflow.engine.downloaders.angelone;
 
-import com.alphaflow.common.constants.MarketConstants;
 import com.alphaflow.common.enums.IntradayTimeframe;
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -15,19 +17,20 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 @Component
 @Slf4j
 public class AngelOneClient {
 
-  private static final ZoneId IST_ZONE = MarketConstants.IST_ZONE;
+  private static final ZoneId IST_ZONE = MarketConfig.IST_ZONE;
   private static final DateTimeFormatter CANDLE_TIMESTAMP_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX");
 
@@ -35,6 +38,7 @@ public class AngelOneClient {
   private final AngelOneAuthManager authManager;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
+  private final RateLimiter rateLimiter;
   private final RestClient restClient;
 
   public AngelOneClient(
@@ -42,18 +46,20 @@ public class AngelOneClient {
       AngelOneAuthManager authManager,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
+      RateLimiter rateLimiter,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           RestClient.Builder restClientBuilder) {
     this.config = config;
     this.authManager = authManager;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
+    this.rateLimiter = rateLimiter;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder()).build();
   }
 
   public static String resolveToken(String symbol) {
-    if ("NIFTY50".equalsIgnoreCase(symbol) || "NIFTY 50".equalsIgnoreCase(symbol)) {
+    if ("NIFTY50".equalsIgnoreCase(symbol)) {
       return "99926000";
     }
     return symbol;
@@ -64,6 +70,52 @@ public class AngelOneClient {
       return "FIFTEEN_MINUTE";
     }
     return timeframe != null ? timeframe.getValue() : "";
+  }
+
+  public static final int ANGEL_ONE_15M_MAX_CHUNK_DAYS = 200;
+  private static final DateTimeFormatter CHUNK_DATE_TIME_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+  public List<AngelOneCandle> fetch15mCandles(
+      String exchange,
+      String symbolToken,
+      OffsetDateTime startWindow,
+      OffsetDateTime expectedCompletedTime) {
+    if (exchange != null && symbolToken != null && startWindow != null && expectedCompletedTime != null) {
+      Map<OffsetDateTime, AngelOneCandle> candleMap = new LinkedHashMap<>();
+      OffsetDateTime currentWindowStart = startWindow;
+      while (currentWindowStart.isBefore(expectedCompletedTime)) {
+        OffsetDateTime candidateWindowEnd =
+            currentWindowStart.plusDays(ANGEL_ONE_15M_MAX_CHUNK_DAYS);
+        OffsetDateTime currentWindowEnd =
+            candidateWindowEnd.isBefore(expectedCompletedTime)
+                ? candidateWindowEnd
+                : expectedCompletedTime;
+
+        String fromDateStr = currentWindowStart.format(CHUNK_DATE_TIME_FORMATTER);
+        String toDateStr = currentWindowEnd.format(CHUNK_DATE_TIME_FORMATTER);
+
+        log.info(
+            "Syncing 15m candles for token {} from {} to {}",
+            symbolToken,
+            fromDateStr,
+            toDateStr);
+
+        List<AngelOneCandle> chunk =
+            getCandleData(exchange, symbolToken, IntradayTimeframe._15M, fromDateStr, toDateStr);
+        if (chunk != null) {
+          for (AngelOneCandle candle : chunk) {
+            candleMap.putIfAbsent(candle.timestamp(), candle);
+          }
+        }
+
+        currentWindowStart = currentWindowEnd.plusMinutes(1);
+      }
+      return new ArrayList<>(candleMap.values());
+    } else {
+      log.warn("Cannot fetch 15m candles: missing required parameters.");
+      return Collections.emptyList();
+    }
   }
 
   public List<AngelOneCandle> getCandleData(
@@ -82,31 +134,27 @@ public class AngelOneClient {
     body.put("fromdate", fromDate);
     body.put("todate", toDate);
 
-    for (int attempt = 1; attempt <= 2; attempt++) {
-      String jwt = authManager.getValidJwtToken();
-      if (jwt == null || jwt.isBlank()) {
-        log.warn("Cannot fetch candle data: no valid Angel One JWT token.");
-        return Collections.emptyList();
-      }
+    String jwt = authManager.getValidJwtToken();
+    if (jwt == null || jwt.isBlank()) {
+      log.warn("Cannot fetch candle data: no valid Angel One JWT token.");
+      return Collections.emptyList();
+    }
 
-      try {
-        ResponseEntity<String> response =
-            restClient
-                .post()
-                .uri(config.getCandleUrl())
-                .headers(
-                    headers ->
-                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-                .body(body)
-                .retrieve()
-                .toEntity(String.class);
+    try {
+      rateLimiter.throttleAngelOneCandles();
+      ResponseEntity<String> response =
+          restClient
+              .post()
+              .uri(config.getCandleUrl())
+              .headers(
+                  headers ->
+                      networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
+              .body(body)
+              .retrieve()
+              .toEntity(String.class);
 
-        String responseBody = response.getBody();
-        if (responseBody == null) {
-          log.warn("Empty response body from getCandleData");
-          return Collections.emptyList();
-        }
-
+      String responseBody = response.getBody();
+      if (responseBody != null) {
         JsonNode root = objectMapper.readTree(responseBody);
         if (root.path("status").asBoolean(false)) {
           JsonNode dataNode = root.path("data");
@@ -134,30 +182,29 @@ public class AngelOneClient {
             authManager.invalidateSession();
           }
         }
-      } catch (Exception e) {
-        log.warn(
-            "Attempt {}/2 failed to fetch candle data from Angel One: {}", attempt, e.getMessage());
-        if (attempt == 1) {
-          authManager.invalidateSession();
-          sleep(config.getDelayMilliseconds());
-        }
+      } else {
+        log.warn("Empty response body from getCandleData");
       }
+    } catch (RestClientException | JsonProcessingException e) {
+      log.warn("Failed to fetch candle data from Angel One: {}", e.getMessage());
     }
     return Collections.emptyList();
   }
 
-  public Optional<AngelOneQuote> getMarketQuote(String exchange, String symbolToken) {
-    Map<String, Object> body = new HashMap<>();
-    body.put("mode", "FULL");
-    body.put("exchangeTokens", Map.of(exchange, List.of(symbolToken)));
+  public Map<String, AngelOneQuote> getMarketQuotes(String exchange, List<String> symbolTokens) {
+    if (symbolTokens != null && !symbolTokens.isEmpty()) {
+      Map<String, Object> body = new HashMap<>();
+      body.put("mode", "FULL");
+      body.put("exchangeTokens", Map.of(exchange, symbolTokens));
 
-    for (int attempt = 1; attempt <= 2; attempt++) {
       String jwt = authManager.getValidJwtToken();
       if (jwt == null || jwt.isBlank()) {
-        return Optional.empty();
+        log.warn("Cannot fetch market quotes: no valid Angel One JWT token.");
+        return Collections.emptyMap();
       }
 
       try {
+        rateLimiter.throttleAngelOneLiveQuote();
         ResponseEntity<String> response =
             restClient
                 .post()
@@ -170,42 +217,42 @@ public class AngelOneClient {
                 .toEntity(String.class);
 
         String responseBody = response.getBody();
-        if (responseBody == null) {
-          return Optional.empty();
-        }
-
-        JsonNode root = objectMapper.readTree(responseBody);
-        if (root.path("status").asBoolean(false)) {
-          JsonNode fetchedList = root.path("data").path("fetched");
-          if (fetchedList.isArray() && !fetchedList.isEmpty()) {
-            JsonNode item = fetchedList.get(0);
-            BigDecimal ltp =
-                item.hasNonNull("ltp")
-                    ? new BigDecimal(item.path("ltp").asText())
-                    : BigDecimal.ZERO;
-
-            String timestamp =
-                item.hasNonNull("exchFeedTime")
-                    ? item.path("exchFeedTime").asText()
-                    : OffsetDateTime.now(IST_ZONE).toString();
-
-            return Optional.of(new AngelOneQuote(ltp, timestamp));
+        if (responseBody != null) {
+          JsonNode root = objectMapper.readTree(responseBody);
+          if (root.path("status").asBoolean(false)) {
+            JsonNode fetchedList = root.path("data").path("fetched");
+            if (fetchedList.isArray()) {
+              Map<String, AngelOneQuote> quotes = new HashMap<>();
+              for (JsonNode item : fetchedList) {
+                String token = item.path("symbolToken").asText();
+                if (!token.isBlank()) {
+                  BigDecimal ltp =
+                      item.hasNonNull("ltp")
+                          ? new BigDecimal(item.path("ltp").asText())
+                          : BigDecimal.ZERO;
+                  String timestamp =
+                      item.hasNonNull("exchFeedTime")
+                          ? item.path("exchFeedTime").asText()
+                          : OffsetDateTime.now(IST_ZONE).toString();
+                  quotes.put(token, new AngelOneQuote(ltp, timestamp));
+                }
+              }
+              return quotes;
+            }
+          } else {
+            String errorCode = root.path("errorcode").asText();
+            if ("AG8001".equalsIgnoreCase(errorCode)) {
+              authManager.invalidateSession();
+            }
           }
-        } else {
-          String errorCode = root.path("errorcode").asText();
-          if ("AG8001".equalsIgnoreCase(errorCode)) {
-            authManager.invalidateSession();
-          }
         }
-      } catch (Exception e) {
-        log.warn("Attempt {}/2 failed to fetch quote from Angel One: {}", attempt, e.getMessage());
-        if (attempt == 1) {
-          authManager.invalidateSession();
-          sleep(config.getDelayMilliseconds());
-        }
+      } catch (RestClientException | JsonProcessingException e) {
+        log.warn("Failed to fetch quotes from Angel One: {}", e.getMessage());
       }
+      return Collections.emptyMap();
+    } else {
+      return Collections.emptyMap();
     }
-    return Optional.empty();
   }
 
   OffsetDateTime parseTimestamp(String raw) {
@@ -219,14 +266,6 @@ public class AngelOneClient {
       } catch (Exception ex) {
         return OffsetDateTime.now(IST_ZONE);
       }
-    }
-  }
-
-  private void sleep(long millis) {
-    try {
-      Thread.sleep(millis);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
     }
   }
 }

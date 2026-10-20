@@ -2,10 +2,14 @@ package com.alphaflow.api.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.alphaflow.api.dtos.IndicatorConfigDto;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.util.Map;
@@ -74,6 +78,24 @@ class IndicatorMapperTest {
         "BB (20)",
         IndicatorMapper.label(
             IndicatorType.BB, PriceSource.CLOSE, IndicatorParams.of(Map.of("period", 20))));
+  }
+
+  @Test
+  void testToConfigDto() {
+    IndicatorDefinition def =
+        IndicatorDefinition.builder()
+            .indicatorDefinitionId(1L)
+            .indicatorType(IndicatorType.RSI)
+            .source(PriceSource.CLOSE)
+            .params(Map.of("period", 14))
+            .build();
+
+    IndicatorConfigDto dto = IndicatorMapper.toConfigDto(Timeframe.DAILY, def);
+    assertEquals("DAILY", dto.timeframe());
+    assertEquals("RSI", dto.type());
+    assertEquals("CLOSE", dto.source());
+    assertEquals("period=14", dto.params());
+    assertEquals("RSI (14)", dto.label());
   }
 
   @Test

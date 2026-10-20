@@ -1,7 +1,7 @@
 package com.alphaflow.api.mappers;
 
 import com.alphaflow.api.dtos.OhlcvDto;
-import com.alphaflow.common.constants.MarketConstants;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.WeeklyPrice;
@@ -52,10 +52,10 @@ public class OhlcvMapper {
       return null;
     }
     if (country == Country.IN) {
-      return localDate.atStartOfDay(MarketConstants.IST_ZONE).toOffsetDateTime();
+      return localDate.atStartOfDay(MarketConfig.IST_ZONE).toOffsetDateTime();
     }
     if (country == Country.US) {
-      return localDate.atStartOfDay(MarketConstants.EST_ZONE).toOffsetDateTime();
+      return localDate.atStartOfDay(MarketConfig.EST_ZONE).toOffsetDateTime();
     }
     return localDate.atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
   }
