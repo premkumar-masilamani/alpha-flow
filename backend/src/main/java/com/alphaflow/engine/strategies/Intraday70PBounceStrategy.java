@@ -316,30 +316,11 @@ public class Intraday70PBounceStrategy {
                   "intrinsicValue",
                   TelegramNotificationService.escape(formatPrice(option.intrinsicValue()))),
               Map.entry(
-                  "timeValue", TelegramNotificationService.escape(formatPrice(option.timeValue()))),
-              Map.entry("optionGreeks", buildOptionGreeksMessage(option)));
+                  "timeValue", TelegramNotificationService.escape(formatPrice(option.timeValue()))));
 
       return notificationTemplateEngine.render("notifications/option_details.md", variables);
     } else {
       return notificationTemplateEngine.render("notifications/option_fallback.md", Map.of());
-    }
-  }
-
-  private String buildOptionGreeksMessage(RecommendedOptionDto option) {
-    if (option.delta() != null || option.impliedVolatility() != null || option.theta() != null) {
-      String deltaStr = option.delta() != null ? formatPrice(option.delta()) : "N/A";
-      String ivStr =
-          option.impliedVolatility() != null ? formatPrice(option.impliedVolatility()) : "N/A";
-      String thetaStr = option.theta() != null ? formatPrice(option.theta()) : "N/A";
-
-      Map<String, String> variables =
-          Map.ofEntries(
-              Map.entry("delta", TelegramNotificationService.escape(deltaStr)),
-              Map.entry("iv", TelegramNotificationService.escape(ivStr)),
-              Map.entry("theta", TelegramNotificationService.escape(thetaStr)));
-      return notificationTemplateEngine.render("notifications/option_greeks.md", variables);
-    } else {
-      return "";
     }
   }
 

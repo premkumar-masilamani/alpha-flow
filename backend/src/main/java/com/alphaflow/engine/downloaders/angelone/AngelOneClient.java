@@ -5,9 +5,7 @@ import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -254,90 +252,6 @@ public class AngelOneClient {
       return Collections.emptyMap();
     } else {
       return Collections.emptyMap();
-    }
-  }
-
-  public List<AngelOneOptionGreek> getOptionGreeks(String underlyingName, String expiryDate) {
-    if (underlyingName != null
-        && !underlyingName.isBlank()
-        && expiryDate != null
-        && !expiryDate.isBlank()) {
-      Map<String, String> body = new HashMap<>();
-      body.put("name", underlyingName);
-      body.put("expirydate", expiryDate);
-
-      String jwt = authManager.getValidJwtToken();
-      if (jwt == null || jwt.isBlank()) {
-        log.warn("Cannot fetch option greeks: no valid Angel One JWT token.");
-        return Collections.emptyList();
-      }
-
-      try {
-        rateLimiter.throttleAngelOneOptionGreeks();
-        ResponseEntity<String> response =
-            restClient
-                .post()
-                .uri(config.getOptionGreeksUrl())
-                .headers(
-                    headers ->
-                        networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-                .body(body)
-                .retrieve()
-                .toEntity(String.class);
-
-        String responseBody = response.getBody();
-        if (responseBody != null) {
-          JsonNode root = objectMapper.readTree(responseBody);
-          if (root.path("status").asBoolean(false)) {
-            JsonNode dataNode = root.path("data");
-            if (dataNode.isArray()) {
-              List<AngelOneOptionGreek> greeks = new ArrayList<>();
-              for (JsonNode row : dataNode) {
-                BigDecimal strike =
-                    row.hasNonNull("strikePrice")
-                        ? new BigDecimal(row.path("strikePrice").asText())
-                        : null;
-                String optionTypeStr = row.path("optionType").asText();
-                OptionType optionType =
-                    !optionTypeStr.isBlank() ? OptionType.from(optionTypeStr) : null;
-                BigDecimal delta =
-                    row.hasNonNull("delta") ? new BigDecimal(row.path("delta").asText()) : null;
-                BigDecimal gamma =
-                    row.hasNonNull("gamma") ? new BigDecimal(row.path("gamma").asText()) : null;
-                BigDecimal theta =
-                    row.hasNonNull("theta") ? new BigDecimal(row.path("theta").asText()) : null;
-                BigDecimal vega =
-                    row.hasNonNull("vega") ? new BigDecimal(row.path("vega").asText()) : null;
-                BigDecimal iv =
-                    row.hasNonNull("impliedVolatility")
-                        ? new BigDecimal(row.path("impliedVolatility").asText())
-                        : null;
-                BigDecimal volume =
-                    row.hasNonNull("tradeVolume")
-                        ? new BigDecimal(row.path("tradeVolume").asText())
-                        : null;
-
-                if (strike != null && optionType != null) {
-                  greeks.add(
-                      new AngelOneOptionGreek(
-                          strike, optionType, delta, gamma, theta, vega, iv, volume));
-                }
-              }
-              return greeks;
-            }
-          } else {
-            String errorCode = root.path("errorcode").asText();
-            if ("AG8001".equalsIgnoreCase(errorCode)) {
-              authManager.invalidateSession();
-            }
-          }
-        }
-      } catch (RestClientException | JsonProcessingException e) {
-        log.warn("Failed to fetch option greeks from Angel One: {}", e.getMessage());
-      }
-      return Collections.emptyList();
-    } else {
-      return Collections.emptyList();
     }
   }
 

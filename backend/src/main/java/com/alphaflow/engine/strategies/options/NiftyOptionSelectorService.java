@@ -5,7 +5,6 @@ import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.AngelOneScripMasterManager;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneInstrument;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
 import com.alphaflow.engine.strategies.options.enums.OptionType;
@@ -14,8 +13,6 @@ import com.alphaflow.persistence.enums.Country;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -40,12 +37,6 @@ public class NiftyOptionSelectorService {
   private static final BigDecimal PUT_LOWER_OFFSET = new BigDecimal("200");
   private static final BigDecimal PUT_UPPER_OFFSET = new BigDecimal("1200");
   private static final int ANGEL_ONE_MAX_QUOTE_TOKENS_LIMIT = 50;
-
-  private static final DateTimeFormatter GREEKS_EXPIRY_FORMATTER =
-      new DateTimeFormatterBuilder()
-          .parseCaseInsensitive()
-          .appendPattern("ddMMMyyyy")
-          .toFormatter(Locale.ENGLISH);
 
   private final AngelOneScripMasterManager scripMasterManager;
   private final AngelOneClient angelOneClient;
@@ -219,9 +210,10 @@ public class NiftyOptionSelectorService {
 
       if (bestInstrument != null) {
         return Optional.of(
-            enrichWithGreeks(
-                bestInstrument,
-                spotPrice,
+            new RecommendedOptionDto(
+                bestInstrument.symbol(),
+                bestInstrument.token(),
+                bestInstrument.strike(),
                 optionType,
                 targetExpiry,
                 daysToExpiry,
@@ -256,49 +248,5 @@ public class NiftyOptionSelectorService {
     } else {
       return BigDecimal.ZERO;
     }
-  }
-
-  private RecommendedOptionDto enrichWithGreeks(
-      AngelOneInstrument instrument,
-      BigDecimal spotPrice,
-      OptionType optionType,
-      LocalDate targetExpiry,
-      long daysToExpiry,
-      BigDecimal ltp,
-      BigDecimal intrinsicValue,
-      BigDecimal timeValue) {
-    BigDecimal delta = null;
-    BigDecimal impliedVolatility = null;
-    BigDecimal theta = null;
-
-    try {
-      String formattedExpiry = targetExpiry.format(GREEKS_EXPIRY_FORMATTER).toUpperCase(Locale.ENGLISH);
-      List<AngelOneOptionGreek> greeks = angelOneClient.getOptionGreeks("NIFTY", formattedExpiry);
-
-      for (AngelOneOptionGreek greek : greeks) {
-        if (greek.optionType() == optionType && greek.strikePrice().compareTo(instrument.strike()) == 0) {
-          delta = greek.delta();
-          impliedVolatility = greek.impliedVolatility();
-          theta = greek.theta();
-          break;
-        }
-      }
-    } catch (Exception exception) {
-      log.warn("Failed to enrich option recommendation with Greeks: {}", exception.getMessage());
-    }
-
-    return new RecommendedOptionDto(
-        instrument.symbol(),
-        instrument.token(),
-        instrument.strike(),
-        optionType,
-        targetExpiry,
-        daysToExpiry,
-        ltp,
-        intrinsicValue,
-        timeValue,
-        delta,
-        impliedVolatility,
-        theta);
   }
 }

@@ -95,10 +95,7 @@ class Intraday70PBounceNotificationFlowTest {
             12L,
             new BigDecimal("650.00"),
             new BigDecimal("430.00"),
-            new BigDecimal("220.00"),
-            new BigDecimal("-0.680000"),
-            new BigDecimal("13.850000"),
-            new BigDecimal("-14.200000"));
+            new BigDecimal("220.00"));
 
     when(niftyOptionSelectorService.selectBestOption(
             eq(niftyTicker), eq(new BigDecimal("24770.00")), eq(OptionType.PUT), any()))
@@ -135,9 +132,6 @@ class Intraday70PBounceNotificationFlowTest {
     assertTrue(reversalAlert.contains("430"));
     assertTrue(reversalAlert.contains("Time Value"));
     assertTrue(reversalAlert.contains("220"));
-    assertTrue(reversalAlert.contains("Delta:"));
-    assertTrue(reversalAlert.contains("IV:"));
-    assertTrue(reversalAlert.contains("Theta:"));
   }
 
   @Test
@@ -174,10 +168,7 @@ class Intraday70PBounceNotificationFlowTest {
             12L,
             new BigDecimal("580.00"),
             new BigDecimal("430.00"),
-            new BigDecimal("150.00"),
-            new BigDecimal("0.720000"),
-            new BigDecimal("14.100000"),
-            new BigDecimal("-13.500000"));
+            new BigDecimal("150.00"));
 
     when(niftyOptionSelectorService.selectBestOption(
             eq(niftyTicker), eq(new BigDecimal("25230.00")), eq(OptionType.CALL), any()))
@@ -209,6 +200,5 @@ class Intraday70PBounceNotificationFlowTest {
     assertTrue(reversalAlert.contains("24800"));
     assertTrue(reversalAlert.contains("Option Premium"));
     assertTrue(reversalAlert.contains("580"));
-    assertTrue(reversalAlert.contains("Delta:"));
   }
 }

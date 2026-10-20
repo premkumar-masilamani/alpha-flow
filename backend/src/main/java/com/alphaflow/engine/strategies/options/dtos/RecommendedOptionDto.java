@@ -13,7 +13,4 @@ public record RecommendedOptionDto(
     long daysToExpiry,
     BigDecimal lastPrice,
     BigDecimal intrinsicValue,
-    BigDecimal timeValue,
-    BigDecimal delta,
-    BigDecimal impliedVolatility,
-    BigDecimal theta) {}
+    BigDecimal timeValue) {}

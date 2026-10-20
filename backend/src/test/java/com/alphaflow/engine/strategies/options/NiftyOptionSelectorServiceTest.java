@@ -1,8 +1,6 @@
 package com.alphaflow.engine.strategies.options;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,7 +11,6 @@ import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.AngelOneScripMasterManager;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneInstrument;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
 import com.alphaflow.engine.strategies.options.enums.OptionType;
@@ -70,19 +67,6 @@ class NiftyOptionSelectorServiceTest {
                 "1001", new AngelOneQuote(new BigDecimal("620.00"), "2026-10-16T10:00:00+05:30"),
                 "1002", new AngelOneQuote(new BigDecimal("750.00"), "2026-10-16T10:00:00+05:30")));
 
-    AngelOneOptionGreek greek =
-        new AngelOneOptionGreek(
-            new BigDecimal("25400"),
-            OptionType.PUT,
-            new BigDecimal("-0.72"),
-            new BigDecimal("0.001"),
-            new BigDecimal("-8.5"),
-            new BigDecimal("1.2"),
-            new BigDecimal("14.2"),
-            new BigDecimal("15000"));
-
-    when(angelOneClient.getOptionGreeks(eq("NIFTY"), any())).thenReturn(List.of(greek));
-
     Optional<RecommendedOptionDto> resultOpt =
         service.selectBestOption(niftyTicker, spotPrice, OptionType.PUT, sessionDate);
 
@@ -97,9 +81,6 @@ class NiftyOptionSelectorServiceTest {
     assertEquals(0, new BigDecimal("620.00").compareTo(result.lastPrice()));
     assertEquals(0, new BigDecimal("550.00").compareTo(result.intrinsicValue()));
     assertEquals(0, new BigDecimal("70.00").compareTo(result.timeValue()));
-    assertNotNull(result.delta());
-    assertEquals(new BigDecimal("-0.72"), result.delta());
-    assertEquals(new BigDecimal("14.2"), result.impliedVolatility());
   }
 
   @Test
@@ -125,9 +106,6 @@ class NiftyOptionSelectorServiceTest {
                 "2001", new AngelOneQuote(new BigDecimal("560.00"), "2026-10-16T10:00:00+05:30"),
                 "2002", new AngelOneQuote(new BigDecimal("680.00"), "2026-10-16T10:00:00+05:30")));
 
-    when(angelOneClient.getOptionGreeks(eq("NIFTY"), any()))
-        .thenReturn(Collections.emptyList());
-
     Optional<RecommendedOptionDto> resultOpt =
         service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);
 
@@ -135,7 +113,6 @@ class NiftyOptionSelectorServiceTest {
     RecommendedOptionDto result = resultOpt.get();
     assertEquals("NIFTY30OCT2624500CE", result.tradingSymbol());
     assertEquals(0, new BigDecimal("60.00").compareTo(result.timeValue()));
-    assertNull(result.delta());
   }
 
   @Test
@@ -244,25 +221,6 @@ class NiftyOptionSelectorServiceTest {
     Optional<RecommendedOptionDto> result =
         service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sessionDate);
     assertTrue(result.isEmpty());
-  }
-
-  @Test
-  void testGreekEnrichmentExceptionDoesNotCrash() {
-    LocalDate targetExpiry = sessionDate.plusDays(12);
-    AngelOneInstrument callInst =
-        new AngelOneInstrument("1", "NIFTY28OCT2624500CE", "NIFTY", targetExpiry, new BigDecimal("24500"), 65, "OPTIDX", "NFO");
-
-    when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(List.of(callInst));
-    when(angelOneClient.getMarketQuotes(any(), any()))
-        .thenReturn(
-            Map.of("1", new AngelOneQuote(new BigDecimal("600.00"), "2026-10-16T10:00:00+05:30")));
-    when(angelOneClient.getOptionGreeks(any(), any())).thenThrow(new RuntimeException("API error"));
-
-    Optional<RecommendedOptionDto> result =
-        service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.CALL, sessionDate);
-
-    assertTrue(result.isPresent());
-    assertNull(result.get().delta());
   }
 
   @Test

@@ -150,10 +150,7 @@ class TestIntraday70PBounceNotificationControllerTest {
             12L,
             new BigDecimal("580.00"),
             new BigDecimal("430.00"),
-            new BigDecimal("150.00"),
-            null,
-            null,
-            null);
+            new BigDecimal("150.00"));
     when(niftyOptionSelectorService.selectBestOption(any(), any(), any(), any()))
         .thenReturn(Optional.of(mockDto));
 

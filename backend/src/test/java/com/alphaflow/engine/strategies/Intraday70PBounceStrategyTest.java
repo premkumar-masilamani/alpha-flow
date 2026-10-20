@@ -440,10 +440,7 @@ class Intraday70PBounceStrategyTest {
             13L,
             new BigDecimal("650.00"),
             new BigDecimal("600.00"),
-            new BigDecimal("50.00"),
-            new BigDecimal("-0.75"),
-            null,
-            null);
+            new BigDecimal("50.00"));
 
     when(niftyOptionSelectorService.selectBestOption(
             eq(ticker), eq(new BigDecimal("23970.00")), eq(OptionType.PUT), any()))
@@ -466,7 +463,6 @@ class Intraday70PBounceStrategyTest {
     assertTrue(reversalMessage.contains("650"));
     assertTrue(reversalMessage.contains("600"));
     assertTrue(reversalMessage.contains("50"));
-    assertTrue(reversalMessage.contains("Delta:"));
   }
 
   @Test
@@ -493,10 +489,7 @@ class Intraday70PBounceStrategyTest {
             13L,
             new BigDecimal("580.00"),
             new BigDecimal("530.00"),
-            new BigDecimal("50.00"),
-            null,
-            null,
-            null);
+            new BigDecimal("50.00"));
 
     when(niftyOptionSelectorService.selectBestOption(
             eq(ticker), eq(new BigDecimal("24530.00")), eq(OptionType.CALL), any()))

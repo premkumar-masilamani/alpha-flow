@@ -22,7 +22,6 @@ class RateLimiterTest {
     assertDoesNotThrow(rateLimiter::throttleAngelOneLogin);
     assertDoesNotThrow(rateLimiter::throttleAngelOneCandles);
     assertDoesNotThrow(rateLimiter::throttleAngelOneLiveQuote);
-    assertDoesNotThrow(rateLimiter::throttleAngelOneOptionGreeks);
     assertDoesNotThrow(rateLimiter::throttleYahooFinance);
   }
 

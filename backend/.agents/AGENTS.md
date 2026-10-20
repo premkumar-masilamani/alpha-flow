@@ -30,6 +30,8 @@ make format
 - Use descriptive variable and parameter names: Always use full, readable domain names (e.g. `bucket` instead of `b`, `bar` instead of `b`, `dailyPrice` / `weeklyPrice` instead of `d` / `w`, `pivot` instead of `p`, `bucketWidth` instead of `w`, and descriptive lambda parameters like `match`, `candle`, `record`). Standard loop counters (`i`, `j`, `k`) are permitted for indexed loops.
 - Structure conditional branching so the `if` block executes the primary business logic (happy path), while the `else` block handles error, warning, fallback, or insufficient data conditions (the `else` portion should handle the error/warning conditions; the `if` condition should do the actual logic).
 - Fail fast immediately on application startup or execution if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
+- Use Apache Commons Lang `StringUtils` (`org.apache.commons.lang3.StringUtils`) for string blank/empty checks instead of custom utility classes.
+- Use `Map.ofEntries(Map.entry(...))` to construct immutable variable maps for template rendering and request payloads rather than mutating a `HashMap`.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.
@@ -42,6 +44,9 @@ make format
 - Use cryptic or single-letter variable names (such as `b`, `d`, `w`, `p`, `v`, `r`) for domain models, method parameters, or stream/lambda expressions.
 - Place error, warning, or insufficient data handling inside the `if` block while relegating the actual business logic to the `else` block.
 - Define default values for configuration variables, environment variables, entity fields, method parameters, or request parameters unless explicitly requested. Silent fallbacks and default property values are strictly forbidden.
+- Add `isConfigured()` checks on config beans or services; required environment variables are mandatory and the application must fail to start if they are missing.
+- Add empty `private ClassName() {}` constructors to static utility or constant classes unless needed by the application.
+- Create duplicate singular and plural API client methods (e.g. `getMarketQuote` and `getMarketQuotes`); standardize on the plural batch version and pass `List.of(item)` for single-item lookups.
 
 ## Project Structure
 ```text
@@ -132,11 +137,11 @@ if (dailyBars.size() >= MIN_BARS) {
 ## API Design & Naming
 - **Enum URL Parameters**: Use full lowercase words (e.g., `?timeframe=daily`) for readability.
 - **Enum String Lookup via Enum Method**: Add a static `from(String)` method directly in the enum to convert string parameters (case-insensitively) to the enum, rather than maintaining separate `Converter<String, EnumType>` classes.
-- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`).
+- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`). Keep intraday candle and live quote endpoints grouped under `IntradayPriceController` (`/api/tickers/{symbol}/candle` and `/api/tickers/{symbol}/quote`).
 
 ## Backend Architecture & Package Structure
 - **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
-- **Algorithm Configurability & Clean Architecture**: Avoid littering with `@Value` annotations inside the core engine classes; instead, use a config class and inject it.
+- **Algorithm Configurability & Clean Architecture**: Avoid littering with `@Value` annotations inside the core engine classes; instead, use a config class and inject it. Keep a single constructor on Spring `@Component` / `@Service` beans by injecting dedicated `@Configuration` classes (such as `ChartPatternConfig`) rather than adding overloaded constructors.
 - **JPA Property Paths in JPQL**: Always use exact Java entity field names (e.g. `iv.indicatorDefinition.indicatorDefinitionId`) in `@Query` JPQL definitions rather than DB column names to avoid `QueryCreationException` on context startup.
 - **DTO Isolation from Schema Renames**: When refactoring entity primary keys to `<entity>_id` formats, maintain existing DTO property names (e.g. `ChartPatternDto.id`) to avoid breaking frontend REST clients.
 - **Atomic Bulk JPQL Deletes for Retention Cleanup**: Prefer `@Modifying @Query("DELETE FROM ...")` single-statement JPQL deletes over Spring Data derived deletion methods (such as `deleteByTickerAndPriceDateLessThan(...)`). Derived delete methods issue individual $N+1$ select queries followed by entity-by-entity deletions, whereas `@Modifying @Query` executes an atomic $O(1)$ database operation.
@@ -179,6 +184,8 @@ if (dailyBars.size() >= MIN_BARS) {
   - Redundant guards in inner download methods (such as checking `startTs >= endTs` when caller gating already guarantees `latestSavedDate < expectedTradingDate`) introduce unreachable branches that violate the 100% JaCoCo branch coverage requirement. Placing gating cleanly at the caller loop level keeps inner methods branch-lean and fully coverable.
 - **Startup In-Memory Cache for Static Reference Data**:
   - Preloading static multi-year holiday reference data from JPA repositories into an in-memory `Map<Country, Set<LocalDate>>` on application startup (`@PostConstruct`) prevents database contention in high-frequency downloader loops and allows static calendar helper methods to remain branch-lean with $O(1)$ memory lookups.
+- **Market Session Checks in `MarketTradingCalendar`**:
+  - Centralize market session open/close validation (`isMarketSessionOpen(...)`) inside `MarketTradingCalendar` alongside trading-day and holiday resolution rather than placing session checks in scheduler utility classes.
 
 ## Persistence Layer & Repository Hygiene
 - **Repository Dead Method Cleanliness & Import Hygiene**: Regularly audit and prune dead Spring Data JPA derived query methods when services transition to specialized bulk queries or JPQL projections. When pruning unused repository methods, always remove now-unused imports (e.g., `java.util.List`, `java.util.Optional`, or unused Enums) to maintain strict Checkstyle and Spotless compliance.
@@ -194,16 +201,23 @@ if (dailyBars.size() >= MIN_BARS) {
   - Always provide an explicit character set (e.g. `StandardCharsets.UTF_8`) to `String.getBytes(...)` in tests and network handlers to conform to PMD's `RelianceOnDefaultCharset` check.
 - **Notification Error Persistence**:
   - Persist the raw error description from external notification providers (such as Telegram) directly to the audit log table (`notification_logs`) to capture the exact failure details.
+- **FreeMarker Markdown Template Hygiene**:
+  - Keep FreeMarker `.md` notification templates free of inline `<#if ...>` directives when `${...}` placeholders are present, because IDE Markdown LaTeX parsers treat text between `$` symbols as math mode and flag `#` as a macro parameter error.
+  - Keep `TelegramNotificationService.escape(...)` directly inside `TelegramNotificationService` rather than in a separate single-method helper class.
 
 ## Real-Time Market Data & Live Quote Pipelines
-- **Deterministic Time Injection in Market-Hours Schedulers**:
-  - For `@Scheduled` jobs gated by market trading calendars and intraday session bounds (`[sessionStartTime, sessionEndTime]`), delegate the zero-arg `@Scheduled` method to an overloaded `run(ZonedDateTime currentMarketTime)` entry point. This keeps wall-clock resolution in a single line while allowing unit tests to deterministically exercise trading-day, pre-open, post-close, and mid-session branches for 100% JaCoCo branch coverage.
+- **Self-Contained Market-Hours Schedulers**:
+  - Resolve the current market time (`ZonedDateTime.now(MarketConfig.IST_ZONE)`) directly inside the scheduled method (`IntradayScheduler.runLiveQuoteUpdate()`) rather than passing time parameters through intermediate methods.
+- **Once-Per-Session State Initialization in Intraday Strategies**:
+  - In stateful intraday strategies (`Intraday70PBounceStrategy`), fetch previous trading day reference data (`fetchPreviousTradingDayData` returning `Optional<PriceBar>`) inside the `stateMap.compute(...)` initialization block and pass the expanded `PriceBar` fields into the `Intraday70PBounceStrategyState` constructor. Never query the database on every minute tick after the session state is initialized.
 - **In-Progress Intraday Candle Synthesis from Snapshot Quotes**:
   - When combining finalized candles from `intraday_prices` with the latest quote snapshot from `live_quotes`, merge whenever `candles.isEmpty()` or the quote timestamp is after the latest candle's timestamp (`liveQuote.getQuoteTime().isAfter(candles.getLast().priceDate())`). Floor the quote timestamp in the ticker's market timezone to the timeframe boundary (`(minute / 15) * 15`). Append a new candle when the bucket exceeds the latest closed candle's timestamp, or update `high`/`low`/`close` in-place when matching the latest bucket.
 
 ## Derivatives & Options Analytics
 - **Angel One Scrip Master Strike Price Scaling**:
   - In Angel One's `OpenAPIScripMaster.json`, option strike prices are expressed in paise (multiplied by 100, e.g. `2540000.00` for strike `25400`). Always normalize option strikes upon parsing by dividing by 100 before computing intrinsic value, time value, or matching against spot prices.
+- **Batch Market Quote Lookups over Option Greeks API**:
+  - Select NIFTY option contracts using live quotes fetched via the batch `AngelOneClient.getMarketQuotes(exchange, symbolTokens)` API and compute intrinsic value and time value directly from spot price, strike price, and LTP without calling the external Option Greeks API.
 - **SpotBugs REC_CATCH_EXCEPTION with Spring RestClient and Jackson**:
   - Catching `Exception` when a try block only invokes `RestClient` (throwing unchecked `RestClientException`) and Jackson `ObjectMapper.readTree` (throwing `JsonProcessingException`) triggers SpotBugs `REC_CATCH_EXCEPTION`. In accordance with AGENTS.md rules to fix warnings without suppressing, catch `(RestClientException | JsonProcessingException e)` explicitly.
 

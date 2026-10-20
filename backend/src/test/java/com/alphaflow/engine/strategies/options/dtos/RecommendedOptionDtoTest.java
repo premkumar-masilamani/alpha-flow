@@ -16,9 +16,6 @@ class RecommendedOptionDtoTest {
     BigDecimal ltp = new BigDecimal("650");
     BigDecimal iv = new BigDecimal("500");
     BigDecimal tv = new BigDecimal("150");
-    BigDecimal delta = new BigDecimal("-0.6");
-    BigDecimal impliedVol = new BigDecimal("14.5");
-    BigDecimal theta = new BigDecimal("-8.2");
 
     RecommendedOptionDto dto =
         new RecommendedOptionDto(
@@ -30,10 +27,7 @@ class RecommendedOptionDtoTest {
             12L,
             ltp,
             iv,
-            tv,
-            delta,
-            impliedVol,
-            theta);
+            tv);
 
     assertEquals("NIFTY09NOV2625000PE", dto.tradingSymbol());
     assertEquals("12345", dto.token());
@@ -44,8 +38,5 @@ class RecommendedOptionDtoTest {
     assertEquals(ltp, dto.lastPrice());
     assertEquals(iv, dto.intrinsicValue());
     assertEquals(tv, dto.timeValue());
-    assertEquals(delta, dto.delta());
-    assertEquals(impliedVol, dto.impliedVolatility());
-    assertEquals(theta, dto.theta());
   }
 }

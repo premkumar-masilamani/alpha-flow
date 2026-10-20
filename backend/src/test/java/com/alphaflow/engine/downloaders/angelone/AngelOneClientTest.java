@@ -9,9 +9,7 @@ import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
-import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.OutputStream;
@@ -45,8 +43,6 @@ class AngelOneClientTest {
     config.setCandleUrl(
         "http://localhost:" + port + "/rest/secure/angelbroking/historical/v1/getCandleData");
     config.setQuoteUrl("http://localhost:" + port + "/rest/secure/angelbroking/market/v1/quote");
-    config.setOptionGreeksUrl(
-        "http://localhost:" + port + "/rest/secure/angelbroking/marketData/v1/optionGreek");
     config.setApiKey("test-key");
     config.setDelayMilliseconds(0);
 
@@ -271,94 +267,6 @@ class AngelOneClientTest {
     Map<String, AngelOneQuote> quotes =
         client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345"));
     assertTrue(quotes.isEmpty());
-    verify(authManager, atLeastOnce()).invalidateSession();
-  }
-
-  @Test
-  void testGetOptionGreeksSuccess() {
-    String jsonResponse =
-        """
-        {
-          "status": true,
-          "message": "SUCCESS",
-          "errorcode": "",
-          "data": [
-            {
-              "name": "NIFTY",
-              "expiry": "31OCT2024",
-              "strikePrice": "25400.000000",
-              "optionType": "PE",
-              "delta": "-0.720000",
-              "gamma": "0.000100",
-              "theta": "-8.500000",
-              "vega": "1.250000",
-              "impliedVolatility": "14.200000",
-              "tradeVolume": "150000"
-            }
-          ]
-        }
-        """;
-
-    server.createContext(
-        "/rest/secure/angelbroking/marketData/v1/optionGreek",
-        exchange -> {
-          byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
-          exchange.getResponseHeaders().set("Content-Type", "application/json");
-          exchange.sendResponseHeaders(200, bytes.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-          }
-        });
-
-    List<AngelOneOptionGreek> greeks = client.getOptionGreeks("NIFTY", "31OCT2024");
-    assertEquals(1, greeks.size());
-    AngelOneOptionGreek greek = greeks.get(0);
-    assertEquals(new BigDecimal("25400.000000"), greek.strikePrice());
-    assertEquals(OptionType.PUT, greek.optionType());
-    assertEquals(new BigDecimal("-0.720000"), greek.delta());
-    assertEquals(new BigDecimal("14.200000"), greek.impliedVolatility());
-  }
-
-  @Test
-  void testGetOptionGreeksNullOrBlankInput() {
-    assertTrue(client.getOptionGreeks(null, "31OCT2024").isEmpty());
-    assertTrue(client.getOptionGreeks("", "31OCT2024").isEmpty());
-    assertTrue(client.getOptionGreeks("NIFTY", null).isEmpty());
-    assertTrue(client.getOptionGreeks("NIFTY", "").isEmpty());
-  }
-
-  @Test
-  void testGetOptionGreeksNoJwt() {
-    when(authManager.getValidJwtToken()).thenReturn("");
-    List<AngelOneOptionGreek> greeks = client.getOptionGreeks("NIFTY", "31OCT2024");
-    assertTrue(greeks.isEmpty());
-  }
-
-  @Test
-  void testGetOptionGreeksErrorResponseAndInvalidToken() {
-    String errorJson =
-        """
-        {
-          "status": false,
-          "message": "Token expired",
-          "errorcode": "AG8001"
-        }
-        """;
-
-    server.createContext(
-        "/rest/secure/angelbroking/marketData/v1/optionGreek/error",
-        exchange -> {
-          byte[] bytes = errorJson.getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, bytes.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-          }
-        });
-    config.setOptionGreeksUrl(
-        "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/marketData/v1/optionGreek/error");
-
-    List<AngelOneOptionGreek> greeks = client.getOptionGreeks("NIFTY", "31OCT2024");
-    assertTrue(greeks.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();
   }
 

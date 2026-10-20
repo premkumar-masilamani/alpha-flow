@@ -18,7 +18,6 @@ public class RateLimiter {
   private final AtomicLong angelOneLoginNextAllowedTimeMs = new AtomicLong(0);
   private final AtomicLong angelOneCandlesNextAllowedTimeMs = new AtomicLong(0);
   private final AtomicLong angelOneLiveQuoteNextAllowedTimeMs = new AtomicLong(0);
-  private final AtomicLong angelOneOptionGreeksNextAllowedTimeMs = new AtomicLong(0);
   private final AtomicLong yahooFinanceNextAllowedTimeMs = new AtomicLong(0);
 
   public void throttleAngelOneLogin() {
@@ -31,10 +30,6 @@ public class RateLimiter {
 
   public void throttleAngelOneLiveQuote() {
     throttle(angelOneLiveQuoteNextAllowedTimeMs, angelOneConfig.getDelayMilliseconds());
-  }
-
-  public void throttleAngelOneOptionGreeks() {
-    throttle(angelOneOptionGreeksNextAllowedTimeMs, angelOneConfig.getDelayMilliseconds());
   }
 
   public void throttleYahooFinance() {

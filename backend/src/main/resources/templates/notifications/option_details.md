@@ -6,4 +6,3 @@
 *Option Premium \(LTP\):* ₹ ${lastPrice!}
 *Intrinsic Value:* ₹ ${intrinsicValue!}
 *Time Value \(TV\):* ₹ ${timeValue!}
-${optionGreeks!}

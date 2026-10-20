@@ -111,10 +111,7 @@ public class TestIntraday70PBounceNotificationController {
                       12L,
                       new BigDecimal("650.00"),
                       new BigDecimal("430.00"),
-                      new BigDecimal("220.00"),
-                      new BigDecimal("-0.680000"),
-                      new BigDecimal("13.850000"),
-                      new BigDecimal("-14.200000")));
+                      new BigDecimal("220.00")));
         } else {
           Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50.NS").build();
           LocalDate today = now.toLocalDate();
@@ -148,10 +145,7 @@ public class TestIntraday70PBounceNotificationController {
                       12L,
                       new BigDecimal("580.00"),
                       new BigDecimal("430.00"),
-                      new BigDecimal("150.00"),
-                      new BigDecimal("0.720000"),
-                      new BigDecimal("14.100000"),
-                      new BigDecimal("-13.500000")));
+                      new BigDecimal("150.00")));
         } else {
           Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50.NS").build();
           LocalDate today = now.toLocalDate();

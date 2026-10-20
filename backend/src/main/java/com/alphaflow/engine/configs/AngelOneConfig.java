@@ -23,8 +23,6 @@ public class AngelOneConfig {
       "https://apiconnect.angelone.in/rest/secure/angelbroking/historical/v1/getCandleData";
   private String quoteUrl =
       "https://apiconnect.angelone.in/rest/secure/angelbroking/market/v1/quote";
-  private String optionGreeksUrl =
-      "https://apiconnect.angelone.in/rest/secure/angelbroking/marketData/v1/optionGreek";
   /**
    * SmartAPI OpenAPIScripMaster JSON endpoint published daily by Angel One.
    * Angel One publishes a single master instrument dump across all segments;
