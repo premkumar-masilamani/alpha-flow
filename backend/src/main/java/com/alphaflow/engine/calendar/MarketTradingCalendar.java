@@ -106,6 +106,26 @@ public class MarketTradingCalendar {
     }
   }
 
+  /**
+   * Determines whether the market session is currently open for trading.
+   *
+   * @param currentMarketTime current timestamp in the market timezone
+   * @param sessionStartTime  start time of the market session
+   * @param sessionEndTime    end time of the market session
+   * @param country           market country
+   * @return true if market is open and within session bounds, false otherwise
+   */
+  public static boolean isMarketSessionOpen(
+      ZonedDateTime currentMarketTime,
+      LocalTime sessionStartTime,
+      LocalTime sessionEndTime,
+      Country country) {
+    LocalTime currentTime = currentMarketTime.toLocalTime();
+    return isTradingDay(currentMarketTime.toLocalDate(), country)
+        && !currentTime.isBefore(sessionStartTime)
+        && !currentTime.isAfter(sessionEndTime);
+  }
+
   public static LocalDate getPreviousTradingDay(LocalDate date, Country country) {
     LocalDate candidate = date.minusDays(1);
     while (!isTradingDay(candidate, country)) {

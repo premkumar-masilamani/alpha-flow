@@ -15,8 +15,6 @@ public final class IndicatorMath {
 
   public static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
-  private IndicatorMath() {}
-
   public static BigDecimal internal(BigDecimal value) {
     return value.setScale(INTERNAL_SCALE, ROUNDING);
   }

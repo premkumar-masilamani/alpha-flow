@@ -1,12 +1,12 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.engine.configs.MarketConfig;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.services.NotificationService;
-import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
+import com.alphaflow.engine.strategies.Intraday70PBounceStrategy;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -33,21 +33,21 @@ import org.springframework.web.bind.annotation.RestController;
  * NOTE: This is a test harness and can be removed after verification.
  */
 @RestController
-@RequestMapping("/api/test/sakthi")
+@RequestMapping("/api/test/intraday-70p-bounce")
 @Slf4j
-public class TestSakthiNotificationController {
+public class TestIntraday70PBounceNotificationController {
 
   private final NotificationService notificationService;
-  private final SakthiIntradayStrategy sakthiIntradayStrategy;
+  private final Intraday70PBounceStrategy intraday70PBounceStrategy;
   private final NiftyOptionSelectorService niftyOptionSelectorService;
 
   @Autowired
-  public TestSakthiNotificationController(
+  public TestIntraday70PBounceNotificationController(
       NotificationService notificationService,
-      SakthiIntradayStrategy sakthiIntradayStrategy,
+      Intraday70PBounceStrategy intraday70PBounceStrategy,
       NiftyOptionSelectorService niftyOptionSelectorService) {
     this.notificationService = notificationService;
-    this.sakthiIntradayStrategy = sakthiIntradayStrategy;
+    this.intraday70PBounceStrategy = intraday70PBounceStrategy;
     this.niftyOptionSelectorService = niftyOptionSelectorService;
   }
 
@@ -78,7 +78,10 @@ public class TestSakthiNotificationController {
     if (customMessage != null && !customMessage.isBlank()) {
       formattedMessage = customMessage;
     } else {
-      boolean isBearScenario = !"bull".equalsIgnoreCase(scenario) && !"bull_reversal".equalsIgnoreCase(scenario) && !"bull_breach".equalsIgnoreCase(scenario);
+      boolean isBearScenario =
+          !"bull".equalsIgnoreCase(scenario)
+              && !"bull_reversal".equalsIgnoreCase(scenario)
+              && !"bull_breach".equalsIgnoreCase(scenario);
       targetOptionType = isBearScenario ? OptionType.PUT : OptionType.CALL;
       OffsetDateTime now = OffsetDateTime.now(MarketConfig.IST_ZONE);
 
@@ -96,7 +99,11 @@ public class TestSakthiNotificationController {
           recommendedOption =
               Optional.of(
                   new RecommendedOptionDto(
-                      "NIFTY" + mockExpiry.format(DateTimeFormatter.ofPattern("ddMMMyy")).toUpperCase(Locale.ENGLISH) + "25200PE",
+                      "NIFTY"
+                          + mockExpiry
+                              .format(DateTimeFormatter.ofPattern("ddMMMyy"))
+                              .toUpperCase(Locale.ENGLISH)
+                          + "25200PE",
                       "84833",
                       new BigDecimal("25200.00"),
                       OptionType.PUT,
@@ -129,7 +136,11 @@ public class TestSakthiNotificationController {
           recommendedOption =
               Optional.of(
                   new RecommendedOptionDto(
-                      "NIFTY" + mockExpiry.format(DateTimeFormatter.ofPattern("ddMMMyy")).toUpperCase(Locale.ENGLISH) + "24800CE",
+                      "NIFTY"
+                          + mockExpiry
+                              .format(DateTimeFormatter.ofPattern("ddMMMyy"))
+                              .toUpperCase(Locale.ENGLISH)
+                          + "24800CE",
                       "84834",
                       new BigDecimal("24800.00"),
                       OptionType.CALL,
@@ -163,16 +174,18 @@ public class TestSakthiNotificationController {
               .build();
 
       if ("bear_breach".equalsIgnoreCase(scenario)) {
-        formattedMessage = sakthiIntradayStrategy.buildBearBreachMessage(ticker, quote, referenceLevel);
+        formattedMessage =
+            intraday70PBounceStrategy.buildBearBreachMessage(ticker, quote, referenceLevel);
       } else if ("bull_breach".equalsIgnoreCase(scenario)) {
-        formattedMessage = sakthiIntradayStrategy.buildBullBreachMessage(ticker, quote, referenceLevel);
+        formattedMessage =
+            intraday70PBounceStrategy.buildBullBreachMessage(ticker, quote, referenceLevel);
       } else if (isBearScenario) {
         formattedMessage =
-            sakthiIntradayStrategy.buildBearReversalMessage(
+            intraday70PBounceStrategy.buildBearReversalMessage(
                 ticker, quote, extremePrice, referenceLevel, recommendedOption);
       } else {
         formattedMessage =
-            sakthiIntradayStrategy.buildBullReversalMessage(
+            intraday70PBounceStrategy.buildBullReversalMessage(
                 ticker, quote, extremePrice, referenceLevel, recommendedOption);
       }
     }

@@ -1,15 +1,15 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
+import com.alphaflow.engine.configs.ChartPatternConfig;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
@@ -29,26 +29,8 @@ public class DailyScheduler {
   private final SupportResistanceCalculator supportResistanceCalculator;
   private final CandlestickPatternCalculator candlestickPatternCalculator;
   private final ChartPatternCalculator chartPatternCalculator;
-  private final boolean enableChartPatterns;
+  private final ChartPatternConfig chartPatternConfig;
   private final AtomicBoolean running = new AtomicBoolean(false);
-
-  @Autowired
-  public DailyScheduler(
-      YahooFinanceDownloader yahooFinanceDownloader,
-      WeeklyPriceCalculator weeklyPriceCalculator,
-      IndicatorCalculator indicatorCalculator,
-      SupportResistanceCalculator supportResistanceCalculator,
-      CandlestickPatternCalculator candlestickPatternCalculator,
-      ChartPatternCalculator chartPatternCalculator) {
-    this(
-        yahooFinanceDownloader,
-        weeklyPriceCalculator,
-        indicatorCalculator,
-        supportResistanceCalculator,
-        candlestickPatternCalculator,
-        chartPatternCalculator,
-        false);
-  }
 
   public DailyScheduler(
       YahooFinanceDownloader yahooFinanceDownloader,
@@ -57,14 +39,14 @@ public class DailyScheduler {
       SupportResistanceCalculator supportResistanceCalculator,
       CandlestickPatternCalculator candlestickPatternCalculator,
       ChartPatternCalculator chartPatternCalculator,
-      boolean enableChartPatterns) {
+      ChartPatternConfig chartPatternConfig) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.indicatorCalculator = indicatorCalculator;
     this.supportResistanceCalculator = supportResistanceCalculator;
     this.candlestickPatternCalculator = candlestickPatternCalculator;
     this.chartPatternCalculator = chartPatternCalculator;
-    this.enableChartPatterns = enableChartPatterns;
+    this.chartPatternConfig = chartPatternConfig;
   }
 
   @Scheduled(cron = "0 0 * * * *", zone = MarketConfig.TIMEZONE_KOLKATA)
@@ -117,7 +99,7 @@ public class DailyScheduler {
               "Step 4/6 completed in {}.",
               SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
 
-          if (enableChartPatterns) {
+          if (chartPatternConfig.isEnabled()) {
             log.info("Step 5/6: Computing chart patterns...");
             start = System.currentTimeMillis();
             chartPatternCalculator.computeChartPatterns();

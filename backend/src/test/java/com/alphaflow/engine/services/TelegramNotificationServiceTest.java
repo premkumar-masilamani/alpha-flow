@@ -78,7 +78,7 @@ class TelegramNotificationServiceTest {
     telegramConfig.setChatId("123456");
     telegramConfig.setMessageUrl(
         serverBaseUrl
-            + "/bot{TELEGRAM_API_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}&parse_mode=MarkdownV2");
+            + "/bot{ApiToken}/sendMessage?chat_id={chatId}&text={message}&parse_mode=MarkdownV2");
 
     service = new TelegramNotificationService(telegramConfig, notificationLogRepository);
   }
@@ -125,7 +125,7 @@ class TelegramNotificationServiceTest {
   void testSendNotificationHttpErrorThrowsExceptionAndLogsFailure() {
     telegramConfig.setMessageUrl(
         serverBaseUrl
-            + "/error/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}&parse_mode=MarkdownV2");
+            + "/error/sendMessage?chat_id={chatId}&text={message}&parse_mode=MarkdownV2");
 
     NotificationException exception =
         assertThrows(
@@ -143,7 +143,7 @@ class TelegramNotificationServiceTest {
   @Test
   void testSendNotificationConnectionFailureThrowsException() {
     telegramConfig.setMessageUrl(
-        "http://localhost:1/bot{TELEGRAM_API_TOKEN}/sendMessage?chat_id={TELEGRAM_CHAT_ID}&text={MESSAGE}");
+        "http://localhost:1/bot{ApiToken}/sendMessage?chat_id={chatId}&text={message}");
 
     NotificationException exception =
         assertThrows(

@@ -24,7 +24,7 @@ class NotificationTemplateEngineTest {
     Map<String, String> vars =
         Map.of(
             "ticker", "NIFTY50\\.NS",
-            "currentPrice", "24770",
+            "spotPrice", "24770",
             "previousDayLow", "24800",
             "timestamp", "2026-10-17 18:30:00");
 
@@ -32,7 +32,7 @@ class NotificationTemplateEngineTest {
     assertNotNull(result);
     assertTrue(result.contains("BEARISH ALERT"));
     assertTrue(result.contains("NIFTY50\\.NS"));
-    assertTrue(result.contains("24770"));
+    assertTrue(result.contains("*Spot Price:* 24770"));
     assertTrue(result.contains("24800"));
   }
 

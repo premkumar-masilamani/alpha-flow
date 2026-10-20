@@ -1,5 +1,5 @@
 *\[BULLISH ALERT\] Previous Day High Breached*
 *Ticker:* ${ticker!}
-*Current Price:* ${currentPrice!}
+*Spot Price:* ${spotPrice!}
 *Time:* ${timestamp!}
 *Previous Day High:* ${previousDayHigh!}

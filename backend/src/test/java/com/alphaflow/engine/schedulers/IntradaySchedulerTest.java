@@ -11,18 +11,18 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
-import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.AngelOneDownloader;
-import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
+import com.alphaflow.engine.strategies.Intraday70PBounceStrategy;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.enums.DataProvider;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +33,7 @@ class IntradaySchedulerTest {
 
   private AngelOneConfig config;
   private AngelOneDownloader downloader;
-  private SakthiIntradayStrategy strategy;
+  private Intraday70PBounceStrategy strategy;
   private IntradayScheduler scheduler;
   private Ticker niftyTicker;
   private LiveQuote liveQuote;
@@ -42,11 +42,11 @@ class IntradaySchedulerTest {
   void setUp() {
     MarketTradingCalendar.clearHolidays();
     config = new AngelOneConfig();
-    config.setSessionStartTime(LocalTime.of(9, 15));
-    config.setSessionEndTime(LocalTime.of(15, 30));
+    config.setSessionStartTime(LocalTime.MIN);
+    config.setSessionEndTime(LocalTime.MAX);
 
     downloader = mock(AngelOneDownloader.class);
-    strategy = mock(SakthiIntradayStrategy.class);
+    strategy = mock(Intraday70PBounceStrategy.class);
     scheduler = new IntradayScheduler(config, downloader, strategy);
 
     niftyTicker =
@@ -128,12 +128,9 @@ class IntradaySchedulerTest {
 
   @Test
   void testLiveQuoteUpdateExecutesDuringMarketHours() {
-    ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 10, 0, 0, 0, MarketConfig.IST_ZONE);
-
     when(downloader.downloadLiveQuotes(any(OffsetDateTime.class))).thenReturn(List.of(liveQuote));
 
-    scheduler.runLiveQuoteUpdate(marketTime);
+    scheduler.runLiveQuoteUpdate();
 
     verify(downloader, never()).downloadAndPersistIntradayPrices();
     verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
@@ -142,11 +139,9 @@ class IntradaySchedulerTest {
 
   @Test
   void testMarketSessionClosedSkipsLiveQuoteUpdate() {
-    // Saturday
-    ZonedDateTime weekend =
-        ZonedDateTime.of(2026, 10, 17, 10, 0, 0, 0, MarketConfig.IST_ZONE);
+    MarketTradingCalendar.setHolidays(Country.IN, Map.of(LocalDate.now(), "Test Holiday"));
 
-    scheduler.runLiveQuoteUpdate(weekend);
+    scheduler.runLiveQuoteUpdate();
 
     verify(downloader, never()).downloadAndPersistIntradayPrices();
     verify(downloader, never()).downloadLiveQuotes(any());
@@ -155,12 +150,9 @@ class IntradaySchedulerTest {
 
   @Test
   void testEmptyLiveQuotesSkipsStrategyExecution() {
-    ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 11, 0, 0, 0, MarketConfig.IST_ZONE);
-
     when(downloader.downloadLiveQuotes(any(OffsetDateTime.class))).thenReturn(List.of());
 
-    scheduler.runLiveQuoteUpdate(marketTime);
+    scheduler.runLiveQuoteUpdate();
 
     verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
     verify(strategy, never()).execute(any(), any());
@@ -168,14 +160,11 @@ class IntradaySchedulerTest {
 
   @Test
   void testRunLiveQuoteUpdateHandlesExceptionAndResetsRunningFlag() {
-    ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 11, 30, 0, 0, MarketConfig.IST_ZONE);
-
     doThrow(new RuntimeException("Simulated live quote failure"))
         .when(downloader)
         .downloadLiveQuotes(any(OffsetDateTime.class));
 
-    scheduler.runLiveQuoteUpdate(marketTime);
+    scheduler.runLiveQuoteUpdate();
 
     verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
     verify(strategy, never()).execute(any(), any());
@@ -183,8 +172,6 @@ class IntradaySchedulerTest {
 
   @Test
   void testRunLiveQuoteUpdateConcurrentExecutionSkipped() throws InterruptedException {
-    ZonedDateTime marketTime =
-        ZonedDateTime.of(2026, 10, 16, 12, 0, 0, 0, MarketConfig.IST_ZONE);
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
 
@@ -197,13 +184,13 @@ class IntradaySchedulerTest {
         .when(downloader)
         .downloadLiveQuotes(any(OffsetDateTime.class));
 
-    Thread backgroundThread = new Thread(() -> scheduler.runLiveQuoteUpdate(marketTime));
+    Thread backgroundThread = new Thread(() -> scheduler.runLiveQuoteUpdate());
     backgroundThread.start();
 
     startLatch.await(2, TimeUnit.SECONDS);
 
     // Second call skips because backgroundThread is still running
-    scheduler.runLiveQuoteUpdate(marketTime);
+    scheduler.runLiveQuoteUpdate();
 
     finishLatch.countDown();
     backgroundThread.join(2000);

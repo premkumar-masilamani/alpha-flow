@@ -13,11 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 @Slf4j
-public class QuoteService {
+public class LiveQuoteService {
 
   private final LiveQuoteRepository liveQuoteRepository;
 
-  public QuoteService(LiveQuoteRepository liveQuoteRepository) {
+  public LiveQuoteService(LiveQuoteRepository liveQuoteRepository) {
     this.liveQuoteRepository = liveQuoteRepository;
   }
 

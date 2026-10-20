@@ -19,8 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class YahooResponseParser {
 
-  private YahooResponseParser() {}
-
   public static List<DailyPrice> parse(String jsonString, Ticker ticker) throws IOException {
     log.debug("Parsing Yahoo Finance JSON response for ticker: {}", ticker.getTickerSymbol());
 

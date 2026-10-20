@@ -14,14 +14,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.engine.configs.MarketConfig;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.common.exceptions.NotificationException;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.services.NotificationTemplateEngine;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -40,12 +40,12 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 
-class SakthiIntradayStrategyTest {
+class Intraday70PBounceStrategyTest {
 
   private DailyPriceRepository dailyPriceRepository;
   private NotificationService notificationService;
   private NiftyOptionSelectorService niftyOptionSelectorService;
-  private SakthiIntradayStrategy strategy;
+  private Intraday70PBounceStrategy strategy;
   private Ticker ticker;
   private OffsetDateTime baseQuoteTime;
 
@@ -56,7 +56,7 @@ class SakthiIntradayStrategyTest {
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
     NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
     strategy =
-        new SakthiIntradayStrategy(
+        new Intraday70PBounceStrategy(
             dailyPriceRepository,
             notificationService,
             niftyOptionSelectorService,
@@ -97,12 +97,15 @@ class SakthiIntradayStrategyTest {
   }
 
   @Test
-  void testNoPriorDailyPrices_SkipsEvaluationGracefully() {
-    LiveQuote quote = createLiveQuote(new BigDecimal("23950.00"), baseQuoteTime);
+  void testNoPriorDailyPrices_SkipsEvaluationGracefully_AndDoesNotQueryDbAgainForSameSession() {
+    LiveQuote quote1 = createLiveQuote(new BigDecimal("23950.00"), baseQuoteTime);
+    LiveQuote quote2 = createLiveQuote(new BigDecimal("23900.00"), baseQuoteTime.plusMinutes(1));
     when(dailyPriceRepository.findLatestByTickerAndEndDate(any(), any(), any()))
         .thenReturn(Collections.emptyList());
 
-    assertDoesNotThrow(() -> strategy.execute(ticker, quote));
+    assertDoesNotThrow(() -> strategy.execute(ticker, quote1));
+    assertDoesNotThrow(() -> strategy.execute(ticker, quote2));
+    verify(dailyPriceRepository, times(1)).findLatestByTickerAndEndDate(any(), any(), any());
     verify(notificationService, never()).sendNotification(anyString());
   }
 
@@ -193,17 +196,17 @@ class SakthiIntradayStrategyTest {
     LiveQuote quote1 = createLiveQuote(new BigDecimal("23920.00"), baseQuoteTime);
     strategy.execute(ticker, quote1);
 
-    // Second tick: Bounce 70 points to 23990 (>= 23920 + 70) -> Notification 2
-    LiveQuote quote2 = createLiveQuote(new BigDecimal("23990.00"), baseQuoteTime.plusMinutes(1));
+    // Second tick: Bounce 75 points to 23995 (>= 23920 + 70) -> Notification 2
+    LiveQuote quote2 = createLiveQuote(new BigDecimal("23995.00"), baseQuoteTime.plusMinutes(1));
     strategy.execute(ticker, quote2);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService, times(2)).sendNotification(captor.capture());
     String secondMessage = captor.getAllValues().get(1);
     assertTrue(secondMessage.contains("BULLISH REVERSAL"));
-    assertTrue(secondMessage.contains("23990"));
+    assertTrue(secondMessage.contains("*Spot Price:* 23995"));
     assertTrue(secondMessage.contains("23920"));
-    assertTrue(secondMessage.contains("+70 points from 23920"));
+    assertTrue(secondMessage.contains("75 points from 23920"));
     assertFalse(secondMessage.contains("🚨"));
     assertFalse(secondMessage.contains("🟢"));
     assertFalse(secondMessage.contains("🔴"));
@@ -290,17 +293,17 @@ class SakthiIntradayStrategyTest {
     LiveQuote quote1 = createLiveQuote(new BigDecimal("24580.00"), baseQuoteTime);
     strategy.execute(ticker, quote1);
 
-    // Second tick: Pullback of 70 points to 24510 (<= 24580 - 70) -> Notification 2
-    LiveQuote quote2 = createLiveQuote(new BigDecimal("24510.00"), baseQuoteTime.plusMinutes(1));
+    // Second tick: Pullback of 75 points to 24505 (<= 24580 - 70) -> Notification 2
+    LiveQuote quote2 = createLiveQuote(new BigDecimal("24505.00"), baseQuoteTime.plusMinutes(1));
     strategy.execute(ticker, quote2);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
     verify(notificationService, times(2)).sendNotification(captor.capture());
     String secondMessage = captor.getAllValues().get(1);
     assertTrue(secondMessage.contains("BEARISH REVERSAL"));
-    assertTrue(secondMessage.contains("24510"));
+    assertTrue(secondMessage.contains("*Spot Price:* 24505"));
     assertTrue(secondMessage.contains("24580"));
-    assertTrue(secondMessage.contains("-70 points from 24580"));
+    assertTrue(secondMessage.contains("75 points from 24580"));
     assertFalse(secondMessage.contains("🚨"));
     assertFalse(secondMessage.contains("🟢"));
     assertFalse(secondMessage.contains("🔴"));
@@ -367,7 +370,8 @@ class SakthiIntradayStrategyTest {
     LocalDate expectedFriday = LocalDate.of(2026, 10, 16);
 
     DailyPrice fridayPrice =
-        createPreviousDailyPrice(expectedFriday, new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+        createPreviousDailyPrice(
+            expectedFriday, new BigDecimal("24500.00"), new BigDecimal("24000.00"));
     when(dailyPriceRepository.findLatestByTickerAndEndDate(
             eq(ticker), eq(expectedFriday), eq(PageRequest.of(0, 1))))
         .thenReturn(List.of(fridayPrice));
@@ -396,7 +400,8 @@ class SakthiIntradayStrategyTest {
     LocalDate expectedThursday = LocalDate.of(2026, 10, 15);
 
     DailyPrice thursdayPrice =
-        createPreviousDailyPrice(expectedThursday, new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+        createPreviousDailyPrice(
+            expectedThursday, new BigDecimal("24500.00"), new BigDecimal("24000.00"));
     when(dailyPriceRepository.findLatestByTickerAndEndDate(
             eq(ticker), eq(expectedThursday), eq(PageRequest.of(0, 1))))
         .thenReturn(List.of(thursdayPrice));

@@ -9,11 +9,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
-class SakthiIntradayStrategyStateTest {
+class Intraday70PBounceStrategyStateTest {
 
   @Test
   void testNoArgsConstructorAndSetters() {
-    SakthiIntradayStrategyState state = new SakthiIntradayStrategyState();
+    Intraday70PBounceStrategyState state = new Intraday70PBounceStrategyState();
     LocalDate sessionDate = LocalDate.of(2026, 10, 16);
     LocalDate previousTradingDate = LocalDate.of(2026, 10, 15);
     BigDecimal price = new BigDecimal("24000.50");
@@ -46,12 +46,34 @@ class SakthiIntradayStrategyStateTest {
   @Test
   void testSessionDateConstructor() {
     LocalDate sessionDate = LocalDate.of(2026, 10, 16);
-    SakthiIntradayStrategyState state = new SakthiIntradayStrategyState(sessionDate);
+    Intraday70PBounceStrategyState state = new Intraday70PBounceStrategyState(sessionDate);
 
     assertEquals(sessionDate, state.getSessionDate());
     assertNull(state.getPreviousTradingDate());
     assertNull(state.getPreviousDayHigh());
     assertNull(state.getPreviousDayLow());
+    assertFalse(state.isBearBreachNotified());
+    assertNull(state.getBearLowestPrice());
+    assertFalse(state.isBearReversalNotified());
+    assertFalse(state.isBullBreachNotified());
+    assertNull(state.getBullHighestPrice());
+    assertFalse(state.isBullReversalNotified());
+  }
+
+  @Test
+  void testSessionAndPreviousDayConstructor() {
+    LocalDate sessionDate = LocalDate.of(2026, 10, 16);
+    LocalDate previousTradingDate = LocalDate.of(2026, 10, 15);
+    BigDecimal high = new BigDecimal("24500.00");
+    BigDecimal low = new BigDecimal("23900.00");
+
+    Intraday70PBounceStrategyState state =
+        new Intraday70PBounceStrategyState(sessionDate, previousTradingDate, high, low);
+
+    assertEquals(sessionDate, state.getSessionDate());
+    assertEquals(previousTradingDate, state.getPreviousTradingDate());
+    assertEquals(high, state.getPreviousDayHigh());
+    assertEquals(low, state.getPreviousDayLow());
     assertFalse(state.isBearBreachNotified());
     assertNull(state.getBearLowestPrice());
     assertFalse(state.isBearReversalNotified());
@@ -69,8 +91,8 @@ class SakthiIntradayStrategyStateTest {
     BigDecimal lowestPrice = new BigDecimal("23900.00");
     BigDecimal highestPrice = new BigDecimal("24600.00");
 
-    SakthiIntradayStrategyState state =
-        SakthiIntradayStrategyState.builder()
+    Intraday70PBounceStrategyState state =
+        Intraday70PBounceStrategyState.builder()
             .sessionDate(sessionDate)
             .previousTradingDate(previousTradingDate)
             .previousDayHigh(high)
@@ -100,8 +122,8 @@ class SakthiIntradayStrategyStateTest {
     LocalDate initialDate = LocalDate.of(2026, 10, 15);
     LocalDate nextDate = LocalDate.of(2026, 10, 16);
 
-    SakthiIntradayStrategyState state =
-        SakthiIntradayStrategyState.builder()
+    Intraday70PBounceStrategyState state =
+        Intraday70PBounceStrategyState.builder()
             .sessionDate(initialDate)
             .previousTradingDate(LocalDate.of(2026, 10, 14))
             .previousDayHigh(new BigDecimal("24500.00"))

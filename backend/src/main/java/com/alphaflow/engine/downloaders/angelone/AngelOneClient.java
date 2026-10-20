@@ -22,7 +22,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -62,7 +61,7 @@ public class AngelOneClient {
   }
 
   public static String resolveToken(String symbol) {
-    if ("NIFTY50".equalsIgnoreCase(symbol) || "NIFTY 50".equalsIgnoreCase(symbol)) {
+    if ("NIFTY50".equalsIgnoreCase(symbol)) {
       return "99926000";
     }
     return symbol;
@@ -194,62 +193,7 @@ public class AngelOneClient {
     return Collections.emptyList();
   }
 
-  public Optional<AngelOneQuote> getMarketQuote(String exchange, String symbolToken) {
-    Map<String, Object> body = new HashMap<>();
-    body.put("mode", "FULL");
-    body.put("exchangeTokens", Map.of(exchange, List.of(symbolToken)));
-
-    String jwt = authManager.getValidJwtToken();
-    if (jwt == null || jwt.isBlank()) {
-      return Optional.empty();
-    }
-
-    try {
-      rateLimiter.throttleAngelOneLiveQuote();
-      ResponseEntity<String> response =
-          restClient
-              .post()
-              .uri(config.getQuoteUrl())
-              .headers(
-                  headers ->
-                      networkHelper.applyAuthenticatedHeaders(headers, config.getApiKey(), jwt))
-              .body(body)
-              .retrieve()
-              .toEntity(String.class);
-
-      String responseBody = response.getBody();
-      if (responseBody != null) {
-        JsonNode root = objectMapper.readTree(responseBody);
-        if (root.path("status").asBoolean(false)) {
-          JsonNode fetchedList = root.path("data").path("fetched");
-          if (fetchedList.isArray() && !fetchedList.isEmpty()) {
-            JsonNode item = fetchedList.get(0);
-            BigDecimal ltp =
-                item.hasNonNull("ltp")
-                    ? new BigDecimal(item.path("ltp").asText())
-                    : BigDecimal.ZERO;
-
-            String timestamp =
-                item.hasNonNull("exchFeedTime")
-                    ? item.path("exchFeedTime").asText()
-                    : OffsetDateTime.now(IST_ZONE).toString();
-
-            return Optional.of(new AngelOneQuote(ltp, timestamp));
-          }
-        } else {
-          String errorCode = root.path("errorcode").asText();
-          if ("AG8001".equalsIgnoreCase(errorCode)) {
-            authManager.invalidateSession();
-          }
-        }
-      }
-    } catch (RestClientException | JsonProcessingException e) {
-      log.warn("Failed to fetch quote from Angel One: {}", e.getMessage());
-    }
-    return Optional.empty();
-  }
-
-  public Map<String, BigDecimal> getMarketQuotes(String exchange, List<String> symbolTokens) {
+  public Map<String, AngelOneQuote> getMarketQuotes(String exchange, List<String> symbolTokens) {
     if (symbolTokens != null && !symbolTokens.isEmpty()) {
       Map<String, Object> body = new HashMap<>();
       body.put("mode", "FULL");
@@ -280,7 +224,7 @@ public class AngelOneClient {
           if (root.path("status").asBoolean(false)) {
             JsonNode fetchedList = root.path("data").path("fetched");
             if (fetchedList.isArray()) {
-              Map<String, BigDecimal> quotes = new HashMap<>();
+              Map<String, AngelOneQuote> quotes = new HashMap<>();
               for (JsonNode item : fetchedList) {
                 String token = item.path("symbolToken").asText();
                 if (!token.isBlank()) {
@@ -288,7 +232,11 @@ public class AngelOneClient {
                       item.hasNonNull("ltp")
                           ? new BigDecimal(item.path("ltp").asText())
                           : BigDecimal.ZERO;
-                  quotes.put(token, ltp);
+                  String timestamp =
+                      item.hasNonNull("exchFeedTime")
+                          ? item.path("exchFeedTime").asText()
+                          : OffsetDateTime.now(IST_ZONE).toString();
+                  quotes.put(token, new AngelOneQuote(ltp, timestamp));
                 }
               }
               return quotes;

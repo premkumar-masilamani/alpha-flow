@@ -19,7 +19,7 @@ class AngelOneAuthManagerTest {
 
   private HttpServer server;
   private AngelOneConfig config;
-  private TotpGenerator totpGenerator;
+  private AngelOneTotpGenerator angelOneTotpGenerator;
   private ObjectMapper objectMapper;
   private AngelOneAuthManager authManager;
 
@@ -37,14 +37,14 @@ class AngelOneAuthManagerTest {
     config.setPassword("test-mpin");
     config.setTotpKey("JBSWY3DPEHPK3PXP");
 
-    totpGenerator = new TotpGenerator();
+    angelOneTotpGenerator = new AngelOneTotpGenerator();
     objectMapper = new ObjectMapper();
     AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
     config.setDelayMilliseconds(0);
     RateLimiter rateLimiter = new RateLimiter(config, new YahooFinanceConfig());
     authManager =
         new AngelOneAuthManager(
-            config, totpGenerator, objectMapper, networkHelper, rateLimiter, RestClient.builder());
+            config, angelOneTotpGenerator, objectMapper, networkHelper, rateLimiter, RestClient.builder());
   }
 
   @AfterEach

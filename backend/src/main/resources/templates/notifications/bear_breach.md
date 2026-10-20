@@ -1,5 +1,5 @@
 *\[BEARISH ALERT\] Previous Day Low Breached*
 *Ticker:* ${ticker!}
-*Current Price:* ${currentPrice!}
+*Spot Price:* ${spotPrice!}
 *Time:* ${timestamp!}
 *Previous Day Low:* ${previousDayLow!}

@@ -10,12 +10,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.configs.MarketConfig;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.AngelOneScripMasterManager;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneInstrument;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
+import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import java.math.BigDecimal;
@@ -64,7 +65,10 @@ class NiftyOptionSelectorServiceTest {
     // Contract 1: Strike 25400, Spot 24850 -> Intrinsic Value = 550. LTP = 620 -> TV = 70.
     // Contract 2: Strike 25500, Spot 24850 -> Intrinsic Value = 650. LTP = 750 -> TV = 100.
     when(angelOneClient.getMarketQuotes(eq(MarketConfig.EXCHANGE_SEGMENT_NFO), any()))
-        .thenReturn(Map.of("1001", new BigDecimal("620.00"), "1002", new BigDecimal("750.00")));
+        .thenReturn(
+            Map.of(
+                "1001", new AngelOneQuote(new BigDecimal("620.00"), "2026-10-16T10:00:00+05:30"),
+                "1002", new AngelOneQuote(new BigDecimal("750.00"), "2026-10-16T10:00:00+05:30")));
 
     AngelOneOptionGreek greek =
         new AngelOneOptionGreek(
@@ -116,7 +120,10 @@ class NiftyOptionSelectorServiceTest {
         .thenReturn(List.of(call1, call2));
 
     when(angelOneClient.getMarketQuotes(eq(MarketConfig.EXCHANGE_SEGMENT_NFO), any()))
-        .thenReturn(Map.of("2001", new BigDecimal("560.00"), "2002", new BigDecimal("680.00")));
+        .thenReturn(
+            Map.of(
+                "2001", new AngelOneQuote(new BigDecimal("560.00"), "2026-10-16T10:00:00+05:30"),
+                "2002", new AngelOneQuote(new BigDecimal("680.00"), "2026-10-16T10:00:00+05:30")));
 
     when(angelOneClient.getOptionGreeks(eq("NIFTY"), any()))
         .thenReturn(Collections.emptyList());
@@ -151,7 +158,10 @@ class NiftyOptionSelectorServiceTest {
     // Call B: 24400 -> IV = 600, LTP = 650 -> TV = 50
     // Call B has lower strike (24400 < 24500) -> should pick Call B
     when(angelOneClient.getMarketQuotes(eq(MarketConfig.EXCHANGE_SEGMENT_NFO), any()))
-        .thenReturn(Map.of("3001", new BigDecimal("550.00"), "3002", new BigDecimal("650.00")));
+        .thenReturn(
+            Map.of(
+                "3001", new AngelOneQuote(new BigDecimal("550.00"), "2026-10-16T10:00:00+05:30"),
+                "3002", new AngelOneQuote(new BigDecimal("650.00"), "2026-10-16T10:00:00+05:30")));
 
     Optional<RecommendedOptionDto> resultOpt =
         service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);
@@ -227,7 +237,9 @@ class NiftyOptionSelectorServiceTest {
 
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(List.of(putInst));
     // Premium is 450 (below 500)
-    when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Map.of("1", new BigDecimal("450.00")));
+    when(angelOneClient.getMarketQuotes(any(), any()))
+        .thenReturn(
+            Map.of("1", new AngelOneQuote(new BigDecimal("450.00"), "2026-10-16T10:00:00+05:30")));
 
     Optional<RecommendedOptionDto> result =
         service.selectBestOption(niftyTicker, new BigDecimal("25000"), OptionType.PUT, sessionDate);
@@ -241,7 +253,9 @@ class NiftyOptionSelectorServiceTest {
         new AngelOneInstrument("1", "NIFTY28OCT2624500CE", "NIFTY", targetExpiry, new BigDecimal("24500"), 65, "OPTIDX", "NFO");
 
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(List.of(callInst));
-    when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Map.of("1", new BigDecimal("600.00")));
+    when(angelOneClient.getMarketQuotes(any(), any()))
+        .thenReturn(
+            Map.of("1", new AngelOneQuote(new BigDecimal("600.00"), "2026-10-16T10:00:00+05:30")));
     when(angelOneClient.getOptionGreeks(any(), any())).thenThrow(new RuntimeException("API error"));
 
     Optional<RecommendedOptionDto> result =
@@ -271,7 +285,9 @@ class NiftyOptionSelectorServiceTest {
     }
 
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(instruments);
-    when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Map.of("159", new BigDecimal("600")));
+    when(angelOneClient.getMarketQuotes(any(), any()))
+        .thenReturn(
+            Map.of("159", new AngelOneQuote(new BigDecimal("600"), "2026-10-16T10:00:00+05:30")));
 
     BigDecimal spotPrice = new BigDecimal("25000");
 
@@ -298,7 +314,11 @@ class NiftyOptionSelectorServiceTest {
             "NFO");
 
     when(scripMasterManager.getNfoOptions("NIFTY", sessionDate)).thenReturn(List.of(otmCall));
-    when(angelOneClient.getMarketQuotes(any(), any())).thenReturn(Map.of("9001", new BigDecimal("550.00")));
+    when(angelOneClient.getMarketQuotes(any(), any()))
+        .thenReturn(
+            Map.of(
+                "9001",
+                new AngelOneQuote(new BigDecimal("550.00"), "2026-10-16T10:00:00+05:30")));
 
     Optional<RecommendedOptionDto> result =
         service.selectBestOption(niftyTicker, spotPrice, OptionType.CALL, sessionDate);

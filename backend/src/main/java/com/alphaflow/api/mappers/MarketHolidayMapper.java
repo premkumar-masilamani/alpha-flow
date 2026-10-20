@@ -5,8 +5,6 @@ import com.alphaflow.persistence.entities.MarketHoliday;
 
 public final class MarketHolidayMapper {
 
-  private MarketHolidayMapper() {}
-
   public static MarketHolidayDto toDto(MarketHoliday marketHoliday) {
     if (marketHoliday != null) {
       return MarketHolidayDto.builder()

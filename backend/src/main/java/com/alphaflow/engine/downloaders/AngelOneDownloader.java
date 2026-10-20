@@ -177,7 +177,7 @@ public class AngelOneDownloader {
             Country.IN, DataProvider.ANGEL_ONE);
     List<LiveQuote> savedQuotes = new ArrayList<>();
     for (Ticker ticker : activeTickers) {
-      Optional<LiveQuote> liveQuoteOptional = downloadLiveQuoteForTicker(ticker, currentTimestamp);
+      Optional<LiveQuote> liveQuoteOptional = downloadAndPersistLiveQuoteForTicker(ticker, currentTimestamp);
       if (liveQuoteOptional.isPresent()) {
         savedQuotes.add(liveQuoteOptional.get());
       } else {
@@ -196,13 +196,13 @@ public class AngelOneDownloader {
    * @param currentTimestamp fallback timestamp to associate with quote
    * @return persisted LiveQuote if fetched, empty otherwise
    */
-  public Optional<LiveQuote> downloadLiveQuoteForTicker(
+  public Optional<LiveQuote> downloadAndPersistLiveQuoteForTicker(
       Ticker ticker, OffsetDateTime currentTimestamp) {
     String symbolToken = AngelOneClient.resolveToken(ticker.getTickerSymbol());
-    Optional<AngelOneQuote> marketQuoteOptional =
-        client.getMarketQuote(MarketConfig.EXCHANGE_NSE, symbolToken);
-    if (marketQuoteOptional.isPresent()) {
-      AngelOneQuote marketQuote = marketQuoteOptional.get();
+    Map<String, AngelOneQuote> marketQuotes =
+        client.getMarketQuotes(MarketConfig.EXCHANGE_NSE, List.of(symbolToken));
+    AngelOneQuote marketQuote = marketQuotes.get(symbolToken);
+    if (marketQuote != null) {
       OffsetDateTime quoteTime =
           SchedulerUtils.parseQuoteTimestamp(marketQuote.timestamp(), currentTimestamp);
       Optional<LiveQuote> existingQuoteOptional = liveQuoteRepository.findByTicker(ticker);

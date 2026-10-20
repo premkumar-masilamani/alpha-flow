@@ -20,7 +20,7 @@ import org.springframework.web.client.RestClientException;
 public class AngelOneAuthManager {
 
   private final AngelOneConfig config;
-  private final TotpGenerator totpGenerator;
+  private final AngelOneTotpGenerator angelOneTotpGenerator;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
   private final RateLimiter rateLimiter;
@@ -33,14 +33,14 @@ public class AngelOneAuthManager {
 
   public AngelOneAuthManager(
       AngelOneConfig config,
-      TotpGenerator totpGenerator,
+      AngelOneTotpGenerator angelOneTotpGenerator,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
       RateLimiter rateLimiter,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           RestClient.Builder restClientBuilder) {
     this.config = config;
-    this.totpGenerator = totpGenerator;
+    this.angelOneTotpGenerator = angelOneTotpGenerator;
     this.objectMapper = objectMapper;
     this.networkHelper = networkHelper;
     this.rateLimiter = rateLimiter;
@@ -68,7 +68,7 @@ public class AngelOneAuthManager {
   public synchronized boolean login() {
     try {
       rateLimiter.throttleAngelOneLogin();
-      String totp = totpGenerator.generateCurrentTotp(config.getTotpKey());
+      String totp = angelOneTotpGenerator.generateCurrentTotp(config.getTotpKey());
       Map<String, String> payload = new HashMap<>();
       payload.put("clientcode", config.getClientCode());
       payload.put("password", config.getPassword());

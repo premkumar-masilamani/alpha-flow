@@ -1,13 +1,14 @@
 package com.alphaflow.engine.strategies.options;
 
-import com.alphaflow.engine.configs.MarketConfig;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.angelone.AngelOneClient;
 import com.alphaflow.engine.downloaders.angelone.AngelOneScripMasterManager;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneInstrument;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
+import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import java.math.BigDecimal;
@@ -105,7 +106,7 @@ public class NiftyOptionSelectorService {
   private boolean isNiftySymbol(String symbol) {
     if (symbol != null) {
       String cleanSymbol = symbol.trim().replace(" ", "").toUpperCase(Locale.ROOT);
-      return "NIFTY50".equals(cleanSymbol) || "NIFTY".equals(cleanSymbol);
+      return "NIFTY50".equals(cleanSymbol);
     } else {
       return false;
     }
@@ -188,7 +189,7 @@ public class NiftyOptionSelectorService {
     List<String> tokens =
         candidateInstruments.stream().map(AngelOneInstrument::token).toList();
 
-    Map<String, BigDecimal> liveQuotes =
+    Map<String, AngelOneQuote> liveQuotes =
         angelOneClient.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, tokens);
 
     if (!liveQuotes.isEmpty()) {
@@ -198,7 +199,8 @@ public class NiftyOptionSelectorService {
       BigDecimal bestTimeValue = null;
 
       for (AngelOneInstrument candidate : candidateInstruments) {
-        BigDecimal ltp = liveQuotes.get(candidate.token());
+        AngelOneQuote quote = liveQuotes.get(candidate.token());
+        BigDecimal ltp = quote != null ? quote.lastPrice() : null;
         if (ltp != null && ltp.compareTo(MIN_PREMIUM) >= 0 && ltp.compareTo(MAX_PREMIUM) <= 0) {
           BigDecimal intrinsicValue = computeIntrinsicValue(spotPrice, candidate.strike(), optionType);
           BigDecimal timeValue = ltp.subtract(intrinsicValue).setScale(4, RoundingMode.HALF_UP);

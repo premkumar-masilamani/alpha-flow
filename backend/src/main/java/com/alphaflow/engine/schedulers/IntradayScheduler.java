@@ -1,9 +1,10 @@
 package com.alphaflow.engine.schedulers;
 
+import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.AngelOneDownloader;
-import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
+import com.alphaflow.engine.strategies.Intraday70PBounceStrategy;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.enums.Country;
 import java.time.ZonedDateTime;
@@ -25,17 +26,17 @@ public class IntradayScheduler {
 
   private final AngelOneConfig angelOneConfig;
   private final AngelOneDownloader angelOneDownloader;
-  private final SakthiIntradayStrategy sakthiIntradayStrategy;
+  private final Intraday70PBounceStrategy intraday70PBounceStrategy;
   private final AtomicBoolean candleSyncRunning = new AtomicBoolean(false);
   private final AtomicBoolean liveQuoteRunning = new AtomicBoolean(false);
 
   public IntradayScheduler(
       AngelOneConfig angelOneConfig,
       AngelOneDownloader angelOneDownloader,
-      SakthiIntradayStrategy sakthiIntradayStrategy) {
+      Intraday70PBounceStrategy intraday70PBounceStrategy) {
     this.angelOneConfig = angelOneConfig;
     this.angelOneDownloader = angelOneDownloader;
-    this.sakthiIntradayStrategy = sakthiIntradayStrategy;
+    this.intraday70PBounceStrategy = intraday70PBounceStrategy;
   }
 
   @Scheduled(cron = "30 0,15,30,45 9-15 * * MON-FRI", zone = MarketConfig.TIMEZONE_KOLKATA)
@@ -80,17 +81,12 @@ public class IntradayScheduler {
     }
   }
 
-  public void runLiveQuoteUpdate() {
-    runLiveQuoteUpdate(ZonedDateTime.now(MarketConfig.IST_ZONE));
-  }
-
   /**
    * Executes the 1-minute live quote extraction and strategy evaluation pipeline.
-   *
-   * @param currentMarketTime current market timestamp for session validation and quote stamping
    */
-  public void runLiveQuoteUpdate(ZonedDateTime currentMarketTime) {
-    if (SchedulerUtils.isMarketSessionOpen(
+  public void runLiveQuoteUpdate() {
+    ZonedDateTime currentMarketTime = ZonedDateTime.now(MarketConfig.IST_ZONE);
+    if (MarketTradingCalendar.isMarketSessionOpen(
         currentMarketTime,
         angelOneConfig.getSessionStartTime(),
         angelOneConfig.getSessionEndTime(),
@@ -111,7 +107,7 @@ public class IntradayScheduler {
           log.info("Step 2/2: Evaluating intraday trading strategies...");
           start = System.currentTimeMillis();
           for (LiveQuote liveQuote : liveQuotes) {
-            sakthiIntradayStrategy.execute(liveQuote.getTicker(), liveQuote);
+            intraday70PBounceStrategy.execute(liveQuote.getTicker(), liveQuote);
           }
           log.info(
               "Step 2/2 completed in {}.",

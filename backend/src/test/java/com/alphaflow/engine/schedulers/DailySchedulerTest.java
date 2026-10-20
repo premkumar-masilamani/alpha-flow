@@ -13,6 +13,7 @@ import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
+import com.alphaflow.engine.configs.ChartPatternConfig;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +30,7 @@ class DailySchedulerTest {
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+    ChartPatternConfig chartPatternConfig = new ChartPatternConfig();
 
     when(downloader.downloadAndPersistDailyPrices()).thenReturn(5);
 
@@ -39,7 +41,8 @@ class DailySchedulerTest {
             indicatorCalculator,
             supportResistanceCalculator,
             patternCalculator,
-            chartPatternCalculator);
+            chartPatternCalculator,
+            chartPatternConfig);
 
     scheduler.runScheduledUpdate();
 
@@ -60,6 +63,8 @@ class DailySchedulerTest {
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+    ChartPatternConfig chartPatternConfig = new ChartPatternConfig();
+    chartPatternConfig.setEnabled(true);
 
     when(downloader.downloadAndPersistDailyPrices()).thenReturn(5);
 
@@ -71,7 +76,7 @@ class DailySchedulerTest {
             supportResistanceCalculator,
             patternCalculator,
             chartPatternCalculator,
-            true);
+            chartPatternConfig);
 
     scheduler.runScheduledUpdate();
 
@@ -92,6 +97,7 @@ class DailySchedulerTest {
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+    ChartPatternConfig chartPatternConfig = new ChartPatternConfig();
 
     when(downloader.downloadAndPersistDailyPrices()).thenReturn(0);
 
@@ -102,7 +108,8 @@ class DailySchedulerTest {
             indicatorCalculator,
             supportResistanceCalculator,
             patternCalculator,
-            chartPatternCalculator);
+            chartPatternCalculator,
+            chartPatternConfig);
 
     scheduler.runScheduledUpdate();
 
@@ -123,6 +130,7 @@ class DailySchedulerTest {
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+    ChartPatternConfig chartPatternConfig = new ChartPatternConfig();
 
     doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadAndPersistDailyPrices();
 
@@ -133,7 +141,8 @@ class DailySchedulerTest {
             indicatorCalculator,
             supportResistanceCalculator,
             patternCalculator,
-            chartPatternCalculator);
+            chartPatternCalculator,
+            chartPatternConfig);
 
     scheduler.runOnStartup();
 
@@ -154,6 +163,7 @@ class DailySchedulerTest {
         mock(SupportResistanceCalculator.class);
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
+    ChartPatternConfig chartPatternConfig = new ChartPatternConfig();
 
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
@@ -174,7 +184,8 @@ class DailySchedulerTest {
             indicatorCalculator,
             supportResistanceCalculator,
             patternCalculator,
-            chartPatternCalculator);
+            chartPatternCalculator,
+            chartPatternConfig);
 
     Thread updateThread = new Thread(scheduler::runScheduledUpdate);
     updateThread.start();

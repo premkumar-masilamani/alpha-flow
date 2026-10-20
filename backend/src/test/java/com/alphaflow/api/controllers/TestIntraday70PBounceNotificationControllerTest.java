@@ -11,12 +11,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.services.NotificationTemplateEngine;
-import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
+import com.alphaflow.engine.strategies.Intraday70PBounceStrategy;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,12 +26,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
-class TestSakthiNotificationControllerTest {
+class TestIntraday70PBounceNotificationControllerTest {
 
   private NotificationService notificationService;
   private NiftyOptionSelectorService niftyOptionSelectorService;
-  private SakthiIntradayStrategy sakthiIntradayStrategy;
-  private TestSakthiNotificationController controller;
+  private Intraday70PBounceStrategy intraday70PBounceStrategy;
+  private TestIntraday70PBounceNotificationController controller;
 
   @BeforeEach
   void setUp() {
@@ -39,15 +39,15 @@ class TestSakthiNotificationControllerTest {
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
     DailyPriceRepository dailyPriceRepository = mock(DailyPriceRepository.class);
     NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
-    sakthiIntradayStrategy =
-        new SakthiIntradayStrategy(
+    intraday70PBounceStrategy =
+        new Intraday70PBounceStrategy(
             dailyPriceRepository,
             notificationService,
             niftyOptionSelectorService,
             notificationTemplateEngine);
     controller =
-        new TestSakthiNotificationController(
-            notificationService, sakthiIntradayStrategy, niftyOptionSelectorService);
+        new TestIntraday70PBounceNotificationController(
+            notificationService, intraday70PBounceStrategy, niftyOptionSelectorService);
   }
 
   @Test

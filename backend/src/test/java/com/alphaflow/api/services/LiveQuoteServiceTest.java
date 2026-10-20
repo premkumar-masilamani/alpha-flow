@@ -17,15 +17,15 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class QuoteServiceTest {
+class LiveQuoteServiceTest {
 
   private LiveQuoteRepository liveQuoteRepository;
-  private QuoteService quoteService;
+  private LiveQuoteService liveQuoteService;
 
   @BeforeEach
   void setUp() {
     liveQuoteRepository = mock(LiveQuoteRepository.class);
-    quoteService = new QuoteService(liveQuoteRepository);
+    liveQuoteService = new LiveQuoteService(liveQuoteRepository);
   }
 
   @Test
@@ -49,7 +49,7 @@ class QuoteServiceTest {
 
     when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.of(liveQuote));
 
-    QuoteDto quoteDto = quoteService.getQuote(ticker);
+    QuoteDto quoteDto = liveQuoteService.getQuote(ticker);
 
     assertNotNull(quoteDto);
     assertEquals(new BigDecimal("25100.0000"), quoteDto.currentPrice());
@@ -67,7 +67,7 @@ class QuoteServiceTest {
 
     when(liveQuoteRepository.findByTicker(ticker)).thenReturn(Optional.empty());
 
-    QuoteDto quoteDto = quoteService.getQuote(ticker);
+    QuoteDto quoteDto = liveQuoteService.getQuote(ticker);
 
     assertNotNull(quoteDto);
     assertEquals(BigDecimal.ZERO, quoteDto.currentPrice());

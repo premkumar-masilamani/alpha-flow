@@ -1,6 +1,5 @@
 package com.alphaflow.engine.strategies;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -10,11 +9,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.configs.MarketConfig;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.services.NotificationTemplateEngine;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -32,12 +31,12 @@ import org.mockito.ArgumentCaptor;
  * End-to-end test case that simulates the full 70-point reversal flow
  * with option selection and prints the exact generated notification payload.
  */
-class SakthiNotificationFlowTest {
+class Intraday70PBounceNotificationFlowTest {
 
   private DailyPriceRepository dailyPriceRepository;
   private NotificationService notificationService;
   private NiftyOptionSelectorService niftyOptionSelectorService;
-  private SakthiIntradayStrategy strategy;
+  private Intraday70PBounceStrategy strategy;
   private Ticker niftyTicker;
   private OffsetDateTime quoteTime;
 
@@ -48,7 +47,7 @@ class SakthiNotificationFlowTest {
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
     NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
     strategy =
-        new SakthiIntradayStrategy(
+        new Intraday70PBounceStrategy(
             dailyPriceRepository,
             notificationService,
             niftyOptionSelectorService,

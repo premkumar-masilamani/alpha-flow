@@ -13,7 +13,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SakthiIntradayStrategyState {
+public class Intraday70PBounceStrategyState {
 
   private LocalDate sessionDate;
   private LocalDate previousTradingDate;
@@ -27,8 +27,19 @@ public class SakthiIntradayStrategyState {
   private BigDecimal bullHighestPrice;
   private boolean bullReversalNotified;
 
-  public SakthiIntradayStrategyState(LocalDate sessionDate) {
+  public Intraday70PBounceStrategyState(LocalDate sessionDate) {
     this.sessionDate = sessionDate;
+  }
+
+  public Intraday70PBounceStrategyState(
+      LocalDate sessionDate,
+      LocalDate previousTradingDate,
+      BigDecimal previousDayHigh,
+      BigDecimal previousDayLow) {
+    this.sessionDate = sessionDate;
+    this.previousTradingDate = previousTradingDate;
+    this.previousDayHigh = previousDayHigh;
+    this.previousDayLow = previousDayLow;
   }
 
   public void resetForNewSession(LocalDate newSessionDate) {

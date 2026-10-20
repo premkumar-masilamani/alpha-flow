@@ -1,9 +1,9 @@
 *\[BULLISH REVERSAL\] 70\-Point Reversal from Low*
 *Ticker:* ${ticker!}
-*Current Price:* ${currentPrice!}
+*Spot Price:* ${spotPrice!}
 *Time:* ${timestamp!}
 *Previous Day Low:* ${previousDayLow!}
 *Today Low:* ${dayLow!}
-*Rebound:* \+${reboundPoints!} points from ${dayLow!}
+*Rebound:* ${reboundPoints!} points from ${dayLow!}
 
 ${optionDetails!}

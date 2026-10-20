@@ -373,11 +373,13 @@ class AngelOneDownloaderTest {
     when(tickerRepo.findByIsActiveTrueAndCountryAndDataProvider(Country.IN, DataProvider.ANGEL_ONE))
         .thenReturn(List.of(activeTicker1, activeTicker2));
 
-    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000"))
+    when(client.getMarketQuotes(MarketConfig.EXCHANGE_NSE, List.of("99926000")))
         .thenReturn(
-            Optional.of(new AngelOneQuote(new BigDecimal("25125.75"), "2026-10-16T10:00:00+05:30")));
-    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926009"))
-        .thenReturn(Optional.empty());
+            Map.of(
+                "99926000",
+                new AngelOneQuote(new BigDecimal("25125.75"), "2026-10-16T10:00:00+05:30")));
+    when(client.getMarketQuotes(MarketConfig.EXCHANGE_NSE, List.of("BANKNIFTY")))
+        .thenReturn(Map.of());
 
     when(liveQuoteRepo.findByTicker(activeTicker1)).thenReturn(Optional.empty());
     when(liveQuoteRepo.save(any(LiveQuote.class)))
@@ -413,14 +415,16 @@ class AngelOneDownloaderTest {
             .quoteTime(currentTimestamp.minusMinutes(1))
             .build();
 
-    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000"))
+    when(client.getMarketQuotes(MarketConfig.EXCHANGE_NSE, List.of("99926000")))
         .thenReturn(
-            Optional.of(new AngelOneQuote(new BigDecimal("25000.00"), "2026-10-16T10:01:00+05:30")));
+            Map.of(
+                "99926000",
+                new AngelOneQuote(new BigDecimal("25000.00"), "2026-10-16T10:01:00+05:30")));
     when(liveQuoteRepo.findByTicker(ticker)).thenReturn(Optional.of(existing));
     when(liveQuoteRepo.save(any(LiveQuote.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    Optional<LiveQuote> updatedOpt = downloader.downloadLiveQuoteForTicker(ticker, currentTimestamp);
+    Optional<LiveQuote> updatedOpt = downloader.downloadAndPersistLiveQuoteForTicker(ticker, currentTimestamp);
 
     assertTrue(updatedOpt.isPresent());
     LiveQuote updated = updatedOpt.get();
@@ -441,11 +445,11 @@ class AngelOneDownloaderTest {
             .isActive(true)
             .build();
 
-    when(client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000"))
-        .thenReturn(Optional.empty());
+    when(client.getMarketQuotes(MarketConfig.EXCHANGE_NSE, List.of("99926000")))
+        .thenReturn(Map.of());
 
     Optional<LiveQuote> result =
-        downloader.downloadLiveQuoteForTicker(ticker, OffsetDateTime.now(MarketConfig.IST_ZONE));
+        downloader.downloadAndPersistLiveQuoteForTicker(ticker, OffsetDateTime.now(MarketConfig.IST_ZONE));
 
     assertFalse(result.isPresent());
     verify(liveQuoteRepo, never()).save(any());

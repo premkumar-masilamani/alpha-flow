@@ -21,7 +21,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -167,86 +166,8 @@ class AngelOneClientTest {
   }
 
   @Test
-  void testGetMarketQuoteSuccess() {
-    String quoteJson =
-        """
-        {
-          "status": true,
-          "message": "SUCCESS",
-          "errorcode": "",
-          "data": {
-            "fetched": [
-              {
-                "exchange": "NSE",
-                "tradingSymbol": "NIFTY",
-                "symbolToken": "99926000",
-                "ltp": 25150.25,
-                "exchFeedTime": "23-Sep-2026 15:30:00"
-              }
-            ]
-          }
-        }
-        """;
-
-    server.createContext(
-        "/rest/secure/angelbroking/market/v1/quote",
-        exchange -> {
-          byte[] bytes = quoteJson.getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, bytes.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-          }
-        });
-
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000");
-
-    assertTrue(quoteOpt.isPresent());
-    AngelOneQuote q = quoteOpt.get();
-    assertEquals(0, new BigDecimal("25150.25").compareTo(q.lastPrice()));
-    assertEquals("23-Sep-2026 15:30:00", q.timestamp());
-  }
-
-  @Test
-  void testGetMarketQuoteNoJwt() {
-    when(authManager.getValidJwtToken()).thenReturn("");
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000");
-    assertTrue(quoteOpt.isEmpty());
-  }
-
-  @Test
-  void testGetMarketQuoteErrorResponse() {
-    String errorJson =
-        """
-        {
-          "status": false,
-          "message": "Session expired",
-          "errorcode": "AG8001"
-        }
-        """;
-
-    server.createContext(
-        "/rest/secure/angelbroking/market/v1/quote",
-        exchange -> {
-          byte[] bytes = errorJson.getBytes(StandardCharsets.UTF_8);
-          exchange.sendResponseHeaders(200, bytes.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(bytes);
-          }
-        });
-
-    Optional<AngelOneQuote> quoteOpt =
-        client.getMarketQuote(MarketConfig.EXCHANGE_NSE, "99926000");
-    assertTrue(quoteOpt.isEmpty());
-    verify(authManager, atLeastOnce()).invalidateSession();
-  }
-
-  @Test
   void testResolveToken() {
     assertEquals("99926000", AngelOneClient.resolveToken("NIFTY50"));
-    assertEquals("99926000", AngelOneClient.resolveToken("nifty50"));
-    assertEquals("99926000", AngelOneClient.resolveToken("NIFTY 50"));
     assertEquals("UNKNOWN", AngelOneClient.resolveToken("UNKNOWN"));
   }
 
@@ -269,7 +190,8 @@ class AngelOneClientTest {
               {
                 "exchange": "NFO",
                 "symbolToken": "12345",
-                "ltp": 620.50
+                "ltp": 620.50,
+                "exchFeedTime": "23-Sep-2026 15:30:00"
               },
               {
                 "exchange": "NFO",
@@ -294,21 +216,23 @@ class AngelOneClientTest {
     config.setQuoteUrl(
         "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/market/v1/quote/bulk");
 
-    Map<String, BigDecimal> quotes =
+    Map<String, AngelOneQuote> quotes =
         client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345", "12346"));
 
     assertEquals(2, quotes.size());
-    assertEquals(0, new BigDecimal("620.50").compareTo(quotes.get("12345")));
-    assertEquals(0, new BigDecimal("710.00").compareTo(quotes.get("12346")));
+    assertEquals(0, new BigDecimal("620.50").compareTo(quotes.get("12345").lastPrice()));
+    assertEquals("23-Sep-2026 15:30:00", quotes.get("12345").timestamp());
+    assertEquals(0, new BigDecimal("710.00").compareTo(quotes.get("12346").lastPrice()));
+    assertNotNull(quotes.get("12346").timestamp());
   }
 
   @Test
   void testGetMarketQuotesNullOrEmpty() {
-    Map<String, BigDecimal> nullQuotes =
+    Map<String, AngelOneQuote> nullQuotes =
         client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, null);
     assertTrue(nullQuotes.isEmpty());
 
-    Map<String, BigDecimal> emptyQuotes =
+    Map<String, AngelOneQuote> emptyQuotes =
         client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of());
     assertTrue(emptyQuotes.isEmpty());
   }
@@ -316,7 +240,7 @@ class AngelOneClientTest {
   @Test
   void testGetMarketQuotesNoJwt() {
     when(authManager.getValidJwtToken()).thenReturn(null);
-    Map<String, BigDecimal> quotes =
+    Map<String, AngelOneQuote> quotes =
         client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345"));
     assertTrue(quotes.isEmpty());
   }
@@ -344,7 +268,7 @@ class AngelOneClientTest {
     config.setQuoteUrl(
         "http://localhost:" + server.getAddress().getPort() + "/rest/secure/angelbroking/market/v1/quote/error");
 
-    Map<String, BigDecimal> quotes =
+    Map<String, AngelOneQuote> quotes =
         client.getMarketQuotes(MarketConfig.EXCHANGE_SEGMENT_NFO, List.of("12345"));
     assertTrue(quotes.isEmpty());
     verify(authManager, atLeastOnce()).invalidateSession();

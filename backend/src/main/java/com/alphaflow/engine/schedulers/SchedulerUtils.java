@@ -1,10 +1,7 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.engine.calendar.MarketTradingCalendar;
-import com.alphaflow.persistence.enums.Country;
-import java.time.LocalTime;
+import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,11 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class SchedulerUtils {
 
-  private static final long MILLIS_PER_MINUTE = 60000;
-  private static final long MILLIS_PER_SECOND = 1000;
-
-  private SchedulerUtils() {}
-
   /**
    * Formats execution duration into human-readable minutes, seconds, and milliseconds.
    *
@@ -26,29 +18,8 @@ public final class SchedulerUtils {
    * @return formatted duration string
    */
   public static String formatDuration(long durationMilliseconds) {
-    long minutes = durationMilliseconds / MILLIS_PER_MINUTE;
-    long seconds = (durationMilliseconds % MILLIS_PER_MINUTE) / MILLIS_PER_SECOND;
-    return String.format("%d m %d s (%d ms)", minutes, seconds, durationMilliseconds);
-  }
-
-  /**
-   * Determines whether the market session is currently open for trading.
-   *
-   * @param currentMarketTime current timestamp in the market timezone
-   * @param sessionStartTime  start time of the market session
-   * @param sessionEndTime    end time of the market session
-   * @param country           market country
-   * @return true if market is open and within session bounds, false otherwise
-   */
-  public static boolean isMarketSessionOpen(
-      ZonedDateTime currentMarketTime,
-      LocalTime sessionStartTime,
-      LocalTime sessionEndTime,
-      Country country) {
-    LocalTime currentTime = currentMarketTime.toLocalTime();
-    return MarketTradingCalendar.isTradingDay(currentMarketTime.toLocalDate(), country)
-        && !currentTime.isBefore(sessionStartTime)
-        && !currentTime.isAfter(sessionEndTime);
+    Duration d = Duration.ofMillis(durationMilliseconds);
+    return String.format("%d m %d s (%d ms)", d.toMinutes(), d.toSecondsPart(), durationMilliseconds);
   }
 
   /**

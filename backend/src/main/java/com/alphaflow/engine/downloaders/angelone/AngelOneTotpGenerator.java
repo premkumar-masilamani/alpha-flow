@@ -9,7 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
 
 @Component
-public class TotpGenerator {
+public class AngelOneTotpGenerator {
 
   private static final String HMAC_SHA1 = "HmacSHA1";
   private static final int TIME_STEP_SECONDS = 30;
