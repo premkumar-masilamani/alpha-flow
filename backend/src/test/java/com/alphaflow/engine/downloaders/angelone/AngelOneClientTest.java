@@ -3,13 +3,15 @@ package com.alphaflow.engine.downloaders.angelone;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.common.enums.IntradayTimeframe;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.configs.YahooFinanceConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.OutputStream;
@@ -54,7 +56,7 @@ class AngelOneClientTest {
 
     objectMapper = new ObjectMapper();
     AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
-    AngelOneRateLimiter rateLimiter = new AngelOneRateLimiter(config);
+    RateLimiter rateLimiter = new RateLimiter(config, new YahooFinanceConfig());
     client =
         new AngelOneClient(
             config, authManager, objectMapper, networkHelper, rateLimiter, RestClient.builder());

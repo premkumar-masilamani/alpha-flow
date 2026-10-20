@@ -30,7 +30,7 @@ class DailySchedulerTest {
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
-    when(downloader.downloadDailyPrices()).thenReturn(5);
+    when(downloader.downloadAndPersistDailyPrices()).thenReturn(5);
 
     DailyScheduler scheduler =
         new DailyScheduler(
@@ -43,7 +43,7 @@ class DailySchedulerTest {
 
     scheduler.runScheduledUpdate();
 
-    verify(downloader, times(1)).downloadDailyPrices();
+    verify(downloader, times(1)).downloadAndPersistDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();
@@ -61,7 +61,7 @@ class DailySchedulerTest {
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
-    when(downloader.downloadDailyPrices()).thenReturn(5);
+    when(downloader.downloadAndPersistDailyPrices()).thenReturn(5);
 
     DailyScheduler scheduler =
         new DailyScheduler(
@@ -75,7 +75,7 @@ class DailySchedulerTest {
 
     scheduler.runScheduledUpdate();
 
-    verify(downloader, times(1)).downloadDailyPrices();
+    verify(downloader, times(1)).downloadAndPersistDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();
@@ -93,7 +93,7 @@ class DailySchedulerTest {
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
-    when(downloader.downloadDailyPrices()).thenReturn(0);
+    when(downloader.downloadAndPersistDailyPrices()).thenReturn(0);
 
     DailyScheduler scheduler =
         new DailyScheduler(
@@ -106,7 +106,7 @@ class DailySchedulerTest {
 
     scheduler.runScheduledUpdate();
 
-    verify(downloader, times(1)).downloadDailyPrices();
+    verify(downloader, times(1)).downloadAndPersistDailyPrices();
     verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
     verify(indicatorCalculator, never()).computeIndicators();
     verify(supportResistanceCalculator, never()).computeSupportResistances();
@@ -124,7 +124,7 @@ class DailySchedulerTest {
     CandlestickPatternCalculator patternCalculator = mock(CandlestickPatternCalculator.class);
     ChartPatternCalculator chartPatternCalculator = mock(ChartPatternCalculator.class);
 
-    doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadDailyPrices();
+    doThrow(new RuntimeException("Simulated Failure")).when(downloader).downloadAndPersistDailyPrices();
 
     DailyScheduler scheduler =
         new DailyScheduler(
@@ -137,7 +137,7 @@ class DailySchedulerTest {
 
     scheduler.runOnStartup();
 
-    verify(downloader, times(1)).downloadDailyPrices();
+    verify(downloader, times(1)).downloadAndPersistDailyPrices();
     verify(weeklyPriceCalculator, never()).computeWeeklyPrices();
     verify(indicatorCalculator, never()).computeIndicators();
     verify(supportResistanceCalculator, never()).computeSupportResistances();
@@ -165,7 +165,7 @@ class DailySchedulerTest {
               return 5;
             })
         .when(downloader)
-        .downloadDailyPrices();
+        .downloadAndPersistDailyPrices();
 
     DailyScheduler scheduler =
         new DailyScheduler(
@@ -187,7 +187,7 @@ class DailySchedulerTest {
     finishLatch.countDown();
     updateThread.join(2000);
 
-    verify(downloader, times(1)).downloadDailyPrices();
+    verify(downloader, times(1)).downloadAndPersistDailyPrices();
     verify(weeklyPriceCalculator, times(1)).computeWeeklyPrices();
     verify(indicatorCalculator, times(1)).computeIndicators();
     verify(supportResistanceCalculator, times(1)).computeSupportResistances();

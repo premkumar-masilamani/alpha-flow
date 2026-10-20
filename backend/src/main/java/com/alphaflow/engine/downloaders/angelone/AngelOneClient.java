@@ -1,12 +1,13 @@
 package com.alphaflow.engine.downloaders.angelone;
 
-import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.common.enums.IntradayTimeframe;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneCandle;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneOptionGreek;
 import com.alphaflow.engine.downloaders.angelone.dtos.AngelOneQuote;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,7 +41,7 @@ public class AngelOneClient {
   private final AngelOneAuthManager authManager;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
-  private final AngelOneRateLimiter rateLimiter;
+  private final RateLimiter rateLimiter;
   private final RestClient restClient;
 
   public AngelOneClient(
@@ -48,7 +49,7 @@ public class AngelOneClient {
       AngelOneAuthManager authManager,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
-      AngelOneRateLimiter rateLimiter,
+      RateLimiter rateLimiter,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           RestClient.Builder restClientBuilder) {
     this.config = config;
@@ -143,7 +144,7 @@ public class AngelOneClient {
     }
 
     try {
-      rateLimiter.throttle();
+      rateLimiter.throttleAngelOneCandles();
       ResponseEntity<String> response =
           restClient
               .post()
@@ -204,7 +205,7 @@ public class AngelOneClient {
     }
 
     try {
-      rateLimiter.throttle();
+      rateLimiter.throttleAngelOneLiveQuote();
       ResponseEntity<String> response =
           restClient
               .post()
@@ -261,7 +262,7 @@ public class AngelOneClient {
       }
 
       try {
-        rateLimiter.throttle();
+        rateLimiter.throttleAngelOneLiveQuote();
         ResponseEntity<String> response =
             restClient
                 .post()
@@ -324,7 +325,7 @@ public class AngelOneClient {
       }
 
       try {
-        rateLimiter.throttle();
+        rateLimiter.throttleAngelOneOptionGreeks();
         ResponseEntity<String> response =
             restClient
                 .post()

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
-import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
@@ -20,7 +19,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -115,7 +113,7 @@ class YahooFinanceDownloaderTest {
     YahooFinanceConfig config = createConfig();
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -147,7 +145,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     // Verifies both AAPL and MSFT processed, and saveAll was called twice
     assertEquals(4, ingestedRows);
@@ -174,7 +172,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
@@ -200,7 +198,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -226,7 +224,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -240,7 +238,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -266,7 +264,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
@@ -292,7 +290,7 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(config);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
-    int ingestedRows = downloader.downloadDailyPrices();
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());

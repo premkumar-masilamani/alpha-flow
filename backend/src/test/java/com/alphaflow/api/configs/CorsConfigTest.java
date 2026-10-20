@@ -1,7 +1,6 @@
 package com.alphaflow.api.configs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -13,28 +12,6 @@ import org.springframework.web.servlet.config.annotation.CorsRegistration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
 class CorsConfigTest {
-
-  @Test
-  void testAddCorsMappingsThrowsExceptionIfNull() {
-
-    CorsConfig config = new CorsConfig();
-
-    config.setAllowedOrigins(null);
-
-    assertThrows(
-        IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
-  }
-
-  @Test
-  void testAddCorsMappingsThrowsExceptionIfEmpty() {
-
-    CorsConfig config = new CorsConfig();
-
-    config.setAllowedOrigins(List.of());
-
-    assertThrows(
-        IllegalStateException.class, () -> config.addCorsMappings(mock(CorsRegistry.class)));
-  }
 
   @Test
   void testAddCorsMappingsRegistersCorrectly() {

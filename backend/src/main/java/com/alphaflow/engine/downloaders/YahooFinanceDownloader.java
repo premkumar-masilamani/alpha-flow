@@ -36,7 +36,7 @@ public class YahooFinanceDownloader {
     this.dailyPriceRepository = dailyPriceRepository;
   }
 
-  public int downloadDailyPrices() {
+  public int downloadAndPersistDailyPrices() {
     log.info("Starting Yahoo Finance data download process...");
 
     Map<Ticker, LocalDate> latestSavedDates =
@@ -58,7 +58,7 @@ public class YahooFinanceDownloader {
       LocalDate latestSavedDate = latestSavedDates.get(ticker);
       if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
         int ingestedRows =
-            downloadDataForTicker(ticker, latestSavedDate, expectedTradingDate, marketZone);
+            downloadAndPersistForTicker(ticker, latestSavedDate, expectedTradingDate, marketZone);
         totalNewlyIngestedRows += ingestedRows;
       } else {
         log.debug(
@@ -74,10 +74,10 @@ public class YahooFinanceDownloader {
     return totalNewlyIngestedRows;
   }
 
-  private int downloadDataForTicker(
+  private int downloadAndPersistForTicker(
       Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate, ZoneId marketZone) {
     LocalDate actualLatestDate =
-        (latestSavedDate != null) ? latestSavedDate : LocalDate.of(1900, 1, 1);
+        (latestSavedDate != null) ? latestSavedDate : yahooFinanceConfig.getBackfillStartDate();
     LocalDate startDate = actualLatestDate.plusDays(1);
 
     long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();

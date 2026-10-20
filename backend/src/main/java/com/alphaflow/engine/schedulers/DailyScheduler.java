@@ -89,7 +89,7 @@ public class DailyScheduler {
       try {
         log.info("Step 1/6: Downloading Yahoo Finance daily data...");
         long start = System.currentTimeMillis();
-        int newlyIngestedRows = yahooFinanceDownloader.downloadDailyPrices();
+        int newlyIngestedRows = yahooFinanceDownloader.downloadAndPersistDailyPrices();
         log.info(
             "Step 1/6 completed in {}. Newly ingested rows: {}",
             SchedulerUtils.formatDuration(System.currentTimeMillis() - start),

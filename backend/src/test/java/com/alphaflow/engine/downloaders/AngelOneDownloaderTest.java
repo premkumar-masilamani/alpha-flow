@@ -75,7 +75,7 @@ class AngelOneDownloaderTest {
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of());
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(0, result);
     verify(client, never()).fetch15mCandles(any(), any(), any(), any());
@@ -96,7 +96,7 @@ class AngelOneDownloaderTest {
             DataProvider.ANGEL_ONE, IntradayTimeframe._15M.getValue()))
         .thenReturn(Map.of(ticker, futureTime));
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(0, result);
     verify(client, never()).fetch15mCandles(any(), any(), any(), any());
@@ -160,7 +160,7 @@ class AngelOneDownloaderTest {
             any()))
         .thenReturn(List.of(oldCandle, validCandle, futureCandle));
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(1, result);
     verify(intradayRepo, times(1)).saveAll(any());
@@ -220,7 +220,7 @@ class AngelOneDownloaderTest {
             any()))
         .thenReturn(List.of(candleChunk1, candleChunk2));
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(2, result);
     verify(client, times(1)).fetch15mCandles(any(), any(), any(), any());
@@ -273,7 +273,7 @@ class AngelOneDownloaderTest {
             any()))
         .thenReturn(List.of(candle1, candleDuplicate));
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(1, result);
     verify(intradayRepo, times(1)).saveAll(any());
@@ -302,7 +302,7 @@ class AngelOneDownloaderTest {
 
     when(client.fetch15mCandles(any(), any(), any(), any())).thenReturn(List.of());
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(0, result);
     verify(client, times(1)).fetch15mCandles(any(), any(), any(), any());
@@ -342,7 +342,7 @@ class AngelOneDownloaderTest {
 
     when(client.fetch15mCandles(any(), any(), any(), any())).thenReturn(List.of(oldCandle));
 
-    int result = downloader.downloadIntradayPrices();
+    int result = downloader.downloadAndPersistIntradayPrices();
 
     assertEquals(0, result);
     verify(client, times(1)).fetch15mCandles(any(), any(), any(), any());

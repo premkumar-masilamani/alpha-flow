@@ -1,7 +1,7 @@
 package com.alphaflow.engine.schedulers;
 
-import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.downloaders.AngelOneDownloader;
 import com.alphaflow.engine.strategies.SakthiIntradayStrategy;
 import com.alphaflow.persistence.entities.LiveQuote;
@@ -26,7 +26,8 @@ public class IntradayScheduler {
   private final AngelOneConfig angelOneConfig;
   private final AngelOneDownloader angelOneDownloader;
   private final SakthiIntradayStrategy sakthiIntradayStrategy;
-  private final AtomicBoolean running = new AtomicBoolean(false);
+  private final AtomicBoolean candleSyncRunning = new AtomicBoolean(false);
+  private final AtomicBoolean liveQuoteRunning = new AtomicBoolean(false);
 
   public IntradayScheduler(
       AngelOneConfig angelOneConfig,
@@ -37,101 +38,102 @@ public class IntradayScheduler {
     this.sakthiIntradayStrategy = sakthiIntradayStrategy;
   }
 
+  @Scheduled(cron = "30 0,15,30,45 9-15 * * MON-FRI", zone = MarketConfig.TIMEZONE_KOLKATA)
+  public void runScheduledCandleSync() {
+    log.info("Starting scheduled Angel One 15-minute intraday candle sync...");
+    syncIntradayCandles();
+  }
+
   @Scheduled(cron = "0 * 9-15 * * MON-FRI", zone = MarketConfig.TIMEZONE_KOLKATA)
-  public void runScheduledUpdate() {
-    run();
+  public void runScheduledLiveQuoteUpdate() {
+    runLiveQuoteUpdate();
   }
 
   @Async
   @EventListener(ApplicationReadyEvent.class)
   public void runOnStartup() {
     log.info("Starting initial Angel One intraday sync upon startup...");
-    syncIntradayPricesOnStartup();
-    run();
+    syncIntradayCandles();
+    runLiveQuoteUpdate();
   }
 
-  public void syncIntradayPricesOnStartup() {
-    if (running.compareAndSet(false, true)) {
+  public void syncIntradayCandles() {
+    if (candleSyncRunning.compareAndSet(false, true)) {
+      long start = System.currentTimeMillis();
       try {
-        log.info("Step 1/1: Syncing Angel One 15-minute intraday candles on startup...");
-        long start = System.currentTimeMillis();
-        int newlyIngestedCandles = angelOneDownloader.downloadIntradayPrices();
+        log.info("Syncing Angel One 15-minute intraday candles...");
+        int newlyIngestedCandles = angelOneDownloader.downloadAndPersistIntradayPrices();
         log.info(
-            "Startup intraday sync completed in {}. Newly ingested candles: {}",
+            "Angel One 15-minute candle sync completed in {}. Newly ingested candles: {}",
             SchedulerUtils.formatDuration(System.currentTimeMillis() - start),
             newlyIngestedCandles);
       } catch (Exception exception) {
-        log.error("Error occurred during startup intraday candle sync", exception);
+        log.error(
+            "Error occurred during Angel One 15-minute candle sync after {}",
+            SchedulerUtils.formatDuration(System.currentTimeMillis() - start),
+            exception);
       } finally {
-        running.set(false);
+        candleSyncRunning.set(false);
       }
     } else {
-      log.warn("Startup intraday candle sync skipped: an update is already in progress.");
+      log.warn("Angel One 15-minute candle sync skipped: a previous run is still in progress.");
     }
   }
 
-  public void run() {
-    run(ZonedDateTime.now(MarketConfig.IST_ZONE));
+  public void runLiveQuoteUpdate() {
+    runLiveQuoteUpdate(ZonedDateTime.now(MarketConfig.IST_ZONE));
   }
 
   /**
-   * Executes the multi-step intraday cycle: 15m candle syncing, live quote extraction, and strategy evaluation.
+   * Executes the 1-minute live quote extraction and strategy evaluation pipeline.
    *
    * @param currentMarketTime current market timestamp for session validation and quote stamping
    */
-  public void run(ZonedDateTime currentMarketTime) {
+  public void runLiveQuoteUpdate(ZonedDateTime currentMarketTime) {
     if (SchedulerUtils.isMarketSessionOpen(
         currentMarketTime,
         angelOneConfig.getSessionStartTime(),
         angelOneConfig.getSessionEndTime(),
         Country.IN)) {
-      if (running.compareAndSet(false, true)) {
-        log.info("Starting scheduled Angel One intraday update cycle...");
+      if (liveQuoteRunning.compareAndSet(false, true)) {
+        log.info("Starting scheduled Angel One 1-minute live quote update...");
         long cycleStart = System.currentTimeMillis();
         try {
-          log.info("Step 1/3: Syncing Angel One 15-minute intraday candles...");
+          log.info("Step 1/2: Fetching and persisting live quotes...");
           long start = System.currentTimeMillis();
-          int newlyIngestedCandles = angelOneDownloader.downloadIntradayPrices();
-          log.info(
-              "Step 1/3 completed in {}. Newly ingested candles: {}",
-              SchedulerUtils.formatDuration(System.currentTimeMillis() - start),
-              newlyIngestedCandles);
-
-          log.info("Step 2/3: Fetching and persisting live quotes...");
-          start = System.currentTimeMillis();
           List<LiveQuote> liveQuotes =
               angelOneDownloader.downloadLiveQuotes(currentMarketTime.toOffsetDateTime());
           log.info(
-              "Step 2/3 completed in {}. Persisted quotes: {}",
+              "Step 1/2 completed in {}. Persisted quotes: {}",
               SchedulerUtils.formatDuration(System.currentTimeMillis() - start),
               liveQuotes.size());
 
-          log.info("Step 3/3: Evaluating intraday trading strategies...");
+          log.info("Step 2/2: Evaluating intraday trading strategies...");
           start = System.currentTimeMillis();
           for (LiveQuote liveQuote : liveQuotes) {
             sakthiIntradayStrategy.execute(liveQuote.getTicker(), liveQuote);
           }
           log.info(
-              "Step 3/3 completed in {}.",
+              "Step 2/2 completed in {}.",
               SchedulerUtils.formatDuration(System.currentTimeMillis() - start));
 
           log.info(
-              "Scheduled intraday update cycle completed successfully in {}.",
+              "Scheduled 1-minute live quote update completed successfully in {}.",
               SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart));
         } catch (Exception exception) {
           log.error(
-              "Error occurred during scheduled intraday update cycle after {}",
+              "Error occurred during scheduled 1-minute live quote update after {}",
               SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart),
               exception);
         } finally {
-          running.set(false);
+          liveQuoteRunning.set(false);
         }
       } else {
-        log.warn("Intraday update cycle skipped: a previous run is still in progress.");
+        log.warn("Live quote update skipped: a previous run is still in progress.");
       }
     } else {
       log.debug(
-          "Skipping intraday update cycle: Indian market session is closed at {}.",
+          "Skipping live quote update: Indian market session is closed at {}.",
           currentMarketTime);
     }
   }

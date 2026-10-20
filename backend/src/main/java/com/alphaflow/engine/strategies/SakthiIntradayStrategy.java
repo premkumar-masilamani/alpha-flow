@@ -1,14 +1,14 @@
 package com.alphaflow.engine.strategies;
 
-import com.alphaflow.engine.configs.MarketConfig;
-import com.alphaflow.engine.strategies.options.enums.OptionType;
-import com.alphaflow.common.utils.TelegramMarkdownV2Helper;
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.services.NotificationService;
 import com.alphaflow.engine.services.NotificationTemplateEngine;
+import com.alphaflow.engine.services.TelegramNotificationService;
 import com.alphaflow.engine.strategies.model.SakthiIntradayStrategyState;
 import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
+import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
@@ -197,10 +197,10 @@ public class SakthiIntradayStrategy {
   public String buildBearBreachMessage(
       Ticker ticker, LiveQuote liveQuote, BigDecimal previousDayLow) {
     Map<String, String> variables = new HashMap<>();
-    variables.put("ticker", TelegramMarkdownV2Helper.escape(ticker.getTickerSymbol()));
-    variables.put("currentPrice", TelegramMarkdownV2Helper.escape(formatPrice(liveQuote.getLastPrice())));
-    variables.put("previousDayLow", TelegramMarkdownV2Helper.escape(formatPrice(previousDayLow)));
-    variables.put("timestamp", TelegramMarkdownV2Helper.escape(formatTimestamp(liveQuote.getQuoteTime())));
+    variables.put("ticker", TelegramNotificationService.escape(ticker.getTickerSymbol()));
+    variables.put("currentPrice", TelegramNotificationService.escape(formatPrice(liveQuote.getLastPrice())));
+    variables.put("previousDayLow", TelegramNotificationService.escape(formatPrice(previousDayLow)));
+    variables.put("timestamp", TelegramNotificationService.escape(formatTimestamp(liveQuote.getQuoteTime())));
     return notificationTemplateEngine.render("notifications/bear_breach.md", variables);
   }
 
@@ -211,12 +211,12 @@ public class SakthiIntradayStrategy {
       BigDecimal previousDayLow,
       Optional<RecommendedOptionDto> recommendedOption) {
     Map<String, String> variables = new HashMap<>();
-    variables.put("ticker", TelegramMarkdownV2Helper.escape(ticker.getTickerSymbol()));
-    variables.put("currentPrice", TelegramMarkdownV2Helper.escape(formatPrice(liveQuote.getLastPrice())));
-    variables.put("dayLow", TelegramMarkdownV2Helper.escape(formatPrice(lowestPrice)));
-    variables.put("reboundPoints", TelegramMarkdownV2Helper.escape(formatPrice(REBOUND_THRESHOLD_POINTS)));
-    variables.put("previousDayLow", TelegramMarkdownV2Helper.escape(formatPrice(previousDayLow)));
-    variables.put("timestamp", TelegramMarkdownV2Helper.escape(formatTimestamp(liveQuote.getQuoteTime())));
+    variables.put("ticker", TelegramNotificationService.escape(ticker.getTickerSymbol()));
+    variables.put("currentPrice", TelegramNotificationService.escape(formatPrice(liveQuote.getLastPrice())));
+    variables.put("dayLow", TelegramNotificationService.escape(formatPrice(lowestPrice)));
+    variables.put("reboundPoints", TelegramNotificationService.escape(formatPrice(REBOUND_THRESHOLD_POINTS)));
+    variables.put("previousDayLow", TelegramNotificationService.escape(formatPrice(previousDayLow)));
+    variables.put("timestamp", TelegramNotificationService.escape(formatTimestamp(liveQuote.getQuoteTime())));
     variables.put("optionDetails", buildOptionDetailsMessage(recommendedOption, OptionType.PUT));
     return notificationTemplateEngine.render("notifications/bear_reversal.md", variables);
   }
@@ -224,10 +224,10 @@ public class SakthiIntradayStrategy {
   public String buildBullBreachMessage(
       Ticker ticker, LiveQuote liveQuote, BigDecimal previousDayHigh) {
     Map<String, String> variables = new HashMap<>();
-    variables.put("ticker", TelegramMarkdownV2Helper.escape(ticker.getTickerSymbol()));
-    variables.put("currentPrice", TelegramMarkdownV2Helper.escape(formatPrice(liveQuote.getLastPrice())));
-    variables.put("previousDayHigh", TelegramMarkdownV2Helper.escape(formatPrice(previousDayHigh)));
-    variables.put("timestamp", TelegramMarkdownV2Helper.escape(formatTimestamp(liveQuote.getQuoteTime())));
+    variables.put("ticker", TelegramNotificationService.escape(ticker.getTickerSymbol()));
+    variables.put("currentPrice", TelegramNotificationService.escape(formatPrice(liveQuote.getLastPrice())));
+    variables.put("previousDayHigh", TelegramNotificationService.escape(formatPrice(previousDayHigh)));
+    variables.put("timestamp", TelegramNotificationService.escape(formatTimestamp(liveQuote.getQuoteTime())));
     return notificationTemplateEngine.render("notifications/bull_breach.md", variables);
   }
 
@@ -238,12 +238,12 @@ public class SakthiIntradayStrategy {
       BigDecimal previousDayHigh,
       Optional<RecommendedOptionDto> recommendedOption) {
     Map<String, String> variables = new HashMap<>();
-    variables.put("ticker", TelegramMarkdownV2Helper.escape(ticker.getTickerSymbol()));
-    variables.put("currentPrice", TelegramMarkdownV2Helper.escape(formatPrice(liveQuote.getLastPrice())));
-    variables.put("dayHigh", TelegramMarkdownV2Helper.escape(formatPrice(highestPrice)));
-    variables.put("pullbackPoints", TelegramMarkdownV2Helper.escape(formatPrice(REBOUND_THRESHOLD_POINTS)));
-    variables.put("previousDayHigh", TelegramMarkdownV2Helper.escape(formatPrice(previousDayHigh)));
-    variables.put("timestamp", TelegramMarkdownV2Helper.escape(formatTimestamp(liveQuote.getQuoteTime())));
+    variables.put("ticker", TelegramNotificationService.escape(ticker.getTickerSymbol()));
+    variables.put("currentPrice", TelegramNotificationService.escape(formatPrice(liveQuote.getLastPrice())));
+    variables.put("dayHigh", TelegramNotificationService.escape(formatPrice(highestPrice)));
+    variables.put("pullbackPoints", TelegramNotificationService.escape(formatPrice(REBOUND_THRESHOLD_POINTS)));
+    variables.put("previousDayHigh", TelegramNotificationService.escape(formatPrice(previousDayHigh)));
+    variables.put("timestamp", TelegramNotificationService.escape(formatTimestamp(liveQuote.getQuoteTime())));
     variables.put("optionDetails", buildOptionDetailsMessage(recommendedOption, OptionType.CALL));
     return notificationTemplateEngine.render("notifications/bull_reversal.md", variables);
   }
@@ -261,13 +261,13 @@ public class SakthiIntradayStrategy {
               + " DTE)";
 
       Map<String, String> variables = new HashMap<>();
-      variables.put("action", TelegramMarkdownV2Helper.escape(action));
-      variables.put("contract", TelegramMarkdownV2Helper.escape(option.tradingSymbol()));
-      variables.put("strikePrice", TelegramMarkdownV2Helper.escape(formatPrice(option.strikePrice())));
-      variables.put("expiry", TelegramMarkdownV2Helper.escape(expiryStr));
-      variables.put("lastPrice", TelegramMarkdownV2Helper.escape(formatPrice(option.lastPrice())));
-      variables.put("intrinsicValue", TelegramMarkdownV2Helper.escape(formatPrice(option.intrinsicValue())));
-      variables.put("timeValue", TelegramMarkdownV2Helper.escape(formatPrice(option.timeValue())));
+      variables.put("action", TelegramNotificationService.escape(action));
+      variables.put("contract", TelegramNotificationService.escape(option.tradingSymbol()));
+      variables.put("strikePrice", TelegramNotificationService.escape(formatPrice(option.strikePrice())));
+      variables.put("expiry", TelegramNotificationService.escape(expiryStr));
+      variables.put("lastPrice", TelegramNotificationService.escape(formatPrice(option.lastPrice())));
+      variables.put("intrinsicValue", TelegramNotificationService.escape(formatPrice(option.intrinsicValue())));
+      variables.put("timeValue", TelegramNotificationService.escape(formatPrice(option.timeValue())));
 
       if (option.delta() != null || option.impliedVolatility() != null || option.theta() != null) {
         String deltaStr = option.delta() != null ? formatPrice(option.delta()) : "N/A";
@@ -277,9 +277,9 @@ public class SakthiIntradayStrategy {
                 : "N/A";
         String thetaStr = option.theta() != null ? formatPrice(option.theta()) : "N/A";
 
-        variables.put("delta", TelegramMarkdownV2Helper.escape(deltaStr));
-        variables.put("iv", TelegramMarkdownV2Helper.escape(ivStr));
-        variables.put("theta", TelegramMarkdownV2Helper.escape(thetaStr));
+        variables.put("delta", TelegramNotificationService.escape(deltaStr));
+        variables.put("iv", TelegramNotificationService.escape(ivStr));
+        variables.put("theta", TelegramNotificationService.escape(thetaStr));
       }
 
       return notificationTemplateEngine.render("notifications/option_details.md", variables);

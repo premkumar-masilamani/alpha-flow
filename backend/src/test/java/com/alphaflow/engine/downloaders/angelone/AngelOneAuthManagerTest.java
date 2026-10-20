@@ -3,6 +3,8 @@ package com.alphaflow.engine.downloaders.angelone;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.configs.YahooFinanceConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.OutputStream;
@@ -39,7 +41,7 @@ class AngelOneAuthManagerTest {
     objectMapper = new ObjectMapper();
     AngelOneNetworkHelper networkHelper = new AngelOneNetworkHelper();
     config.setDelayMilliseconds(0);
-    AngelOneRateLimiter rateLimiter = new AngelOneRateLimiter(config);
+    RateLimiter rateLimiter = new RateLimiter(config, new YahooFinanceConfig());
     authManager =
         new AngelOneAuthManager(
             config, totpGenerator, objectMapper, networkHelper, rateLimiter, RestClient.builder());
@@ -98,13 +100,6 @@ class AngelOneAuthManagerTest {
     authManager.invalidateSession();
     // After invalidation, calling getValidJwtToken logs in again
     assertEquals("mock-jwt-token-12345", authManager.getValidJwtToken());
-  }
-
-  @Test
-  void testLoginIncompleteCredentials() {
-    config.setApiKey("");
-    assertFalse(authManager.login());
-    assertNull(authManager.getValidJwtToken());
   }
 
   @Test

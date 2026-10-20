@@ -326,7 +326,7 @@ class IntradayPriceServiceTest {
 
     assertEquals(1, result.size());
     assertEquals(barTime, result.getFirst().priceDate());
-    verify(angelOneDownloader, times(1)).downloadIntradayPrices();
+    verify(angelOneDownloader, times(1)).downloadAndPersistIntradayPrices();
   }
 
   @Test
@@ -376,7 +376,7 @@ class IntradayPriceServiceTest {
 
     assertEquals(1, result.size());
     assertEquals(newBarTime, result.getFirst().priceDate());
-    verify(angelOneDownloader, times(1)).downloadIntradayPrices();
+    verify(angelOneDownloader, times(1)).downloadAndPersistIntradayPrices();
   }
 
   @Test
@@ -412,7 +412,7 @@ class IntradayPriceServiceTest {
 
     assertEquals(1, result.size());
     assertEquals(futureBarTime, result.getFirst().priceDate());
-    verify(angelOneDownloader, never()).downloadIntradayPrices();
+    verify(angelOneDownloader, never()).downloadAndPersistIntradayPrices();
   }
 
   @Test
@@ -428,14 +428,14 @@ class IntradayPriceServiceTest {
     when(intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
             eq(angelOneTicker), eq("15M"), any(), eq(PageRequest.of(0, 250))))
         .thenReturn(List.of());
-    doThrow(new RuntimeException("Connection timeout")).when(angelOneDownloader).downloadIntradayPrices();
+    doThrow(new RuntimeException("Connection timeout")).when(angelOneDownloader).downloadAndPersistIntradayPrices();
     when(liveQuoteRepository.findByTicker(angelOneTicker)).thenReturn(Optional.empty());
 
     List<OhlcvDto> result =
         intradayPriceService.getIntradayPrice(angelOneTicker, IntradayTimeframe._15M, testDate, 0, 250);
 
     assertEquals(0, result.size());
-    verify(angelOneDownloader, times(1)).downloadIntradayPrices();
+    verify(angelOneDownloader, times(1)).downloadAndPersistIntradayPrices();
   }
 
   @Test
@@ -457,6 +457,6 @@ class IntradayPriceServiceTest {
         intradayPriceService.getIntradayPrice(angelOneTicker, IntradayTimeframe._15M, testDate, 1, 250);
 
     assertEquals(0, result.size());
-    verify(angelOneDownloader, never()).downloadIntradayPrices();
+    verify(angelOneDownloader, never()).downloadAndPersistIntradayPrices();
   }
 }

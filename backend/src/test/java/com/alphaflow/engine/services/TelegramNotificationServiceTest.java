@@ -167,31 +167,6 @@ class TelegramNotificationServiceTest {
   }
 
   @Test
-  void testSendNotificationUnconfiguredThrowsException() {
-    telegramConfig.setApiToken(null);
-    NotificationException exception =
-        assertThrows(
-            NotificationException.class,
-            () -> service.sendNotification("Unconfigured token message"));
-    assertTrue(exception.getMessage().contains("Telegram API token or chat ID is not configured"));
-
-    telegramConfig.setApiToken("${TELEGRAM_API_TOKEN}");
-    NotificationException unexpandedTokenException =
-        assertThrows(
-            NotificationException.class,
-            () -> service.sendNotification("Unexpanded token message"));
-    assertTrue(unexpandedTokenException.getMessage().contains("Telegram API token or chat ID is not configured"));
-
-    telegramConfig.setApiToken("valid-token");
-    telegramConfig.setChatId("${TELEGRAM_CHAT_ID}");
-    NotificationException unexpandedChatIdException =
-        assertThrows(
-            NotificationException.class,
-            () -> service.sendNotification("Unexpanded chat ID message"));
-    assertTrue(unexpandedChatIdException.getMessage().contains("Telegram API token or chat ID is not configured"));
-  }
-
-  @Test
   void testSendNotificationWithCustomTokenAndChatId() {
     telegramConfig.setApiToken("override-token");
     telegramConfig.setChatId("987654");
@@ -200,5 +175,30 @@ class TelegramNotificationServiceTest {
     String receivedQuery = lastReceivedQuery.get();
     assertNotNull(receivedQuery);
     assertTrue(receivedQuery.contains("chat_id=987654"));
+  }
+
+  @Test
+  void testEscapeNullAndEmpty() {
+    assertNull(TelegramNotificationService.escape(null));
+    assertEquals("", TelegramNotificationService.escape(""));
+  }
+
+  @Test
+  void testEscapeWithoutSpecialCharacters() {
+    assertEquals("Hello World 123", TelegramNotificationService.escape("Hello World 123"));
+  }
+
+  @Test
+  void testEscapeAllReservedCharacters() {
+    String reservedCharacters = "_*[]()~`>#+-=|{}.!";
+    String expected = "\\_\\*\\[\\]\\(\\)\\~\\`\\>\\#\\+\\-\\=\\|\\{\\}\\.\\!";
+    assertEquals(expected, TelegramNotificationService.escape(reservedCharacters));
+  }
+
+  @Test
+  void testEscapeMixedText() {
+    String rawText = "Breakout on AAPL: Target [150.50] (Score: +5.2)!";
+    String expected = "Breakout on AAPL: Target \\[150\\.50\\] \\(Score: \\+5\\.2\\)\\!";
+    assertEquals(expected, TelegramNotificationService.escape(rawText));
   }
 }

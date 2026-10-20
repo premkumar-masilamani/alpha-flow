@@ -75,7 +75,7 @@ public class IntradayPriceService {
             "Intraday prices for {} are missing or outdated. Syncing now...",
             ticker.getTickerSymbol());
         try {
-          angelOneDownloader.downloadIntradayPrices();
+          angelOneDownloader.downloadAndPersistIntradayPrices();
           persistedPrices =
               intradayPriceRepository.findLatestByTickerAndTimeframeAndEndDate(
                   ticker, timeframe.getValue(), endDateTime, PageRequest.of(page, size));

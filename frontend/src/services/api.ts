@@ -60,7 +60,7 @@ export const getCandleData = async (
 
     const isIntraday = timeframe === '15M';
     const url = isIntraday
-        ? `${API_BASE_URL}/tickers/${symbol}/intraday`
+        ? `${API_BASE_URL}/tickers/${symbol}/candle`
         : `${API_BASE_URL}/tickers/${symbol}/data`;
     const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page, size };
     if (endDate && isIntraday) {

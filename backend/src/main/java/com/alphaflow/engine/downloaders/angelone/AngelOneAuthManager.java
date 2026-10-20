@@ -1,6 +1,7 @@
 package com.alphaflow.engine.downloaders.angelone;
 
 import com.alphaflow.engine.configs.AngelOneConfig;
+import com.alphaflow.engine.downloaders.RateLimiter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,7 +23,7 @@ public class AngelOneAuthManager {
   private final TotpGenerator totpGenerator;
   private final ObjectMapper objectMapper;
   private final AngelOneNetworkHelper networkHelper;
-  private final AngelOneRateLimiter rateLimiter;
+  private final RateLimiter rateLimiter;
   private final RestClient restClient;
 
   private String jwtToken;
@@ -35,7 +36,7 @@ public class AngelOneAuthManager {
       TotpGenerator totpGenerator,
       ObjectMapper objectMapper,
       AngelOneNetworkHelper networkHelper,
-      AngelOneRateLimiter rateLimiter,
+      RateLimiter rateLimiter,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           RestClient.Builder restClientBuilder) {
     this.config = config;
@@ -65,20 +66,8 @@ public class AngelOneAuthManager {
   }
 
   public synchronized boolean login() {
-    if (config.getApiKey() == null
-        || config.getApiKey().isBlank()
-        || config.getClientCode() == null
-        || config.getClientCode().isBlank()
-        || config.getPassword() == null
-        || config.getPassword().isBlank()
-        || config.getTotpKey() == null
-        || config.getTotpKey().isBlank()) {
-      log.warn("Angel One credentials are incomplete. Skipping authentication.");
-      return false;
-    }
-
     try {
-      rateLimiter.throttle();
+      rateLimiter.throttleAngelOneLogin();
       String totp = totpGenerator.generateCurrentTotp(config.getTotpKey());
       Map<String, String> payload = new HashMap<>();
       payload.put("clientcode", config.getClientCode());

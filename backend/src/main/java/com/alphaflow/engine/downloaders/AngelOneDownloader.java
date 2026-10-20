@@ -54,7 +54,7 @@ public class AngelOneDownloader {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public synchronized int downloadIntradayPrices() {
+  public synchronized int downloadAndPersistIntradayPrices() {
     log.info("Starting Angel One 15-minute intraday data download process...");
 
     Map<Ticker, OffsetDateTime> latestSavedTimes =
@@ -77,7 +77,7 @@ public class AngelOneDownloader {
 
       OffsetDateTime latestSavedTime = latestSavedTimes.get(ticker);
       if (latestSavedTime == null || latestSavedTime.isBefore(expectedCompletedTime)) {
-        int ingestedRows = downloadDataForTicker(ticker, latestSavedTime, expectedCompletedTime);
+        int ingestedRows = downloadAndPersistForTicker(ticker, latestSavedTime, expectedCompletedTime);
         totalNewlyIngestedRows += ingestedRows;
       } else {
         log.info(
@@ -94,7 +94,7 @@ public class AngelOneDownloader {
     return totalNewlyIngestedRows;
   }
 
-  private int downloadDataForTicker(
+  private int downloadAndPersistForTicker(
       Ticker ticker, OffsetDateTime latestSavedTime, OffsetDateTime expectedCompletedTime) {
     OffsetDateTime chunkStart;
     if (latestSavedTime != null) {
