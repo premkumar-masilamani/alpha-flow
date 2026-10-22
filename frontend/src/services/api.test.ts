@@ -391,6 +391,26 @@ describe('API Service Layer Tests', () => {
             expect(second).toEqual(mockHolidays);
             expect(mockedAxios.get).toHaveBeenCalledTimes(1);
         });
+
+        it('getCachedMarketHolidays bypasses cached empty array and does not persist empty network response', async () => {
+            const emptyCachePayload = {
+                timestamp: Date.now(),
+                expiresAt: Date.now() + 100_000,
+                holidays: [],
+            };
+            localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(emptyCachePayload));
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+
+            const emptyResult = await getCachedMarketHolidays();
+            expect(emptyResult).toEqual([]);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+            // Subsequent call when DB has been seeded should re-fetch and persist
+            mockedAxios.get.mockResolvedValueOnce({ data: mockHolidays });
+            const populatedResult = await getCachedMarketHolidays();
+            expect(populatedResult).toEqual(mockHolidays);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+        });
     });
 });
 

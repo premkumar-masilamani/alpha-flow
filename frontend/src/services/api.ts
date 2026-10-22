@@ -341,7 +341,8 @@ export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
                     parsed &&
                     typeof parsed.expiresAt === 'number' &&
                     Date.now() < parsed.expiresAt &&
-                    Array.isArray(parsed.holidays)
+                    Array.isArray(parsed.holidays) &&
+                    parsed.holidays.length > 0
                 ) {
                     return parsed.holidays;
                 }
@@ -354,7 +355,7 @@ export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
     if (!inFlightHolidaysPromise) {
         inFlightHolidaysPromise = getMarketHolidays()
             .then((holidays) => {
-                if (typeof window !== 'undefined') {
+                if (typeof window !== 'undefined' && Array.isArray(holidays) && holidays.length > 0) {
                     try {
                         const cachePayload: CachedMarketHolidays = {
                             timestamp: Date.now(),
