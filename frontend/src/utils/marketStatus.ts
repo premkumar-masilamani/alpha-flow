@@ -156,4 +156,62 @@ export const getExpectedIntradayDateKey = (
     return dateKey;
 };
 
+export const getCalendarDayRange = (startDateKey: string, endDateKey: string): string[] => {
+    const parseUtcMs = (key: string): number => {
+        const parts = key.split('-').map(Number);
+        if (parts.length !== 3) return NaN;
+        return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+    };
+    const startMs = parseUtcMs(startDateKey);
+    const endMs = parseUtcMs(endDateKey);
+    if (isNaN(startMs) || isNaN(endMs) || startMs > endMs) {
+        return [];
+    }
+    const days: string[] = [];
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    for (let ms = startMs; ms <= endMs; ms += oneDayMs) {
+        const dt = new Date(ms);
+        const y = dt.getUTCFullYear();
+        const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(dt.getUTCDate()).padStart(2, '0');
+        days.push(`${y}-${m}-${d}`);
+    }
+    return days;
+};
+
+export interface NonTradingDayReason {
+    type: 'WEEKEND' | 'HOLIDAY';
+    label: string;
+}
+
+export const getDayNonTradingReason = (
+    dateKey: string,
+    country: MarketCountry,
+    holidays: MarketHoliday[]
+): NonTradingDayReason | null => {
+    const holidayMatch = holidays.find(
+        (h) => h.country === country && h.holidayDate === dateKey
+    );
+    if (holidayMatch) {
+        return {
+            type: 'HOLIDAY',
+            label: holidayMatch.name,
+        };
+    }
+
+    const parts = dateKey.split('-').map(Number);
+    if (parts.length === 3) {
+        const utcDay = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])).getUTCDay();
+        if (utcDay === 0 || utcDay === 6) {
+            return {
+                type: 'WEEKEND',
+                label: utcDay === 6 ? 'Saturday' : 'Sunday',
+            };
+        }
+    }
+
+    return null;
+};
+
+
 

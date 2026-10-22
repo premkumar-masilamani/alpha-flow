@@ -30,8 +30,15 @@ import {
   getSupportResistances,
   getChartPatterns,
   type ChartPatternData,
+  getCachedMarketHolidays,
+  type MarketHoliday,
 } from "./services/api";
-import { getExpectedIntradayDateKey, type MarketCountry } from "./utils/marketStatus";
+import {
+  getExpectedIntradayDateKey,
+  getCalendarDayRange,
+  getDayNonTradingReason,
+  type MarketCountry,
+} from "./utils/marketStatus";
 import {
   Loader2,
   ChevronLeft,
@@ -175,31 +182,23 @@ function App() {
   const [loadingOlderIntraday, setLoadingOlderIntraday] = useState(false);
   const [hasOlderIntraday, setHasOlderIntraday] = useState(true);
   const [intradayError, setIntradayError] = useState<string | null>(null);
-
-  const selectedTickerCountry: MarketCountry = useMemo(() => {
-    const matched = tickers.find((t) => t.symbol === selectedTicker);
-    return matched?.country ?? "IN";
-  }, [tickers, selectedTicker]);
-
-  const [expectedIntradayDay, setExpectedIntradayDay] = useState<string>(() =>
-    getExpectedIntradayDateKey(new Date(), "IN"),
-  );
+  const [marketHolidays, setMarketHolidays] = useState<MarketHoliday[]>([]);
 
   useEffect(() => {
-    const syncDateKey = () => {
-      const nextDateKey = getExpectedIntradayDateKey(new Date(), selectedTickerCountry);
-      setExpectedIntradayDay((prev) => {
-        if (prev !== nextDateKey) {
-          setSelectedIntradayDay(null);
-          return nextDateKey;
+    let isMounted = true;
+    getCachedMarketHolidays()
+      .then((data) => {
+        if (isMounted) {
+          setMarketHolidays(data);
         }
-        return prev;
+      })
+      .catch((error) => {
+        console.warn("Failed to load market holidays:", error);
       });
+    return () => {
+      isMounted = false;
     };
-    syncDateKey();
-    const timer = setInterval(syncDateKey, 1000);
-    return () => clearInterval(timer);
-  }, [selectedTickerCountry]);
+  }, []);
 
   useEffect(() => {
     setSelectedIntradayDay(null);
@@ -207,20 +206,27 @@ function App() {
     setLoadingOlderIntraday(false);
   }, [selectedTicker]);
 
-  // Calculate distinct available days sorted chronologically
+  const selectedTickerCountry: MarketCountry = useMemo(() => {
+    const matched = tickers.find((t) => t.symbol === selectedTicker);
+    return matched?.country ?? "IN";
+  }, [tickers, selectedTicker]);
+
+  const expectedIntradayDay = useMemo(() => {
+    return getExpectedIntradayDateKey(new Date(), selectedTickerCountry);
+  }, [selectedTickerCountry]);
+
+  // Calculate all calendar days from oldest available candle day up to expected current date
   const distinctDays = useMemo(() => {
     const sorted = [...rawIntradayCandles].sort((a, b) => a.date.localeCompare(b.date));
-    const days = Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
+    const candleDays = Array.from(new Set(sorted.map((c) => getLocalDateKey(c.date))));
     const hasValidQuote = quoteData !== null && Number(quoteData.currentPrice) > 0;
-    if (
-      expectedIntradayDay &&
-      (rawIntradayCandles.length > 0 || hasValidQuote) &&
-      !days.includes(expectedIntradayDay)
-    ) {
-      days.push(expectedIntradayDay);
-      days.sort();
+    if (candleDays.length === 0 && !hasValidQuote) {
+      return [];
     }
-    return days;
+    const startDay = candleDays.length > 0 ? candleDays[0] : expectedIntradayDay;
+    const lastCandleDay = candleDays.length > 0 ? candleDays[candleDays.length - 1] : expectedIntradayDay;
+    const endDay = lastCandleDay > expectedIntradayDay ? lastCandleDay : expectedIntradayDay;
+    return getCalendarDayRange(startDay, endDay);
   }, [rawIntradayCandles, quoteData, expectedIntradayDay]);
 
   // Determine active day: selected day if valid, otherwise defaults to latest available day
@@ -257,7 +263,13 @@ function App() {
       }
 
       const olderDays = Array.from(new Set(strictlyOlder.map((c) => getLocalDateKey(c.date)))).sort();
-      const prevDayToSelect = olderDays[olderDays.length - 1];
+      let prevDayToSelect = olderDays[olderDays.length - 1];
+      if (oldestDay && olderDays.length > 0) {
+        const bridgedRange = getCalendarDayRange(olderDays[0], oldestDay);
+        if (bridgedRange.length >= 2) {
+          prevDayToSelect = bridgedRange[bridgedRange.length - 2];
+        }
+      }
 
       setRawIntradayCandles((prev) => {
         const merged = [...strictlyOlder, ...prev];
@@ -315,20 +327,21 @@ function App() {
   }, [rawIntradayCandles, activeDay, activeDayIndex, distinctDays.length, quoteData, expectedIntradayDay]);
 
   const { prevDayHigh, prevDayLow, prevDayClose } = useMemo(() => {
-    if (activeDayIndex > 0) {
-      const prevDayKey = distinctDays[activeDayIndex - 1];
-      const prevCandles = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) === prevDayKey);
-      if (prevCandles.length > 0) {
-        const sortedPrev = [...prevCandles].sort((a, b) => a.date.localeCompare(b.date));
+    if (activeDay) {
+      const priorCandles = rawIntradayCandles.filter((c) => getLocalDateKey(c.date) < activeDay);
+      if (priorCandles.length > 0) {
+        const sortedPrior = [...priorCandles].sort((a, b) => a.date.localeCompare(b.date));
+        const latestPriorDayKey = getLocalDateKey(sortedPrior[sortedPrior.length - 1].date);
+        const prevCandles = sortedPrior.filter((c) => getLocalDateKey(c.date) === latestPriorDayKey);
         return {
           prevDayHigh: Math.max(...prevCandles.map((c) => Number(c.high))),
           prevDayLow: Math.min(...prevCandles.map((c) => Number(c.low))),
-          prevDayClose: Number(sortedPrev[sortedPrev.length - 1].close),
+          prevDayClose: Number(prevCandles[prevCandles.length - 1].close),
         };
       }
     }
     return { prevDayHigh: null, prevDayLow: null, prevDayClose: null };
-  }, [rawIntradayCandles, distinctDays, activeDayIndex]);
+  }, [rawIntradayCandles, activeDay]);
 
   const filteredSupportResistances = useMemo(() => {
     if (chartCandleData.length === 0) {
@@ -1489,6 +1502,9 @@ function App() {
 
     const chartDate = latestCandle?.date || activeDay || (isCurrentSessionDay ? quoteData?.timestamp : null);
     const chartDateFormatted = chartDate ? formatSectionDate(chartDate) : null;
+    const nonTradingReason = activeDay
+      ? getDayNonTradingReason(activeDay, selectedTickerCountry, marketHolidays)
+      : null;
 
     return (
       <div className="flex-1 flex flex-col gap-4 p-4 overflow-hidden">
@@ -1603,9 +1619,36 @@ function App() {
               ) : (
                 <div className="bg-amber-900/20 border border-amber-500/30 rounded-xl p-6 max-w-md w-full text-center">
                   <AlertCircle className="text-amber-500 mx-auto mb-4" size={48} />
-                  <h3 className="text-lg font-bold text-white">Awaiting Intraday Data</h3>
+                  <h3 className="text-lg font-bold text-white">
+                    {nonTradingReason?.type === "WEEKEND"
+                      ? "Market Closed — Weekend"
+                      : nonTradingReason?.type === "HOLIDAY"
+                        ? `Market Closed — ${nonTradingReason.label}`
+                        : "Awaiting Intraday Data"}
+                  </h3>
                   <p className="text-amber-200/70 mt-2 text-sm leading-relaxed">
-                    15-minute intraday candles for <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> have not yet been populated for <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span>.
+                    {nonTradingReason?.type === "WEEKEND" ? (
+                      <>
+                        No 15-minute intraday data is available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> on{" "}
+                        <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span> because the
+                        market is closed for the weekend ({nonTradingReason.label}).
+                      </>
+                    ) : nonTradingReason?.type === "HOLIDAY" ? (
+                      <>
+                        No 15-minute intraday data is available for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> on{" "}
+                        <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span> because the
+                        market is closed for <span className="font-semibold text-amber-300">{nonTradingReason.label}</span>.
+                      </>
+                    ) : (
+                      <>
+                        15-minute intraday candles for{" "}
+                        <span className="font-mono text-blue-400 font-semibold">{selectedTicker}</span> have not yet
+                        been populated for{" "}
+                        <span className="font-mono text-amber-300 font-semibold">{chartDateFormatted}</span>.
+                      </>
+                    )}
                   </p>
                 </div>
               )}

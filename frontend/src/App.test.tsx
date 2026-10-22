@@ -79,14 +79,21 @@ describe('App Intra-Day Tab - Issue #232', () => {
         vi.mocked(api.getCandlestickPatterns).mockResolvedValue([]);
         vi.mocked(api.getChartPatterns).mockResolvedValue([]);
         vi.mocked(api.getSupportResistances).mockResolvedValue([]);
-        vi.mocked(api.getCachedMarketHolidays).mockResolvedValue([]);
+        vi.mocked(api.getCachedMarketHolidays).mockResolvedValue([
+            {
+                id: 1,
+                country: 'IN',
+                holidayDate: '2026-11-24',
+                name: 'Prakash Gurpurb Sri Guru Nanak Dev',
+            },
+        ]);
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
-    it('defaults to today (FRI, OCT 16, 2026), displays Awaiting Intraday Data, live LTP/Change, and "—" OHLC when today has no candles after market open', async () => {
+    it('defaults to today (FRI, OCT 16, 2026), displays Awaiting Intraday Data, live LTP/Change, and "—" OHLC when today has no candles', async () => {
         // Friday, Oct 16, 2026 at 09:31:15 AM IST (04:01:15 UTC)
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
@@ -217,47 +224,78 @@ describe('App Intra-Day Tab - Issue #232', () => {
         expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22960.00');
     });
 
-    it('displays Awaiting Intraday Data for the new current date when system clock is advanced (e.g., Sat, Oct 17, 2026 08:10 AM IST)', async () => {
-        // Start on Friday, Oct 16, 2026 with Oct 16 candles present
+    it('mentions Weekend when today is Saturday/Sunday and allows traversing back through every single calendar day', async () => {
+        // Sunday, Oct 18, 2026 at 10:00 AM IST (04:30 UTC), while latest candles are from Thursday Oct 15
         vi.useFakeTimers({ shouldAdvanceTime: true });
-        vi.setSystemTime(new Date('2026-10-16T05:30:00Z'));
-
-        const oct16Candle: DailyCandleData = {
-            date: '2026-10-16T09:15:00+05:30',
-            open: 23065.1,
-            high: 23149.85,
-            low: 22913.8,
-            close: 23109.65,
-            vol: 1500,
-        };
+        vi.setSystemTime(new Date('2026-10-18T04:30:00Z'));
 
         vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
             if (tf === '15M') {
-                return [...yesterdayCandles, oct16Candle];
+                return yesterdayCandles;
             }
             return [];
         });
         vi.mocked(api.getQuote).mockResolvedValue({
-            currentPrice: 23109.65,
-            timestamp: '2026-10-16T10:45:00+05:30',
+            currentPrice: 22622.7,
+            timestamp: '2026-10-15T15:30:00+05:30',
+        });
+
+        render(<App />);
+
+        // Starts on Sunday, Oct 18, 2026 -> Market Closed — Weekend (Sunday)
+        await waitFor(() => {
+            expect(screen.getByText('Market Closed — Weekend')).toBeInTheDocument();
+        });
+        expect(screen.getByText(/market is closed for the weekend \(Sunday\)/i)).toBeInTheDocument();
+
+        const prevDayBtn = screen.getByRole('button', { name: /Previous day/i });
+
+        // Step back 1 day -> Saturday, Oct 17, 2026 -> Market Closed — Weekend (Saturday)
+        fireEvent.click(prevDayBtn);
+        await waitFor(() => {
+            expect(screen.getByText(/market is closed for the weekend \(Saturday\)/i)).toBeInTheDocument();
+        });
+
+        // Step back 1 day -> Friday, Oct 16, 2026 -> Awaiting Intraday Data (trading day with no candles)
+        fireEvent.click(prevDayBtn);
+        await waitFor(() => {
+            expect(screen.getByText('Awaiting Intraday Data')).toBeInTheDocument();
+        });
+
+        // Step back 1 day -> Thursday, Oct 15, 2026 -> Renders chart!
+        fireEvent.click(prevDayBtn);
+        await waitFor(() => {
+            expect(screen.getByTestId('mock-chart')).toBeInTheDocument();
+        });
+        expect(screen.getByText(/Thu, Oct 15, 2026/i)).toBeInTheDocument();
+    });
+
+    it('mentions the specific holiday name when viewing a market holiday with no intraday candles', async () => {
+        // Tuesday, Nov 24, 2026 (Prakash Gurpurb Sri Guru Nanak Dev) at 10:30 AM IST (05:00 UTC)
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date('2026-11-24T05:00:00Z'));
+
+        vi.mocked(api.getCandleData).mockImplementation(async (_symbol, tf) => {
+            if (tf === '15M') {
+                return yesterdayCandles;
+            }
+            return [];
+        });
+        vi.mocked(api.getQuote).mockResolvedValue({
+            currentPrice: 22622.7,
+            timestamp: '2026-11-23T15:30:00+05:30',
         });
 
         render(<App />);
 
         await waitFor(() => {
-            expect(screen.getByTestId('mock-chart')).toBeInTheDocument();
+            expect(
+                screen.getByText('Market Closed — Prakash Gurpurb Sri Guru Nanak Dev')
+            ).toBeInTheDocument();
         });
-
-        // Manually advance system clock to Saturday, Oct 17, 2026 at 08:10:17 AM IST (02:40:17 UTC)
-        await act(async () => {
-            vi.setSystemTime(new Date('2026-10-17T02:40:17Z'));
-            await vi.advanceTimersByTimeAsync(1_000);
-        });
-
-        await waitFor(() => {
-            expect(screen.getByText('Awaiting Intraday Data')).toBeInTheDocument();
-        });
-        expect(screen.getAllByText(/Sat, Oct 17, 2026/i).length).toBeGreaterThanOrEqual(1);
+        expect(
+            screen.getByText(/because the market is closed for/i)
+        ).toHaveTextContent('Prakash Gurpurb Sri Guru Nanak Dev');
     });
 
     it('renders "—" for LTP and Change when awaiting today candles and quote returns 0', async () => {
