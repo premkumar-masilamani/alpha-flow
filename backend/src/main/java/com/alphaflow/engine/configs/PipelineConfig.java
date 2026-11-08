@@ -3,6 +3,7 @@ package com.alphaflow.engine.configs;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.ChartPatternCalculator;
+import com.alphaflow.engine.calculators.DailyPriceFromIntradayCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.JobFlowBuilder;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.scope.context.ChunkContext;
 import org.springframework.batch.core.step.Step;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;
@@ -34,8 +37,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Configures and dynamically assembles in-memory Spring Batch pipeline jobs for daily, weekly, and
- * intraday execution flows based on ordered step lists in {@code application.properties}.
+ * Configures and dynamically assembles in-memory Spring Batch pipeline jobs for daily, weekly,
+ * intraday, and timeframe-parameterized technical analysis execution flows based on ordered step
+ * lists in {@code application.properties}.
  */
 @Configuration
 @Slf4j
@@ -47,6 +51,8 @@ public class PipelineConfig {
   public static final String INTRADAY_CANDLES_STEPS_PROPERTY =
       "alphaflow.pipeline.intraday-candles.steps";
   public static final String LIVE_QUOTES_STEPS_PROPERTY = "alphaflow.pipeline.live-quotes.steps";
+  public static final String TECHNICAL_ANALYSIS_STEPS_PROPERTY =
+      "alphaflow.pipeline.technical-analysis.steps";
 
   @Value("${alphaflow.pipeline.daily.steps}")
   private String dailySteps;
@@ -57,9 +63,13 @@ public class PipelineConfig {
   @Value("${alphaflow.pipeline.live-quotes.steps}")
   private String liveQuotesSteps;
 
+  @Value("${alphaflow.pipeline.technical-analysis.steps}")
+  private String technicalAnalysisSteps;
+
   private final ResourcelessTransactionManager transactionManager =
       new ResourcelessTransactionManager();
   private final Map<PipelineStepName, Runnable> stepActions;
+  private final Map<PipelineStepName, Consumer<Timeframe>> parameterizedStepActions;
 
   public PipelineConfig(
       YahooFinanceDownloader yahooFinanceDownloader,
@@ -68,12 +78,16 @@ public class PipelineConfig {
       CandlestickPatternCalculator candlestickPatternCalculator,
       ChartPatternCalculator chartPatternCalculator,
       IndicatorCalculator indicatorCalculator,
+      DailyPriceFromIntradayCalculator dailyPriceFromIntradayCalculator,
       AngelOneDownloader angelOneDownloader,
       Intraday70PBounceStrategy intraday70PBounceStrategy) {
     Map<PipelineStepName, Runnable> actions = new EnumMap<>(PipelineStepName.class);
     actions.put(
         PipelineStepName.DOWNLOAD_DAILY_YAHOO_FINANCE,
         yahooFinanceDownloader::downloadAndPersistDailyPrices);
+    actions.put(
+        PipelineStepName.CALCULATE_DAILY_PRICE_FROM_INTRADAY,
+        dailyPriceFromIntradayCalculator::computeDailyPricesFromIntraday);
     actions.put(
         PipelineStepName.CALCULATE_DAILY_SUPPORT_RESISTANCE,
         () -> supportResistanceCalculator.computeSupportResistances(Timeframe.DAILY));
@@ -112,6 +126,22 @@ public class PipelineConfig {
         PipelineStepName.STRATEGY_INTRADAY_70P_BOUNCE,
         intraday70PBounceStrategy::executeForAllActiveQuotes);
     this.stepActions = actions;
+
+    Map<PipelineStepName, Consumer<Timeframe>> paramActions =
+        new EnumMap<>(PipelineStepName.class);
+    paramActions.put(
+        PipelineStepName.CALCULATE_SUPPORT_RESISTANCE,
+        supportResistanceCalculator::computeSupportResistances);
+    paramActions.put(
+        PipelineStepName.CALCULATE_CANDLESTICK_PATTERN,
+        candlestickPatternCalculator::computeCandleStickPatterns);
+    paramActions.put(
+        PipelineStepName.CALCULATE_CHART_PATTERN,
+        chartPatternCalculator::computeChartPatterns);
+    paramActions.put(
+        PipelineStepName.CALCULATE_INDICATOR,
+        indicatorCalculator::computeIndicators);
+    this.parameterizedStepActions = paramActions;
   }
 
   /**
@@ -123,6 +153,7 @@ public class PipelineConfig {
     parseSteps(DAILY_STEPS_PROPERTY, dailySteps);
     parseSteps(INTRADAY_CANDLES_STEPS_PROPERTY, intradayCandlesSteps);
     parseSteps(LIVE_QUOTES_STEPS_PROPERTY, liveQuotesSteps);
+    parseSteps(TECHNICAL_ANALYSIS_STEPS_PROPERTY, technicalAnalysisSteps);
   }
 
   /**
@@ -171,6 +202,22 @@ public class PipelineConfig {
         jobRepository);
   }
 
+  @Bean
+  public Job technicalAnalysisPipelineJob(JobRepository jobRepository) {
+    return buildJob(
+        "technicalAnalysisPipelineJob",
+        parseSteps(TECHNICAL_ANALYSIS_STEPS_PROPERTY, technicalAnalysisSteps),
+        jobRepository);
+  }
+
+  @Bean
+  public Job dailyPriceFromIntradayJob(JobRepository jobRepository) {
+    return buildJob(
+        "dailyPriceFromIntradayJob",
+        List.of(PipelineStepName.CALCULATE_DAILY_PRICE_FROM_INTRADAY),
+        jobRepository);
+  }
+
   private Job buildJob(
       String jobName, List<PipelineStepName> stepNames, JobRepository jobRepository) {
     Step firstStep = createStep(stepNames.get(0), jobRepository);
@@ -184,13 +231,21 @@ public class PipelineConfig {
 
   private Step createStep(PipelineStepName stepName, JobRepository jobRepository) {
     Runnable stepAction = stepActions.get(stepName);
+    Consumer<Timeframe> parameterizedAction = parameterizedStepActions.get(stepName);
     return new StepBuilder(stepName.name(), jobRepository)
         .tasklet(
             (contribution, chunkContext) -> {
               long startTime = System.currentTimeMillis();
               log.info("Starting pipeline step {}...", stepName);
               try {
-                stepAction.run();
+                if (parameterizedAction != null) {
+                  Timeframe timeframe = extractTimeframe(chunkContext);
+                  parameterizedAction.accept(timeframe);
+                } else if (stepAction != null) {
+                  stepAction.run();
+                } else {
+                  throw new IllegalStateException("No registered action for step: " + stepName);
+                }
                 log.info(
                     "Pipeline step {} COMPLETED in {}.",
                     stepName,
@@ -207,5 +262,15 @@ public class PipelineConfig {
             },
             transactionManager)
         .build();
+  }
+
+  private Timeframe extractTimeframe(ChunkContext chunkContext) {
+    Map<String, Object> jobParameters = chunkContext.getStepContext().getJobParameters();
+    Object timeframeObject = jobParameters.get("timeframe");
+    if (timeframeObject != null && StringUtils.isNotBlank(timeframeObject.toString())) {
+      return Timeframe.valueOf(timeframeObject.toString().trim().toUpperCase());
+    } else {
+      return Timeframe.DAILY;
+    }
   }
 }

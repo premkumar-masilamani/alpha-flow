@@ -65,4 +65,10 @@ public interface IntradayPriceRepository extends JpaRepository<IntradayPrice, Lo
       @Param("timeframe") String timeframe,
       @Param("endDateTime") OffsetDateTime endDateTime,
       Pageable pageable);
+
+  List<IntradayPrice> findByTickerAndTimeframeOrderByPriceTimeAsc(
+      Ticker ticker, String timeframe);
+
+  List<IntradayPrice> findByTickerAndTimeframeAndPriceTimeGreaterThanEqualOrderByPriceTimeAsc(
+      Ticker ticker, String timeframe, OffsetDateTime priceTime);
 }

@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
 import com.alphaflow.engine.calculators.ChartPatternCalculator;
+import com.alphaflow.engine.calculators.DailyPriceFromIntradayCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
@@ -47,6 +48,7 @@ class PipelineConfigTest {
   private CandlestickPatternCalculator candlestickPatternCalculator;
   private ChartPatternCalculator chartPatternCalculator;
   private IndicatorCalculator indicatorCalculator;
+  private DailyPriceFromIntradayCalculator dailyPriceFromIntradayCalculator;
   private AngelOneDownloader angelOneDownloader;
   private Intraday70PBounceStrategy intraday70PBounceStrategy;
   private PipelineConfig pipelineConfig;
@@ -61,6 +63,7 @@ class PipelineConfigTest {
     candlestickPatternCalculator = mock(CandlestickPatternCalculator.class);
     chartPatternCalculator = mock(ChartPatternCalculator.class);
     indicatorCalculator = mock(IndicatorCalculator.class);
+    dailyPriceFromIntradayCalculator = mock(DailyPriceFromIntradayCalculator.class);
     angelOneDownloader = mock(AngelOneDownloader.class);
     intraday70PBounceStrategy = mock(Intraday70PBounceStrategy.class);
 
@@ -72,6 +75,7 @@ class PipelineConfigTest {
             candlestickPatternCalculator,
             chartPatternCalculator,
             indicatorCalculator,
+            dailyPriceFromIntradayCalculator,
             angelOneDownloader,
             intraday70PBounceStrategy);
 
@@ -82,6 +86,8 @@ class PipelineConfigTest {
     pipelineConfig.setIntradayCandlesSteps("DOWNLOAD_INTRADAY_ANGEL_ONE");
     pipelineConfig.setLiveQuotesSteps(
         "DOWNLOAD_INTRADAY_ANGEL_ONE_LIVE_QUOTE, STRATEGY_INTRADAY_70P_BOUNCE");
+    pipelineConfig.setTechnicalAnalysisSteps(
+        "CALCULATE_SUPPORT_RESISTANCE, CALCULATE_CANDLESTICK_PATTERN, CALCULATE_INDICATOR");
 
     jobRepository = new ResourcelessJobRepository();
     jobLauncher = new TaskExecutorJobLauncher();
@@ -96,8 +102,10 @@ class PipelineConfigTest {
     assertNotNull(pipelineConfig.getDailySteps());
     assertNotNull(pipelineConfig.getIntradayCandlesSteps());
     assertNotNull(pipelineConfig.getLiveQuotesSteps());
+    assertNotNull(pipelineConfig.getTechnicalAnalysisSteps());
     assertNotNull(pipelineConfig.getTransactionManager());
-    assertEquals(13, pipelineConfig.getStepActions().size());
+    assertEquals(14, pipelineConfig.getStepActions().size());
+    assertEquals(4, pipelineConfig.getParameterizedStepActions().size());
   }
 
   @Test
@@ -121,6 +129,11 @@ class PipelineConfigTest {
         () ->
             pipelineConfig.parseSteps(
                 PipelineConfig.DAILY_STEPS_PROPERTY, "DOWNLOAD_DAILY_YAHOO_FINANCE, UNKNOWN_STEP"));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            pipelineConfig.parseSteps(
+                PipelineConfig.TECHNICAL_ANALYSIS_STEPS_PROPERTY, "${alphaflow.pipeline.technical-analysis.steps}"));
   }
 
   @Test
@@ -202,6 +215,79 @@ class PipelineConfigTest {
   }
 
   @Test
+  void testTechnicalAnalysisPipelineJobExecutesWithDailyTimeframe() throws Exception {
+    Job taJob = pipelineConfig.technicalAnalysisPipelineJob(jobRepository);
+    JobParameters params =
+        new JobParametersBuilder()
+            .addLong("runTimestamp", 5000L)
+            .addString("timeframe", "DAILY")
+            .toJobParameters();
+
+    JobExecution execution = jobLauncher.run(taJob, params);
+
+    assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+    assertEquals(3, execution.getStepExecutions().size());
+
+    InOrder inOrder = inOrder(supportResistanceCalculator, candlestickPatternCalculator, indicatorCalculator);
+    inOrder.verify(supportResistanceCalculator).computeSupportResistances(Timeframe.DAILY);
+    inOrder.verify(candlestickPatternCalculator).computeCandleStickPatterns(Timeframe.DAILY);
+    inOrder.verify(indicatorCalculator).computeIndicators(Timeframe.DAILY);
+  }
+
+  @Test
+  void testTechnicalAnalysisPipelineJobExecutesWithWeeklyTimeframe() throws Exception {
+    pipelineConfig.setTechnicalAnalysisSteps(
+        "CALCULATE_SUPPORT_RESISTANCE, CALCULATE_CANDLESTICK_PATTERN, CALCULATE_CHART_PATTERN, CALCULATE_INDICATOR");
+    Job taJob = pipelineConfig.technicalAnalysisPipelineJob(jobRepository);
+    JobParameters params =
+        new JobParametersBuilder()
+            .addLong("runTimestamp", 6000L)
+            .addString("timeframe", "WEEKLY")
+            .toJobParameters();
+
+    JobExecution execution = jobLauncher.run(taJob, params);
+
+    assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+    assertEquals(4, execution.getStepExecutions().size());
+
+    InOrder inOrder =
+        inOrder(
+            supportResistanceCalculator,
+            candlestickPatternCalculator,
+            chartPatternCalculator,
+            indicatorCalculator);
+    inOrder.verify(supportResistanceCalculator).computeSupportResistances(Timeframe.WEEKLY);
+    inOrder.verify(candlestickPatternCalculator).computeCandleStickPatterns(Timeframe.WEEKLY);
+    inOrder.verify(chartPatternCalculator).computeChartPatterns(Timeframe.WEEKLY);
+    inOrder.verify(indicatorCalculator).computeIndicators(Timeframe.WEEKLY);
+  }
+
+  @Test
+  void testTechnicalAnalysisPipelineJobDefaultsToDailyWhenTimeframeOmitted() throws Exception {
+    Job taJob = pipelineConfig.technicalAnalysisPipelineJob(jobRepository);
+    JobParameters params =
+        new JobParametersBuilder().addLong("runTimestamp", 7000L).toJobParameters();
+
+    JobExecution execution = jobLauncher.run(taJob, params);
+
+    assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+    verify(supportResistanceCalculator).computeSupportResistances(Timeframe.DAILY);
+  }
+
+  @Test
+  void testDailyPriceFromIntradayJobExecutesCalculator() throws Exception {
+    Job job = pipelineConfig.dailyPriceFromIntradayJob(jobRepository);
+    JobParameters params =
+        new JobParametersBuilder().addLong("runTimestamp", 8000L).toJobParameters();
+
+    JobExecution execution = jobLauncher.run(job, params);
+
+    assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+    assertEquals(1, execution.getStepExecutions().size());
+    verify(dailyPriceFromIntradayCalculator, times(1)).computeDailyPricesFromIntraday();
+  }
+
+  @Test
   void testIntermediateStepFailureLogsFailedAndContinuesSubsequentSteps() throws Exception {
     pipelineConfig.setDailySteps(
         "DOWNLOAD_DAILY_YAHOO_FINANCE, CALCULATE_DAILY_SUPPORT_RESISTANCE, CALCULATE_DAILY_INDICATOR");
@@ -211,7 +297,7 @@ class PipelineConfigTest {
 
     Job dailyJob = pipelineConfig.dailyPipelineJob(jobRepository);
     JobParameters params =
-        new JobParametersBuilder().addLong("runTimestamp", 5000L).toJobParameters();
+        new JobParametersBuilder().addLong("runTimestamp", 9000L).toJobParameters();
 
     JobExecution execution = jobLauncher.run(dailyJob, params);
 

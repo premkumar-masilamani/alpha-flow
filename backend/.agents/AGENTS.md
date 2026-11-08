@@ -228,5 +228,10 @@ if (dailyBars.size() >= MIN_BARS) {
 - **Fail-Safe Step Transitions & Execution Lifecycle**:
   - Chain pipeline steps sequentially with `.on("*").to(nextStep)` transitions. When a tasklet step throws an unhandled exception, Spring Batch transitions via `*` to the next step; the faulted step execution is marked `ABANDONED` while remaining steps execute uninterrupted to job completion (`COMPLETED`).
   - Always provide a unique execution parameter (such as `runTimestamp` via `JobParametersBuilder().addLong("runTimestamp", System.currentTimeMillis()).toJobParameters()`) when calling `JobLauncher.run(job, params)` so that each scheduled execution generates a distinct `JobInstance`.
+- **Timeframe-Parameterized Technical Analysis Pipeline**:
+  - Tasklets can resolve runtime parameters like `Timeframe` directly from `ChunkContext.getStepContext().getJobParameters().get("timeframe")` to reuse identical calculator steps across different time horizons (`DAILY`, `WEEKLY`, `FIFTEEN_MINUTE`).
+- **Post-Market Close Schedule Synchronization**:
+  - Run post-market aggregation and analytics at offset schedules: 16:30 IST for Indian markets (1 hour after NSE 15:30 close) and 17:00 America/New_York for US markets (1 hour after NYSE 16:00 close). Aggregate 15-minute intraday bars into daily bars for Indian tickers before triggering daily technical analysis.
+
 
 
