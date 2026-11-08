@@ -76,12 +76,12 @@ class PipelineConfigTest {
             intraday70PBounceStrategy);
 
     pipelineConfig.setDailySteps(
-        "YAHOO_DAILY_DOWNLOAD, DAILY_SUPPORT_RESISTANCE, DAILY_CANDLESTICK_PATTERN, "
-            + "DAILY_INDICATOR, WEEKLY_PRICE, WEEKLY_SUPPORT_RESISTANCE, "
-            + "WEEKLY_CANDLESTICK_PATTERN, WEEKLY_CHART_PATTERN, WEEKLY_INDICATOR");
-    pipelineConfig.setIntradayCandlesSteps("ANGEL_ONE_INTRADAY_DOWNLOAD");
+        "DOWNLOAD_DAILY_YAHOO_FINANCE, CALCULATE_DAILY_SUPPORT_RESISTANCE, CALCULATE_DAILY_CANDLESTICK_PATTERN, "
+            + "CALCULATE_DAILY_INDICATOR, CALCULATE_WEEKLY_PRICE, CALCULATE_WEEKLY_SUPPORT_RESISTANCE, "
+            + "CALCULATE_WEEKLY_CANDLESTICK_PATTERN, CALCULATE_WEEKLY_CHART_PATTERN, CALCULATE_WEEKLY_INDICATOR");
+    pipelineConfig.setIntradayCandlesSteps("DOWNLOAD_INTRADAY_ANGEL_ONE");
     pipelineConfig.setLiveQuotesSteps(
-        "ANGEL_ONE_LIVE_QUOTE_DOWNLOAD, INTRADAY_70P_BOUNCE_STRATEGY");
+        "DOWNLOAD_INTRADAY_ANGEL_ONE_LIVE_QUOTE, STRATEGY_INTRADAY_70P_BOUNCE");
 
     jobRepository = new ResourcelessJobRepository();
     jobLauncher = new TaskExecutorJobLauncher();
@@ -120,7 +120,7 @@ class PipelineConfigTest {
         IllegalArgumentException.class,
         () ->
             pipelineConfig.parseSteps(
-                PipelineConfig.DAILY_STEPS_PROPERTY, "YAHOO_DAILY_DOWNLOAD, UNKNOWN_STEP"));
+                PipelineConfig.DAILY_STEPS_PROPERTY, "DOWNLOAD_DAILY_YAHOO_FINANCE, UNKNOWN_STEP"));
   }
 
   @Test
@@ -160,7 +160,7 @@ class PipelineConfigTest {
 
   @Test
   void testDailyPipelineJobExecutesDailyChartPatternWhenIncluded() throws Exception {
-    pipelineConfig.setDailySteps("DAILY_CHART_PATTERN, WEEKLY_CHART_PATTERN");
+    pipelineConfig.setDailySteps("CALCULATE_DAILY_CHART_PATTERN, CALCULATE_WEEKLY_CHART_PATTERN");
     Job dailyJob = pipelineConfig.dailyPipelineJob(jobRepository);
     JobParameters params =
         new JobParametersBuilder().addLong("runTimestamp", 2000L).toJobParameters();
@@ -204,7 +204,7 @@ class PipelineConfigTest {
   @Test
   void testIntermediateStepFailureLogsFailedAndContinuesSubsequentSteps() throws Exception {
     pipelineConfig.setDailySteps(
-        "YAHOO_DAILY_DOWNLOAD, DAILY_SUPPORT_RESISTANCE, DAILY_INDICATOR");
+        "DOWNLOAD_DAILY_YAHOO_FINANCE, CALCULATE_DAILY_SUPPORT_RESISTANCE, CALCULATE_DAILY_INDICATOR");
     doThrow(new RuntimeException("Simulated SR failure"))
         .when(supportResistanceCalculator)
         .computeSupportResistances(Timeframe.DAILY);
@@ -217,12 +217,15 @@ class PipelineConfigTest {
 
     List<StepExecution> stepExecutions = new ArrayList<>(execution.getStepExecutions());
     assertEquals(3, stepExecutions.size());
-    assertEquals(PipelineStepName.YAHOO_DAILY_DOWNLOAD.name(), stepExecutions.get(0).getStepName());
+    assertEquals(
+        PipelineStepName.DOWNLOAD_DAILY_YAHOO_FINANCE.name(), stepExecutions.get(0).getStepName());
     assertEquals(BatchStatus.COMPLETED, stepExecutions.get(0).getStatus());
     assertEquals(
-        PipelineStepName.DAILY_SUPPORT_RESISTANCE.name(), stepExecutions.get(1).getStepName());
+        PipelineStepName.CALCULATE_DAILY_SUPPORT_RESISTANCE.name(),
+        stepExecutions.get(1).getStepName());
     assertEquals(BatchStatus.ABANDONED, stepExecutions.get(1).getStatus());
-    assertEquals(PipelineStepName.DAILY_INDICATOR.name(), stepExecutions.get(2).getStepName());
+    assertEquals(
+        PipelineStepName.CALCULATE_DAILY_INDICATOR.name(), stepExecutions.get(2).getStepName());
     assertEquals(BatchStatus.COMPLETED, stepExecutions.get(2).getStatus());
 
     verify(yahooFinanceDownloader, times(1)).downloadAndPersistDailyPrices();

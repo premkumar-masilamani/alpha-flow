@@ -72,43 +72,44 @@ public class PipelineConfig {
       Intraday70PBounceStrategy intraday70PBounceStrategy) {
     Map<PipelineStepName, Runnable> actions = new EnumMap<>(PipelineStepName.class);
     actions.put(
-        PipelineStepName.YAHOO_DAILY_DOWNLOAD,
+        PipelineStepName.DOWNLOAD_DAILY_YAHOO_FINANCE,
         yahooFinanceDownloader::downloadAndPersistDailyPrices);
     actions.put(
-        PipelineStepName.DAILY_SUPPORT_RESISTANCE,
+        PipelineStepName.CALCULATE_DAILY_SUPPORT_RESISTANCE,
         () -> supportResistanceCalculator.computeSupportResistances(Timeframe.DAILY));
     actions.put(
-        PipelineStepName.DAILY_CANDLESTICK_PATTERN,
+        PipelineStepName.CALCULATE_DAILY_CANDLESTICK_PATTERN,
         () -> candlestickPatternCalculator.computeCandleStickPatterns(Timeframe.DAILY));
     actions.put(
-        PipelineStepName.DAILY_CHART_PATTERN,
+        PipelineStepName.CALCULATE_DAILY_CHART_PATTERN,
         () -> chartPatternCalculator.computeChartPatterns(Timeframe.DAILY));
     actions.put(
-        PipelineStepName.DAILY_INDICATOR,
+        PipelineStepName.CALCULATE_DAILY_INDICATOR,
         () -> indicatorCalculator.computeIndicators(Timeframe.DAILY));
-    actions.put(PipelineStepName.WEEKLY_PRICE, weeklyPriceCalculator::computeWeeklyPrices);
     actions.put(
-        PipelineStepName.WEEKLY_SUPPORT_RESISTANCE,
+        PipelineStepName.CALCULATE_WEEKLY_PRICE, weeklyPriceCalculator::computeWeeklyPrices);
+    actions.put(
+        PipelineStepName.CALCULATE_WEEKLY_SUPPORT_RESISTANCE,
         () -> supportResistanceCalculator.computeSupportResistances(Timeframe.WEEKLY));
     actions.put(
-        PipelineStepName.WEEKLY_CANDLESTICK_PATTERN,
+        PipelineStepName.CALCULATE_WEEKLY_CANDLESTICK_PATTERN,
         () -> candlestickPatternCalculator.computeCandleStickPatterns(Timeframe.WEEKLY));
     actions.put(
-        PipelineStepName.WEEKLY_CHART_PATTERN,
+        PipelineStepName.CALCULATE_WEEKLY_CHART_PATTERN,
         () -> chartPatternCalculator.computeChartPatterns(Timeframe.WEEKLY));
     actions.put(
-        PipelineStepName.WEEKLY_INDICATOR,
+        PipelineStepName.CALCULATE_WEEKLY_INDICATOR,
         () -> indicatorCalculator.computeIndicators(Timeframe.WEEKLY));
     actions.put(
-        PipelineStepName.ANGEL_ONE_INTRADAY_DOWNLOAD,
+        PipelineStepName.DOWNLOAD_INTRADAY_ANGEL_ONE,
         angelOneDownloader::downloadAndPersistIntradayPrices);
     actions.put(
-        PipelineStepName.ANGEL_ONE_LIVE_QUOTE_DOWNLOAD,
+        PipelineStepName.DOWNLOAD_INTRADAY_ANGEL_ONE_LIVE_QUOTE,
         () ->
             angelOneDownloader.downloadLiveQuotes(
                 ZonedDateTime.now(MarketConfig.IST_ZONE).toOffsetDateTime()));
     actions.put(
-        PipelineStepName.INTRADAY_70P_BOUNCE_STRATEGY,
+        PipelineStepName.STRATEGY_INTRADAY_70P_BOUNCE,
         intraday70PBounceStrategy::executeForAllActiveQuotes);
     this.stepActions = actions;
   }
