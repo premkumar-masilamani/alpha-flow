@@ -221,3 +221,12 @@ if (dailyBars.size() >= MIN_BARS) {
 - **SpotBugs REC_CATCH_EXCEPTION with Spring RestClient and Jackson**:
   - Catching `Exception` when a try block only invokes `RestClient` (throwing unchecked `RestClientException`) and Jackson `ObjectMapper.readTree` (throwing `JsonProcessingException`) triggers SpotBugs `REC_CATCH_EXCEPTION`. In accordance with AGENTS.md rules to fix warnings without suppressing, catch `(RestClientException | JsonProcessingException e)` explicitly.
 
+## Batch Pipeline Orchestration (Spring Batch)
+- **Zero-DB Metadata In-Memory Architecture**:
+  - Use `ResourcelessJobRepository` and `ResourcelessTransactionManager` for lightweight in-memory tasklet execution pipelines. This avoids requiring Spring Batch's standard schema metadata tables (`BATCH_JOB_INSTANCE`, etc.) in the PostgreSQL database.
+  - Set `spring.batch.job.enabled=false` in `application.properties` to ensure batch jobs are triggered exclusively by schedulers or manual endpoints, rather than running automatically during application startup.
+- **Fail-Safe Step Transitions & Execution Lifecycle**:
+  - Chain pipeline steps sequentially with `.on("*").to(nextStep)` transitions. When a tasklet step throws an unhandled exception, Spring Batch transitions via `*` to the next step; the faulted step execution is marked `ABANDONED` while remaining steps execute uninterrupted to job completion (`COMPLETED`).
+  - Always provide a unique execution parameter (such as `runTimestamp` via `JobParametersBuilder().addLong("runTimestamp", System.currentTimeMillis()).toJobParameters()`) when calling `JobLauncher.run(job, params)` so that each scheduled execution generates a distinct `JobInstance`.
+
+

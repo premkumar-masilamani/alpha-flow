@@ -65,23 +65,43 @@ public class SupportResistanceCalculator {
     log.info("Support and resistances computed.");
   }
 
+  public void computeSupportResistances(Timeframe timeframe) {
+    log.info("Computing {} support and resistances...", timeframe);
+    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for {} S&R.", tickers.size(), timeframe);
+
+    SupportResistanceCalculator proxy = (self != null) ? self : this;
+
+    for (Ticker ticker : tickers) {
+      try {
+        proxy.computeSupportResistancesForTicker(ticker, timeframe);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} S&R for ticker {}: {}",
+            timeframe,
+            ticker.getTickerSymbol(),
+            exception.getMessage(),
+            exception);
+      }
+    }
+    log.info("{} support and resistances computed.", timeframe);
+  }
+
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeSupportResistancesForTicker(Ticker ticker) {
     for (Timeframe timeframe : Timeframe.values()) {
-      log.debug(
-          "Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
-      // Step 1: Load the bars
-      List<PriceBar> priceBars = loadBars(ticker, timeframe);
-      if (!priceBars.isEmpty()) {
-        LocalDate priceDate = priceBars.getLast().date();
-        if (isAlreadyComputed(ticker, priceDate, timeframe)) {
-          log.debug(
-              "S&R already computed for ticker {} and timeframe {} for {}",
-              ticker.getTickerSymbol(),
-              timeframe,
-              priceDate);
-          continue;
-        }
+      computeSupportResistancesForTicker(ticker, timeframe);
+    }
+  }
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeSupportResistancesForTicker(Ticker ticker, Timeframe timeframe) {
+    log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
+    // Step 1: Load the bars
+    List<PriceBar> priceBars = loadBars(ticker, timeframe);
+    if (!priceBars.isEmpty()) {
+      LocalDate priceDate = priceBars.getLast().date();
+      if (!isAlreadyComputed(ticker, priceDate, timeframe)) {
         // Step 2: Purge older records
         LocalDate cutoffDate =
             priceDate.minusDays(supportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
@@ -94,6 +114,12 @@ public class SupportResistanceCalculator {
         if (!buckets.isEmpty()) {
           saveSupportResistances(ticker, buckets, timeframe);
         }
+      } else {
+        log.debug(
+            "S&R already computed for ticker {} and timeframe {} for {}",
+            ticker.getTickerSymbol(),
+            timeframe,
+            priceDate);
       }
     }
   }

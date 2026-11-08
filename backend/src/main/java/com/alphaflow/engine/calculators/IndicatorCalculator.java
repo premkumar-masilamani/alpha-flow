@@ -85,35 +85,54 @@ public class IndicatorCalculator {
     log.info("Indicators computed.");
   }
 
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeIndicatorForTicker(Ticker ticker) {
-    log.info("{}: Computing indicators...", ticker.getTickerSymbol());
-    List<IndicatorDefinition> indicatorDefinitions = this.indicatorDefinitions.getDefinitions();
-    if (indicatorDefinitions.isEmpty()) {
-      log.info(
-          "{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
-      return;
+  public void computeIndicators(Timeframe timeframe) {
+    log.info("Computing {} indicators...", timeframe);
+
+    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for {} indicators.", tickers.size(), timeframe);
+
+    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
+
+    for (Ticker ticker : tickers) {
+      try {
+        proxy.computeIndicatorForTicker(ticker, timeframe);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} indicators for ticker {}: {}",
+            timeframe,
+            ticker.getTickerSymbol(),
+            exception.getMessage(),
+            exception);
+      }
     }
 
-    // Step 1: Load the bars (daily and weekly)
-    List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
-    List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
+    log.info("{} indicators computed.", timeframe);
+  }
 
-    // Step 2: Compute the indicators (common)
-    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> dailyIndicators =
-        computeIndicatorSeries(dailyBars, indicatorDefinitions);
-    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> weeklyIndicators =
-        computeIndicatorSeries(weeklyBars, indicatorDefinitions);
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeIndicatorForTicker(Ticker ticker) {
+    computeIndicatorForTicker(ticker, Timeframe.DAILY);
+    computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
+  }
 
-    // Step 3: Save the computed indicators (daily and weekly)
-    int dailySaved = saveIndicators(ticker, Timeframe.DAILY, dailyIndicators);
-    int weeklySaved = saveIndicators(ticker, Timeframe.WEEKLY, weeklyIndicators);
-
-    log.info(
-        "Ticker {}: Saved {} daily and {} weekly indicators.",
-        ticker.getTickerSymbol(),
-        dailySaved,
-        weeklySaved);
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeIndicatorForTicker(Ticker ticker, Timeframe timeframe) {
+    log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
+    List<IndicatorDefinition> definitions = this.indicatorDefinitions.getDefinitions();
+    if (!definitions.isEmpty()) {
+      List<PriceBar> bars = loadBars(ticker, timeframe);
+      Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computedIndicators =
+          computeIndicatorSeries(bars, definitions);
+      int savedCount = saveIndicators(ticker, timeframe, computedIndicators);
+      log.info(
+          "Ticker {}: Saved {} {} indicators.",
+          ticker.getTickerSymbol(),
+          savedCount,
+          timeframe.name().toLowerCase());
+    } else {
+      log.info(
+          "{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
+    }
   }
 
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {

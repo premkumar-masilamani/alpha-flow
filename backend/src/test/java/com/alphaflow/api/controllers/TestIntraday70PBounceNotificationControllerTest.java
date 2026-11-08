@@ -18,6 +18,7 @@ import com.alphaflow.engine.strategies.options.NiftyOptionSelectorService;
 import com.alphaflow.engine.strategies.options.dtos.RecommendedOptionDto;
 import com.alphaflow.engine.strategies.options.enums.OptionType;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
@@ -37,11 +38,13 @@ class TestIntraday70PBounceNotificationControllerTest {
   void setUp() {
     notificationService = mock(NotificationService.class);
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
+    LiveQuoteRepository liveQuoteRepository = mock(LiveQuoteRepository.class);
     DailyPriceRepository dailyPriceRepository = mock(DailyPriceRepository.class);
     NotificationTemplateEngine notificationTemplateEngine = new NotificationTemplateEngine();
     intraday70PBounceStrategy =
         new Intraday70PBounceStrategy(
             dailyPriceRepository,
+            liveQuoteRepository,
             notificationService,
             niftyOptionSelectorService,
             notificationTemplateEngine);

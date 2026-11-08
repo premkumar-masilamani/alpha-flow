@@ -18,6 +18,7 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -42,6 +43,7 @@ class Intraday70PBounceNotificationFlowTest {
 
   @BeforeEach
   void setUp() {
+    LiveQuoteRepository liveQuoteRepository = mock(LiveQuoteRepository.class);
     dailyPriceRepository = mock(DailyPriceRepository.class);
     notificationService = mock(NotificationService.class);
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
@@ -49,6 +51,7 @@ class Intraday70PBounceNotificationFlowTest {
     strategy =
         new Intraday70PBounceStrategy(
             dailyPriceRepository,
+            liveQuoteRepository,
             notificationService,
             niftyOptionSelectorService,
             notificationTemplateEngine);

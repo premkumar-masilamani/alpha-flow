@@ -27,6 +27,7 @@ import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -42,6 +43,7 @@ import org.springframework.data.domain.PageRequest;
 
 class Intraday70PBounceStrategyTest {
 
+  private LiveQuoteRepository liveQuoteRepository;
   private DailyPriceRepository dailyPriceRepository;
   private NotificationService notificationService;
   private NiftyOptionSelectorService niftyOptionSelectorService;
@@ -51,6 +53,7 @@ class Intraday70PBounceStrategyTest {
 
   @BeforeEach
   void setUp() {
+    liveQuoteRepository = mock(LiveQuoteRepository.class);
     dailyPriceRepository = mock(DailyPriceRepository.class);
     notificationService = mock(NotificationService.class);
     niftyOptionSelectorService = mock(NiftyOptionSelectorService.class);
@@ -58,6 +61,7 @@ class Intraday70PBounceStrategyTest {
     strategy =
         new Intraday70PBounceStrategy(
             dailyPriceRepository,
+            liveQuoteRepository,
             notificationService,
             niftyOptionSelectorService,
             notificationTemplateEngine);
@@ -537,5 +541,22 @@ class Intraday70PBounceStrategyTest {
 
     assertTrue(reversalMessage.contains("BULLISH REVERSAL"));
     assertTrue(reversalMessage.contains("No option contract found meeting the ₹500–₹900 premium"));
+  }
+
+  @Test
+  void testExecuteForAllActiveQuotesQueriesRepositoryAndEvaluatesEachQuote() {
+    DailyPrice previousDayPrice =
+        createPreviousDailyPrice(
+            LocalDate.of(2026, 10, 15), new BigDecimal("24500.00"), new BigDecimal("24000.00"));
+    when(dailyPriceRepository.findLatestByTickerAndEndDate(any(), any(), any()))
+        .thenReturn(List.of(previousDayPrice));
+
+    LiveQuote quote = createLiveQuote(new BigDecimal("23900.00"), baseQuoteTime);
+    when(liveQuoteRepository.findAllByTickerIsActiveTrue()).thenReturn(List.of(quote));
+
+    strategy.executeForAllActiveQuotes();
+
+    verify(liveQuoteRepository, times(1)).findAllByTickerIsActiveTrue();
+    verify(notificationService, times(1)).sendNotification(anyString());
   }
 }
