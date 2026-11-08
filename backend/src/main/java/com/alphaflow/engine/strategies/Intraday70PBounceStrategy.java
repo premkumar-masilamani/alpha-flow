@@ -14,6 +14,7 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.LiveQuote;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.LiveQuoteRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -39,6 +40,7 @@ public class Intraday70PBounceStrategy {
       DateTimeFormatter.ofPattern("dd-MMM-yyyy", Locale.ENGLISH);
 
   private final DailyPriceRepository dailyPriceRepository;
+  private final LiveQuoteRepository liveQuoteRepository;
   private final NotificationService notificationService;
   private final NiftyOptionSelectorService niftyOptionSelectorService;
   private final NotificationTemplateEngine notificationTemplateEngine;
@@ -47,13 +49,22 @@ public class Intraday70PBounceStrategy {
 
   public Intraday70PBounceStrategy(
       DailyPriceRepository dailyPriceRepository,
+      LiveQuoteRepository liveQuoteRepository,
       NotificationService notificationService,
       NiftyOptionSelectorService niftyOptionSelectorService,
       NotificationTemplateEngine notificationTemplateEngine) {
     this.dailyPriceRepository = dailyPriceRepository;
+    this.liveQuoteRepository = liveQuoteRepository;
     this.notificationService = notificationService;
     this.niftyOptionSelectorService = niftyOptionSelectorService;
     this.notificationTemplateEngine = notificationTemplateEngine;
+  }
+
+  public void executeForAllActiveQuotes() {
+    List<LiveQuote> activeQuotes = liveQuoteRepository.findAllByTickerIsActiveTrue();
+    for (LiveQuote liveQuote : activeQuotes) {
+      execute(liveQuote.getTicker(), liveQuote);
+    }
   }
 
   public void execute(Ticker ticker, LiveQuote liveQuote) {

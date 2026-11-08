@@ -1,42 +1,43 @@
 package com.alphaflow.engine.schedulers;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.AngelOneConfig;
-import com.alphaflow.engine.downloaders.AngelOneDownloader;
-import com.alphaflow.engine.strategies.Intraday70PBounceStrategy;
-import com.alphaflow.persistence.entities.LiveQuote;
-import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.persistence.enums.Country;
-import com.alphaflow.persistence.enums.DataProvider;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.OffsetDateTime;
-import java.util.List;
+import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.batch.core.job.Job;
+import org.springframework.batch.core.job.parameters.JobParameters;
+import org.springframework.batch.core.launch.JobLauncher;
 
+@SuppressWarnings("removal")
 class IntradaySchedulerTest {
 
   private AngelOneConfig config;
-  private AngelOneDownloader downloader;
-  private Intraday70PBounceStrategy strategy;
+  private JobLauncher jobLauncher;
+  private Job intradayCandlePipelineJob;
+  private Job liveQuotePipelineJob;
   private IntradayScheduler scheduler;
-  private Ticker niftyTicker;
-  private LiveQuote liveQuote;
+
+  // A fixed trading session time (Wednesday 10:00 AM IST)
+  private final ZonedDateTime marketOpenTime =
+      ZonedDateTime.of(LocalDate.of(2026, 10, 14), LocalTime.of(10, 0), MarketConfig.IST_ZONE);
 
   @BeforeEach
   void setUp() {
@@ -45,26 +46,12 @@ class IntradaySchedulerTest {
     config.setSessionStartTime(LocalTime.MIN);
     config.setSessionEndTime(LocalTime.MAX);
 
-    downloader = mock(AngelOneDownloader.class);
-    strategy = mock(Intraday70PBounceStrategy.class);
-    scheduler = new IntradayScheduler(config, downloader, strategy);
-
-    niftyTicker =
-        Ticker.builder()
-            .tickerId(1L)
-            .tickerSymbol("NIFTY50")
-            .country(Country.IN)
-            .dataProvider(DataProvider.ANGEL_ONE)
-            .isActive(true)
-            .build();
-
-    liveQuote =
-        LiveQuote.builder()
-            .liveQuoteId(100L)
-            .ticker(niftyTicker)
-            .lastPrice(new BigDecimal("25000.00"))
-            .quoteTime(OffsetDateTime.now())
-            .build();
+    jobLauncher = mock(JobLauncher.class);
+    intradayCandlePipelineJob = mock(Job.class);
+    liveQuotePipelineJob = mock(Job.class);
+    scheduler =
+        new IntradayScheduler(
+            config, jobLauncher, intradayCandlePipelineJob, liveQuotePipelineJob);
   }
 
   @AfterEach
@@ -73,30 +60,30 @@ class IntradaySchedulerTest {
   }
 
   @Test
-  void testRunScheduledCandleSync() {
-    when(downloader.downloadAndPersistIntradayPrices()).thenReturn(2);
-
+  void testRunScheduledCandleSync() throws Exception {
     scheduler.runScheduledCandleSync();
 
-    verify(downloader, times(1)).downloadAndPersistIntradayPrices();
-    verify(downloader, never()).downloadLiveQuotes(any());
+    verify(jobLauncher, times(1)).run(eq(intradayCandlePipelineJob), any(JobParameters.class));
+    verify(jobLauncher, never()).run(eq(liveQuotePipelineJob), any(JobParameters.class));
   }
 
   @Test
-  void testRunScheduledLiveQuoteUpdateAndRunOnStartup() {
+  void testRunScheduledLiveQuoteUpdateAndRunOnStartup() throws Exception {
     scheduler.runScheduledLiveQuoteUpdate();
     scheduler.runOnStartup();
-    verify(downloader, times(1)).downloadAndPersistIntradayPrices();
+
+    verify(jobLauncher, times(1)).run(eq(intradayCandlePipelineJob), any(JobParameters.class));
   }
 
   @Test
-  void testSyncIntradayCandlesExceptionHandled() {
+  void testSyncIntradayCandlesExceptionHandled() throws Exception {
     doThrow(new RuntimeException("Simulated candle sync failure"))
-        .when(downloader)
-        .downloadAndPersistIntradayPrices();
+        .when(jobLauncher)
+        .run(eq(intradayCandlePipelineJob), any(JobParameters.class));
 
     scheduler.syncIntradayCandles();
-    verify(downloader, times(1)).downloadAndPersistIntradayPrices();
+
+    verify(jobLauncher, times(1)).run(eq(intradayCandlePipelineJob), any(JobParameters.class));
   }
 
   @Test
@@ -108,70 +95,54 @@ class IntradaySchedulerTest {
             invocation -> {
               startLatch.countDown();
               finishLatch.await(5, TimeUnit.SECONDS);
-              return 0;
+              return null;
             })
-        .when(downloader)
-        .downloadAndPersistIntradayPrices();
+        .when(jobLauncher)
+        .run(eq(intradayCandlePipelineJob), any(JobParameters.class));
 
     Thread thread = new Thread(() -> scheduler.syncIntradayCandles());
     thread.start();
 
     startLatch.await(2, TimeUnit.SECONDS);
-    // Second invocation skipped because first is still running
     scheduler.syncIntradayCandles();
 
     finishLatch.countDown();
     thread.join(2000);
 
-    verify(downloader, times(1)).downloadAndPersistIntradayPrices();
+    verify(jobLauncher, times(1)).run(eq(intradayCandlePipelineJob), any(JobParameters.class));
   }
 
   @Test
-  void testLiveQuoteUpdateExecutesDuringMarketHours() {
-    when(downloader.downloadLiveQuotes(any(OffsetDateTime.class))).thenReturn(List.of(liveQuote));
+  void testLiveQuoteUpdateExecutesDuringMarketHours() throws Exception {
+    scheduler.runLiveQuoteUpdate(marketOpenTime);
 
-    scheduler.runLiveQuoteUpdate();
-
-    verify(downloader, never()).downloadAndPersistIntradayPrices();
-    verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
-    verify(strategy, times(1)).execute(niftyTicker, liveQuote);
+    verify(jobLauncher, never()).run(eq(intradayCandlePipelineJob), any(JobParameters.class));
+    verify(jobLauncher, times(1)).run(eq(liveQuotePipelineJob), any(JobParameters.class));
   }
 
   @Test
-  void testMarketSessionClosedSkipsLiveQuoteUpdate() {
-    MarketTradingCalendar.setHolidays(Country.IN, Map.of(LocalDate.now(), "Test Holiday"));
+  void testMarketSessionClosedSkipsLiveQuoteUpdate() throws Exception {
+    MarketTradingCalendar.setHolidays(
+        Country.IN, Map.of(marketOpenTime.toLocalDate(), "Test Holiday"));
 
-    scheduler.runLiveQuoteUpdate();
+    scheduler.runLiveQuoteUpdate(marketOpenTime);
 
-    verify(downloader, never()).downloadAndPersistIntradayPrices();
-    verify(downloader, never()).downloadLiveQuotes(any());
-    verify(strategy, never()).execute(any(), any());
+    verify(jobLauncher, never()).run(any(), any());
   }
 
   @Test
-  void testEmptyLiveQuotesSkipsStrategyExecution() {
-    when(downloader.downloadLiveQuotes(any(OffsetDateTime.class))).thenReturn(List.of());
-
-    scheduler.runLiveQuoteUpdate();
-
-    verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
-    verify(strategy, never()).execute(any(), any());
-  }
-
-  @Test
-  void testRunLiveQuoteUpdateHandlesExceptionAndResetsRunningFlag() {
+  void testRunLiveQuoteUpdateHandlesExceptionAndResetsRunningFlag() throws Exception {
     doThrow(new RuntimeException("Simulated live quote failure"))
-        .when(downloader)
-        .downloadLiveQuotes(any(OffsetDateTime.class));
+        .when(jobLauncher)
+        .run(eq(liveQuotePipelineJob), any(JobParameters.class));
 
-    scheduler.runLiveQuoteUpdate();
+    scheduler.runLiveQuoteUpdate(marketOpenTime);
 
-    verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
-    verify(strategy, never()).execute(any(), any());
+    verify(jobLauncher, times(1)).run(eq(liveQuotePipelineJob), any(JobParameters.class));
   }
 
   @Test
-  void testRunLiveQuoteUpdateConcurrentExecutionSkipped() throws InterruptedException {
+  void testRunLiveQuoteUpdateConcurrentExecutionSkipped() throws Exception {
     CountDownLatch startLatch = new CountDownLatch(1);
     CountDownLatch finishLatch = new CountDownLatch(1);
 
@@ -179,22 +150,21 @@ class IntradaySchedulerTest {
             invocation -> {
               startLatch.countDown();
               finishLatch.await(5, TimeUnit.SECONDS);
-              return List.of();
+              return null;
             })
-        .when(downloader)
-        .downloadLiveQuotes(any(OffsetDateTime.class));
+        .when(jobLauncher)
+        .run(eq(liveQuotePipelineJob), any(JobParameters.class));
 
-    Thread backgroundThread = new Thread(() -> scheduler.runLiveQuoteUpdate());
+    Thread backgroundThread = new Thread(() -> scheduler.runLiveQuoteUpdate(marketOpenTime));
     backgroundThread.start();
 
     startLatch.await(2, TimeUnit.SECONDS);
 
-    // Second call skips because backgroundThread is still running
-    scheduler.runLiveQuoteUpdate();
+    scheduler.runLiveQuoteUpdate(marketOpenTime);
 
     finishLatch.countDown();
     backgroundThread.join(2000);
 
-    verify(downloader, times(1)).downloadLiveQuotes(any(OffsetDateTime.class));
+    verify(jobLauncher, times(1)).run(eq(liveQuotePipelineJob), any(JobParameters.class));
   }
 }
