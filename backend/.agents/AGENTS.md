@@ -137,7 +137,7 @@ if (dailyBars.size() >= MIN_BARS) {
 ## API Design & Naming
 - **Enum URL Parameters**: Use full lowercase words (e.g., `?timeframe=daily`) for readability.
 - **Enum String Lookup via Enum Method**: Add a static `from(String)` method directly in the enum to convert string parameters (case-insensitively) to the enum, rather than maintaining separate `Converter<String, EnumType>` classes.
-- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`). Keep intraday candle and live quote endpoints grouped under `IntradayPriceController` (`/api/tickers/{symbol}/candle` and `/api/tickers/{symbol}/quote`).
+- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`).
 
 ## Backend Architecture & Package Structure
 - **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
@@ -205,19 +205,6 @@ if (dailyBars.size() >= MIN_BARS) {
   - Keep FreeMarker `.md` notification templates free of inline `<#if ...>` directives when `${...}` placeholders are present, because IDE Markdown LaTeX parsers treat text between `$` symbols as math mode and flag `#` as a macro parameter error.
   - Keep `TelegramNotificationService.escape(...)` directly inside `TelegramNotificationService` rather than in a separate single-method helper class.
 
-## Real-Time Market Data & Live Quote Pipelines
-- **Self-Contained Market-Hours Schedulers**:
-  - Resolve the current market time (`ZonedDateTime.now(MarketConfig.IST_ZONE)`) directly inside the scheduled method (`IntradayScheduler.runLiveQuoteUpdate()`) rather than passing time parameters through intermediate methods.
-- **Once-Per-Session State Initialization in Intraday Strategies**:
-  - In stateful intraday strategies (`Intraday70PBounceStrategy`), fetch previous trading day reference data (`fetchPreviousTradingDayData` returning `Optional<PriceBar>`) inside the `stateMap.compute(...)` initialization block and pass the expanded `PriceBar` fields into the `Intraday70PBounceStrategyState` constructor. Never query the database on every minute tick after the session state is initialized.
-- **In-Progress Intraday Candle Synthesis from Snapshot Quotes**:
-  - When combining finalized candles from `intraday_prices` with the latest quote snapshot from `live_quotes`, merge whenever `candles.isEmpty()` or the quote timestamp is after the latest candle's timestamp (`liveQuote.getQuoteTime().isAfter(candles.getLast().priceDate())`). Floor the quote timestamp in the ticker's market timezone to the timeframe boundary (`(minute / 15) * 15`). Append a new candle when the bucket exceeds the latest closed candle's timestamp, or update `high`/`low`/`close` in-place when matching the latest bucket.
-
-## Derivatives & Options Analytics
-- **Angel One Scrip Master Strike Price Scaling**:
-  - In Angel One's `OpenAPIScripMaster.json`, option strike prices are expressed in paise (multiplied by 100, e.g. `2540000.00` for strike `25400`). Always normalize option strikes upon parsing by dividing by 100 before computing intrinsic value, time value, or matching against spot prices.
-- **Batch Market Quote Lookups over Option Greeks API**:
-  - Select NIFTY option contracts using live quotes fetched via the batch `AngelOneClient.getMarketQuotes(exchange, symbolTokens)` API and compute intrinsic value and time value directly from spot price, strike price, and LTP without calling the external Option Greeks API.
+## Exception Handling & Static Analysis
 - **SpotBugs REC_CATCH_EXCEPTION with Spring RestClient and Jackson**:
   - Catching `Exception` when a try block only invokes `RestClient` (throwing unchecked `RestClientException`) and Jackson `ObjectMapper.readTree` (throwing `JsonProcessingException`) triggers SpotBugs `REC_CATCH_EXCEPTION`. In accordance with AGENTS.md rules to fix warnings without suppressing, catch `(RestClientException | JsonProcessingException e)` explicitly.
-

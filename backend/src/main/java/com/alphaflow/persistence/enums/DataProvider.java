@@ -1,11 +1,12 @@
 package com.alphaflow.persistence.enums;
 
+import org.apache.commons.lang3.StringUtils;
+
 public enum DataProvider {
-  YAHOO_FINANCE,
-  ANGEL_ONE;
+  YAHOO_FINANCE;
 
   public static DataProvider from(String text) {
-    if (text == null || text.trim().isEmpty()) {
+    if (StringUtils.isBlank(text)) {
       return null;
     }
     String normalized = text.trim().toUpperCase();

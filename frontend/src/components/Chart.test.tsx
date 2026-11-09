@@ -754,50 +754,6 @@ describe('Chart Component', () => {
         expect(screen.queryByText('Hammer')).not.toBeInTheDocument();
     });
 
-    it('handles intraday timestamps by converting them to numeric epoch seconds', () => {
-        const mockIntradayData: DailyCandleData[] = [
-            { date: '2026-09-23T09:15:00Z', open: 25000, high: 25050, low: 24980, close: 25020, vol: 150000 },
-            { date: '2026-09-23T09:30:00Z', open: 25020, high: 25080, low: 25010, close: 25070, vol: 120000 }
-        ];
-
-        render(
-            <Chart
-                data={mockIntradayData}
-                indicators={[]}
-                enabled={new Set()}
-                configs={[]}
-                symbol="NIFTY50"
-                timeframe="15M"
-                onLoadOlderData={vi.fn()}
-            />
-        );
-
-        const d = new Date('2026-09-23T09:15:00Z');
-        const expectedTime = Math.floor(
-            Date.UTC(
-                d.getFullYear(),
-                d.getMonth(),
-                d.getDate(),
-                d.getHours(),
-                d.getMinutes(),
-                d.getSeconds()
-            ) / 1000
-        );
-
-        const chartInstance = vi.mocked(createChart).mock.results[vi.mocked(createChart).mock.results.length - 1].value;
-        const candlestickSeries = chartInstance.addSeries.mock.results[0].value;
-        expect(candlestickSeries.setData).toHaveBeenCalledWith(
-            expect.arrayContaining([
-                expect.objectContaining({
-                    time: expectedTime,
-                    open: 25000,
-                    close: 25020
-                })
-            ])
-        );
-        expect(chartInstance.timeScale().fitContent).toHaveBeenCalled();
-    });
-
     it('does not add volume series when showVolume is false', () => {
         render(
             <Chart
@@ -820,41 +776,5 @@ describe('Chart Component', () => {
             expect.anything(),
             0
         );
-    });
-
-    it('creates solid price lines and attaches primitive for previous day high and low', () => {
-        render(
-            <Chart
-                data={mockData}
-                indicators={[]}
-                enabled={new Set()}
-                configs={[]}
-                symbol="NIFTY50"
-                timeframe="15M"
-                previousDayHigh={25100.5}
-                previousDayLow={24850.25}
-                onLoadOlderData={vi.fn()}
-            />
-        );
-
-        const chartInstance = vi.mocked(createChart).mock.results[vi.mocked(createChart).mock.results.length - 1].value;
-        const candlestickSeries = chartInstance.addSeries.mock.results[0].value;
-        expect(candlestickSeries.createPriceLine).toHaveBeenCalledWith(
-            expect.objectContaining({
-                price: 25100.5,
-                lineStyle: 0,
-                title: '',
-            })
-        );
-        expect(candlestickSeries.createPriceLine).toHaveBeenCalledWith(
-            expect.objectContaining({
-                price: 24850.25,
-                lineStyle: 0,
-                title: '',
-            })
-        );
-        expect(candlestickSeries.attachPrimitive).toHaveBeenCalled();
-        expect(screen.queryByText('Prev Day High - 25100.50')).not.toBeInTheDocument();
-        expect(screen.queryByText('Prev Day Low - 24850.25')).not.toBeInTheDocument();
     });
 });

@@ -1,6 +1,5 @@
 package com.alphaflow.engine.downloaders.yahoofinance;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.persistence.entities.DailyPrice;
@@ -46,7 +45,7 @@ public class YahooFinanceClient {
   }
 
   public YahooFinanceClient(YahooFinanceConfig config) {
-    this(config, new RateLimiter(new AngelOneConfig(), config), null);
+    this(config, new RateLimiter(config), null);
   }
 
   public List<DailyPrice> fetchDailyPrices(Ticker ticker, long startTs, long endTs) {

@@ -3,7 +3,6 @@ package com.alphaflow.api.mappers;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
-import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.Country;
 import java.time.LocalDate;
@@ -33,17 +32,6 @@ public class OhlcvMapper {
         .priceLow(weeklyPrice.getPriceLow())
         .priceClose(weeklyPrice.getPriceClose())
         .volume(weeklyPrice.getVolume())
-        .build();
-  }
-
-  public static OhlcvDto toDto(IntradayPrice intradayPrice) {
-    return OhlcvDto.builder()
-        .priceDate(intradayPrice.getPriceTime())
-        .priceOpen(intradayPrice.getPriceOpen())
-        .priceHigh(intradayPrice.getPriceHigh())
-        .priceLow(intradayPrice.getPriceLow())
-        .priceClose(intradayPrice.getPriceClose())
-        .volume(intradayPrice.getVolume())
         .build();
   }
 

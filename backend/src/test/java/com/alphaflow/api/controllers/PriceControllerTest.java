@@ -90,4 +90,35 @@ class PriceControllerTest {
     List<OhlcvDto> clampedMin = controller.getPriceDataForTicker("AAPL", Timeframe.DAILY, 0, -10);
     assertEquals(0, clampedMin.size());
   }
+
+  @Test
+  void testGetPriceDataForNseiAndUnsupported15mTimeframe() {
+    DailyPriceService dailyPriceService = mock(DailyPriceService.class);
+    WeeklyPriceService weeklyPriceService = mock(WeeklyPriceService.class);
+    TickerService tickerService = mock(TickerService.class);
+
+    Ticker nseiTicker = Ticker.builder().tickerSymbol("^NSEI").isActive(true).build();
+    OffsetDateTime date =
+        LocalDate.of(2026, 10, 16).atStartOfDay(ZoneOffset.UTC).toOffsetDateTime();
+    OhlcvDto dto =
+        new OhlcvDto(
+            date,
+            new BigDecimal("25000.00"),
+            new BigDecimal("25100.00"),
+            new BigDecimal("24950.00"),
+            new BigDecimal("25050.00"),
+            new BigDecimal("100000.00"));
+
+    when(tickerService.getTicker("^NSEI")).thenReturn(nseiTicker);
+    when(dailyPriceService.getDailyPrice(nseiTicker, 0, 250)).thenReturn(List.of(dto));
+
+    PriceController controller =
+        new PriceController(dailyPriceService, weeklyPriceService, tickerService);
+
+    List<OhlcvDto> result = controller.getPriceDataForTicker("^NSEI", Timeframe.DAILY, 0, 250);
+    assertEquals(1, result.size());
+    assertEquals(new BigDecimal("25000.00"), result.getFirst().priceOpen());
+
+    assertThrows(IllegalArgumentException.class, () -> Timeframe.from("15m"));
+  }
 }
