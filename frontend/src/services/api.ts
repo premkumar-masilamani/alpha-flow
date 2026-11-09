@@ -30,42 +30,32 @@ export const getTickers = async (): Promise<Ticker[]> => {
 };
 
 // The backend re-syncs prices hourly, so cache for at most an hour to avoid serving stale data.
-// For intraday 15m data, cache for at most 30 seconds.
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-const INTRADAY_CACHE_DURATION = 30 * 1000; // 30 seconds
 const MAX_CACHE_ENTRIES = 50;
 // Map preserves insertion order, which we use as a simple LRU to bound memory growth.
 const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: number }>();
 
-export type Timeframe = 'DAILY' | 'WEEKLY' | '15M';
+export type Timeframe = 'DAILY' | 'WEEKLY';
 
 export const getCandleData = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
     page: number = 0,
     size: number = CHART_WINDOW,
-    forceFresh = false,
-    endDate?: string
+    forceFresh = false
 ): Promise<DailyCandleData[]> => {
     const now = Date.now();
-    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}:${endDate ?? 'latest'}`;
+    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = candleDataCache.get(cacheKey);
-    const ttl = timeframe === '15M' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
-    if (!forceFresh && cached && (now - cached.timestamp < ttl)) {
+    if (!forceFresh && cached && (now - cached.timestamp < CACHE_DURATION)) {
         // Mark as most-recently-used.
         candleDataCache.delete(cacheKey);
         candleDataCache.set(cacheKey, cached);
         return cached.data;
     }
 
-    const isIntraday = timeframe === '15M';
-    const url = isIntraday
-        ? `${API_BASE_URL}/tickers/${symbol}/candle`
-        : `${API_BASE_URL}/tickers/${symbol}/data`;
+    const url = `${API_BASE_URL}/tickers/${symbol}/data`;
     const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page, size };
-    if (endDate && isIntraday) {
-        params.endDate = endDate;
-    }
     const response = await axios.get(url, { params });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 

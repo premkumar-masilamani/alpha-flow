@@ -5,10 +5,8 @@ import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.MarketHolidayRepository;
 import jakarta.annotation.PostConstruct;
 import java.time.DayOfWeek;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -132,39 +130,6 @@ public class MarketTradingCalendar {
       candidate = candidate.minusDays(1);
     }
     return candidate;
-  }
-
-  public static OffsetDateTime getExpectedLatestCompletedCandleTime(
-      ZonedDateTime nowInMarket,
-      LocalTime sessionStart,
-      LocalTime sessionEnd,
-      int candleMinutes,
-      Country country) {
-    LocalTime lastCandleStartTime = sessionEnd.minusMinutes(candleMinutes);
-    LocalDate currentDate = nowInMarket.toLocalDate();
-    LocalTime currentTime = nowInMarket.toLocalTime();
-    LocalTime firstCandleEndTime = sessionStart.plusMinutes(candleMinutes);
-
-    if (isTradingDay(currentDate, country) && !currentTime.isBefore(firstCandleEndTime)) {
-      if (currentTime.isBefore(sessionEnd)) {
-        long elapsedMinutes = Duration.between(sessionStart, currentTime).toMinutes();
-        long completedCandleCount = elapsedMinutes / candleMinutes;
-        LocalTime candleStartTime =
-            sessionStart.plusMinutes((completedCandleCount - 1) * candleMinutes);
-        return currentDate.atTime(candleStartTime).atZone(nowInMarket.getZone()).toOffsetDateTime();
-      } else {
-        return currentDate
-            .atTime(lastCandleStartTime)
-            .atZone(nowInMarket.getZone())
-            .toOffsetDateTime();
-      }
-    } else {
-      LocalDate previousTradingDay = getPreviousTradingDay(currentDate, country);
-      return previousTradingDay
-          .atTime(lastCandleStartTime)
-          .atZone(nowInMarket.getZone())
-          .toOffsetDateTime();
-    }
   }
 
   public static LocalDate getExpectedLatestTradingDate(

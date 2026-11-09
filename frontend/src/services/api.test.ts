@@ -72,34 +72,6 @@ describe('API Service Layer Tests', () => {
                 expect.objectContaining({ params: expect.objectContaining({ timeframe: 'weekly' }) })
             );
         });
-
-        it('should request 15m data endpoint when timeframe is 15M', async () => {
-            const mockCandles: DailyCandleData[] = [
-                { date: '2026-09-23T09:15:00', open: 25000, high: 25050, low: 24980, close: 25020, vol: 150000 }
-            ];
-            mockedAxios.get.mockResolvedValueOnce({ data: mockCandles });
-
-            const result = await getCandleData('NIFTY50', '15M', 0);
-            expect(result).toEqual(mockCandles);
-            expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/candle'),
-                expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m' }) })
-            );
-        });
-
-        it('should pass endDate param when provided', async () => {
-            const mockCandles: DailyCandleData[] = [
-                { date: '2016-02-05T09:15:00', open: 7418, high: 7425, low: 7406, close: 7420, vol: 0 }
-            ];
-            mockedAxios.get.mockResolvedValueOnce({ data: mockCandles });
-
-            const result = await getCandleData('NIFTY50', '15M', 0, 250, false, '2016-02-05');
-            expect(result).toEqual(mockCandles);
-            expect(mockedAxios.get).toHaveBeenCalledWith(
-                expect.stringContaining('/tickers/NIFTY50/candle'),
-                expect.objectContaining({ params: expect.objectContaining({ timeframe: '15m', endDate: '2016-02-05' }) })
-            );
-        });
     });
 
     describe('getIndicatorConfigs', () => {

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.persistence.entities.DailyPrice;
@@ -132,7 +131,7 @@ class YahooFinanceClientTest {
   @Test
   void testConstructorWithRateLimiter() {
     YahooFinanceConfig config = new YahooFinanceConfig();
-    RateLimiter rateLimiter = new RateLimiter(new AngelOneConfig(), config);
+    RateLimiter rateLimiter = new RateLimiter(config);
     YahooFinanceClient client = new YahooFinanceClient(config, rateLimiter);
     assertNotNull(client);
   }
@@ -140,7 +139,7 @@ class YahooFinanceClientTest {
   @Test
   void testConstructorWithCustomRestClientBuilder() {
     YahooFinanceConfig config = new YahooFinanceConfig();
-    RateLimiter rateLimiter = new RateLimiter(new AngelOneConfig(), config);
+    RateLimiter rateLimiter = new RateLimiter(config);
     YahooFinanceClient client =
         new YahooFinanceClient(config, rateLimiter, RestClient.builder());
     assertNotNull(client);

@@ -1,6 +1,5 @@
 package com.alphaflow.engine.downloaders;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
@@ -12,25 +11,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class RateLimiter {
 
-  private final AngelOneConfig angelOneConfig;
   private final YahooFinanceConfig yahooFinanceConfig;
 
-  private final AtomicLong angelOneLoginNextAllowedTimeMs = new AtomicLong(0);
-  private final AtomicLong angelOneCandlesNextAllowedTimeMs = new AtomicLong(0);
-  private final AtomicLong angelOneLiveQuoteNextAllowedTimeMs = new AtomicLong(0);
   private final AtomicLong yahooFinanceNextAllowedTimeMs = new AtomicLong(0);
-
-  public void throttleAngelOneLogin() {
-    throttle(angelOneLoginNextAllowedTimeMs, angelOneConfig.getDelayMilliseconds());
-  }
-
-  public void throttleAngelOneCandles() {
-    throttle(angelOneCandlesNextAllowedTimeMs, angelOneConfig.getDelayMilliseconds());
-  }
-
-  public void throttleAngelOneLiveQuote() {
-    throttle(angelOneLiveQuoteNextAllowedTimeMs, angelOneConfig.getDelayMilliseconds());
-  }
 
   public void throttleYahooFinance() {
     throttle(yahooFinanceNextAllowedTimeMs, yahooFinanceConfig.getDelayMilliseconds());

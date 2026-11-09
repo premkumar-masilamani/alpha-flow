@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.alphaflow.api.dtos.OhlcvDto;
 import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
-import com.alphaflow.persistence.entities.IntradayPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.Country;
@@ -109,27 +108,5 @@ class OhlcvMapperTest {
 
     assertNotNull(dto);
     assertEquals(date.atStartOfDay(MarketConfig.EST_ZONE).toOffsetDateTime(), dto.priceDate());
-  }
-
-  @Test
-  void testIntradayPriceMapping() {
-    Ticker ticker = Ticker.builder().tickerSymbol("NIFTY50").country(Country.IN).build();
-    OffsetDateTime time =
-        LocalDate.of(2026, 9, 23).atTime(9, 15).atZone(MarketConfig.IST_ZONE).toOffsetDateTime();
-    IntradayPrice intradayPrice =
-        IntradayPrice.builder()
-            .ticker(ticker)
-            .priceTime(time)
-            .priceOpen(new BigDecimal("25000.0000"))
-            .priceHigh(new BigDecimal("25050.0000"))
-            .priceLow(new BigDecimal("24990.0000"))
-            .priceClose(new BigDecimal("25040.0000"))
-            .volume(BigDecimal.ZERO)
-            .build();
-
-    OhlcvDto dto = OhlcvMapper.toDto(intradayPrice);
-
-    assertNotNull(dto);
-    assertEquals(time, dto.priceDate());
   }
 }
