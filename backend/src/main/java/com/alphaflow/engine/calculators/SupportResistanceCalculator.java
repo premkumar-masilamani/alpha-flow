@@ -5,12 +5,14 @@ import com.alphaflow.engine.calculators.dtos.Bucket;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,24 +49,6 @@ public class SupportResistanceCalculator {
     this.supportResistanceConfig = supportResistanceConfig;
   }
 
-  public void computeSupportResistances() {
-    log.info("Computing support and resistances...");
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for S&R.", tickers.size());
-
-    SupportResistanceCalculator proxy = (self != null) ? self : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeSupportResistancesForTicker(ticker);
-      } catch (Exception e) {
-        log.error(
-            "Failed to compute S&R for ticker {}: {}", ticker.getTickerSymbol(), e.getMessage(), e);
-      }
-    }
-    log.info("Support and resistances computed.");
-  }
-
   public void computeSupportResistances(Timeframe timeframe) {
     log.info("Computing {} support and resistances...", timeframe);
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
@@ -80,18 +64,10 @@ public class SupportResistanceCalculator {
             "Failed to compute {} S&R for ticker {}: {}",
             timeframe,
             ticker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
+            exception.getMessage());
       }
     }
     log.info("{} support and resistances computed.", timeframe);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeSupportResistancesForTicker(Ticker ticker) {
-    for (Timeframe timeframe : Timeframe.values()) {
-      computeSupportResistancesForTicker(ticker, timeframe);
-    }
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -141,11 +117,11 @@ public class SupportResistanceCalculator {
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else {
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
@@ -163,7 +139,7 @@ public class SupportResistanceCalculator {
     }
   }
 
-  private List<Bucket> computeBuckets(List<PriceBar> bars) {
+  public List<Bucket> computeBuckets(List<PriceBar> bars) {
     PriceBar latest = bars.getLast();
     LocalDate priceDate = latest.date();
 
@@ -175,9 +151,23 @@ public class SupportResistanceCalculator {
             .add(latest.close())
             .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
-    // 2. Calculate Linear Bucket Width
-    BigDecimal bucketWidth =
-        pivot.multiply(BigDecimal.valueOf(supportResistanceConfig.getBucketWidthPct()));
+    // 2. Calculate Adaptive Bucket Width
+    BigDecimal bucketWidth;
+    if (bars.size() >= supportResistanceConfig.getAtrPeriod()) {
+      BigDecimal atr = calculateAtr(bars, supportResistanceConfig.getAtrPeriod());
+      bucketWidth =
+          atr.multiply(BigDecimal.valueOf(supportResistanceConfig.getAtrMultiplier()))
+              .setScale(4, RoundingMode.HALF_UP);
+    } else {
+      bucketWidth =
+          latest
+              .close()
+              .multiply(BigDecimal.valueOf(supportResistanceConfig.getBucketWidthPct()))
+              .setScale(4, RoundingMode.HALF_UP);
+    }
+
+    BigDecimal step =
+        bucketWidth.multiply(BigDecimal.valueOf(supportResistanceConfig.getStrideRatio()));
 
     // 3. Compute dynamic historical price range
     BigDecimal minPrice =
@@ -189,29 +179,29 @@ public class SupportResistanceCalculator {
     BigDecimal maxDiff = maxPrice.subtract(pivot).max(BigDecimal.ZERO);
     int upwardBucketCount =
         Math.min(
-            maxDiff.divide(bucketWidth, 0, RoundingMode.CEILING).intValueExact(),
+            maxDiff.divide(step, 0, RoundingMode.CEILING).intValueExact(),
             supportResistanceConfig.getMaxAllowedBuckets());
 
     BigDecimal minDiff = pivot.subtract(minPrice).max(BigDecimal.ZERO);
     int downwardBucketCount =
         Math.min(
-            minDiff.divide(bucketWidth, 0, RoundingMode.CEILING).intValueExact(),
+            minDiff.divide(step, 0, RoundingMode.CEILING).intValueExact(),
             supportResistanceConfig.getMaxAllowedBuckets());
 
-    // 4. Construct Dynamic Linear Buckets
+    // 4. Construct Dynamic Overlapping Buckets
     List<Bucket> buckets = new ArrayList<>();
 
     // Resistance Buckets (k = 0 to upwardBucketCount - 1, above pivot)
     for (int k = 0; k < upwardBucketCount; k++) {
-      BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
+      BigDecimal bottom = pivot.add(step.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = bottom.add(bucketWidth);
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
     }
 
-    // Support Buckets (k = -1 down to -downwardBucketCount, below pivot)
-    for (int k = -1; k >= -downwardBucketCount; k--) {
-      BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
+    // Support Buckets (k = 1 to downwardBucketCount, below pivot)
+    for (int k = 1; k <= downwardBucketCount; k++) {
+      BigDecimal bottom = pivot.subtract(step.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = bottom.add(bucketWidth);
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
     }
 
@@ -263,22 +253,67 @@ public class SupportResistanceCalculator {
       }
     }
 
-    // Filter proven buckets
-    List<Bucket> provenBuckets = new ArrayList<>();
+    // Filter proven candidate buckets
+    List<Bucket> provenCandidates = new ArrayList<>();
     for (Bucket bucket : buckets) {
-      if (bucket.getTouchCount() >= 3) {
-        // Role Reversal Check - strictly based on final Pivot P
-        // If mid is below P -> SUPPORT, if above -> RESISTANCE
-        if (bucket.getMidpoint().compareTo(pivot) < 0) {
-          bucket.setLevelType(LevelType.SUPPORT);
-        } else {
-          bucket.setLevelType(LevelType.RESISTANCE);
-        }
-        provenBuckets.add(bucket);
+      if (bucket.getTouchCount() >= supportResistanceConfig.getMinTouchCount()) {
+        provenCandidates.add(bucket);
       }
     }
 
-    return provenBuckets;
+    // Apply Non-Maximum Suppression (NMS)
+    List<Bucket> deduplicatedBuckets = applyNonMaximumSuppression(provenCandidates);
+
+    // Role Reversal Check - strictly based on latest candle close
+    for (Bucket bucket : deduplicatedBuckets) {
+      if (bucket.getMidpoint().compareTo(latest.close()) < 0) {
+        bucket.setLevelType(LevelType.SUPPORT);
+      } else {
+        bucket.setLevelType(LevelType.RESISTANCE);
+      }
+    }
+
+    return deduplicatedBuckets;
+  }
+
+  public BigDecimal calculateAtr(List<PriceBar> bars, int period) {
+    return IndicatorMath.calculateAtr(bars, period);
+  }
+
+  public List<Bucket> applyNonMaximumSuppression(List<Bucket> candidates) {
+    List<Bucket> sorted =
+        candidates.stream()
+            .sorted(
+                Comparator.comparingInt(Bucket::getTouchCount)
+                    .reversed()
+                    .thenComparing(
+                        Bucket::getLastTouchDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+
+    List<Bucket> selected = new ArrayList<>();
+    BigDecimal threshold = BigDecimal.valueOf(supportResistanceConfig.getNmsOverlapThreshold());
+
+    for (Bucket candidate : sorted) {
+      boolean overlaps = false;
+      for (Bucket kept : selected) {
+        BigDecimal overlapBottom = candidate.getBottom().max(kept.getBottom());
+        BigDecimal overlapTop = candidate.getTop().min(kept.getTop());
+        if (overlapTop.compareTo(overlapBottom) > 0) {
+          BigDecimal overlapWidth = overlapTop.subtract(overlapBottom);
+          BigDecimal candidateWidth = candidate.getTop().subtract(candidate.getBottom());
+          BigDecimal overlapRatio = overlapWidth.divide(candidateWidth, 4, RoundingMode.HALF_UP);
+          if (overlapRatio.compareTo(threshold) >= 0) {
+            overlaps = true;
+            break;
+          }
+        }
+      }
+      if (!overlaps) {
+        selected.add(candidate);
+      }
+    }
+    return selected;
   }
 
   private void saveSupportResistances(Ticker ticker, List<Bucket> buckets, Timeframe timeframe) {
@@ -320,25 +355,5 @@ public class SupportResistanceCalculator {
     } else {
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-  }
-
-  private PriceBar toPriceBar(DailyPrice dailyPrice) {
-    return new PriceBar(
-        dailyPrice.getPriceDate(),
-        dailyPrice.getPriceOpen(),
-        dailyPrice.getPriceHigh(),
-        dailyPrice.getPriceLow(),
-        dailyPrice.getPriceClose(),
-        dailyPrice.getVolume());
-  }
-
-  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
-    return new PriceBar(
-        weeklyPrice.getPriceDate(),
-        weeklyPrice.getPriceOpen(),
-        weeklyPrice.getPriceHigh(),
-        weeklyPrice.getPriceLow(),
-        weeklyPrice.getPriceClose(),
-        weeklyPrice.getVolume());
   }
 }

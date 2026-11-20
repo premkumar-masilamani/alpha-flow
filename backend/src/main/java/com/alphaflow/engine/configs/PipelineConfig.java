@@ -7,10 +7,10 @@ import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
-import com.alphaflow.engine.schedulers.SchedulerUtils;
 import java.util.TreeMap;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.JobFlowBuilder;
@@ -213,13 +213,15 @@ public class PipelineConfig {
                 log.info(
                     "Pipeline step {} COMPLETED in {}.",
                     stepName,
-                    SchedulerUtils.formatDuration(System.currentTimeMillis() - startTime));
+                    DurationFormatUtils.formatDurationWords(
+                        System.currentTimeMillis() - startTime, true, false));
                 return RepeatStatus.FINISHED;
               } catch (Exception exception) {
                 log.error(
                     "Pipeline step {} FAILED after {}.",
                     stepName,
-                    SchedulerUtils.formatDuration(System.currentTimeMillis() - startTime),
+                    DurationFormatUtils.formatDurationWords(
+                        System.currentTimeMillis() - startTime, true, false),
                     exception);
                 throw exception;
               }

@@ -67,27 +67,6 @@ public class ChartPatternCalculator {
     this.weeklyChartPatternRepository = weeklyChartPatternRepository;
   }
 
-  public void computeChartPatterns() {
-    log.info("Computing classical chart patterns...");
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for chart patterns.", activeTickers.size());
-
-    ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-    for (Ticker activeTicker : activeTickers) {
-      try {
-        proxy.computeChartPatternsForTicker(activeTicker);
-      } catch (Exception exception) {
-        log.error(
-            "Failed to compute chart patterns for ticker {}: {}",
-            activeTicker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
-      }
-    }
-    log.info("Chart patterns computation completed.");
-  }
-
   public void computeChartPatterns(Timeframe timeframe) {
     log.info("Computing {} classical chart patterns...", timeframe);
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
@@ -114,12 +93,6 @@ public class ChartPatternCalculator {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeChartPatternsForTicker(Ticker ticker) {
-    computeChartPatternsForTicker(ticker, Timeframe.DAILY);
-    computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeChartPatternsForTicker(Ticker ticker, Timeframe timeframe) {
     List<PriceBar> bars = loadBars(ticker, timeframe);
     if (bars.size() >= MIN_BARS) {
@@ -141,11 +114,11 @@ public class ChartPatternCalculator {
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else {
       log.error("Unsupported timeframe for loading bars: {}", timeframe);
@@ -953,25 +926,5 @@ public class ChartPatternCalculator {
       }
     }
     return null;
-  }
-
-  private PriceBar toPriceBar(DailyPrice dailyPrice) {
-    return new PriceBar(
-        dailyPrice.getPriceDate(),
-        dailyPrice.getPriceOpen(),
-        dailyPrice.getPriceHigh(),
-        dailyPrice.getPriceLow(),
-        dailyPrice.getPriceClose(),
-        dailyPrice.getVolume());
-  }
-
-  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
-    return new PriceBar(
-        weeklyPrice.getPriceDate(),
-        weeklyPrice.getPriceOpen(),
-        weeklyPrice.getPriceHigh(),
-        weeklyPrice.getPriceLow(),
-        weeklyPrice.getPriceClose(),
-        weeklyPrice.getVolume());
   }
 }

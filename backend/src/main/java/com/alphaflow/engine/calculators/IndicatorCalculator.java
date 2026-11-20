@@ -62,29 +62,6 @@ public class IndicatorCalculator {
     this.weeklyIndicatorRepository = weeklyIndicatorRepository;
   }
 
-  public void computeIndicators() {
-    log.info("Computing indicators...");
-
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for indicators.", tickers.size());
-
-    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeIndicatorForTicker(ticker);
-      } catch (Exception e) {
-        log.error(
-            "Failed to compute indicators for ticker {}: {}",
-            ticker.getTickerSymbol(),
-            e.getMessage(),
-            e);
-      }
-    }
-
-    log.info("Indicators computed.");
-  }
-
   public void computeIndicators(Timeframe timeframe) {
     log.info("Computing {} indicators...", timeframe);
 
@@ -110,12 +87,6 @@ public class IndicatorCalculator {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeIndicatorForTicker(Ticker ticker) {
-    computeIndicatorForTicker(ticker, Timeframe.DAILY);
-    computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(Ticker ticker, Timeframe timeframe) {
     log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
     List<IndicatorDefinition> definitions = this.indicatorDefinitions.getDefinitions();
@@ -138,11 +109,11 @@ public class IndicatorCalculator {
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     }
 
@@ -250,25 +221,5 @@ public class IndicatorCalculator {
 
     log.error("Unsupported timeframe for fetching last computed date: {}", timeframe);
     throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-  }
-
-  private PriceBar toPriceBar(DailyPrice dailyPrice) {
-    return new PriceBar(
-        dailyPrice.getPriceDate(),
-        dailyPrice.getPriceOpen(),
-        dailyPrice.getPriceHigh(),
-        dailyPrice.getPriceLow(),
-        dailyPrice.getPriceClose(),
-        dailyPrice.getVolume());
-  }
-
-  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
-    return new PriceBar(
-        weeklyPrice.getPriceDate(),
-        weeklyPrice.getPriceOpen(),
-        weeklyPrice.getPriceHigh(),
-        weeklyPrice.getPriceLow(),
-        weeklyPrice.getPriceClose(),
-        weeklyPrice.getVolume());
   }
 }

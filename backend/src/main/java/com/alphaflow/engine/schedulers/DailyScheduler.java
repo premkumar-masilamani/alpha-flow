@@ -4,6 +4,7 @@ import com.alphaflow.engine.configs.MarketConfig;
 import com.alphaflow.engine.configs.PipelineConfig;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.parameters.JobParameters;
 import org.springframework.batch.core.job.parameters.JobParametersBuilder;
@@ -61,11 +62,13 @@ public class DailyScheduler {
         jobLauncher.run(dailyPipelineJob, jobParameters);
         log.info(
             "Scheduled daily data update cycle completed successfully in {}.",
-            SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart));
+            DurationFormatUtils.formatDurationWords(
+                System.currentTimeMillis() - cycleStart, true, false));
       } catch (Exception exception) {
         log.error(
             "Error occurred during scheduled daily data update cycle after {}",
-            SchedulerUtils.formatDuration(System.currentTimeMillis() - cycleStart),
+            DurationFormatUtils.formatDurationWords(
+                System.currentTimeMillis() - cycleStart, true, false),
             exception);
       } finally {
         running.set(false);

@@ -1,5 +1,6 @@
 package com.alphaflow.engine.indicators.utils;
 
+import com.alphaflow.engine.indicators.dtos.PriceBar;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
@@ -14,6 +15,10 @@ public final class IndicatorMath {
   public static final RoundingMode ROUNDING = RoundingMode.HALF_UP;
 
   public static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+
+  private IndicatorMath() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+  }
 
   public static BigDecimal internal(BigDecimal value) {
     return value.setScale(INTERNAL_SCALE, ROUNDING);
@@ -53,5 +58,42 @@ public final class IndicatorMath {
       }
     }
     return minVal;
+  }
+
+  /**
+   * Calculates the True Range (TR) for a single bar given the previous bar.
+   * TR = max(high - low, |high - prevClose|, |low - prevClose|)
+   */
+  public static BigDecimal calculateTrueRange(PriceBar current, PriceBar previous) {
+    BigDecimal highLow = current.high().subtract(current.low()).abs();
+    BigDecimal highPrevClose = current.high().subtract(previous.close()).abs();
+    BigDecimal lowPrevClose = current.low().subtract(previous.close()).abs();
+    return highLow.max(highPrevClose).max(lowPrevClose);
+  }
+
+  /**
+   * Calculates the Average True Range (ATR) over the last {@code period} bars.
+   *
+   * @param bars price history
+   * @param period smoothing period
+   * @return ATR value scaled to 4 decimal places, or ZERO if insufficient bars
+   */
+  public static BigDecimal calculateAtr(List<PriceBar> bars, int period) {
+    if (bars == null || bars.size() < period || period <= 0) {
+      return BigDecimal.ZERO;
+    }
+    BigDecimal sumTr = BigDecimal.ZERO;
+    int startIndex = Math.max(1, bars.size() - period);
+    int count = 0;
+    for (int i = startIndex; i < bars.size(); i++) {
+      PriceBar current = bars.get(i);
+      PriceBar previous = bars.get(i - 1);
+      sumTr = sumTr.add(calculateTrueRange(current, previous));
+      count++;
+    }
+    if (count == 0) {
+      return BigDecimal.ZERO;
+    }
+    return sumTr.divide(BigDecimal.valueOf(count), PUBLISHED_SCALE, ROUNDING);
   }
 }

@@ -70,27 +70,6 @@ public class CandlestickPatternCalculator {
     this.weeklyCandlestickPatternRepository = weeklyCandlestickPatternRepository;
   }
 
-  public void computeCandleStickPatterns() {
-    log.info("Computing candlestick patterns...");
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for patterns.", tickers.size());
-
-    CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeCandleStickPatternsForTicker(ticker);
-      } catch (Exception e) {
-        log.error(
-            "Failed to compute candlestick patterns for ticker {}: {}",
-            ticker.getTickerSymbol(),
-            e.getMessage(),
-            e);
-      }
-    }
-    log.info("Candlestick pattern computed.");
-  }
-
   public void computeCandleStickPatterns(Timeframe timeframe) {
     log.info("Computing {} candlestick patterns...", timeframe);
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
@@ -114,12 +93,6 @@ public class CandlestickPatternCalculator {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeCandleStickPatternsForTicker(Ticker ticker) {
-    computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY);
-    computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeCandleStickPatternsForTicker(Ticker ticker, Timeframe timeframe) {
     List<PriceBar> bars = loadBars(ticker, timeframe);
     if (bars.size() >= MIN_BARS) {
@@ -140,11 +113,11 @@ public class CandlestickPatternCalculator {
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     }
     log.error("Unsupported timeframe for loading bars: {}", timeframe);
@@ -1094,25 +1067,5 @@ public class CandlestickPatternCalculator {
       movingAverages.set(i, IndicatorMath.divide(sum, BigDecimal.valueOf(count)));
     }
     return movingAverages;
-  }
-
-  private PriceBar toPriceBar(DailyPrice dailyPrice) {
-    return new PriceBar(
-        dailyPrice.getPriceDate(),
-        dailyPrice.getPriceOpen(),
-        dailyPrice.getPriceHigh(),
-        dailyPrice.getPriceLow(),
-        dailyPrice.getPriceClose(),
-        dailyPrice.getVolume());
-  }
-
-  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
-    return new PriceBar(
-        weeklyPrice.getPriceDate(),
-        weeklyPrice.getPriceOpen(),
-        weeklyPrice.getPriceHigh(),
-        weeklyPrice.getPriceLow(),
-        weeklyPrice.getPriceClose(),
-        weeklyPrice.getVolume());
   }
 }

@@ -398,6 +398,88 @@ describe('Chart Component', () => {
         unmountNoTouch();
     });
 
+    it('renders support resistance segment even when startDate is earlier than loaded data (clamped to left edge)', () => {
+        const mockSrEarlyDate = [
+            {
+                priceDate: '2026-06-03',
+                firstTouchDate: '2024-01-01',
+                lastTouchDate: '2026-06-02',
+                zoneBottom: 100,
+                zoneTop: 105,
+                zoneMidpoint: 102.5,
+                levelType: 'RESISTANCE' as const,
+                touchCount: 5,
+            }
+        ];
+
+        const { unmount } = render(
+            <Chart
+                data={mockData}
+                indicators={mockIndicators}
+                enabled={new Set()}
+                configs={mockConfigs}
+                symbol="AAPL"
+                timeframe="DAILY"
+                supportResistances={mockSrEarlyDate}
+                showSupportResistance={true}
+                onLoadOlderData={vi.fn()}
+            />
+        );
+
+        const chartInstance = vi.mocked(createChart).mock.results[0].value;
+        const candlestickSeriesMock = chartInstance.addSeries.mock.results[0].value;
+        const primitive = candlestickSeriesMock.attachPrimitive.mock.calls[0][0];
+        expect(primitive).toBeDefined();
+
+        primitive.attached({ series: candlestickSeriesMock, chart: chartInstance });
+
+        const renderer = primitive.paneViews()[0].renderer();
+        const ctxMock = {
+            fillStyle: '',
+            strokeStyle: '',
+            lineWidth: 0,
+            save: vi.fn(),
+            restore: vi.fn(),
+            beginPath: vi.fn(),
+            moveTo: vi.fn(),
+            lineTo: vi.fn(),
+            stroke: vi.fn(),
+            fillRect: vi.fn(),
+            arc: vi.fn(),
+            fill: vi.fn(),
+        };
+        const targetMock = {
+            useBitmapCoordinateSpace: vi.fn((callback: (scope: {
+                context: typeof ctxMock;
+                horizontalPixelRatio: number;
+                verticalPixelRatio: number;
+                bitmapSize: { width: number; height: number };
+            }) => void) => {
+                callback({
+                    context: ctxMock,
+                    horizontalPixelRatio: 1,
+                    verticalPixelRatio: 1,
+                    bitmapSize: { width: 800, height: 600 },
+                });
+            }),
+        };
+
+        chartInstance.timeScale().timeToCoordinate.mockImplementation((time: unknown) => {
+            if (time === '2024-01-01') return null;
+            return 750;
+        });
+        candlestickSeriesMock.priceToCoordinate.mockReturnValue(200);
+
+        renderer.draw(targetMock);
+
+        expect(ctxMock.moveTo).toHaveBeenCalledWith(0, 200);
+        expect(ctxMock.lineTo).toHaveBeenCalledWith(750, 200);
+        expect(ctxMock.stroke).toHaveBeenCalled();
+        expect(ctxMock.arc).not.toHaveBeenCalled();
+
+        unmount();
+    });
+
     it('attaches ChartPatternPrimitive to candlestick series when showChartPatterns is true and patterns exist', () => {
         const mockChartPatterns = [
             {

@@ -14,6 +14,11 @@ public class SupportResistanceConfig {
   private int maxFalseBreakouts = 1;
   private int dailyRetentionDays = 30;
   private int weeklyRetentionDays = 180;
+  private int atrPeriod = 14;
+  private double atrMultiplier = 0.5;
+  private double strideRatio = 0.5;
+  private int minTouchCount = 3;
+  private double nmsOverlapThreshold = 0.5;
 
   public int getRetentionDaysForTimeframe(Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {

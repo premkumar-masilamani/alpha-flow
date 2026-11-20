@@ -35,10 +35,6 @@ public class Bucket {
     this.falseBreakoutCount = 0;
   }
 
-  public void incrementTouchCount() {
-    this.touchCount++;
-  }
-
   public void incrementTouchCount(LocalDate barDate) {
     this.touchCount++;
     if (this.firstTouchDate == null) {
@@ -57,10 +53,6 @@ public class Bucket {
 
   public void incrementFalseBreakoutCount() {
     this.falseBreakoutCount++;
-  }
-
-  public void resetFalseBreakoutCount() {
-    this.falseBreakoutCount = 0;
   }
 
   public void resetTouchCount() {
