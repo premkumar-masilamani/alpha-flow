@@ -112,6 +112,32 @@ class ChartPatternCalculatorTest {
   }
 
   @Test
+  void testComputeChartPatternsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
+    Ticker ticker2 = Ticker.builder().tickerId(2L).tickerSymbol("FAIL").isActive(true).build();
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, ticker2));
+
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker2))
+        .thenThrow(new RuntimeException("DB error"));
+
+    calculator.computeChartPatterns(Timeframe.DAILY);
+
+    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
+    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker2);
+
+    ChartPatternCalculator selfMock = mock(ChartPatternCalculator.class);
+    java.lang.reflect.Field selfField =
+        ChartPatternCalculator.class.getDeclaredField("selfProxy");
+    selfField.setAccessible(true);
+    selfField.set(calculator, selfMock);
+
+    calculator.computeChartPatterns(Timeframe.WEEKLY);
+
+    verify(selfMock).computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
+    verify(selfMock).computeChartPatternsForTicker(ticker2, Timeframe.WEEKLY);
+  }
+
+  @Test
   void testComputeChartPatternsForTickerWithSufficientDataAndSavesBothTimeframes() {
     List<DailyPrice> dailyPrices = new ArrayList<>();
     List<WeeklyPrice> weeklyPrices = new ArrayList<>();

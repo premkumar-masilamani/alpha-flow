@@ -91,49 +91,49 @@ public class CandlestickPatternCalculator {
     log.info("Candlestick pattern computed.");
   }
 
+  public void computeCandleStickPatterns(Timeframe timeframe) {
+    log.info("Computing {} candlestick patterns...", timeframe);
+    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for {} patterns.", tickers.size(), timeframe);
+
+    CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
+
+    for (Ticker ticker : tickers) {
+      try {
+        proxy.computeCandleStickPatternsForTicker(ticker, timeframe);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} candlestick patterns for ticker {}: {}",
+            timeframe,
+            ticker.getTickerSymbol(),
+            exception.getMessage(),
+            exception);
+      }
+    }
+    log.info("{} candlestick patterns computed.", timeframe);
+  }
+
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeCandleStickPatternsForTicker(Ticker ticker) {
-    // Step 1: Load the bars (daily and weekly)
-    List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
-    List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
+    computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY);
+    computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY);
+  }
 
-    // Step 2: Compute the patterns (common)
-    LocalDate dailyRecomputeStartDate = null;
-    List<PatternMatch> dailyMatches = List.of();
-    if (dailyBars.size() >= MIN_BARS) {
-      log.info(
-          "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.DAILY);
-      LocalDate lastDailyDate = getLastComputedDate(ticker, Timeframe.DAILY);
-      dailyRecomputeStartDate = calculateRecomputeStartDate(dailyBars, lastDailyDate);
-      dailyMatches = computePatterns(dailyBars, dailyRecomputeStartDate);
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeCandleStickPatternsForTicker(Ticker ticker, Timeframe timeframe) {
+    List<PriceBar> bars = loadBars(ticker, timeframe);
+    if (bars.size() >= MIN_BARS) {
+      log.info("Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), timeframe);
+      LocalDate lastDate = getLastComputedDate(ticker, timeframe);
+      LocalDate recomputeStartDate = calculateRecomputeStartDate(bars, lastDate);
+      List<PatternMatch> matches = computePatterns(bars, recomputeStartDate);
+      savePatterns(ticker, timeframe, matches, recomputeStartDate);
     } else {
       log.debug(
-          "Ticker {}: Insufficient daily data points (found {}) to compute patterns.",
+          "Ticker {}: Insufficient {} data points (found {}) to compute patterns.",
           ticker.getTickerSymbol(),
-          dailyBars.size());
-    }
-
-    LocalDate weeklyRecomputeStartDate = null;
-    List<PatternMatch> weeklyMatches = List.of();
-    if (weeklyBars.size() >= MIN_BARS) {
-      log.info(
-          "Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), Timeframe.WEEKLY);
-      LocalDate lastWeeklyDate = getLastComputedDate(ticker, Timeframe.WEEKLY);
-      weeklyRecomputeStartDate = calculateRecomputeStartDate(weeklyBars, lastWeeklyDate);
-      weeklyMatches = computePatterns(weeklyBars, weeklyRecomputeStartDate);
-    } else {
-      log.debug(
-          "Ticker {}: Insufficient weekly data points (found {}) to compute patterns.",
-          ticker.getTickerSymbol(),
-          weeklyBars.size());
-    }
-
-    // Step 3: Save the computed patterns (daily and weekly)
-    if (dailyBars.size() >= MIN_BARS) {
-      savePatterns(ticker, Timeframe.DAILY, dailyMatches, dailyRecomputeStartDate);
-    }
-    if (weeklyBars.size() >= MIN_BARS) {
-      savePatterns(ticker, Timeframe.WEEKLY, weeklyMatches, weeklyRecomputeStartDate);
+          timeframe.name().toLowerCase(),
+          bars.size());
     }
   }
 

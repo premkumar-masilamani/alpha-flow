@@ -4,11 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
@@ -98,6 +100,38 @@ class CandlestickPatternCalculatorTest {
 
     verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker1);
     verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2);
+  }
+
+  @Test
+  void testComputePatternsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
+    Ticker activeTicker1 = Ticker.builder().tickerId(1L).tickerSymbol("T1").isActive(true).build();
+    Ticker activeTicker2 = Ticker.builder().tickerId(2L).tickerSymbol("T2").isActive(true).build();
+
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(activeTicker1, activeTicker2));
+
+    CandlestickPatternCalculator calculatorSpy = spy(calculator);
+    doThrow(new RuntimeException("Calculators fail"))
+        .when(calculatorSpy)
+        .computeCandleStickPatternsForTicker(activeTicker1, Timeframe.DAILY);
+    doNothing()
+        .when(calculatorSpy)
+        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY);
+
+    calculatorSpy.computeCandleStickPatterns(Timeframe.DAILY);
+
+    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.DAILY);
+    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY);
+
+    CandlestickPatternCalculator selfMock = mock(CandlestickPatternCalculator.class);
+    java.lang.reflect.Field selfField =
+        CandlestickPatternCalculator.class.getDeclaredField("selfProxy");
+    selfField.setAccessible(true);
+    selfField.set(calculator, selfMock);
+
+    calculator.computeCandleStickPatterns(Timeframe.WEEKLY);
+
+    verify(selfMock).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.WEEKLY);
+    verify(selfMock).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY);
   }
 
   @Test

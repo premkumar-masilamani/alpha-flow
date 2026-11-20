@@ -162,6 +162,36 @@ class IndicatorCalculatorTest {
   }
 
   @Test
+  void testComputeIndicatorsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
+    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
+    Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
+
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
+
+    IndicatorCalculator calculatorSpy = spy(calculator);
+    doThrow(new RuntimeException("Computation error"))
+        .when(calculatorSpy)
+        .computeIndicatorForTicker(t1, Timeframe.DAILY);
+    doNothing().when(calculatorSpy).computeIndicatorForTicker(t2, Timeframe.DAILY);
+
+    calculatorSpy.computeIndicators(Timeframe.DAILY);
+
+    verify(calculatorSpy).computeIndicatorForTicker(t1, Timeframe.DAILY);
+    verify(calculatorSpy).computeIndicatorForTicker(t2, Timeframe.DAILY);
+
+    IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
+    java.lang.reflect.Field selfField =
+        IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
+    selfField.setAccessible(true);
+    selfField.set(calculator, selfMock);
+
+    calculator.computeIndicators(Timeframe.WEEKLY);
+
+    verify(selfMock).computeIndicatorForTicker(t1, Timeframe.WEEKLY);
+    verify(selfMock).computeIndicatorForTicker(t2, Timeframe.WEEKLY);
+  }
+
+  @Test
   void processTickerDeletesAndBackfillsWholeSeries() {
     calculator.computeIndicatorForTicker(ticker);
 
