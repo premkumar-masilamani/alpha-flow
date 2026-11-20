@@ -5,6 +5,7 @@ import com.alphaflow.engine.calculators.dtos.Bucket;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.entities.*;
 import com.alphaflow.persistence.repositories.*;
 import java.math.BigDecimal;
@@ -116,11 +117,11 @@ public class SupportResistanceCalculator {
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
-          .map(this::toPriceBar)
+          .map(PriceBar::from)
           .toList();
     } else {
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
@@ -138,7 +139,7 @@ public class SupportResistanceCalculator {
     }
   }
 
-  List<Bucket> computeBuckets(List<PriceBar> bars) {
+  public List<Bucket> computeBuckets(List<PriceBar> bars) {
     PriceBar latest = bars.getLast();
     LocalDate priceDate = latest.date();
 
@@ -276,24 +277,7 @@ public class SupportResistanceCalculator {
   }
 
   public BigDecimal calculateAtr(List<PriceBar> bars, int period) {
-    int totalBars = bars.size();
-    int startIndex = totalBars - period;
-    BigDecimal sumTrueRange = BigDecimal.ZERO;
-    for (int i = startIndex; i < totalBars; i++) {
-      PriceBar currentBar = bars.get(i);
-      BigDecimal highLowDiff = currentBar.high().subtract(currentBar.low());
-      BigDecimal trueRange;
-      if (i > 0) {
-        BigDecimal previousClose = bars.get(i - 1).close();
-        BigDecimal highCloseDiff = currentBar.high().subtract(previousClose).abs();
-        BigDecimal lowCloseDiff = currentBar.low().subtract(previousClose).abs();
-        trueRange = highLowDiff.max(highCloseDiff).max(lowCloseDiff);
-      } else {
-        trueRange = highLowDiff;
-      }
-      sumTrueRange = sumTrueRange.add(trueRange);
-    }
-    return sumTrueRange.divide(BigDecimal.valueOf(period), 4, RoundingMode.HALF_UP);
+    return IndicatorMath.calculateAtr(bars, period);
   }
 
   public List<Bucket> applyNonMaximumSuppression(List<Bucket> candidates) {
@@ -371,25 +355,5 @@ public class SupportResistanceCalculator {
     } else {
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-  }
-
-  private PriceBar toPriceBar(DailyPrice dailyPrice) {
-    return new PriceBar(
-        dailyPrice.getPriceDate(),
-        dailyPrice.getPriceOpen(),
-        dailyPrice.getPriceHigh(),
-        dailyPrice.getPriceLow(),
-        dailyPrice.getPriceClose(),
-        dailyPrice.getVolume());
-  }
-
-  private PriceBar toPriceBar(WeeklyPrice weeklyPrice) {
-    return new PriceBar(
-        weeklyPrice.getPriceDate(),
-        weeklyPrice.getPriceOpen(),
-        weeklyPrice.getPriceHigh(),
-        weeklyPrice.getPriceLow(),
-        weeklyPrice.getPriceClose(),
-        weeklyPrice.getVolume());
   }
 }
