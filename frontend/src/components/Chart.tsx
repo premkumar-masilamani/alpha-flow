@@ -183,9 +183,11 @@ class SupportResistanceRenderer implements IPrimitivePaneRenderer {
                 const y = series.priceToCoordinate(seg.price);
                 if (y === null) continue;
 
-                const xStart = timeScale.timeToCoordinate(seg.startDate as Time);
+                let xStart = timeScale.timeToCoordinate(seg.startDate as Time);
+                let isStartVisible = true;
                 if (xStart === null) {
-                    continue;
+                    xStart = 0;
+                    isStartVisible = false;
                 }
 
                 let xEnd = timeScale.timeToCoordinate(seg.endDate as Time);
@@ -222,7 +224,7 @@ class SupportResistanceRenderer implements IPrimitivePaneRenderer {
                 ctx.lineTo(renderX2, renderY);
                 ctx.stroke();
 
-                if (renderX1 >= 0 && renderX1 <= width) {
+                if (isStartVisible && renderX1 >= 0 && renderX1 <= width) {
                     ctx.fillStyle = seg.color;
                     ctx.beginPath();
                     ctx.arc(renderX1, renderY, 3 * vRatio, 0, 2 * Math.PI);
