@@ -1,8 +1,6 @@
 package com.alphaflow.engine.downloaders.yahoofinance;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
-import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import java.io.IOException;
@@ -22,16 +20,13 @@ import org.springframework.web.client.RestClientException;
 public class YahooFinanceClient {
 
   private final YahooFinanceConfig config;
-  private final RateLimiter rateLimiter;
   private final RestClient restClient;
 
   @Autowired
   public YahooFinanceClient(
       YahooFinanceConfig config,
-      RateLimiter rateLimiter,
       @Autowired(required = false) RestClient.Builder restClientBuilder) {
     this.config = config;
-    this.rateLimiter = rateLimiter;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder())
             .defaultHeader(
@@ -41,12 +36,8 @@ public class YahooFinanceClient {
             .build();
   }
 
-  public YahooFinanceClient(YahooFinanceConfig config, RateLimiter rateLimiter) {
-    this(config, rateLimiter, null);
-  }
-
   public YahooFinanceClient(YahooFinanceConfig config) {
-    this(config, new RateLimiter(new AngelOneConfig(), config), null);
+    this(config, null);
   }
 
   public List<DailyPrice> fetchDailyPrices(Ticker ticker, long startTs, long endTs) {
@@ -59,7 +50,6 @@ public class YahooFinanceClient {
               .replace("{start}", String.valueOf(startTs))
               .replace("{end}", String.valueOf(endTs));
 
-      rateLimiter.throttleYahooFinance();
       try {
         String json = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
         return YahooResponseParser.parse(json, ticker);

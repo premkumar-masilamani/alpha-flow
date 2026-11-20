@@ -15,9 +15,11 @@ make connect_database
 - Use append-only SQL migration pairs in `database/migrations/`.
 - Ensure down scripts are exact reversals (`DROP TABLE IF EXISTS ... CASCADE`).
 - Use `IF EXISTS` / `IF NOT EXISTS` guards for idempotency.
-- Use DB migrations strictly for DDL only (schema changes).
-- Author migration files only; leave execution entirely to the user (all migrations are manual).
-- Author any schema updates, new columns, or alterations in a new, separately numbered migration script pair (`XXX_...up.sql` / `XXX_...down.sql`). DB migrations are executed only for new scripts; existing/already-authored migration files must never be retroactively modified.
+- Use DB migrations strictly for DDL only (schema changes: CREATE, ALTER, DROP).
+- Author migration files only; leave execution entirely to the user (all migrations are manual). Never execute DDL scripts automatically.
+- Keep strictly only ONE migration script pair (`XXX_...up.sql` / `XXX_...down.sql`) per Pull Request / feature branch. Even if schema modification requests arrive in the middle of a task or conversation, consolidate all schema changes into that PR's single migration script pair rather than spawning multiple numbered migrations.
+- Always produce any necessary data manipulation statements (DML: INSERT, UPDATE, DELETE) directly in chat for the user to execute manually in their database client.
+
 
 - Name primary keys using the `<singular_table_name>_id` convention (e.g. `ticker_id`, `daily_price_id`, `indicator_definition_id`), never a generic `id`.
 - Ensure all daily_* and weekly_* child tables enforce foreign keys with `ON DELETE CASCADE` from `tickers(ticker_id)`.
@@ -28,7 +30,8 @@ make connect_database
 
 ### Never do
 - Apply migrations (never run `make migrate_database`, `make run_database`, `migrate`, or any automated migration execution). All migrations are manual—never ever apply them.
-- Edit, retroactively update, or alter existing/already-authored migration files. All schema additions must be created in a new, separate migration script.
+- Write data manipulation SQLs (DML: INSERT, UPDATE, DELETE) inside migration scripts. Migrations must remain purely DDL schema definitions.
+- Create multiple migration script pairs in a single PR. Consolidate all schema changes for the PR into one migration file pair.
 - Drop tables without `CASCADE`.
 - Use PostgreSQL reserved keywords (`user`, `type`, `order`, etc.) for column names.
 

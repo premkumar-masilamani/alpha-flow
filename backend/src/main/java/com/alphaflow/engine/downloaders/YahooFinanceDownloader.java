@@ -1,6 +1,5 @@
 package com.alphaflow.engine.downloaders;
 
-import com.alphaflow.engine.calendar.MarketTradingCalendar;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
 import com.alphaflow.persistence.entities.DailyPrice;
@@ -9,10 +8,10 @@ import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +24,7 @@ public class YahooFinanceDownloader {
   private final YahooFinanceConfig yahooFinanceConfig;
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
+  private final AtomicLong nextAllowedTimeMs = new AtomicLong(0);
 
   @Autowired
   public YahooFinanceDownloader(
@@ -48,24 +48,20 @@ public class YahooFinanceDownloader {
     List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
     for (Ticker ticker : tickers) {
       ZoneId marketZone = ticker.getCountry().getZoneId();
-
-      LocalDate expectedTradingDate =
-          MarketTradingCalendar.getExpectedLatestTradingDate(
-              ZonedDateTime.now(marketZone),
-              yahooFinanceConfig.getMarketCutoffTime(),
-              ticker.getCountry());
-
+      LocalDate today = LocalDate.now(marketZone);
       LocalDate latestSavedDate = latestSavedDates.get(ticker);
-      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
+
+      if (latestSavedDate == null || latestSavedDate.isBefore(today)) {
+        throttle();
         int ingestedRows =
-            downloadAndPersistForTicker(ticker, latestSavedDate, expectedTradingDate, marketZone);
+            downloadAndPersistForTicker(ticker, latestSavedDate, today, marketZone);
         totalNewlyIngestedRows += ingestedRows;
       } else {
         log.debug(
-            "{}: up to date (latest saved: {}, expected: {}). Skipping.",
+            "{}: up to date (latest saved: {}, today: {}). Skipping.",
             ticker.getTickerSymbol(),
             latestSavedDate,
-            expectedTradingDate);
+            today);
       }
     }
     log.info(
@@ -74,8 +70,28 @@ public class YahooFinanceDownloader {
     return totalNewlyIngestedRows;
   }
 
+  private void throttle() {
+    long minDelayMs = yahooFinanceConfig.getDelayMilliseconds();
+    if (minDelayMs > 0) {
+      long now = System.currentTimeMillis();
+      long scheduledTime =
+          nextAllowedTimeMs.updateAndGet(current -> Math.max(current, now) + minDelayMs);
+      long waitMs = scheduledTime - minDelayMs - now;
+      if (waitMs <= 0) {
+        log.debug("No rate limit throttle required");
+      } else {
+        try {
+          Thread.sleep(waitMs);
+        } catch (InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          log.warn("Rate limiter sleep interrupted: {}", exception.getMessage());
+        }
+      }
+    }
+  }
+
   private int downloadAndPersistForTicker(
-      Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate, ZoneId marketZone) {
+      Ticker ticker, LocalDate latestSavedDate, LocalDate today, ZoneId marketZone) {
     LocalDate actualLatestDate =
         (latestSavedDate != null) ? latestSavedDate : yahooFinanceConfig.getBackfillStartDate();
     LocalDate startDate = actualLatestDate.plusDays(1);
@@ -84,7 +100,7 @@ public class YahooFinanceDownloader {
     long endTs =
         Math.max(
             Instant.now().getEpochSecond(),
-            expectedTradingDate.plusDays(1).atStartOfDay(marketZone).toEpochSecond());
+            today.plusDays(1).atStartOfDay(marketZone).toEpochSecond());
 
     log.info(
         "Syncing {} from {} (timestamp: {}) to timestamp: {}",

@@ -137,7 +137,7 @@ if (dailyBars.size() >= MIN_BARS) {
 ## API Design & Naming
 - **Enum URL Parameters**: Use full lowercase words (e.g., `?timeframe=daily`) for readability.
 - **Enum String Lookup via Enum Method**: Add a static `from(String)` method directly in the enum to convert string parameters (case-insensitively) to the enum, rather than maintaining separate `Converter<String, EnumType>` classes.
-- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`). Keep intraday candle and live quote endpoints grouped under `IntradayPriceController` (`/api/tickers/{symbol}/candle` and `/api/tickers/{symbol}/quote`).
+- **Endpoint Clarity**: Keep static config endpoints (e.g., `/api/indicator-definitions`) distinct from computed data endpoints (e.g., `/api/tickers/{symbol}/indicators`).
 
 ## Backend Architecture & Package Structure
 - **Shared Domain Concepts**: Enums and classes used across multiple boundaries (like `Timeframe`) must reside in a shared package (e.g., `com.alphaflow.common.enums`) rather than a specific layer like `persistence`.
@@ -182,15 +182,11 @@ if (dailyBars.size() >= MIN_BARS) {
   - Downstream pipeline steps (weekly candles, support/resistance, candlestick patterns, chart patterns, indicators) should be conditionally bypassed when the daily ingestion step yields zero newly ingested rows across all tickers, logging the short-circuit duration cleanly.
 - **JaCoCo Branch Coverage on Downloader Logic**:
   - Redundant guards in inner download methods (such as checking `startTs >= endTs` when caller gating already guarantees `latestSavedDate < expectedTradingDate`) introduce unreachable branches that violate the 100% JaCoCo branch coverage requirement. Placing gating cleanly at the caller loop level keeps inner methods branch-lean and fully coverable.
-- **Startup In-Memory Cache for Static Reference Data**:
-  - Preloading static multi-year holiday reference data from JPA repositories into an in-memory `Map<Country, Set<LocalDate>>` on application startup (`@PostConstruct`) prevents database contention in high-frequency downloader loops and allows static calendar helper methods to remain branch-lean with $O(1)$ memory lookups.
-- **Market Session Checks in `MarketTradingCalendar`**:
-  - Centralize market session open/close validation (`isMarketSessionOpen(...)`) inside `MarketTradingCalendar` alongside trading-day and holiday resolution rather than placing session checks in scheduler utility classes.
 
 ## Persistence Layer & Repository Hygiene
 - **Repository Dead Method Cleanliness & Import Hygiene**: Regularly audit and prune dead Spring Data JPA derived query methods when services transition to specialized bulk queries or JPQL projections. When pruning unused repository methods, always remove now-unused imports (e.g., `java.util.List`, `java.util.Optional`, or unused Enums) to maintain strict Checkstyle and Spotless compliance.
 
-## Notification Services & External HTTP Integration
+## External HTTP Integration & Testing
 - **Lightweight In-Memory Mocking for RestClient Testing**:
   - Prefer `com.sun.net.httpserver.HttpServer` with a wildcard root handler (`/`) for unit testing Spring Boot 3 `RestClient` components. This allows deterministic validation of query parameter URI encoding (`parse_mode`, `chat_id`, `text`), status code branches (200 OK, 4xx/5xx errors), and connection failures without live network calls, third-party wiremock servers, or booting the Spring ApplicationContext.
 - **JaCoCo Branch Coverage in Enum Parsers & Dynamic URL Construction**:
@@ -199,25 +195,7 @@ if (dailyBars.size() >= MIN_BARS) {
 - **PMD Static Analysis & Code Smells**:
   - Explicitly annotate single-abstract-method service interfaces with `@FunctionalInterface` to comply with PMD's `ImplicitFunctionalInterface` rule.
   - Always provide an explicit character set (e.g. `StandardCharsets.UTF_8`) to `String.getBytes(...)` in tests and network handlers to conform to PMD's `RelianceOnDefaultCharset` check.
-- **Notification Error Persistence**:
-  - Persist the raw error description from external notification providers (such as Telegram) directly to the audit log table (`notification_logs`) to capture the exact failure details.
-- **FreeMarker Markdown Template Hygiene**:
-  - Keep FreeMarker `.md` notification templates free of inline `<#if ...>` directives when `${...}` placeholders are present, because IDE Markdown LaTeX parsers treat text between `$` symbols as math mode and flag `#` as a macro parameter error.
-  - Keep `TelegramNotificationService.escape(...)` directly inside `TelegramNotificationService` rather than in a separate single-method helper class.
 
-## Real-Time Market Data & Live Quote Pipelines
-- **Self-Contained Market-Hours Schedulers**:
-  - Resolve the current market time (`ZonedDateTime.now(MarketConfig.IST_ZONE)`) directly inside the scheduled method (`IntradayScheduler.runLiveQuoteUpdate()`) rather than passing time parameters through intermediate methods.
-- **Once-Per-Session State Initialization in Intraday Strategies**:
-  - In stateful intraday strategies (`Intraday70PBounceStrategy`), fetch previous trading day reference data (`fetchPreviousTradingDayData` returning `Optional<PriceBar>`) inside the `stateMap.compute(...)` initialization block and pass the expanded `PriceBar` fields into the `Intraday70PBounceStrategyState` constructor. Never query the database on every minute tick after the session state is initialized.
-- **In-Progress Intraday Candle Synthesis from Snapshot Quotes**:
-  - When combining finalized candles from `intraday_prices` with the latest quote snapshot from `live_quotes`, merge whenever `candles.isEmpty()` or the quote timestamp is after the latest candle's timestamp (`liveQuote.getQuoteTime().isAfter(candles.getLast().priceDate())`). Floor the quote timestamp in the ticker's market timezone to the timeframe boundary (`(minute / 15) * 15`). Append a new candle when the bucket exceeds the latest closed candle's timestamp, or update `high`/`low`/`close` in-place when matching the latest bucket.
-
-## Derivatives & Options Analytics
-- **Angel One Scrip Master Strike Price Scaling**:
-  - In Angel One's `OpenAPIScripMaster.json`, option strike prices are expressed in paise (multiplied by 100, e.g. `2540000.00` for strike `25400`). Always normalize option strikes upon parsing by dividing by 100 before computing intrinsic value, time value, or matching against spot prices.
-- **Batch Market Quote Lookups over Option Greeks API**:
-  - Select NIFTY option contracts using live quotes fetched via the batch `AngelOneClient.getMarketQuotes(exchange, symbolTokens)` API and compute intrinsic value and time value directly from spot price, strike price, and LTP without calling the external Option Greeks API.
+## Exception Handling & Static Analysis
 - **SpotBugs REC_CATCH_EXCEPTION with Spring RestClient and Jackson**:
   - Catching `Exception` when a try block only invokes `RestClient` (throwing unchecked `RestClientException`) and Jackson `ObjectMapper.readTree` (throwing `JsonProcessingException`) triggers SpotBugs `REC_CATCH_EXCEPTION`. In accordance with AGENTS.md rules to fix warnings without suppressing, catch `(RestClientException | JsonProcessingException e)` explicitly.
-

@@ -30,42 +30,32 @@ export const getTickers = async (): Promise<Ticker[]> => {
 };
 
 // The backend re-syncs prices hourly, so cache for at most an hour to avoid serving stale data.
-// For intraday 15m data, cache for at most 30 seconds.
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
-const INTRADAY_CACHE_DURATION = 30 * 1000; // 30 seconds
 const MAX_CACHE_ENTRIES = 50;
 // Map preserves insertion order, which we use as a simple LRU to bound memory growth.
 const candleDataCache = new Map<string, { data: DailyCandleData[]; timestamp: number }>();
 
-export type Timeframe = 'DAILY' | 'WEEKLY' | '15M';
+export type Timeframe = 'DAILY' | 'WEEKLY';
 
 export const getCandleData = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
     page: number = 0,
     size: number = CHART_WINDOW,
-    forceFresh = false,
-    endDate?: string
+    forceFresh = false
 ): Promise<DailyCandleData[]> => {
     const now = Date.now();
-    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}:${endDate ?? 'latest'}`;
+    const cacheKey = `${symbol}:${timeframe}:${page}:${size ?? 'default'}`;
     const cached = candleDataCache.get(cacheKey);
-    const ttl = timeframe === '15M' ? INTRADAY_CACHE_DURATION : CACHE_DURATION;
-    if (!forceFresh && cached && (now - cached.timestamp < ttl)) {
+    if (!forceFresh && cached && (now - cached.timestamp < CACHE_DURATION)) {
         // Mark as most-recently-used.
         candleDataCache.delete(cacheKey);
         candleDataCache.set(cacheKey, cached);
         return cached.data;
     }
 
-    const isIntraday = timeframe === '15M';
-    const url = isIntraday
-        ? `${API_BASE_URL}/tickers/${symbol}/candle`
-        : `${API_BASE_URL}/tickers/${symbol}/data`;
+    const url = `${API_BASE_URL}/tickers/${symbol}/data`;
     const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page, size };
-    if (endDate && isIntraday) {
-        params.endDate = endDate;
-    }
     const response = await axios.get(url, { params });
     candleDataCache.set(cacheKey, {data: response.data, timestamp: now});
 
@@ -267,76 +257,6 @@ export const getChartPatterns = async (
     }
     const response = await axios.get(url, { params });
     return response.data;
-};
-
-export interface MarketHoliday {
-    id: number;
-    country: 'IN' | 'US';
-    holidayDate: string;
-    name: string;
-}
-
-export const STORAGE_KEY_MARKET_HOLIDAYS = 'alphaflow_market_holidays';
-export const MARKET_HOLIDAYS_TTL_MS = 24 * 60 * 60 * 1000;
-
-export interface CachedMarketHolidays {
-    timestamp: number;
-    expiresAt: number;
-    holidays: MarketHoliday[];
-}
-
-export const getMarketHolidays = async (): Promise<MarketHoliday[]> => {
-    const url = `${API_BASE_URL}/markets/holidays`;
-    const response = await axios.get(url);
-    return response.data;
-};
-
-let inFlightHolidaysPromise: Promise<MarketHoliday[]> | null = null;
-
-export const getCachedMarketHolidays = async (): Promise<MarketHoliday[]> => {
-    if (typeof window !== 'undefined') {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY_MARKET_HOLIDAYS);
-            if (raw) {
-                const parsed: CachedMarketHolidays = JSON.parse(raw);
-                if (
-                    parsed &&
-                    typeof parsed.expiresAt === 'number' &&
-                    Date.now() < parsed.expiresAt &&
-                    Array.isArray(parsed.holidays) &&
-                    parsed.holidays.length > 0
-                ) {
-                    return parsed.holidays;
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to read market holidays from localStorage:', error);
-        }
-    }
-
-    if (!inFlightHolidaysPromise) {
-        inFlightHolidaysPromise = getMarketHolidays()
-            .then((holidays) => {
-                if (typeof window !== 'undefined' && Array.isArray(holidays) && holidays.length > 0) {
-                    try {
-                        const cachePayload: CachedMarketHolidays = {
-                            timestamp: Date.now(),
-                            expiresAt: Date.now() + MARKET_HOLIDAYS_TTL_MS,
-                            holidays,
-                        };
-                        localStorage.setItem(STORAGE_KEY_MARKET_HOLIDAYS, JSON.stringify(cachePayload));
-                    } catch (error) {
-                        console.warn('Failed to save market holidays to localStorage:', error);
-                    }
-                }
-                return holidays;
-            })
-            .finally(() => {
-                inFlightHolidaysPromise = null;
-            });
-    }
-
-    return inFlightHolidaysPromise;
 };
 
 

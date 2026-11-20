@@ -73,7 +73,6 @@ export const ExampleComponent = () => {
 - **Target & Stop Loss Level Indicators**: In technical analysis overview cards, always render tentative target and stop loss price levels accompanied by percentage distances calculated against the latest candle close (`pctChange(...)`) to provide immediate, actionable risk-reward context.
 - **Backward-Compatible Pattern Dictionaries**: When expanding pattern configuration definitions, derive legacy lookup dictionaries (such as `CHART_PATTERNS_CONFIG`) dynamically via `Array.reduce` over the master pattern array (`CHART_PATTERNS`) to prevent duplicate data definitions while preserving canvas drawing and test contracts.
 
-## Client-Side Caching & Header Layouts
-- **Persistent LocalStorage Caching with TTL**: When fetching rarely changing configuration data (like market holiday calendars), persist payloads in `localStorage` accompanied by an explicit `expiresAt` timestamp (e.g. 24 hours). Re-fetch only when the cache is absent, corrupt, or expired to avoid unnecessary startup API latency.
-- **Full Text Display for Descriptive Status Badges**: For informative badges displaying arbitrary localized domain descriptions (such as festival names), avoid using `truncate` or `overflow-hidden`. Allow responsive wrapping with `flex-wrap` and glowing indicator lights (`bg-emerald-400` / `bg-rose-400`) to communicate both visual and textual state cleanly.
+## Header Layouts & Status Badges
+- **Descriptive Status Badges**: For informative market status badges, avoid using `truncate` or `overflow-hidden`. Allow responsive wrapping with `flex-wrap` and glowing indicator lights (`bg-emerald-400` / `bg-rose-400`) to communicate both visual and textual state cleanly.
 

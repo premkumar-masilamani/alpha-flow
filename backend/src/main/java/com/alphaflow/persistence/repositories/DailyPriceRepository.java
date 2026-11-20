@@ -2,7 +2,6 @@ package com.alphaflow.persistence.repositories;
 
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.enums.DataProvider;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,18 +24,12 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
                 FROM Ticker tk
                 LEFT JOIN DailyPrice dp ON dp.ticker = tk
                 WHERE tk.isActive = true
-                  AND tk.dataProvider = :dataProvider
                 GROUP BY tk
             """)
-  List<Object[]> findLatestPriceDatesForActiveTickersQuery(
-      @Param("dataProvider") DataProvider dataProvider);
+  List<Object[]> findLatestPriceDatesForActiveTickersQuery();
 
   default Map<Ticker, LocalDate> findLatestPriceDatesForActiveTickers() {
-    return findLatestPriceDatesForActiveTickers(DataProvider.YAHOO_FINANCE);
-  }
-
-  default Map<Ticker, LocalDate> findLatestPriceDatesForActiveTickers(DataProvider dataProvider) {
-    return findLatestPriceDatesForActiveTickersQuery(dataProvider).stream()
+    return findLatestPriceDatesForActiveTickersQuery().stream()
         .collect(
             Collectors.toMap(
                 row -> (Ticker) row[0],

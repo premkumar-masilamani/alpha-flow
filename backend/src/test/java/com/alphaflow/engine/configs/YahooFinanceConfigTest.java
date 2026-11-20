@@ -2,7 +2,7 @@ package com.alphaflow.engine.configs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.time.LocalTime;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class YahooFinanceConfigTest {
@@ -13,10 +13,10 @@ class YahooFinanceConfigTest {
 
     config.setDownloadUrl("https://example.com");
     config.setDelayMilliseconds(1000L);
-    config.setMarketCutoffTime(LocalTime.of(17, 0));
+    config.setBackfillStartDate(LocalDate.of(2000, 1, 1));
 
     assertEquals("https://example.com", config.getDownloadUrl());
     assertEquals(1000L, config.getDelayMilliseconds());
-    assertEquals(LocalTime.of(17, 0), config.getMarketCutoffTime());
+    assertEquals(LocalDate.of(2000, 1, 1), config.getBackfillStartDate());
   }
 }

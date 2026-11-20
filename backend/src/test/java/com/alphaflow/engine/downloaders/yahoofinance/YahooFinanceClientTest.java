@@ -4,9 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.alphaflow.engine.configs.AngelOneConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
-import com.alphaflow.engine.downloaders.RateLimiter;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -59,7 +57,6 @@ class YahooFinanceClientTest {
   void testFetchDailyPricesValid() {
     YahooFinanceConfig config = new YahooFinanceConfig();
     config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(10);
 
     YahooFinanceClient client = new YahooFinanceClient(config);
 
@@ -86,7 +83,6 @@ class YahooFinanceClientTest {
   void testFetchDailyPricesHttpError() {
     YahooFinanceConfig config = new YahooFinanceConfig();
     config.setDownloadUrl("http://localhost:1/invalid?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(1);
 
     YahooFinanceClient client = new YahooFinanceClient(config);
 
@@ -100,49 +96,9 @@ class YahooFinanceClientTest {
   }
 
   @Test
-  void testFetchDailyPricesInterruptedDuringDelay() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
-    config.setDelayMilliseconds(2000L);
-
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("AAPL");
-    ticker.setCountry(Country.US);
-
-    final YahooFinanceClient client = new YahooFinanceClient(config);
-
-    Thread mainThread = Thread.currentThread();
-    new Thread(
-            () -> {
-              try {
-                Thread.sleep(100);
-              } catch (InterruptedException ignored) {
-                // expected
-              }
-              mainThread.interrupt();
-            })
-        .start();
-
-    List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1000L, 2000L);
-    assertNotNull(prices);
-    assertEquals(2, prices.size());
-  }
-
-  @Test
-  void testConstructorWithRateLimiter() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    RateLimiter rateLimiter = new RateLimiter(new AngelOneConfig(), config);
-    YahooFinanceClient client = new YahooFinanceClient(config, rateLimiter);
-    assertNotNull(client);
-  }
-
-  @Test
   void testConstructorWithCustomRestClientBuilder() {
     YahooFinanceConfig config = new YahooFinanceConfig();
-    RateLimiter rateLimiter = new RateLimiter(new AngelOneConfig(), config);
-    YahooFinanceClient client =
-        new YahooFinanceClient(config, rateLimiter, RestClient.builder());
+    YahooFinanceClient client = new YahooFinanceClient(config, RestClient.builder());
     assertNotNull(client);
   }
 }
