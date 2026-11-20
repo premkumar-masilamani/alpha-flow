@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createChart, createSeriesMarkers } from 'lightweight-charts';
 import Chart from './Chart';
+import { sanitizeCandleData, sanitizeIndicatorPoints } from '../utils/chartSanitizer';
 import type { DailyCandleData, IndicatorSeries, IndicatorConfig } from '../services/api';
 import { SENTIMENT_TYPES } from '../services/api';
 
@@ -776,5 +777,184 @@ describe('Chart Component', () => {
             expect.anything(),
             0
         );
+    });
+
+    describe('Data Sanitization and Sorting', () => {
+        it('sanitizes candle data: removes non-finite numbers, deduplicates timestamps, and orders strictly ascending', () => {
+            const rawCandles = [
+                { date: '2026-06-03', open: 110, high: 120, low: 105, close: 115, vol: 5000 },
+                { date: '2026-06-01', open: 100, high: 105, low: 95, close: 102, vol: 4000 },
+                // Duplicate timestamp for 2026-06-01 (should overwrite earlier entry)
+                { date: '2026-06-01', open: 101, high: 106, low: 96, close: 103, vol: 4500 },
+                // Invalid NaN/Infinity/missing numeric values
+                { date: '2026-06-02', open: NaN, high: 110, low: 100, close: 105, vol: 3000 },
+                { date: '2026-06-04', open: 120, high: Infinity, low: 110, close: 115, vol: 3000 },
+                { date: '2026-06-05', open: 125, high: 130, low: 120, close: null, vol: 3000 },
+                { date: '2026-06-06', open: 125, high: 130, low: 120, close: 128, vol: undefined },
+                { date: '', open: 100, high: 105, low: 95, close: 102, vol: 1000 },
+                { date: '2026-06-02', open: 105, high: 110, low: 100, close: 108, vol: 3500 },
+            ] as unknown as DailyCandleData[];
+
+            const result = sanitizeCandleData(rawCandles);
+
+            expect(result).toHaveLength(3);
+            expect(result.map(c => c.time)).toEqual(['2026-06-01', '2026-06-02', '2026-06-03']);
+            // The deduplicated 2026-06-01 should reflect the last valid entry
+            expect(result[0].open).toBe(101);
+            expect(result[0].close).toBe(103);
+            expect(result[0].vol).toBe(4500);
+            expect(result[1].open).toBe(105);
+            expect(result[2].open).toBe(110);
+        });
+
+        it('sanitizes indicator points: filters non-finite values, deduplicates timestamps, and orders strictly ascending', () => {
+            const rawSeries: IndicatorSeries = {
+                type: 'EMA',
+                source: 'CLOSE',
+                params: 'period=5',
+                label: 'EMA (5)',
+                points: [
+                    { date: '2026-06-03', values: { value: 110.5 } },
+                    { date: '2026-06-01', values: { value: 100.2 } },
+                    // Duplicate timestamp for 2026-06-01
+                    { date: '2026-06-01', values: { value: 101.4 } },
+                    // Non-finite values
+                    { date: '2026-06-02', values: { value: NaN } },
+                    { date: '2026-06-04', values: { value: null as unknown as number } },
+                    { date: '2026-06-05', values: { value: Infinity } },
+                    { date: '2026-06-02', values: { value: 105.1 } },
+                ],
+            };
+
+            const result = sanitizeIndicatorPoints(rawSeries, 'value');
+
+            expect(result).toHaveLength(3);
+            expect(result.map(p => p.time)).toEqual(['2026-06-01', '2026-06-02', '2026-06-03']);
+            expect(result[0].value).toBe(101.4);
+            expect(result[1].value).toBe(105.1);
+            expect(result[2].value).toBe(110.5);
+        });
+
+        it('handles empty or malformed inputs gracefully in sanitizers', () => {
+            expect(sanitizeCandleData([])).toEqual([]);
+            expect(sanitizeCandleData(null as unknown as DailyCandleData[])).toEqual([]);
+            expect(sanitizeCandleData(undefined as unknown as DailyCandleData[])).toEqual([]);
+
+            expect(sanitizeIndicatorPoints(null as unknown as IndicatorSeries, 'value')).toEqual([]);
+            expect(sanitizeIndicatorPoints({ points: [] } as unknown as IndicatorSeries, 'value')).toEqual([]);
+        });
+    });
+
+    describe('ResizeObserver and zero-dimension guards', () => {
+        let originalResizeObserver: typeof window.ResizeObserver;
+        let capturedCallback: ((entries: Array<{ contentRect: { width: number; height: number } }>) => void) | null = null;
+
+        beforeEach(() => {
+            originalResizeObserver = window.ResizeObserver;
+            capturedCallback = null;
+            window.ResizeObserver = class {
+                constructor(cb: (entries: Array<{ contentRect: { width: number; height: number } }>) => void) {
+                    capturedCallback = cb;
+                }
+                observe() {}
+                unobserve() {}
+                disconnect() {}
+            } as unknown as typeof ResizeObserver;
+        });
+
+        afterEach(() => {
+            window.ResizeObserver = originalResizeObserver;
+        });
+
+        it('guards ResizeObserver: ignores zero or negative widths and heights', () => {
+            render(
+                <Chart
+                    data={mockData}
+                    indicators={[]}
+                    enabled={new Set()}
+                    configs={[]}
+                    symbol="AAPL"
+                    timeframe="DAILY"
+                    onLoadOlderData={vi.fn()}
+                />
+            );
+
+            const chartInstance = vi.mocked(createChart).mock.results[vi.mocked(createChart).mock.results.length - 1].value;
+            chartInstance.applyOptions.mockClear();
+
+            expect(capturedCallback).not.toBeNull();
+
+            // When backgrounded or minimized tab reports 0 or negative dimensions:
+            act(() => {
+                capturedCallback!([{ contentRect: { width: 0, height: 0 } }]);
+                capturedCallback!([{ contentRect: { width: 0, height: 500 } }]);
+                capturedCallback!([{ contentRect: { width: 800, height: 0 } }]);
+                capturedCallback!([{ contentRect: { width: -100, height: -200 } }]);
+            });
+
+            expect(chartInstance.applyOptions).not.toHaveBeenCalled();
+
+            // When foregrounded and valid positive dimensions arrive:
+            act(() => {
+                capturedCallback!([{ contentRect: { width: 1024, height: 768 } }]);
+            });
+
+            expect(chartInstance.applyOptions).toHaveBeenCalledWith({ width: 1024, height: 768 });
+        });
+    });
+
+    describe('setData try-catch resilience', () => {
+        it('catches and logs setData errors gracefully without crashing the component', () => {
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            // Configure mock to throw on setData
+            const failingSetData = vi.fn().mockImplementation(() => {
+                throw new Error('Internal lightweight-charts setData failure');
+            });
+
+            vi.mocked(createChart).mockReturnValueOnce({
+                addSeries: vi.fn().mockReturnValue({
+                    setData: failingSetData,
+                    priceScale: vi.fn().mockReturnValue({
+                        applyOptions: vi.fn(),
+                    }),
+                    createPriceLine: vi.fn(),
+                    setMarkers: vi.fn(),
+                    attachPrimitive: vi.fn(),
+                    detachPrimitive: vi.fn(),
+                    priceToCoordinate: vi.fn().mockReturnValue(100),
+                }),
+                remove: vi.fn(),
+                applyOptions: vi.fn(),
+                subscribeCrosshairMove: vi.fn(),
+                timeScale: vi.fn().mockReturnValue({
+                    setVisibleRange: vi.fn(),
+                    setVisibleLogicalRange: vi.fn(),
+                    subscribeVisibleTimeRangeChange: vi.fn(),
+                    subscribeVisibleLogicalRangeChange: vi.fn(),
+                    timeToCoordinate: vi.fn().mockReturnValue(100),
+                    fitContent: vi.fn(),
+                }),
+                panes: vi.fn().mockReturnValue([]),
+            } as unknown as ReturnType<typeof createChart>);
+
+            // Rendering should not throw unhandled exception
+            expect(() => {
+                render(
+                    <Chart
+                        data={mockData}
+                        indicators={mockIndicators}
+                        enabled={new Set(['EMA:CLOSE:period=5'])}
+                        configs={mockConfigs}
+                        symbol="AAPL"
+                        timeframe="DAILY"
+                        onLoadOlderData={vi.fn()}
+                    />
+                );
+            }).not.toThrow();
+
+            expect(consoleErrorSpy).toHaveBeenCalled();
+            consoleErrorSpy.mockRestore();
+        });
     });
 });
