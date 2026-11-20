@@ -190,7 +190,7 @@ if (dailyBars.size() >= MIN_BARS) {
 ## Persistence Layer & Repository Hygiene
 - **Repository Dead Method Cleanliness & Import Hygiene**: Regularly audit and prune dead Spring Data JPA derived query methods when services transition to specialized bulk queries or JPQL projections. When pruning unused repository methods, always remove now-unused imports (e.g., `java.util.List`, `java.util.Optional`, or unused Enums) to maintain strict Checkstyle and Spotless compliance.
 
-## Notification Services & External HTTP Integration
+## External HTTP Integration & Testing
 - **Lightweight In-Memory Mocking for RestClient Testing**:
   - Prefer `com.sun.net.httpserver.HttpServer` with a wildcard root handler (`/`) for unit testing Spring Boot 3 `RestClient` components. This allows deterministic validation of query parameter URI encoding (`parse_mode`, `chat_id`, `text`), status code branches (200 OK, 4xx/5xx errors), and connection failures without live network calls, third-party wiremock servers, or booting the Spring ApplicationContext.
 - **JaCoCo Branch Coverage in Enum Parsers & Dynamic URL Construction**:
@@ -199,11 +199,6 @@ if (dailyBars.size() >= MIN_BARS) {
 - **PMD Static Analysis & Code Smells**:
   - Explicitly annotate single-abstract-method service interfaces with `@FunctionalInterface` to comply with PMD's `ImplicitFunctionalInterface` rule.
   - Always provide an explicit character set (e.g. `StandardCharsets.UTF_8`) to `String.getBytes(...)` in tests and network handlers to conform to PMD's `RelianceOnDefaultCharset` check.
-- **Notification Error Persistence**:
-  - Persist the raw error description from external notification providers (such as Telegram) directly to the audit log table (`notification_logs`) to capture the exact failure details.
-- **FreeMarker Markdown Template Hygiene**:
-  - Keep FreeMarker `.md` notification templates free of inline `<#if ...>` directives when `${...}` placeholders are present, because IDE Markdown LaTeX parsers treat text between `$` symbols as math mode and flag `#` as a macro parameter error.
-  - Keep `TelegramNotificationService.escape(...)` directly inside `TelegramNotificationService` rather than in a separate single-method helper class.
 
 ## Exception Handling & Static Analysis
 - **SpotBugs REC_CATCH_EXCEPTION with Spring RestClient and Jackson**:
