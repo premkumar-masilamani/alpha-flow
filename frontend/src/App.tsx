@@ -7,6 +7,7 @@ import IndicatorControls from "./components/IndicatorControls";
 import PriceSummaryBanner from "./components/PriceSummaryBanner";
 import CandlestickPatternModal from "./components/CandlestickPatternModal";
 import ChartPatternModal from "./components/ChartPatternModal";
+import ErrorBoundary from "./components/ErrorBoundary";
 import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
 import { getChartPatternDetails } from "./config/chartPatterns";
 import { SUPPORT_RESISTANCE_RANGE_PCT, filterSupportResistances } from "./config/supportResistance";
@@ -1398,21 +1399,23 @@ function App() {
             )}
             <div className="flex-1 relative min-h-0 bg-slate-950 border border-slate-800 rounded-lg overflow-hidden">
               {chartCandleData.length > 0 && loadedSymbol ? (
-                <Chart
-                  data={chartCandleData}
-                  indicators={chartIndicators}
-                  enabled={enabledIndicators}
-                  configs={indicatorConfigs}
-                  symbol={loadedSymbol}
-                  timeframe={loadedTimeframe}
-                  candlestickPatterns={candlestickPatterns}
-                  showCandlestickPatterns={showCandlestickPatterns}
-                  supportResistances={filteredSupportResistances}
-                  showSupportResistance={showSupportResistance}
-                  chartPatterns={chartPatterns}
-                  showChartPatterns={showChartPatterns}
-                  onLoadOlderData={handleLoadOlderData}
-                />
+                <ErrorBoundary>
+                  <Chart
+                    data={chartCandleData}
+                    indicators={chartIndicators}
+                    enabled={enabledIndicators}
+                    configs={indicatorConfigs}
+                    symbol={loadedSymbol}
+                    timeframe={loadedTimeframe}
+                    candlestickPatterns={candlestickPatterns}
+                    showCandlestickPatterns={showCandlestickPatterns}
+                    supportResistances={filteredSupportResistances}
+                    showSupportResistance={showSupportResistance}
+                    chartPatterns={chartPatterns}
+                    showChartPatterns={showChartPatterns}
+                    onLoadOlderData={handleLoadOlderData}
+                  />
+                </ErrorBoundary>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3 p-8">
                   {loading ? (

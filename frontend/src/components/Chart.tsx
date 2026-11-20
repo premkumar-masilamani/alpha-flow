@@ -11,6 +11,12 @@ import type {
 } from 'lightweight-charts';
 import {CandlestickSeries, ColorType, createChart, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers} from 'lightweight-charts';
 import { INDICATOR_COLORS } from '../config/indicatorColors';
+import {
+    type SanitizedPoint,
+    toChartTime,
+    sanitizeCandleData,
+    sanitizeIndicatorPoints,
+} from '../utils/chartSanitizer';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // Custom series primitive to fill a background color band between upper and lower bounds.
@@ -559,20 +565,8 @@ const outputsFor = (type: string): {name: string; style: 'line' | 'histogram'; s
     }
 };
 
-const toChartTime = (dateStr: string): Time => {
-    if (!dateStr) return dateStr as Time;
-    return (dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr) as Time;
-};
-
-const lineData = (series: IndicatorSeries, output: string) =>
-    series.points
-        .filter((p) => p.values[output] !== undefined && p.values[output] !== null)
-        .map((p) => ({time: toChartTime(p.date), value: Number(p.values[output])}))
-        .sort((a, b) =>
-            typeof a.time === 'number' && typeof b.time === 'number'
-                ? a.time - b.time
-                : String(a.time).localeCompare(String(b.time))
-        );
+const lineData = (series: IndicatorSeries, output: string): SanitizedPoint[] =>
+    sanitizeIndicatorPoints(series, output);
 
 const formatLabel = (label: string): string =>
     label.replace(/([A-Za-z]+)\(([^)]+)\)/, "$1 ($2)");
@@ -650,6 +644,12 @@ const Chart: React.FC<ChartProps> = ({
             return;
         }
 
+        const sanitizedData = sanitizeCandleData(data);
+        if (sanitizedData.length === 0) {
+            setLegend([]);
+            return;
+        }
+
         // Reset logical range if symbol or timeframe changed
         if (prevSymbolRef.current !== symbol || prevTimeframeRef.current !== timeframe) {
             visibleLogicalRangeRef.current = null;
@@ -658,8 +658,12 @@ const Chart: React.FC<ChartProps> = ({
             prevTimeframeRef.current = timeframe;
         }
 
-        const width = chartContainerRef.current.clientWidth;
-        const height = chartContainerRef.current.clientHeight || 600;
+        const containerWidth = chartContainerRef.current.clientWidth;
+        const containerHeight = chartContainerRef.current.clientHeight;
+
+        // Ensure the chart is never initialized with 0 width/height when tabs are backgrounded or minimized
+        const width = containerWidth > 0 ? containerWidth : 800;
+        const height = containerHeight > 0 ? containerHeight : 600;
 
         const chart = createChart(chartContainerRef.current, {
             layout: {
@@ -681,8 +685,6 @@ const Chart: React.FC<ChartProps> = ({
         });
         chartRef.current = chart;
 
-        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
-
         const candlestickSeries = chart.addSeries(CandlestickSeries, {
             upColor: '#22c55e',
             downColor: '#ef4444',
@@ -691,13 +693,17 @@ const Chart: React.FC<ChartProps> = ({
             wickDownColor: '#ef4444',
         }, 0);
 
-        candlestickSeries.setData(sortedData.map((d) => ({
-            time: toChartTime(d.date),
-            open: Number(d.open),
-            high: Number(d.high),
-            low: Number(d.low),
-            close: Number(d.close),
-        })));
+        try {
+            candlestickSeries.setData(sanitizedData.map((d) => ({
+                time: d.time,
+                open: d.open,
+                high: d.high,
+                low: d.low,
+                close: d.close,
+            })));
+        } catch (err) {
+            console.error('Failed to set candlestick series data:', err);
+        }
 
         let visibleCandlestickPatterns = candlestickPatterns;
         if (!showCandlestickPatterns) {
@@ -716,7 +722,7 @@ const Chart: React.FC<ChartProps> = ({
 
         if (deduplicatedCandlestickPatterns.length > 0) {
             const markers = deduplicatedCandlestickPatterns
-                .filter((p) => sortedData.some((d) => (d.date.length >= 10 ? d.date.substring(0, 10) : d.date) === (p.date.length >= 10 ? p.date.substring(0, 10) : p.date)))
+                .filter((p) => sanitizedData.some((d) => (d.date.length >= 10 ? d.date.substring(0, 10) : d.date) === (p.date.length >= 10 ? p.date.substring(0, 10) : p.date)))
                 .map((p) => {
                     const isBullish = p.sentiment.startsWith('BULLISH');
                     return {
@@ -727,11 +733,15 @@ const Chart: React.FC<ChartProps> = ({
                         text: p.shortName,
                     };
                 });
-            createSeriesMarkers(candlestickSeries, markers);
+            try {
+                createSeriesMarkers(candlestickSeries, markers);
+            } catch (err) {
+                console.error('Failed to set series markers:', err);
+            }
         }
 
         if (showSupportResistance && supportResistances.length > 0) {
-            const rawLatestCandleDate = sortedData.length > 0 ? sortedData[sortedData.length - 1].date : '';
+            const rawLatestCandleDate = sanitizedData.length > 0 ? sanitizedData[sanitizedData.length - 1].date : '';
             const latestCandleDate = rawLatestCandleDate.length >= 10 ? rawLatestCandleDate.substring(0, 10) : rawLatestCandleDate;
             const segments: SupportResistanceSegmentItem[] = supportResistances
                 .filter((sr) => Boolean(sr.firstTouchDate))
@@ -771,11 +781,15 @@ const Chart: React.FC<ChartProps> = ({
                 priceScaleId: '',
             }, 0);
             volumeSeries.priceScale().applyOptions({scaleMargins: {top: 0.8, bottom: 0}});
-            volumeSeries.setData(sortedData.map((d) => ({
-                time: toChartTime(d.date),
-                value: Number(d.vol),
-                color: Number(d.close) >= Number(d.open) ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
-            })));
+            try {
+                volumeSeries.setData(sanitizedData.map((d) => ({
+                    time: d.time,
+                    value: d.vol,
+                    color: d.close >= d.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+                })));
+            } catch (err) {
+                console.error('Failed to set volume series data:', err);
+            }
         }
 
         const legendEntries: LegendEntry[] = [];
@@ -815,7 +829,11 @@ const Chart: React.FC<ChartProps> = ({
                             : color
                     }));
                     const hist = chart.addSeries(HistogramSeries, {priceLineVisible: false}, paneIndex);
-                    hist.setData(histData);
+                    try {
+                        hist.setData(histData);
+                    } catch (err) {
+                        console.error('Failed to set histogram data:', err);
+                    }
                 } else {
                     const line: ISeriesApi<'Line'> = chart.addSeries(LineSeries, {
                         color,
@@ -825,7 +843,11 @@ const Chart: React.FC<ChartProps> = ({
                         // Price-scale overlays share the candle scale; volume-overlays share the volume scale.
                         ...(placement === 'volumeOverlay' ? {priceScaleId: ''} : {}),
                     }, paneIndex);
-                    line.setData(points);
+                    try {
+                        line.setData(points);
+                    } catch (err) {
+                        console.error('Failed to set indicator line data:', err);
+                    }
 
                     // Add hardcoded bounds lines for subpane oscillator series
                     if (placement === 'oscillator') {
@@ -899,7 +921,7 @@ const Chart: React.FC<ChartProps> = ({
 
         // Adjust logical range if older data was prepended
         if (visibleLogicalRangeRef.current && prevDataLengthRef.current > 0) {
-            const addedCount = sortedData.length - prevDataLengthRef.current;
+            const addedCount = sanitizedData.length - prevDataLengthRef.current;
             if (addedCount > 0) {
                 visibleLogicalRangeRef.current = {
                     from: (visibleLogicalRangeRef.current.from + addedCount) as Logical,
@@ -907,7 +929,7 @@ const Chart: React.FC<ChartProps> = ({
                 };
             }
         }
-        prevDataLengthRef.current = sortedData.length;
+        prevDataLengthRef.current = sanitizedData.length;
 
         // Set visible range (either restore saved, or set default 250 bars)
         if (visibleLogicalRangeRef.current) {
@@ -916,8 +938,8 @@ const Chart: React.FC<ChartProps> = ({
             // Default view: latest 250 bars with 10 bars of empty space on the right
             requestAnimationFrame(() => {
                 chart.timeScale().setVisibleLogicalRange({
-                    from: sortedData.length - 250,
-                    to: sortedData.length - 1 + 10,
+                    from: sanitizedData.length - 250,
+                    to: sanitizedData.length - 1 + 10,
                 });
             });
         }
@@ -935,13 +957,21 @@ const Chart: React.FC<ChartProps> = ({
         const resizeObserver = new ResizeObserver((entries) => {
             if (!entries || entries.length === 0) return;
             const {width: newWidth, height: newHeight} = entries[0].contentRect;
-            chart.applyOptions({ width: newWidth, height: newHeight });
-            setChartHeight(newHeight);
+            if (newWidth > 0 && newHeight > 0) {
+                try {
+                    chart.applyOptions({ width: newWidth, height: newHeight });
+                    setChartHeight(newHeight);
+                } catch (err) {
+                    console.error('Failed to resize chart:', err);
+                }
+            }
         });
 
         if (chartContainerRef.current) {
             resizeObserver.observe(chartContainerRef.current);
-            setChartHeight(chartContainerRef.current.clientHeight || height);
+            if (chartContainerRef.current.clientHeight > 0) {
+                setChartHeight(chartContainerRef.current.clientHeight);
+            }
         }
 
         // Subscribe to logical range changes for scroll position and older data loading
@@ -1064,17 +1094,22 @@ const Chart: React.FC<ChartProps> = ({
         return () => {
             resizeObserver.disconnect();
             chartRef.current = null;
-            chart.remove();
+            try {
+                chart.remove();
+            } catch (err) {
+                console.error('Failed to clean up chart:', err);
+            }
         };
     }, [data, indicators, enabled, configs, symbol, timeframe, candlestickPatterns, showCandlestickPatterns, supportResistances, showSupportResistance, chartPatterns, showChartPatterns, onLoadOlderData, showVolume]);
 
     const handleResetZoom = () => {
         if (!chartRef.current || data.length === 0) return;
-        const sortedData = [...data].sort((a, b) => a.date.localeCompare(b.date));
+        const sanitized = sanitizeCandleData(data);
+        if (sanitized.length === 0) return;
 
         const targetRange = {
-            from: (sortedData.length - 250) as Logical,
-            to: (sortedData.length - 1 + 10) as Logical,
+            from: (sanitized.length - 250) as Logical,
+            to: (sanitized.length - 1 + 10) as Logical,
         };
         requestAnimationFrame(() => {
             chartRef.current?.timeScale().setVisibleLogicalRange(targetRange);
