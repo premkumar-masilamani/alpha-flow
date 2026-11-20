@@ -1,6 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -315,5 +316,49 @@ class YahooFinanceDownloaderTest {
 
     assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
+  }
+
+  @Test
+  void testDownloadInterruptedDuringDelay() {
+    YahooFinanceConfig config = createConfig();
+    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
+    config.setDelayMilliseconds(2000L);
+
+    Ticker t1 = new Ticker();
+    t1.setTickerId(1L);
+    t1.setTickerSymbol("AAPL");
+    t1.setCountry(Country.US);
+    t1.setActive(true);
+    Ticker t2 = new Ticker();
+    t2.setTickerId(2L);
+    t2.setTickerSymbol("MSFT");
+    t2.setCountry(Country.US);
+    t2.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(t1, LocalDate.of(2025, 8, 12));
+    latestDates.put(t2, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+
+    Thread mainThread = Thread.currentThread();
+    new Thread(
+            () -> {
+              try {
+                Thread.sleep(100);
+              } catch (InterruptedException ignored) {
+                // expected
+              }
+              mainThread.interrupt();
+            })
+        .start();
+
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    assertTrue(Thread.interrupted());
+    assertEquals(2, ingestedRows);
   }
 }
