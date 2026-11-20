@@ -70,27 +70,6 @@ public class CandlestickPatternCalculator {
     this.weeklyCandlestickPatternRepository = weeklyCandlestickPatternRepository;
   }
 
-  public void computeCandleStickPatterns() {
-    log.info("Computing candlestick patterns...");
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for patterns.", tickers.size());
-
-    CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeCandleStickPatternsForTicker(ticker);
-      } catch (Exception e) {
-        log.error(
-            "Failed to compute candlestick patterns for ticker {}: {}",
-            ticker.getTickerSymbol(),
-            e.getMessage(),
-            e);
-      }
-    }
-    log.info("Candlestick pattern computed.");
-  }
-
   public void computeCandleStickPatterns(Timeframe timeframe) {
     log.info("Computing {} candlestick patterns...", timeframe);
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
@@ -111,12 +90,6 @@ public class CandlestickPatternCalculator {
       }
     }
     log.info("{} candlestick patterns computed.", timeframe);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeCandleStickPatternsForTicker(Ticker ticker) {
-    computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY);
-    computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

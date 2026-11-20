@@ -62,29 +62,6 @@ public class IndicatorCalculator {
     this.weeklyIndicatorRepository = weeklyIndicatorRepository;
   }
 
-  public void computeIndicators() {
-    log.info("Computing indicators...");
-
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for indicators.", tickers.size());
-
-    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeIndicatorForTicker(ticker);
-      } catch (Exception e) {
-        log.error(
-            "Failed to compute indicators for ticker {}: {}",
-            ticker.getTickerSymbol(),
-            e.getMessage(),
-            e);
-      }
-    }
-
-    log.info("Indicators computed.");
-  }
-
   public void computeIndicators(Timeframe timeframe) {
     log.info("Computing {} indicators...", timeframe);
 
@@ -107,12 +84,6 @@ public class IndicatorCalculator {
     }
 
     log.info("{} indicators computed.", timeframe);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeIndicatorForTicker(Ticker ticker) {
-    computeIndicatorForTicker(ticker, Timeframe.DAILY);
-    computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

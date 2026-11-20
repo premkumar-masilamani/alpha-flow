@@ -143,25 +143,6 @@ class IndicatorCalculatorTest {
   }
 
   @Test
-  void testComputeIndicatorsSuccessAndErrorHandling() {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
-
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
-
-    IndicatorCalculator calculatorSpy = spy(calculator);
-    doThrow(new RuntimeException("Computation error"))
-        .when(calculatorSpy)
-        .computeIndicatorForTicker(t1);
-    doNothing().when(calculatorSpy).computeIndicatorForTicker(t2);
-
-    calculatorSpy.computeIndicators();
-
-    verify(calculatorSpy).computeIndicatorForTicker(t1);
-    verify(calculatorSpy).computeIndicatorForTicker(t2);
-  }
-
-  @Test
   void testComputeIndicatorsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
     Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
     Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
@@ -193,7 +174,7 @@ class IndicatorCalculatorTest {
 
   @Test
   void processTickerDeletesAndBackfillsWholeSeries() {
-    calculator.computeIndicatorForTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY);
 
     // Verify check of last stored indicator date
     verify(dailyIndicatorRepo, times(2))
@@ -213,7 +194,7 @@ class IndicatorCalculatorTest {
   void processTimeframeWithEmptyBarsReturnsEarly() {
     when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
 
-    calculator.computeIndicatorForTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY);
 
     verify(dailyIndicatorRepo, never())
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(any(), any());
@@ -277,7 +258,7 @@ class IndicatorCalculatorTest {
             weeklyIndicatorRepo);
 
     when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    calculator.computeIndicatorForTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
 
     verify(weeklyIndicatorRepo)
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
@@ -333,7 +314,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
-    testCalculator.computeIndicatorForTicker(testTicker);
+    testCalculator.computeIndicatorForTicker(testTicker, Timeframe.DAILY);
 
     verify(dailyIndicatorRepo)
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(testTicker), any());
@@ -378,29 +359,12 @@ class IndicatorCalculatorTest {
             weeklyIndicatorRepo);
 
     when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    calculator.computeIndicatorForTicker(ticker);
+    calculator.computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
 
     verify(weeklyIndicatorRepo)
         .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
-  }
-
-  @Test
-  void computeIndicatorsUsesSelfProxyIfNotNull() throws Exception {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1));
-
-    IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
-
-    java.lang.reflect.Field selfField =
-        IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
-    selfField.setAccessible(true);
-    selfField.set(calculator, selfMock);
-
-    calculator.computeIndicators();
-
-    verify(selfMock).computeIndicatorForTicker(t1);
   }
 
   @Test
@@ -419,7 +383,7 @@ class IndicatorCalculatorTest {
             dailyIndicatorRepo,
             weeklyIndicatorRepo);
 
-    testCalculator.computeIndicatorForTicker(ticker);
+    testCalculator.computeIndicatorForTicker(ticker, Timeframe.DAILY);
 
     verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(any());
     verify(weeklyRepo, never()).findByTickerOrderByPriceDateAsc(any());

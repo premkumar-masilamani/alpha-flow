@@ -48,26 +48,6 @@ public class SupportResistanceCalculator {
     this.supportResistanceConfig = supportResistanceConfig;
   }
 
-  public void computeSupportResistances() {
-    log.info("Computing support and resistances...");
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for S&R.", tickers.size());
-
-    SupportResistanceCalculator proxy = (self != null) ? self : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeSupportResistancesForTicker(ticker);
-      } catch (Exception exception) {
-        log.error(
-            "Failed to compute S&R for ticker {}: {}",
-            ticker.getTickerSymbol(),
-            exception.getMessage());
-      }
-    }
-    log.info("Support and resistances computed.");
-  }
-
   public void computeSupportResistances(Timeframe timeframe) {
     log.info("Computing {} support and resistances...", timeframe);
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
@@ -87,13 +67,6 @@ public class SupportResistanceCalculator {
       }
     }
     log.info("{} support and resistances computed.", timeframe);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeSupportResistancesForTicker(Ticker ticker) {
-    for (Timeframe timeframe : Timeframe.values()) {
-      computeSupportResistancesForTicker(ticker, timeframe);
-    }
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

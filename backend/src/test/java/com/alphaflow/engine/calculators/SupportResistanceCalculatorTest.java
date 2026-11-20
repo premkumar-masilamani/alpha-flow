@@ -88,41 +88,6 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
-  void testComputeSupportResistancesSuccessAndErrorHandling() {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
-
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
-
-    SupportResistanceCalculator calculatorSpy = spy(calculator);
-    doThrow(new RuntimeException("Calculation error"))
-        .when(calculatorSpy)
-        .computeSupportResistancesForTicker(t1);
-    doNothing().when(calculatorSpy).computeSupportResistancesForTicker(t2);
-
-    calculatorSpy.computeSupportResistances();
-
-    verify(calculatorSpy).computeSupportResistancesForTicker(t1);
-    verify(calculatorSpy).computeSupportResistancesForTicker(t2);
-  }
-
-  @Test
-  void testComputeSupportResistancesUsesSelfProxyIfNotNull() throws Exception {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1));
-
-    SupportResistanceCalculator selfMock = mock(SupportResistanceCalculator.class);
-
-    Field selfField = SupportResistanceCalculator.class.getDeclaredField("self");
-    selfField.setAccessible(true);
-    selfField.set(calculator, selfMock);
-
-    calculator.computeSupportResistances();
-
-    verify(selfMock).computeSupportResistancesForTicker(t1);
-  }
-
-  @Test
   void testComputeSupportResistancesForTimeframeSuccessAndErrorHandling() {
     Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
     Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
@@ -167,7 +132,8 @@ class SupportResistanceCalculatorTest {
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
     when(weeklySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> dailyCaptor = ArgumentCaptor.forClass(List.class);
@@ -203,7 +169,8 @@ class SupportResistanceCalculatorTest {
     when(weeklySrRepo.findByTickerAndPriceDate(ticker, weekly.getLast().getPriceDate()))
         .thenReturn(List.of(existingWeekly));
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
 
     verify(dailySrRepo, never()).saveAll(any());
     verify(weeklySrRepo, never()).saveAll(any());
@@ -214,7 +181,8 @@ class SupportResistanceCalculatorTest {
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
 
     verify(dailySrRepo, never()).findByTickerAndPriceDate(any(), any());
     verify(weeklySrRepo, never()).findByTickerAndPriceDate(any(), any());
@@ -243,7 +211,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -271,7 +239,7 @@ class SupportResistanceCalculatorTest {
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(p1));
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     verify(dailySrRepo, never()).saveAll(any());
   }
@@ -390,13 +358,11 @@ class SupportResistanceCalculatorTest {
 
     bucket.incrementFalseBreakoutCount();
     assertEquals(1, bucket.getFalseBreakoutCount());
-    bucket.resetFalseBreakoutCount();
-    assertEquals(0, bucket.getFalseBreakoutCount());
 
     bucket.incrementConsecutiveBreachCount();
     bucket.incrementFalseBreakoutCount();
     assertEquals(1, bucket.getConsecutiveBreachCount());
-    assertEquals(1, bucket.getFalseBreakoutCount());
+    assertEquals(2, bucket.getFalseBreakoutCount());
 
     bucket.resetTouchCount();
     assertEquals(0, bucket.getConsecutiveBreachCount());
@@ -422,7 +388,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -470,7 +436,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -506,7 +472,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -540,7 +506,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -581,7 +547,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -607,7 +573,8 @@ class SupportResistanceCalculatorTest {
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
     when(weeklySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
 
     LocalDate expectedDailyCutoff = daily.getLast().getPriceDate().minusDays(30);
     LocalDate expectedWeeklyCutoff = weekly.getLast().getPriceDate().minusDays(180);
@@ -637,7 +604,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -690,7 +657,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
@@ -731,7 +698,7 @@ class SupportResistanceCalculatorTest {
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);

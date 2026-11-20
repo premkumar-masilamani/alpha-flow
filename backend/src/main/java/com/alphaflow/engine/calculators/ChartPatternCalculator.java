@@ -67,27 +67,6 @@ public class ChartPatternCalculator {
     this.weeklyChartPatternRepository = weeklyChartPatternRepository;
   }
 
-  public void computeChartPatterns() {
-    log.info("Computing classical chart patterns...");
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for chart patterns.", activeTickers.size());
-
-    ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-    for (Ticker activeTicker : activeTickers) {
-      try {
-        proxy.computeChartPatternsForTicker(activeTicker);
-      } catch (Exception exception) {
-        log.error(
-            "Failed to compute chart patterns for ticker {}: {}",
-            activeTicker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
-      }
-    }
-    log.info("Chart patterns computation completed.");
-  }
-
   public void computeChartPatterns(Timeframe timeframe) {
     log.info("Computing {} classical chart patterns...", timeframe);
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
@@ -111,12 +90,6 @@ public class ChartPatternCalculator {
       }
     }
     log.info("{} chart patterns computation completed.", timeframe);
-  }
-
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeChartPatternsForTicker(Ticker ticker) {
-    computeChartPatternsForTicker(ticker, Timeframe.DAILY);
-    computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

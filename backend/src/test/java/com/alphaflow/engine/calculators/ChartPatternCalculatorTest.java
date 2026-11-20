@@ -95,23 +95,6 @@ class ChartPatternCalculatorTest {
   }
 
   @Test
-  void testComputeChartPatternsSuccessAndExceptionHandling() {
-    Ticker ticker2 = Ticker.builder().tickerId(2L).tickerSymbol("FAIL").isActive(true).build();
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, ticker2));
-
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker2))
-        .thenThrow(new RuntimeException("DB error"));
-
-    calculator.computeChartPatterns();
-
-    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
-    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker2);
-  }
-
-  @Test
   void testComputeChartPatternsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
     Ticker ticker2 = Ticker.builder().tickerId(2L).tickerSymbol("FAIL").isActive(true).build();
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, ticker2));
@@ -138,34 +121,12 @@ class ChartPatternCalculatorTest {
   }
 
   @Test
-  void testComputeChartPatternsForTickerWithSufficientDataAndSavesBothTimeframes() {
-    List<DailyPrice> dailyPrices = new ArrayList<>();
-    List<WeeklyPrice> weeklyPrices = new ArrayList<>();
-
-    // Create 30 flat bars
-    for (int i = 0; i < 30; i++) {
-      dailyPrices.add(dailyPrice(i, 100, 101, 99, 100));
-      weeklyPrices.add(weeklyPrice(i, 100, 101, 99, 100));
-    }
-
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
-    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
-
-    calculator.computeChartPatternsForTicker(ticker);
-
-    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
-    verify(weeklyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
-  }
-
-  @Test
   void testComputeChartPatternsForTickerWithInsufficientData() {
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
 
-    calculator.computeChartPatternsForTicker(ticker);
+    calculator.computeChartPatternsForTicker(ticker, Timeframe.DAILY);
 
     verify(dailyChartPatternRepository, never()).save(any());
-    verify(weeklyChartPatternRepository, never()).save(any());
   }
 
   @Test
