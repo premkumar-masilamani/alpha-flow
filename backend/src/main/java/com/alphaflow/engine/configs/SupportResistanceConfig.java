@@ -1,24 +1,22 @@
 package com.alphaflow.engine.configs;
 
 import com.alphaflow.common.enums.Timeframe;
+import java.math.BigDecimal;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Data
+@Slf4j
 public class SupportResistanceConfig {
 
-  private Double bucketWidthPct = 0.01;
-  private int maxAllowedBuckets = 500;
-  private int breakoutConfirmationBars = 2;
-  private int maxFalseBreakouts = 1;
+  private int atrPeriod = 14;
+  private BigDecimal swingAtrMultiplier = new BigDecimal("2.0");
+  private BigDecimal zoneAtrMultiplier = new BigDecimal("1.0");
+  private int minTouchCount = 2;
   private int dailyRetentionDays = 30;
   private int weeklyRetentionDays = 180;
-  private int atrPeriod = 14;
-  private double atrMultiplier = 0.5;
-  private double strideRatio = 0.5;
-  private int minTouchCount = 3;
-  private double nmsOverlapThreshold = 0.5;
 
   public int getRetentionDaysForTimeframe(Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
@@ -26,6 +24,7 @@ public class SupportResistanceConfig {
     } else if (timeframe == Timeframe.WEEKLY) {
       return weeklyRetentionDays;
     } else {
+      log.error("Unsupported timeframe for retention lookup: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
