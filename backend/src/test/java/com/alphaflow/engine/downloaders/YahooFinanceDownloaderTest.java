@@ -18,7 +18,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -91,9 +90,7 @@ class YahooFinanceDownloaderTest {
   }
 
   private YahooFinanceConfig createConfig() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setMarketCutoffTime(LocalTime.of(17, 0));
-    return config;
+    return new YahooFinanceConfig();
   }
 
   @Test
@@ -116,6 +113,30 @@ class YahooFinanceDownloaderTest {
     int ingestedRows = downloader.downloadAndPersistDailyPrices();
 
     assertEquals(0, ingestedRows);
+    verify(dailyRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testDownloadSavedDateIsTodaySkipsApiCall() {
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new java.util.LinkedHashMap<>();
+    latestDates.put(ticker, LocalDate.now(Country.US.getZoneId()));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceConfig config = createConfig();
+    YahooFinanceClient client = mock(YahooFinanceClient.class);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(config, client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+
+    assertEquals(0, ingestedRows);
+    verify(client, never()).fetchDailyPrices(any(), any(Long.class), any(Long.class));
     verify(dailyRepo, never()).saveAll(any());
   }
 

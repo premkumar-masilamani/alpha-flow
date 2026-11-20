@@ -55,14 +55,6 @@ describe('App Component', () => {
         vi.mocked(api.getCandlestickPatterns).mockResolvedValue([]);
         vi.mocked(api.getChartPatterns).mockResolvedValue([]);
         vi.mocked(api.getSupportResistances).mockResolvedValue([]);
-        vi.mocked(api.getCachedMarketHolidays).mockResolvedValue([
-            {
-                id: 1,
-                country: 'IN',
-                holidayDate: '2026-11-24',
-                name: 'Prakash Gurpurb Sri Guru Nanak Dev',
-            },
-        ]);
     });
 
     afterEach(() => {

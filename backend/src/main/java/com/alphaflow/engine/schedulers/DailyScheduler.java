@@ -49,9 +49,9 @@ public class DailyScheduler {
     this.chartPatternConfig = chartPatternConfig;
   }
 
-  @Scheduled(cron = "0 0 * * * *", zone = MarketConfig.TIMEZONE_KOLKATA)
+  @Scheduled(cron = "0 0 19 * * MON-FRI", zone = MarketConfig.TIMEZONE_NEW_YORK)
   public void runScheduledUpdate() {
-    log.info("Starting scheduled daily data update cycle (on the hour)...");
+    log.info("Starting scheduled daily data update cycle (3 hours after NYSE close)...");
     run();
   }
 

@@ -1,35 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Clock, Calendar } from 'lucide-react';
-import { getCachedMarketHolidays, type MarketHoliday } from '../services/api';
 import { getMarketStatus } from '../utils/marketStatus';
 
 const Header: React.FC = () => {
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [holidays, setHolidays] = useState<MarketHoliday[]>([]);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
         return () => clearInterval(timer);
     }, []);
 
-    useEffect(() => {
-        let isMounted = true;
-        getCachedMarketHolidays()
-            .then((data) => {
-                if (isMounted) {
-                    setHolidays(data);
-                }
-            })
-            .catch((error) => {
-                console.warn('Failed to load market holidays in header:', error);
-            });
-        return () => {
-            isMounted = false;
-        };
-    }, []);
-
-    const inStatus = getMarketStatus(currentTime, 'IN', holidays);
-    const usStatus = getMarketStatus(currentTime, 'US', holidays);
+    const inStatus = getMarketStatus(currentTime, 'IN');
+    const usStatus = getMarketStatus(currentTime, 'US');
 
     const formattedDate = currentTime.toLocaleDateString(undefined, {
         weekday: 'short',
@@ -59,7 +41,6 @@ const Header: React.FC = () => {
                             : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
                     }`}
                     id="nse-market-status"
-                    title={inStatus.holidayName ? `Holiday: ${inStatus.holidayName}` : undefined}
                 >
                     <span
                         className={`w-2 h-2 rounded-full inline-block ${
@@ -78,7 +59,6 @@ const Header: React.FC = () => {
                             : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
                     }`}
                     id="nyse-market-status"
-                    title={usStatus.holidayName ? `Holiday: ${usStatus.holidayName}` : undefined}
                 >
                     <span
                         className={`w-2 h-2 rounded-full inline-block ${

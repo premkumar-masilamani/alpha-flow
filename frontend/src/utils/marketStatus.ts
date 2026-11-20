@@ -1,14 +1,11 @@
-import type { MarketHoliday } from '../services/api';
-
 export type MarketCountry = 'IN' | 'US';
-export type MarketStatusType = 'OPEN' | 'HOLIDAY' | 'WEEKEND' | 'PRE_MARKET' | 'AFTER_HOURS';
+export type MarketStatusType = 'OPEN' | 'WEEKEND' | 'PRE_MARKET' | 'AFTER_HOURS';
 
 export interface MarketStatus {
     country: MarketCountry;
     exchange: 'NSE' | 'NYSE';
     isOpen: boolean;
     statusType: MarketStatusType;
-    holidayName: string | null;
     displayMessage: string;
 }
 
@@ -71,11 +68,10 @@ export const getMarketParts = (date: Date, timeZone: string) => {
 
 export const getMarketStatus = (
     now: Date,
-    country: MarketCountry,
-    holidays: MarketHoliday[]
+    country: MarketCountry
 ): MarketStatus => {
     const config = MARKET_CONFIGS[country];
-    const { hour, minute, weekday, dateKey } = getMarketParts(now, config.timeZone);
+    const { hour, minute, weekday } = getMarketParts(now, config.timeZone);
 
     const padTime = (h: number, m: number) =>
         `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -90,27 +86,11 @@ export const getMarketStatus = (
             exchange: config.exchange,
             isOpen: false,
             statusType: 'WEEKEND',
-            holidayName: null,
             displayMessage: 'Closed • Weekend',
         };
     }
 
-    // 2. Holiday check
-    const holidayMatch = holidays.find(
-        (h) => h.country === country && h.holidayDate === dateKey
-    );
-    if (holidayMatch) {
-        return {
-            country,
-            exchange: config.exchange,
-            isOpen: false,
-            statusType: 'HOLIDAY',
-            holidayName: holidayMatch.name,
-            displayMessage: `Closed • ${holidayMatch.name}`,
-        };
-    }
-
-    // 3. Regular trading day session hours check
+    // 2. Regular trading day session hours check
     const currentMinutes = hour * 60 + minute;
     const startMinutes = config.startHour * 60 + config.startMinute;
     const endMinutes = config.endHour * 60 + config.endMinute;
@@ -121,7 +101,6 @@ export const getMarketStatus = (
             exchange: config.exchange,
             isOpen: true,
             statusType: 'OPEN',
-            holidayName: null,
             displayMessage: `Open (${sessionHoursStr})`,
         };
     }
@@ -132,7 +111,6 @@ export const getMarketStatus = (
             exchange: config.exchange,
             isOpen: false,
             statusType: 'PRE_MARKET',
-            holidayName: null,
             displayMessage: `Closed (Opens ${openTimeStr})`,
         };
     }
@@ -142,7 +120,6 @@ export const getMarketStatus = (
         exchange: config.exchange,
         isOpen: false,
         statusType: 'AFTER_HOURS',
-        holidayName: null,
         displayMessage: `Closed (Opens ${openTimeStr})`,
     };
 };
