@@ -88,37 +88,53 @@ public class ChartPatternCalculator {
     log.info("Chart patterns computation completed.");
   }
 
+  public void computeChartPatterns(Timeframe timeframe) {
+    log.info("Computing {} classical chart patterns...", timeframe);
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info(
+        "Found {} active tickers to process for {} chart patterns.",
+        activeTickers.size(),
+        timeframe);
+
+    ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
+
+    for (Ticker activeTicker : activeTickers) {
+      try {
+        proxy.computeChartPatternsForTicker(activeTicker, timeframe);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} chart patterns for ticker {}: {}",
+            timeframe,
+            activeTicker.getTickerSymbol(),
+            exception.getMessage(),
+            exception);
+      }
+    }
+    log.info("{} chart patterns computation completed.", timeframe);
+  }
+
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeChartPatternsForTicker(Ticker ticker) {
-    List<PriceBar> dailyBars = loadBars(ticker, Timeframe.DAILY);
-    List<PriceBar> weeklyBars = loadBars(ticker, Timeframe.WEEKLY);
+    computeChartPatternsForTicker(ticker, Timeframe.DAILY);
+    computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
+  }
 
-    if (dailyBars.size() >= MIN_BARS) {
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeChartPatternsForTicker(Ticker ticker, Timeframe timeframe) {
+    List<PriceBar> bars = loadBars(ticker, timeframe);
+    if (bars.size() >= MIN_BARS) {
       log.info(
           "Ticker {}: Timeframe {} - Computing chart patterns...",
           ticker.getTickerSymbol(),
-          Timeframe.DAILY);
-      List<ChartPatternMatch> dailyMatches = detectAllPatterns(dailyBars);
-      savePatterns(ticker, Timeframe.DAILY, dailyMatches);
+          timeframe);
+      List<ChartPatternMatch> matches = detectAllPatterns(bars);
+      savePatterns(ticker, timeframe, matches);
     } else {
       log.debug(
-          "Ticker {}: Insufficient daily bars ({}) for chart patterns.",
+          "Ticker {}: Insufficient {} bars ({}) for chart patterns.",
           ticker.getTickerSymbol(),
-          dailyBars.size());
-    }
-
-    if (weeklyBars.size() >= MIN_BARS) {
-      log.info(
-          "Ticker {}: Timeframe {} - Computing chart patterns...",
-          ticker.getTickerSymbol(),
-          Timeframe.WEEKLY);
-      List<ChartPatternMatch> weeklyMatches = detectAllPatterns(weeklyBars);
-      savePatterns(ticker, Timeframe.WEEKLY, weeklyMatches);
-    } else {
-      log.debug(
-          "Ticker {}: Insufficient weekly bars ({}) for chart patterns.",
-          ticker.getTickerSymbol(),
-          weeklyBars.size());
+          timeframe.name().toLowerCase(),
+          bars.size());
     }
   }
 

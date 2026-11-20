@@ -120,6 +120,41 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
+  void testComputeSupportResistancesForTimeframeSuccessAndErrorHandling() {
+    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
+    Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
+
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
+
+    SupportResistanceCalculator calculatorSpy = spy(calculator);
+    doThrow(new RuntimeException("Calculation error"))
+        .when(calculatorSpy)
+        .computeSupportResistancesForTicker(t1, Timeframe.DAILY);
+    doNothing().when(calculatorSpy).computeSupportResistancesForTicker(t2, Timeframe.DAILY);
+
+    calculatorSpy.computeSupportResistances(Timeframe.DAILY);
+
+    verify(calculatorSpy).computeSupportResistancesForTicker(t1, Timeframe.DAILY);
+    verify(calculatorSpy).computeSupportResistancesForTicker(t2, Timeframe.DAILY);
+  }
+
+  @Test
+  void testComputeSupportResistancesForTimeframeUsesSelfProxyIfNotNull() throws Exception {
+    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1));
+
+    SupportResistanceCalculator selfMock = mock(SupportResistanceCalculator.class);
+
+    Field selfField = SupportResistanceCalculator.class.getDeclaredField("self");
+    selfField.setAccessible(true);
+    selfField.set(calculator, selfMock);
+
+    calculator.computeSupportResistances(Timeframe.WEEKLY);
+
+    verify(selfMock).computeSupportResistancesForTicker(t1, Timeframe.WEEKLY);
+  }
+
+  @Test
   void testDailyAndWeeklyCalculationAndPersistence() {
     List<DailyPrice> daily = createDailyBars(5);
     List<WeeklyPrice> weekly = createWeeklyBars(5);
