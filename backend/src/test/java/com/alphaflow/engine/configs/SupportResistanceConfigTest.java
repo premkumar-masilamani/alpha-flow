@@ -33,6 +33,26 @@ class SupportResistanceConfigTest {
     assertEquals(180, config.getWeeklyRetentionDays());
     config.setWeeklyRetentionDays(90);
     assertEquals(90, config.getWeeklyRetentionDays());
+
+    assertEquals(14, config.getAtrPeriod());
+    config.setAtrPeriod(20);
+    assertEquals(20, config.getAtrPeriod());
+
+    assertEquals(0.5, config.getAtrMultiplier());
+    config.setAtrMultiplier(0.75);
+    assertEquals(0.75, config.getAtrMultiplier());
+
+    assertEquals(0.5, config.getStrideRatio());
+    config.setStrideRatio(0.25);
+    assertEquals(0.25, config.getStrideRatio());
+
+    assertEquals(3, config.getMinTouchCount());
+    config.setMinTouchCount(4);
+    assertEquals(4, config.getMinTouchCount());
+
+    assertEquals(0.5, config.getNmsOverlapThreshold());
+    config.setNmsOverlapThreshold(0.6);
+    assertEquals(0.6, config.getNmsOverlapThreshold());
   }
 
   @Test

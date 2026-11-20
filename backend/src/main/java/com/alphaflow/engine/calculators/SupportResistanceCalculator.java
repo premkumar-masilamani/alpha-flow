@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,9 +58,11 @@ public class SupportResistanceCalculator {
     for (Ticker ticker : tickers) {
       try {
         proxy.computeSupportResistancesForTicker(ticker);
-      } catch (Exception e) {
+      } catch (Exception exception) {
         log.error(
-            "Failed to compute S&R for ticker {}: {}", ticker.getTickerSymbol(), e.getMessage(), e);
+            "Failed to compute S&R for ticker {}: {}",
+            ticker.getTickerSymbol(),
+            exception.getMessage());
       }
     }
     log.info("Support and resistances computed.");
@@ -80,8 +83,7 @@ public class SupportResistanceCalculator {
             "Failed to compute {} S&R for ticker {}: {}",
             timeframe,
             ticker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
+            exception.getMessage());
       }
     }
     log.info("{} support and resistances computed.", timeframe);
@@ -163,7 +165,7 @@ public class SupportResistanceCalculator {
     }
   }
 
-  private List<Bucket> computeBuckets(List<PriceBar> bars) {
+  List<Bucket> computeBuckets(List<PriceBar> bars) {
     PriceBar latest = bars.getLast();
     LocalDate priceDate = latest.date();
 
@@ -175,9 +177,23 @@ public class SupportResistanceCalculator {
             .add(latest.close())
             .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
 
-    // 2. Calculate Linear Bucket Width
-    BigDecimal bucketWidth =
-        pivot.multiply(BigDecimal.valueOf(supportResistanceConfig.getBucketWidthPct()));
+    // 2. Calculate Adaptive Bucket Width
+    BigDecimal bucketWidth;
+    if (bars.size() >= supportResistanceConfig.getAtrPeriod()) {
+      BigDecimal atr = calculateAtr(bars, supportResistanceConfig.getAtrPeriod());
+      bucketWidth =
+          atr.multiply(BigDecimal.valueOf(supportResistanceConfig.getAtrMultiplier()))
+              .setScale(4, RoundingMode.HALF_UP);
+    } else {
+      bucketWidth =
+          latest
+              .close()
+              .multiply(BigDecimal.valueOf(supportResistanceConfig.getBucketWidthPct()))
+              .setScale(4, RoundingMode.HALF_UP);
+    }
+
+    BigDecimal step =
+        bucketWidth.multiply(BigDecimal.valueOf(supportResistanceConfig.getStrideRatio()));
 
     // 3. Compute dynamic historical price range
     BigDecimal minPrice =
@@ -189,29 +205,29 @@ public class SupportResistanceCalculator {
     BigDecimal maxDiff = maxPrice.subtract(pivot).max(BigDecimal.ZERO);
     int upwardBucketCount =
         Math.min(
-            maxDiff.divide(bucketWidth, 0, RoundingMode.CEILING).intValueExact(),
+            maxDiff.divide(step, 0, RoundingMode.CEILING).intValueExact(),
             supportResistanceConfig.getMaxAllowedBuckets());
 
     BigDecimal minDiff = pivot.subtract(minPrice).max(BigDecimal.ZERO);
     int downwardBucketCount =
         Math.min(
-            minDiff.divide(bucketWidth, 0, RoundingMode.CEILING).intValueExact(),
+            minDiff.divide(step, 0, RoundingMode.CEILING).intValueExact(),
             supportResistanceConfig.getMaxAllowedBuckets());
 
-    // 4. Construct Dynamic Linear Buckets
+    // 4. Construct Dynamic Overlapping Buckets
     List<Bucket> buckets = new ArrayList<>();
 
     // Resistance Buckets (k = 0 to upwardBucketCount - 1, above pivot)
     for (int k = 0; k < upwardBucketCount; k++) {
-      BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
+      BigDecimal bottom = pivot.add(step.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = bottom.add(bucketWidth);
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
     }
 
-    // Support Buckets (k = -1 down to -downwardBucketCount, below pivot)
-    for (int k = -1; k >= -downwardBucketCount; k--) {
-      BigDecimal bottom = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = pivot.add(bucketWidth.multiply(BigDecimal.valueOf(k + 1)));
+    // Support Buckets (k = 1 to downwardBucketCount, below pivot)
+    for (int k = 1; k <= downwardBucketCount; k++) {
+      BigDecimal bottom = pivot.subtract(step.multiply(BigDecimal.valueOf(k)));
+      BigDecimal top = bottom.add(bucketWidth);
       buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
     }
 
@@ -263,22 +279,84 @@ public class SupportResistanceCalculator {
       }
     }
 
-    // Filter proven buckets
-    List<Bucket> provenBuckets = new ArrayList<>();
+    // Filter proven candidate buckets
+    List<Bucket> provenCandidates = new ArrayList<>();
     for (Bucket bucket : buckets) {
-      if (bucket.getTouchCount() >= 3) {
-        // Role Reversal Check - strictly based on final Pivot P
-        // If mid is below P -> SUPPORT, if above -> RESISTANCE
-        if (bucket.getMidpoint().compareTo(pivot) < 0) {
-          bucket.setLevelType(LevelType.SUPPORT);
-        } else {
-          bucket.setLevelType(LevelType.RESISTANCE);
-        }
-        provenBuckets.add(bucket);
+      if (bucket.getTouchCount() >= supportResistanceConfig.getMinTouchCount()) {
+        provenCandidates.add(bucket);
       }
     }
 
-    return provenBuckets;
+    // Apply Non-Maximum Suppression (NMS)
+    List<Bucket> deduplicatedBuckets = applyNonMaximumSuppression(provenCandidates);
+
+    // Role Reversal Check - strictly based on latest candle close
+    for (Bucket bucket : deduplicatedBuckets) {
+      if (bucket.getMidpoint().compareTo(latest.close()) < 0) {
+        bucket.setLevelType(LevelType.SUPPORT);
+      } else {
+        bucket.setLevelType(LevelType.RESISTANCE);
+      }
+    }
+
+    return deduplicatedBuckets;
+  }
+
+  public BigDecimal calculateAtr(List<PriceBar> bars, int period) {
+    int totalBars = bars.size();
+    int startIndex = totalBars - period;
+    BigDecimal sumTrueRange = BigDecimal.ZERO;
+    for (int i = startIndex; i < totalBars; i++) {
+      PriceBar currentBar = bars.get(i);
+      BigDecimal highLowDiff = currentBar.high().subtract(currentBar.low());
+      BigDecimal trueRange;
+      if (i > 0) {
+        BigDecimal previousClose = bars.get(i - 1).close();
+        BigDecimal highCloseDiff = currentBar.high().subtract(previousClose).abs();
+        BigDecimal lowCloseDiff = currentBar.low().subtract(previousClose).abs();
+        trueRange = highLowDiff.max(highCloseDiff).max(lowCloseDiff);
+      } else {
+        trueRange = highLowDiff;
+      }
+      sumTrueRange = sumTrueRange.add(trueRange);
+    }
+    return sumTrueRange.divide(BigDecimal.valueOf(period), 4, RoundingMode.HALF_UP);
+  }
+
+  public List<Bucket> applyNonMaximumSuppression(List<Bucket> candidates) {
+    List<Bucket> sorted =
+        candidates.stream()
+            .sorted(
+                Comparator.comparingInt(Bucket::getTouchCount)
+                    .reversed()
+                    .thenComparing(
+                        Bucket::getLastTouchDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+
+    List<Bucket> selected = new ArrayList<>();
+    BigDecimal threshold = BigDecimal.valueOf(supportResistanceConfig.getNmsOverlapThreshold());
+
+    for (Bucket candidate : sorted) {
+      boolean overlaps = false;
+      for (Bucket kept : selected) {
+        BigDecimal overlapBottom = candidate.getBottom().max(kept.getBottom());
+        BigDecimal overlapTop = candidate.getTop().min(kept.getTop());
+        if (overlapTop.compareTo(overlapBottom) > 0) {
+          BigDecimal overlapWidth = overlapTop.subtract(overlapBottom);
+          BigDecimal candidateWidth = candidate.getTop().subtract(candidate.getBottom());
+          BigDecimal overlapRatio = overlapWidth.divide(candidateWidth, 4, RoundingMode.HALF_UP);
+          if (overlapRatio.compareTo(threshold) >= 0) {
+            overlaps = true;
+            break;
+          }
+        }
+      }
+      if (!overlaps) {
+        selected.add(candidate);
+      }
+    }
+    return selected;
   }
 
   private void saveSupportResistances(Ticker ticker, List<Bucket> buckets, Timeframe timeframe) {
