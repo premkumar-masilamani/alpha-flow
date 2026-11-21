@@ -21,7 +21,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -120,8 +122,7 @@ public class SupportResistanceCalculator {
       BigDecimal zoneWidth = latestAtr.multiply(supportResistanceConfig.getZoneAtrMultiplier());
 
       if (zoneWidth.signum() > 0) {
-        PriceBar latestBar = bars.getLast();
-        List<Bucket> candidates = buildCandidateZones(swings, latestBar, zoneWidth);
+        List<Bucket> candidates = buildCandidateZones(bars, atrSeries, swings, zoneWidth);
         return applyNonOverlappingSuppression(candidates);
       } else {
         log.debug("Computed zone width is non-positive ({}); skipping S&R generation.", zoneWidth);
@@ -165,10 +166,11 @@ public class SupportResistanceCalculator {
   }
 
   private List<Bucket> buildCandidateZones(
-      List<SwingPoint> swings, PriceBar latestBar, BigDecimal zoneWidth) {
+      List<PriceBar> bars,
+      List<BigDecimal> atrSeries,
+      List<SwingPoint> swings,
+      BigDecimal zoneWidth) {
     BigDecimal halfZone = IndicatorMath.divide(zoneWidth, BigDecimal.valueOf(2));
-    LocalDate priceDate = latestBar.date();
-    BigDecimal latestClose = latestBar.close();
     int minTouchCount = supportResistanceConfig.getMinTouchCount();
 
     List<Bucket> candidates = new ArrayList<>();
@@ -187,41 +189,139 @@ public class SupportResistanceCalculator {
       }
 
       if (members.size() >= minTouchCount) {
-        BigDecimal centroid = IndicatorMath.divide(sumPrice, BigDecimal.valueOf(members.size()));
-        BigDecimal zoneBottom = IndicatorMath.publish(centroid.subtract(halfZone));
-        BigDecimal zoneTop = IndicatorMath.publish(centroid.add(halfZone));
-        SwingPoint firstMember = members.getFirst();
-        SwingPoint lastMember = members.getLast();
-        LevelType levelType =
-            resolveLevelType(latestClose, zoneBottom, zoneTop, lastMember.type());
+        BigDecimal initialCentroid =
+            IndicatorMath.divide(sumPrice, BigDecimal.valueOf(members.size()));
+        BigDecimal initialBottom = IndicatorMath.publish(initialCentroid.subtract(halfZone));
+        BigDecimal initialTop = IndicatorMath.publish(initialCentroid.add(halfZone));
 
-        candidates.add(
-            new Bucket(
-                priceDate,
-                zoneBottom,
-                zoneTop,
-                levelType,
-                members.size(),
-                firstMember.date(),
-                lastMember.date()));
+        Bucket survivingZone =
+            evaluateZoneLifecycle(bars, atrSeries, members, initialBottom, initialTop, halfZone);
+        if (survivingZone != null) {
+          candidates.add(survivingZone);
+        }
       }
     }
     return candidates;
+  }
+
+  /**
+   * Evaluates a candidate zone chronologically from its first pivot to the latest bar using
+   * volatility-confirmed breaches ({@code breachAtrMultiplier * ATR[i]}). Forgives minor false
+   * breakouts up to {@code maxFalseBreakouts}, allows up to {@code maxAllowedFlips} clean polarity
+   * flips, and resets active touch history whenever a zone is decisively broken or whipsawed.
+   */
+  private Bucket evaluateZoneLifecycle(
+      List<PriceBar> bars,
+      List<BigDecimal> atrSeries,
+      List<SwingPoint> members,
+      BigDecimal zoneBottom,
+      BigDecimal zoneTop,
+      BigDecimal halfZone) {
+    Map<Integer, SwingPoint> membersByBarIndex = new HashMap<>(members.size());
+    for (SwingPoint member : members) {
+      membersByBarIndex.put(member.barIndex(), member);
+    }
+
+    BigDecimal breachMultiplier = supportResistanceConfig.getBreachAtrMultiplier();
+    int maxAllowedFlips = supportResistanceConfig.getMaxAllowedFlips();
+    int maxFalseBreakouts = supportResistanceConfig.getMaxFalseBreakouts();
+
+    List<SwingPoint> activeMembers = new ArrayList<>();
+    LevelType activeRole = null;
+    int flipCount = 0;
+    int falseBreakoutCount = 0;
+    boolean inMildBreach = false;
+
+    for (int i = members.getFirst().barIndex(); i < bars.size(); i++) {
+      SwingPoint swingAtBar = membersByBarIndex.get(i);
+      if (swingAtBar != null) {
+        if (activeMembers.isEmpty()) {
+          activeRole =
+              (swingAtBar.type() == SwingType.LOW) ? LevelType.SUPPORT : LevelType.RESISTANCE;
+        }
+        activeMembers.add(swingAtBar);
+      }
+
+      if (!activeMembers.isEmpty()) {
+        BigDecimal barClose = bars.get(i).close();
+        BigDecimal breachMargin = atrSeries.get(i).multiply(breachMultiplier);
+        boolean isDecisiveBreach;
+        boolean isMildBreach;
+
+        if (activeRole == LevelType.SUPPORT) {
+          isDecisiveBreach = barClose.compareTo(zoneBottom.subtract(breachMargin)) < 0;
+          isMildBreach = barClose.compareTo(zoneBottom) < 0;
+        } else {
+          isDecisiveBreach = barClose.compareTo(zoneTop.add(breachMargin)) > 0;
+          isMildBreach = barClose.compareTo(zoneTop) > 0;
+        }
+
+        if (isDecisiveBreach) {
+          if (flipCount < maxAllowedFlips) {
+            flipCount++;
+            activeRole =
+                (activeRole == LevelType.SUPPORT) ? LevelType.RESISTANCE : LevelType.SUPPORT;
+            inMildBreach = false;
+            falseBreakoutCount = 0;
+          } else {
+            activeMembers.clear();
+            activeRole = null;
+            flipCount = 0;
+            falseBreakoutCount = 0;
+            inMildBreach = false;
+          }
+        } else if (isMildBreach) {
+          inMildBreach = true;
+        } else if (inMildBreach) {
+          falseBreakoutCount++;
+          inMildBreach = false;
+          if (falseBreakoutCount > maxFalseBreakouts) {
+            activeMembers.clear();
+            activeRole = null;
+            flipCount = 0;
+            falseBreakoutCount = 0;
+          }
+        }
+      }
+    }
+
+    if (activeMembers.size() >= supportResistanceConfig.getMinTouchCount()) {
+      BigDecimal activeSum = BigDecimal.ZERO;
+      for (SwingPoint activeMember : activeMembers) {
+        activeSum = activeSum.add(activeMember.price());
+      }
+      BigDecimal finalCentroid =
+          IndicatorMath.divide(activeSum, BigDecimal.valueOf(activeMembers.size()));
+      BigDecimal finalBottom = IndicatorMath.publish(finalCentroid.subtract(halfZone));
+      BigDecimal finalTop = IndicatorMath.publish(finalCentroid.add(halfZone));
+      PriceBar latestBar = bars.getLast();
+      LevelType finalRole =
+          resolveLevelType(latestBar.close(), finalBottom, finalTop, activeRole);
+
+      return new Bucket(
+          latestBar.date(),
+          finalBottom,
+          finalTop,
+          finalRole,
+          activeMembers.size(),
+          activeMembers.getFirst().date(),
+          activeMembers.getLast().date());
+    } else {
+      return null;
+    }
   }
 
   private LevelType resolveLevelType(
       BigDecimal latestClose,
       BigDecimal zoneBottom,
       BigDecimal zoneTop,
-      SwingType mostRecentSwingType) {
+      LevelType activeRole) {
     if (latestClose.compareTo(zoneTop) > 0) {
       return LevelType.SUPPORT;
     } else if (latestClose.compareTo(zoneBottom) < 0) {
       return LevelType.RESISTANCE;
-    } else if (mostRecentSwingType == SwingType.LOW) {
-      return LevelType.SUPPORT;
     } else {
-      return LevelType.RESISTANCE;
+      return activeRole;
     }
   }
 

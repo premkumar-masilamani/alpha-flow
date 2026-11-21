@@ -14,6 +14,9 @@ public class SupportResistanceConfig {
   private int atrPeriod = 14;
   private BigDecimal swingAtrMultiplier = new BigDecimal("2.0");
   private BigDecimal zoneAtrMultiplier = new BigDecimal("1.0");
+  private BigDecimal breachAtrMultiplier = new BigDecimal("1.0");
+  private int maxAllowedFlips = 1;
+  private int maxFalseBreakouts = 1;
   private int minTouchCount = 2;
   private int dailyRetentionDays = 30;
   private int weeklyRetentionDays = 180;

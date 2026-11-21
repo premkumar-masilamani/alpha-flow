@@ -298,6 +298,94 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
+  void testSupportBreaksDownAndFlipsToResistanceOnSingleDecisiveBreach() {
+    List<PriceBar> bars = new ArrayList<>();
+    bars.add(bar(0, 180, 185, 175, 180));
+    bars.add(bar(1, 180, 185, 175, 180));
+    bars.add(bar(2, 180, 185, 175, 180)); // Seed ATR(3) = 10
+    // Trough #1 at 150
+    appendLeg(bars, 180, 150);
+    // Rally to Peak #1 at 190 (confirms Trough #1 = 150)
+    appendLeg(bars, 150, 190);
+    // Breakdown through 150 down to Trough #2 at 100 (1st decisive flip: SUPPORT -> RESISTANCE)
+    appendLeg(bars, 190, 100);
+    // Retest up to Peak #2 at 149 (confirms Trough #2 = 100; clusters with Trough #1 = 150!)
+    appendLeg(bars, 100, 149);
+    // Drop to 115 (confirms Peak #2 = 149)
+    appendLeg(bars, 149, 115);
+
+    List<Bucket> buckets = calculator.computeBuckets(bars);
+
+    assertEquals(1, buckets.size());
+    Bucket flippedZone = buckets.getFirst();
+    assertEquals(2, flippedZone.getTouchCount());
+    assertEquals(LevelType.RESISTANCE, flippedZone.getLevelType());
+  }
+
+  @Test
+  void testZoneInvalidatedWhenSlicedThroughBeyondMaxAllowedFlips() {
+    List<PriceBar> bars = new ArrayList<>();
+    bars.add(bar(0, 120, 125, 115, 120));
+    bars.add(bar(1, 120, 125, 115, 120));
+    bars.add(bar(2, 120, 125, 115, 120)); // Seed ATR(3) = 10
+    // Peak #1 at 150 (RESISTANCE)
+    appendLeg(bars, 120, 150);
+    // Pullback to 110 (confirms Peak #1 = 150)
+    appendLeg(bars, 150, 110);
+    // Breakout up to 200 (1st decisive crossing: RESISTANCE -> SUPPORT)
+    appendLeg(bars, 110, 200);
+    // Pullback to 151 (clusters with 150 -> 2 touches)
+    appendLeg(bars, 200, 151);
+    // Rally to 185 (confirms Trough #2 = 151)
+    appendLeg(bars, 151, 185);
+    // Collapse cleanly BELOW 150 down to 105 (2nd decisive crossing > maxAllowedFlips=1 -> RESET!)
+    appendLeg(bars, 185, 105);
+    // Bounce slightly to 120 (zone ~150 was broken and wiped)
+    appendLeg(bars, 105, 120);
+
+    List<Bucket> buckets = calculator.computeBuckets(bars);
+
+    // The ~150 zone was sliced through twice (up then down) -> invalidated!
+    boolean hasBroken150Zone =
+        buckets.stream()
+            .anyMatch(
+                bucket ->
+                    bucket.getMidpoint().compareTo(new BigDecimal("140")) >= 0
+                        && bucket.getMidpoint().compareTo(new BigDecimal("160")) <= 0);
+    assertFalse(hasBroken150Zone, "Zone sliced through more than maxAllowedFlips must be dropped");
+  }
+
+  @Test
+  void testSingleFalseBreakoutForgivenAndSecondFalseBreakoutInvalidatesZone() {
+    // Base oscillating bars have SUPPORT zone around ~100.5 ([~95.5, ~105.5], ATR ~ 10)
+    // A close at 92 is below zoneBottom (~95.5) but above zoneBottom - ATR (~85.5) -> mild breach!
+    List<PriceBar> oneFalseBreakoutBars = buildOscillatingBars(105);
+    // Mild dip #1 to 92 then reclaim to 110 (1 false breakout <= maxFalseBreakouts=1 -> forgiven!)
+    oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 100, 100, 91, 92));
+    oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 92, 104, 92, 103));
+    oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 103, 112, 102, 110));
+
+    List<Bucket> afterOneFbo = calculator.computeBuckets(oneFalseBreakoutBars);
+    boolean hasSupportAfterOneFbo =
+        afterOneFbo.stream()
+            .anyMatch(bucket -> bucket.getMidpoint().compareTo(new BigDecimal("110")) < 0);
+    assertTrue(hasSupportAfterOneFbo, "Single false breakout should be forgiven");
+
+    // Mild dip #2 to 92 then reclaim to 110 (2nd false breakout > maxFalseBreakouts=1 -> reset!)
+    List<PriceBar> twoFalseBreakoutBars = new ArrayList<>(oneFalseBreakoutBars);
+    twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 102, 102, 91, 92));
+    twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 92, 104, 92, 103));
+    twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 103, 112, 102, 110));
+
+    List<Bucket> afterTwoFbo = calculator.computeBuckets(twoFalseBreakoutBars);
+    boolean hasSupportAfterTwoFbo =
+        afterTwoFbo.stream()
+            .anyMatch(bucket -> bucket.getMidpoint().compareTo(new BigDecimal("110")) < 0);
+    assertFalse(
+        hasSupportAfterTwoFbo, "Exceeding maxFalseBreakouts must invalidate whipsawed zone");
+  }
+
+  @Test
   void testInsideZoneRetainsLastSwingStructuralRole() {
     // 1. Price rallies into the ~150.5 zone (close=151, inside [~145.5, ~155.5]) -> stays RESISTANCE
     List<PriceBar> testingResistanceBars = buildOscillatingBars(151);

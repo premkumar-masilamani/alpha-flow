@@ -25,6 +25,18 @@ class SupportResistanceConfigTest {
     config.setZoneAtrMultiplier(new BigDecimal("1.5"));
     assertEquals(0, new BigDecimal("1.5").compareTo(config.getZoneAtrMultiplier()));
 
+    assertEquals(0, new BigDecimal("1.0").compareTo(config.getBreachAtrMultiplier()));
+    config.setBreachAtrMultiplier(new BigDecimal("1.25"));
+    assertEquals(0, new BigDecimal("1.25").compareTo(config.getBreachAtrMultiplier()));
+
+    assertEquals(1, config.getMaxAllowedFlips());
+    config.setMaxAllowedFlips(0);
+    assertEquals(0, config.getMaxAllowedFlips());
+
+    assertEquals(1, config.getMaxFalseBreakouts());
+    config.setMaxFalseBreakouts(2);
+    assertEquals(2, config.getMaxFalseBreakouts());
+
     assertEquals(2, config.getMinTouchCount());
     config.setMinTouchCount(3);
     assertEquals(3, config.getMinTouchCount());
