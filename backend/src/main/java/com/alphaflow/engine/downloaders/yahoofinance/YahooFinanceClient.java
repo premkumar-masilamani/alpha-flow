@@ -10,8 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -53,6 +55,23 @@ public class YahooFinanceClient {
       try {
         String json = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
         return YahooResponseParser.parse(json, ticker);
+      } catch (HttpClientErrorException.BadRequest badRequestException) {
+        String responseBody = badRequestException.getResponseBodyAsString();
+        if (Strings.CI.contains(responseBody, "Data doesn't exist")) {
+          log.info(
+              "No Yahoo Finance trading data available for {} in requested window ({} to {}); "
+                  + "likely a weekend or exchange holiday.",
+              ticker.getTickerSymbol(),
+              startTs,
+              endTs);
+        } else {
+          log.error(
+              "Failed to download Yahoo Finance data for {}: {}",
+              ticker.getTickerSymbol(),
+              badRequestException.getMessage(),
+              badRequestException);
+        }
+        return Collections.emptyList();
       } catch (RestClientException | IOException exception) {
         log.error(
             "Failed to download Yahoo Finance data for {}: {}",

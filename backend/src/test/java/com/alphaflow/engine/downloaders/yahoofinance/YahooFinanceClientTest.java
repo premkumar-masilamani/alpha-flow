@@ -12,6 +12,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,6 +40,35 @@ class YahooFinanceClientTest {
           exchange.sendResponseHeaders(200, validJson.length);
           try (OutputStream os = exchange.getResponseBody()) {
             os.write(validJson);
+          }
+        });
+
+    byte[] noDataJson =
+        ("{\"chart\":{\"result\":null,\"error\":{\"code\":\"Bad Request\","
+                + "\"description\":\"Data doesn't exist for startDate = 1795219200, "
+                + "endDate = 1795285800\"}}}")
+            .getBytes(StandardCharsets.UTF_8);
+    server.createContext(
+        "/no-data",
+        exchange -> {
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(400, noDataJson.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(noDataJson);
+          }
+        });
+
+    byte[] badRequestJson =
+        ("{\"chart\":{\"result\":null,\"error\":{\"code\":\"Bad Request\","
+                + "\"description\":\"Invalid symbol\"}}}")
+            .getBytes(StandardCharsets.UTF_8);
+    server.createContext(
+        "/bad-request",
+        exchange -> {
+          exchange.getResponseHeaders().set("Content-Type", "application/json");
+          exchange.sendResponseHeaders(400, badRequestJson.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(badRequestJson);
           }
         });
 
@@ -89,6 +119,38 @@ class YahooFinanceClientTest {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+
+    List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1000L, 2000L);
+    assertTrue(prices.isEmpty());
+  }
+
+  @Test
+  void testFetchDailyPricesHolidayOrWeekendNoDataReturnsEmptyGracefully() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    config.setDownloadUrl(baseUrl + "/no-data?symbol={symbol}&start={start}&end={end}");
+
+    YahooFinanceClient client = new YahooFinanceClient(config);
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("^NSEI");
+    ticker.setCountry(Country.IN);
+
+    List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1795219200L, 1795285800L);
+    assertTrue(prices.isEmpty());
+  }
+
+  @Test
+  void testFetchDailyPricesGenericBadRequestReturnsEmpty() {
+    YahooFinanceConfig config = new YahooFinanceConfig();
+    config.setDownloadUrl(baseUrl + "/bad-request?symbol={symbol}&start={start}&end={end}");
+
+    YahooFinanceClient client = new YahooFinanceClient(config);
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("INVALID");
     ticker.setCountry(Country.US);
 
     List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1000L, 2000L);
