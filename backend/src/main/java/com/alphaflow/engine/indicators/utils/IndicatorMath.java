@@ -3,6 +3,7 @@ package com.alphaflow.engine.indicators.utils;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -61,39 +62,59 @@ public final class IndicatorMath {
   }
 
   /**
-   * Calculates the True Range (TR) for a single bar given the previous bar.
-   * TR = max(high - low, |high - prevClose|, |low - prevClose|)
+   * Calculates True Range for a single price bar relative to its previous bar.
+   *
+   * @param currentBar current bar
+   * @param previousBar previous bar, or null for the first bar in a series
+   * @return True Range value
    */
-  public static BigDecimal calculateTrueRange(PriceBar current, PriceBar previous) {
-    BigDecimal highLow = current.high().subtract(current.low()).abs();
-    BigDecimal highPrevClose = current.high().subtract(previous.close()).abs();
-    BigDecimal lowPrevClose = current.low().subtract(previous.close()).abs();
-    return highLow.max(highPrevClose).max(lowPrevClose);
+  public static BigDecimal calculateTrueRange(PriceBar currentBar, PriceBar previousBar) {
+    BigDecimal highLowRange = currentBar.high().subtract(currentBar.low()).abs();
+    if (previousBar != null) {
+      BigDecimal highPrevClose = currentBar.high().subtract(previousBar.close()).abs();
+      BigDecimal lowPrevClose = currentBar.low().subtract(previousBar.close()).abs();
+      return highLowRange.max(highPrevClose).max(lowPrevClose);
+    } else {
+      return highLowRange;
+    }
   }
 
   /**
-   * Calculates the Average True Range (ATR) over the last {@code period} bars.
+   * Computes Wilder's rolling Average True Range (ATR) series in O(N) time at internal precision.
+   * Indices prior to {@code period - 1} are {@code null}.
    *
-   * @param bars price history
-   * @param period smoothing period
-   * @return ATR value scaled to 4 decimal places, or ZERO if insufficient bars
+   * @param bars chronologically ordered price bars
+   * @param period Wilder smoothing period (must be positive)
+   * @return rolling ATR series matching {@code bars.size()}, or empty list if insufficient data
    */
-  public static BigDecimal calculateAtr(List<PriceBar> bars, int period) {
-    if (bars == null || bars.size() < period || period <= 0) {
-      return BigDecimal.ZERO;
+  public static List<BigDecimal> calculateWilderAtrSeries(List<PriceBar> bars, int period) {
+    if (bars != null && period > 0 && bars.size() >= period) {
+      List<BigDecimal> atrSeries = new ArrayList<>(bars.size());
+      BigDecimal initialTrueRangeSum = BigDecimal.ZERO;
+      BigDecimal periodDecimal = BigDecimal.valueOf(period);
+      BigDecimal smoothingFactor = BigDecimal.valueOf(period - 1L);
+      BigDecimal currentAtr = BigDecimal.ZERO;
+
+      for (int i = 0; i < bars.size(); i++) {
+        PriceBar currentBar = bars.get(i);
+        PriceBar previousBar = (i > 0) ? bars.get(i - 1) : null;
+        BigDecimal trueRange = calculateTrueRange(currentBar, previousBar);
+
+        if (i < period - 1) {
+          initialTrueRangeSum = initialTrueRangeSum.add(trueRange);
+          atrSeries.add(null);
+        } else if (i == period - 1) {
+          initialTrueRangeSum = initialTrueRangeSum.add(trueRange);
+          currentAtr = divide(initialTrueRangeSum, periodDecimal);
+          atrSeries.add(currentAtr);
+        } else {
+          currentAtr = divide(currentAtr.multiply(smoothingFactor).add(trueRange), periodDecimal);
+          atrSeries.add(currentAtr);
+        }
+      }
+      return atrSeries;
+    } else {
+      return List.of();
     }
-    BigDecimal sumTr = BigDecimal.ZERO;
-    int startIndex = Math.max(1, bars.size() - period);
-    int count = 0;
-    for (int i = startIndex; i < bars.size(); i++) {
-      PriceBar current = bars.get(i);
-      PriceBar previous = bars.get(i - 1);
-      sumTr = sumTr.add(calculateTrueRange(current, previous));
-      count++;
-    }
-    if (count == 0) {
-      return BigDecimal.ZERO;
-    }
-    return sumTr.divide(BigDecimal.valueOf(count), PUBLISHED_SCALE, ROUNDING);
   }
 }

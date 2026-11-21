@@ -6,14 +6,24 @@ import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
-import com.alphaflow.persistence.entities.*;
-import com.alphaflow.persistence.repositories.*;
+import com.alphaflow.engine.structure.DowAtrSwingDetector;
+import com.alphaflow.engine.structure.dtos.SwingPoint;
+import com.alphaflow.engine.structure.enums.SwingType;
+import com.alphaflow.persistence.entities.DailySupportResistance;
+import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklySupportResistance;
+import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
+import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
+import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -31,6 +41,7 @@ public class SupportResistanceCalculator {
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
   private final SupportResistanceConfig supportResistanceConfig;
+  private final DowAtrSwingDetector dowAtrSwingDetector;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
 
@@ -40,13 +51,15 @@ public class SupportResistanceCalculator {
       WeeklyPriceRepository weeklyPriceRepository,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository,
-      SupportResistanceConfig supportResistanceConfig) {
+      SupportResistanceConfig supportResistanceConfig,
+      DowAtrSwingDetector dowAtrSwingDetector) {
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
     this.supportResistanceConfig = supportResistanceConfig;
+    this.dowAtrSwingDetector = dowAtrSwingDetector;
   }
 
   public void computeSupportResistances(Timeframe timeframe) {
@@ -64,7 +77,8 @@ public class SupportResistanceCalculator {
             "Failed to compute {} S&R for ticker {}: {}",
             timeframe,
             ticker.getTickerSymbol(),
-            exception.getMessage());
+            exception.getMessage(),
+            exception);
       }
     }
     log.info("{} support and resistances computed.", timeframe);
@@ -73,20 +87,16 @@ public class SupportResistanceCalculator {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeSupportResistancesForTicker(Ticker ticker, Timeframe timeframe) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
-    // Step 1: Load the bars
     List<PriceBar> priceBars = loadBars(ticker, timeframe);
     if (!priceBars.isEmpty()) {
       LocalDate priceDate = priceBars.getLast().date();
       if (!isAlreadyComputed(ticker, priceDate, timeframe)) {
-        // Step 2: Purge older records
         LocalDate cutoffDate =
             priceDate.minusDays(supportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
         deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
 
-        // Step 3: Compute the support and resistances
         List<Bucket> buckets = computeBuckets(priceBars);
 
-        // Step 4: Save the computed support and resistances
         if (!buckets.isEmpty()) {
           saveSupportResistances(ticker, buckets, timeframe);
         }
@@ -100,6 +110,221 @@ public class SupportResistanceCalculator {
     }
   }
 
+  public List<Bucket> computeBuckets(List<PriceBar> bars) {
+    int atrPeriod = supportResistanceConfig.getAtrPeriod();
+    List<SwingPoint> swings =
+        dowAtrSwingDetector.detectSwings(
+            bars, atrPeriod, supportResistanceConfig.getSwingAtrMultiplier());
+
+    if (swings.size() >= supportResistanceConfig.getMinTouchCount()) {
+      List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, atrPeriod);
+      BigDecimal latestAtr = atrSeries.getLast();
+      BigDecimal zoneWidth = latestAtr.multiply(supportResistanceConfig.getZoneAtrMultiplier());
+
+      if (zoneWidth.signum() > 0) {
+        List<Bucket> candidates = buildCandidateZones(bars, atrSeries, swings, zoneWidth);
+        return applyNonOverlappingSuppression(candidates);
+      } else {
+        log.debug("Computed zone width is non-positive ({}); skipping S&R generation.", zoneWidth);
+        return List.of();
+      }
+    } else {
+      log.debug(
+          "Insufficient confirmed Dow swings ({} < {}) to form S&R zones.",
+          swings.size(),
+          supportResistanceConfig.getMinTouchCount());
+      return List.of();
+    }
+  }
+
+  public List<Bucket> applyNonOverlappingSuppression(List<Bucket> candidates) {
+    List<Bucket> sorted =
+        candidates.stream()
+            .sorted(
+                Comparator.comparingInt(Bucket::getTouchCount)
+                    .reversed()
+                    .thenComparing(Bucket::getLastTouchDate, Comparator.reverseOrder())
+                    .thenComparing(Bucket::getMidpoint, Comparator.reverseOrder()))
+            .toList();
+
+    List<Bucket> selected = new ArrayList<>();
+    for (Bucket candidate : sorted) {
+      boolean overlaps = false;
+      for (Bucket kept : selected) {
+        if (candidate.getBottom().compareTo(kept.getTop()) < 0
+            && candidate.getTop().compareTo(kept.getBottom()) > 0) {
+          overlaps = true;
+          break;
+        }
+      }
+      if (!overlaps) {
+        selected.add(candidate);
+      }
+    }
+    selected.sort(Comparator.comparing(Bucket::getMidpoint).reversed());
+    return selected;
+  }
+
+  private List<Bucket> buildCandidateZones(
+      List<PriceBar> bars,
+      List<BigDecimal> atrSeries,
+      List<SwingPoint> swings,
+      BigDecimal zoneWidth) {
+    BigDecimal halfZone = IndicatorMath.divide(zoneWidth, BigDecimal.valueOf(2));
+    int minTouchCount = supportResistanceConfig.getMinTouchCount();
+
+    List<Bucket> candidates = new ArrayList<>();
+    for (SwingPoint anchor : swings) {
+      BigDecimal windowBottom = anchor.price().subtract(halfZone);
+      BigDecimal windowTop = anchor.price().add(halfZone);
+
+      List<SwingPoint> members = new ArrayList<>();
+      BigDecimal sumPrice = BigDecimal.ZERO;
+      for (SwingPoint swing : swings) {
+        if (swing.price().compareTo(windowBottom) >= 0
+            && swing.price().compareTo(windowTop) <= 0) {
+          members.add(swing);
+          sumPrice = sumPrice.add(swing.price());
+        }
+      }
+
+      if (members.size() >= minTouchCount) {
+        BigDecimal initialCentroid =
+            IndicatorMath.divide(sumPrice, BigDecimal.valueOf(members.size()));
+        BigDecimal initialBottom = IndicatorMath.publish(initialCentroid.subtract(halfZone));
+        BigDecimal initialTop = IndicatorMath.publish(initialCentroid.add(halfZone));
+
+        Bucket survivingZone =
+            evaluateZoneLifecycle(bars, atrSeries, members, initialBottom, initialTop, halfZone);
+        if (survivingZone != null) {
+          candidates.add(survivingZone);
+        }
+      }
+    }
+    return candidates;
+  }
+
+  /**
+   * Evaluates a candidate zone chronologically from its first pivot to the latest bar using
+   * volatility-confirmed breaches ({@code breachAtrMultiplier * ATR[i]}). Forgives minor false
+   * breakouts up to {@code maxFalseBreakouts}, allows up to {@code maxAllowedFlips} clean polarity
+   * flips, and resets active touch history whenever a zone is decisively broken or whipsawed.
+   */
+  private Bucket evaluateZoneLifecycle(
+      List<PriceBar> bars,
+      List<BigDecimal> atrSeries,
+      List<SwingPoint> members,
+      BigDecimal zoneBottom,
+      BigDecimal zoneTop,
+      BigDecimal halfZone) {
+    Map<Integer, SwingPoint> membersByBarIndex = new HashMap<>(members.size());
+    for (SwingPoint member : members) {
+      membersByBarIndex.put(member.barIndex(), member);
+    }
+
+    BigDecimal breachMultiplier = supportResistanceConfig.getBreachAtrMultiplier();
+    int maxAllowedFlips = supportResistanceConfig.getMaxAllowedFlips();
+    int maxFalseBreakouts = supportResistanceConfig.getMaxFalseBreakouts();
+
+    List<SwingPoint> activeMembers = new ArrayList<>();
+    LevelType activeRole = null;
+    int flipCount = 0;
+    int falseBreakoutCount = 0;
+    boolean inMildBreach = false;
+
+    for (int i = members.getFirst().barIndex(); i < bars.size(); i++) {
+      SwingPoint swingAtBar = membersByBarIndex.get(i);
+      if (swingAtBar != null) {
+        if (activeMembers.isEmpty()) {
+          activeRole =
+              (swingAtBar.type() == SwingType.LOW) ? LevelType.SUPPORT : LevelType.RESISTANCE;
+        }
+        activeMembers.add(swingAtBar);
+      }
+
+      if (!activeMembers.isEmpty()) {
+        BigDecimal barClose = bars.get(i).close();
+        BigDecimal breachMargin = atrSeries.get(i).multiply(breachMultiplier);
+        boolean isDecisiveBreach;
+        boolean isMildBreach;
+
+        if (activeRole == LevelType.SUPPORT) {
+          isDecisiveBreach = barClose.compareTo(zoneBottom.subtract(breachMargin)) < 0;
+          isMildBreach = barClose.compareTo(zoneBottom) < 0;
+        } else {
+          isDecisiveBreach = barClose.compareTo(zoneTop.add(breachMargin)) > 0;
+          isMildBreach = barClose.compareTo(zoneTop) > 0;
+        }
+
+        if (isDecisiveBreach) {
+          if (flipCount < maxAllowedFlips) {
+            flipCount++;
+            activeRole =
+                (activeRole == LevelType.SUPPORT) ? LevelType.RESISTANCE : LevelType.SUPPORT;
+            inMildBreach = false;
+            falseBreakoutCount = 0;
+          } else {
+            activeMembers.clear();
+            activeRole = null;
+            flipCount = 0;
+            falseBreakoutCount = 0;
+            inMildBreach = false;
+          }
+        } else if (isMildBreach) {
+          inMildBreach = true;
+        } else if (inMildBreach) {
+          falseBreakoutCount++;
+          inMildBreach = false;
+          if (falseBreakoutCount > maxFalseBreakouts) {
+            activeMembers.clear();
+            activeRole = null;
+            flipCount = 0;
+            falseBreakoutCount = 0;
+          }
+        }
+      }
+    }
+
+    if (activeMembers.size() >= supportResistanceConfig.getMinTouchCount()) {
+      BigDecimal activeSum = BigDecimal.ZERO;
+      for (SwingPoint activeMember : activeMembers) {
+        activeSum = activeSum.add(activeMember.price());
+      }
+      BigDecimal finalCentroid =
+          IndicatorMath.divide(activeSum, BigDecimal.valueOf(activeMembers.size()));
+      BigDecimal finalBottom = IndicatorMath.publish(finalCentroid.subtract(halfZone));
+      BigDecimal finalTop = IndicatorMath.publish(finalCentroid.add(halfZone));
+      PriceBar latestBar = bars.getLast();
+      LevelType finalRole =
+          resolveLevelType(latestBar.close(), finalBottom, finalTop, activeRole);
+
+      return new Bucket(
+          latestBar.date(),
+          finalBottom,
+          finalTop,
+          finalRole,
+          activeMembers.size(),
+          activeMembers.getFirst().date(),
+          activeMembers.getLast().date());
+    } else {
+      return null;
+    }
+  }
+
+  private LevelType resolveLevelType(
+      BigDecimal latestClose,
+      BigDecimal zoneBottom,
+      BigDecimal zoneTop,
+      LevelType activeRole) {
+    if (latestClose.compareTo(zoneTop) > 0) {
+      return LevelType.SUPPORT;
+    } else if (latestClose.compareTo(zoneBottom) < 0) {
+      return LevelType.RESISTANCE;
+    } else {
+      return activeRole;
+    }
+  }
+
   private boolean isAlreadyComputed(Ticker ticker, LocalDate priceDate, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return !dailySupportResistanceRepository
@@ -110,6 +335,7 @@ public class SupportResistanceCalculator {
           .findByTickerAndPriceDate(ticker, priceDate)
           .isEmpty();
     } else {
+      log.error("Unsupported timeframe for S&R existence check: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
@@ -124,6 +350,7 @@ public class SupportResistanceCalculator {
           .map(PriceBar::from)
           .toList();
     } else {
+      log.error("Unsupported timeframe for loading S&R bars: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
@@ -135,185 +362,9 @@ public class SupportResistanceCalculator {
     } else if (timeframe == Timeframe.WEEKLY) {
       weeklySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(ticker, cutoffDate);
     } else {
+      log.error("Unsupported timeframe for S&R retention cleanup: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-  }
-
-  public List<Bucket> computeBuckets(List<PriceBar> bars) {
-    PriceBar latest = bars.getLast();
-    LocalDate priceDate = latest.date();
-
-    // 1. Calculate Center Anchor (Pivot)
-    BigDecimal pivot =
-        latest
-            .high()
-            .add(latest.low())
-            .add(latest.close())
-            .divide(BigDecimal.valueOf(3), 18, RoundingMode.HALF_UP);
-
-    // 2. Calculate Adaptive Bucket Width
-    BigDecimal bucketWidth;
-    if (bars.size() >= supportResistanceConfig.getAtrPeriod()) {
-      BigDecimal atr = calculateAtr(bars, supportResistanceConfig.getAtrPeriod());
-      bucketWidth =
-          atr.multiply(BigDecimal.valueOf(supportResistanceConfig.getAtrMultiplier()))
-              .setScale(4, RoundingMode.HALF_UP);
-    } else {
-      bucketWidth =
-          latest
-              .close()
-              .multiply(BigDecimal.valueOf(supportResistanceConfig.getBucketWidthPct()))
-              .setScale(4, RoundingMode.HALF_UP);
-    }
-
-    BigDecimal step =
-        bucketWidth.multiply(BigDecimal.valueOf(supportResistanceConfig.getStrideRatio()));
-
-    // 3. Compute dynamic historical price range
-    BigDecimal minPrice =
-        bars.stream().map(PriceBar::low).min(BigDecimal::compareTo).orElse(latest.low());
-
-    BigDecimal maxPrice =
-        bars.stream().map(PriceBar::high).max(BigDecimal::compareTo).orElse(latest.high());
-
-    BigDecimal maxDiff = maxPrice.subtract(pivot).max(BigDecimal.ZERO);
-    int upwardBucketCount =
-        Math.min(
-            maxDiff.divide(step, 0, RoundingMode.CEILING).intValueExact(),
-            supportResistanceConfig.getMaxAllowedBuckets());
-
-    BigDecimal minDiff = pivot.subtract(minPrice).max(BigDecimal.ZERO);
-    int downwardBucketCount =
-        Math.min(
-            minDiff.divide(step, 0, RoundingMode.CEILING).intValueExact(),
-            supportResistanceConfig.getMaxAllowedBuckets());
-
-    // 4. Construct Dynamic Overlapping Buckets
-    List<Bucket> buckets = new ArrayList<>();
-
-    // Resistance Buckets (k = 0 to upwardBucketCount - 1, above pivot)
-    for (int k = 0; k < upwardBucketCount; k++) {
-      BigDecimal bottom = pivot.add(step.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = bottom.add(bucketWidth);
-      buckets.add(new Bucket(priceDate, bottom, top, LevelType.RESISTANCE));
-    }
-
-    // Support Buckets (k = 1 to downwardBucketCount, below pivot)
-    for (int k = 1; k <= downwardBucketCount; k++) {
-      BigDecimal bottom = pivot.subtract(step.multiply(BigDecimal.valueOf(k)));
-      BigDecimal top = bottom.add(bucketWidth);
-      buckets.add(new Bucket(priceDate, bottom, top, LevelType.SUPPORT));
-    }
-
-    // Scan sequentially through historical candles
-    for (PriceBar bar : bars) {
-      for (Bucket bucket : buckets) {
-        // STEP 1: Touch Detection
-        // Only register touches if the level is not currently in a breach state
-        if (bucket.getConsecutiveBreachCount() == 0) {
-          if (bucket.getLevelType() == LevelType.SUPPORT) {
-            if (bar.low().compareTo(bucket.getBottom()) >= 0
-                && bar.low().compareTo(bucket.getTop()) <= 0) {
-              bucket.incrementTouchCount(bar.date());
-            }
-          } else {
-            if (bar.high().compareTo(bucket.getBottom()) >= 0
-                && bar.high().compareTo(bucket.getTop()) <= 0) {
-              bucket.incrementTouchCount(bar.date());
-            }
-          }
-        }
-
-        // STEP 2: Slice with False Breakout Detection
-        boolean isBreach;
-        if (bucket.getLevelType() == LevelType.SUPPORT) {
-          isBreach = bar.close().compareTo(bucket.getBottom()) < 0;
-        } else {
-          isBreach = bar.close().compareTo(bucket.getTop()) > 0;
-        }
-
-        if (isBreach) {
-          if (bucket.getTouchCount() > 0) {
-            bucket.incrementConsecutiveBreachCount();
-            if (bucket.getConsecutiveBreachCount()
-                    >= supportResistanceConfig.getBreakoutConfirmationBars()
-                || bucket.getFalseBreakoutCount()
-                    >= supportResistanceConfig.getMaxFalseBreakouts()) {
-              bucket.resetTouchCount();
-            }
-          }
-        } else {
-          if (bucket.getConsecutiveBreachCount() > 0) {
-            // Reclaim from false breakout: preserve level, record the false breakout event,
-            // but do NOT credit a touch point for the false breakout
-            bucket.incrementFalseBreakoutCount();
-            bucket.resetConsecutiveBreachCount();
-          }
-        }
-      }
-    }
-
-    // Filter proven candidate buckets
-    List<Bucket> provenCandidates = new ArrayList<>();
-    for (Bucket bucket : buckets) {
-      if (bucket.getTouchCount() >= supportResistanceConfig.getMinTouchCount()) {
-        provenCandidates.add(bucket);
-      }
-    }
-
-    // Apply Non-Maximum Suppression (NMS)
-    List<Bucket> deduplicatedBuckets = applyNonMaximumSuppression(provenCandidates);
-
-    // Role Reversal Check - strictly based on latest candle close
-    for (Bucket bucket : deduplicatedBuckets) {
-      if (bucket.getMidpoint().compareTo(latest.close()) < 0) {
-        bucket.setLevelType(LevelType.SUPPORT);
-      } else {
-        bucket.setLevelType(LevelType.RESISTANCE);
-      }
-    }
-
-    return deduplicatedBuckets;
-  }
-
-  public BigDecimal calculateAtr(List<PriceBar> bars, int period) {
-    return IndicatorMath.calculateAtr(bars, period);
-  }
-
-  public List<Bucket> applyNonMaximumSuppression(List<Bucket> candidates) {
-    List<Bucket> sorted =
-        candidates.stream()
-            .sorted(
-                Comparator.comparingInt(Bucket::getTouchCount)
-                    .reversed()
-                    .thenComparing(
-                        Bucket::getLastTouchDate,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
-            .toList();
-
-    List<Bucket> selected = new ArrayList<>();
-    BigDecimal threshold = BigDecimal.valueOf(supportResistanceConfig.getNmsOverlapThreshold());
-
-    for (Bucket candidate : sorted) {
-      boolean overlaps = false;
-      for (Bucket kept : selected) {
-        BigDecimal overlapBottom = candidate.getBottom().max(kept.getBottom());
-        BigDecimal overlapTop = candidate.getTop().min(kept.getTop());
-        if (overlapTop.compareTo(overlapBottom) > 0) {
-          BigDecimal overlapWidth = overlapTop.subtract(overlapBottom);
-          BigDecimal candidateWidth = candidate.getTop().subtract(candidate.getBottom());
-          BigDecimal overlapRatio = overlapWidth.divide(candidateWidth, 4, RoundingMode.HALF_UP);
-          if (overlapRatio.compareTo(threshold) >= 0) {
-            overlaps = true;
-            break;
-          }
-        }
-      }
-      if (!overlaps) {
-        selected.add(candidate);
-      }
-    }
-    return selected;
   }
 
   private void saveSupportResistances(Ticker ticker, List<Bucket> buckets, Timeframe timeframe) {
@@ -353,6 +404,7 @@ public class SupportResistanceCalculator {
       }
       weeklySupportResistanceRepository.saveAll(toSave);
     } else {
+      log.error("Unsupported timeframe for saving S&R levels: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }

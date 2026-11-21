@@ -1,19 +1,13 @@
 package com.alphaflow.engine.calculators;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +16,7 @@ import com.alphaflow.engine.calculators.dtos.Bucket;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.structure.DowAtrSwingDetector;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
@@ -36,7 +31,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +47,8 @@ class SupportResistanceCalculatorTest {
   private WeeklyPriceRepository weeklyPriceRepo;
   private DailySupportResistanceRepository dailySrRepo;
   private WeeklySupportResistanceRepository weeklySrRepo;
-  private SupportResistanceConfig supportResistanceConfig;
+  private SupportResistanceConfig config;
+  private DowAtrSwingDetector swingDetector;
   private SupportResistanceCalculator calculator;
   private Ticker ticker;
 
@@ -64,10 +59,12 @@ class SupportResistanceCalculatorTest {
     weeklyPriceRepo = mock(WeeklyPriceRepository.class);
     dailySrRepo = mock(DailySupportResistanceRepository.class);
     weeklySrRepo = mock(WeeklySupportResistanceRepository.class);
-    supportResistanceConfig = new SupportResistanceConfig();
-    supportResistanceConfig.setDailyRetentionDays(30);
-    supportResistanceConfig.setWeeklyRetentionDays(180);
-    supportResistanceConfig.setMaxAllowedBuckets(500);
+    config = new SupportResistanceConfig();
+    config.setAtrPeriod(3);
+    config.setSwingAtrMultiplier(new BigDecimal("2.0"));
+    config.setZoneAtrMultiplier(new BigDecimal("1.0"));
+    config.setMinTouchCount(2);
+    swingDetector = new DowAtrSwingDetector();
 
     calculator =
         new SupportResistanceCalculator(
@@ -76,98 +73,168 @@ class SupportResistanceCalculatorTest {
             weeklyPriceRepo,
             dailySrRepo,
             weeklySrRepo,
-            supportResistanceConfig);
+            config,
+            swingDetector);
 
-    ticker =
-        Ticker.builder()
-            .tickerId(1L)
-            .tickerSymbol("TEST")
-            .tickerName("Test Ticker")
-            .isActive(true)
-            .build();
+    ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
+  }
+
+  private PriceBar bar(int dayOffset, int open, int high, int low, int close) {
+    return new PriceBar(
+        EPOCH.plusDays(dayOffset),
+        BigDecimal.valueOf(open),
+        BigDecimal.valueOf(high),
+        BigDecimal.valueOf(low),
+        BigDecimal.valueOf(close),
+        BigDecimal.TEN);
+  }
+
+  /** Appends steady 10-point bars stepping from {@code startPrice} to {@code endPrice}. */
+  private void appendLeg(List<PriceBar> bars, int startPrice, int endPrice) {
+    int current = startPrice;
+    int step = (endPrice >= startPrice) ? 10 : -10;
+    while (current != endPrice) {
+      int next = current + step;
+      if ((step > 0 && next > endPrice) || (step < 0 && next < endPrice)) {
+        next = endPrice;
+      }
+      int high = Math.max(current, next);
+      int low = Math.min(current, next);
+      bars.add(bar(bars.size(), current, high, low, next));
+      current = next;
+    }
+  }
+
+  private DailyPrice dailyFrom(PriceBar priceBar) {
+    return DailyPrice.builder()
+        .ticker(ticker)
+        .priceDate(priceBar.date())
+        .priceOpen(priceBar.open())
+        .priceHigh(priceBar.high())
+        .priceLow(priceBar.low())
+        .priceClose(priceBar.close())
+        .volume(priceBar.volume())
+        .build();
+  }
+
+  private WeeklyPrice weeklyFrom(PriceBar priceBar) {
+    return WeeklyPrice.builder()
+        .ticker(ticker)
+        .priceDate(priceBar.date())
+        .priceOpen(priceBar.open())
+        .priceHigh(priceBar.high())
+        .priceLow(priceBar.low())
+        .priceClose(priceBar.close())
+        .volume(priceBar.volume())
+        .build();
+  }
+
+  /**
+   * Builds a steady 10-point-ATR series forming:
+   * - Swing High #1 = 150, Swing High #2 = 151 (cluster around 150.5, zone ~ [145.5, 155.5])
+   * - Swing Low #1 = 100, Swing Low #2 = 101 (cluster around 100.5, zone ~ [95.5, 105.5])
+   * Ends at {@code finalClose} via a steady multi-bar leg (preserving ATR ~ 10).
+   */
+  private List<PriceBar> buildOscillatingBars(int finalClose) {
+    List<PriceBar> bars = new ArrayList<>();
+    // Seed ATR(3) = 10
+    bars.add(bar(0, 120, 125, 115, 120));
+    bars.add(bar(1, 120, 125, 115, 120));
+    bars.add(bar(2, 120, 125, 115, 120));
+    // Leg 1: 120 -> 150 (Peak #1 = 150)
+    appendLeg(bars, 120, 150);
+    // Leg 2: 150 -> 100 (confirms Peak #1 = 150; Trough #1 = 100)
+    appendLeg(bars, 150, 100);
+    // Leg 3: 100 -> 151 (confirms Trough #1 = 100; Peak #2 = 151)
+    appendLeg(bars, 100, 151);
+    // Leg 4: 151 -> 101 (confirms Peak #2 = 151; Trough #2 = 101)
+    appendLeg(bars, 151, 101);
+    // Leg 5: 101 -> 131 (confirms Trough #2 = 101)
+    appendLeg(bars, 101, 131);
+    // Final leg to desired close (without triggering a new swing unless intended)
+    appendLeg(bars, 131, finalClose);
+    return bars;
   }
 
   @Test
-  void testComputeSupportResistancesForTimeframeSuccessAndErrorHandling() {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
+  void testComputeSupportResistancesOrchestratorSuccessAndErrorIsolation() {
+    Ticker okTicker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
+    Ticker failingTicker =
+        Ticker.builder().tickerId(2L).tickerSymbol("FAIL").isActive(true).build();
 
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(okTicker, failingTicker));
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(okTicker)).thenReturn(List.of());
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
+        .thenThrow(new RuntimeException("DB error"));
 
-    SupportResistanceCalculator calculatorSpy = spy(calculator);
-    doThrow(new RuntimeException("Calculation error"))
-        .when(calculatorSpy)
-        .computeSupportResistancesForTicker(t1, Timeframe.DAILY);
-    doNothing().when(calculatorSpy).computeSupportResistancesForTicker(t2, Timeframe.DAILY);
+    calculator.computeSupportResistances(Timeframe.DAILY);
 
-    calculatorSpy.computeSupportResistances(Timeframe.DAILY);
-
-    verify(calculatorSpy).computeSupportResistancesForTicker(t1, Timeframe.DAILY);
-    verify(calculatorSpy).computeSupportResistancesForTicker(t2, Timeframe.DAILY);
+    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(okTicker);
+    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(failingTicker);
   }
 
   @Test
-  void testComputeSupportResistancesForTimeframeUsesSelfProxyIfNotNull() throws Exception {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1));
-
-    SupportResistanceCalculator selfMock = mock(SupportResistanceCalculator.class);
-
+  void testComputeSupportResistancesUsesSelfProxyWhenInjected() throws Exception {
+    SupportResistanceCalculator mockSelf = mock(SupportResistanceCalculator.class);
     Field selfField = SupportResistanceCalculator.class.getDeclaredField("self");
     selfField.setAccessible(true);
-    selfField.set(calculator, selfMock);
+    selfField.set(calculator, mockSelf);
+
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
 
     calculator.computeSupportResistances(Timeframe.WEEKLY);
 
-    verify(selfMock).computeSupportResistancesForTicker(t1, Timeframe.WEEKLY);
+    verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
   }
 
   @Test
-  void testDailyAndWeeklyCalculationAndPersistence() {
-    List<DailyPrice> daily = createDailyBars(5);
-    List<WeeklyPrice> weekly = createWeeklyBars(5);
+  void testComputeSupportResistancesForTickerDailyAndWeeklyEndToEnd() {
+    List<PriceBar> bars = buildOscillatingBars(125);
+    List<DailyPrice> dailyPrices = bars.stream().map(this::dailyFrom).toList();
+    List<WeeklyPrice> weeklyPrices = bars.stream().map(this::weeklyFrom).toList();
 
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(daily);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weekly);
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
     when(weeklySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
 
+    LocalDate latestDate = bars.getLast().date();
+    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, latestDate.minusDays(30));
+    verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, latestDate.minusDays(180));
+
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> dailyCaptor = ArgumentCaptor.forClass(List.class);
     verify(dailySrRepo).saveAll(dailyCaptor.capture());
+    List<DailySupportResistance> savedDaily = dailyCaptor.getValue();
+    assertEquals(2, savedDaily.size());
+    assertEquals("RESISTANCE", savedDaily.get(0).getLevelType());
+    assertEquals(2, savedDaily.get(0).getTouchCount());
+    assertEquals("SUPPORT", savedDaily.get(1).getLevelType());
+    assertEquals(2, savedDaily.get(1).getTouchCount());
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklySupportResistance>> weeklyCaptor =
         ArgumentCaptor.forClass(List.class);
     verify(weeklySrRepo).saveAll(weeklyCaptor.capture());
+    assertEquals(2, weeklyCaptor.getValue().size());
   }
 
   @Test
-  void testDuplicatePriceDateSkipsPersistence() {
-    List<DailyPrice> daily = createDailyBars(5);
-    List<WeeklyPrice> weekly = createWeeklyBars(5);
+  void testSkipsAlreadyComputedDailyAndWeekly() {
+    List<PriceBar> bars = buildOscillatingBars(125);
+    LocalDate latestDate = bars.getLast().date();
 
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(daily);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weekly);
-
-    DailySupportResistance existingDaily =
-        DailySupportResistance.builder()
-            .ticker(ticker)
-            .priceDate(daily.getLast().getPriceDate())
-            .build();
-    WeeklySupportResistance existingWeekly =
-        WeeklySupportResistance.builder()
-            .ticker(ticker)
-            .priceDate(weekly.getLast().getPriceDate())
-            .build();
-
-    when(dailySrRepo.findByTickerAndPriceDate(ticker, daily.getLast().getPriceDate()))
-        .thenReturn(List.of(existingDaily));
-    when(weeklySrRepo.findByTickerAndPriceDate(ticker, weekly.getLast().getPriceDate()))
-        .thenReturn(List.of(existingWeekly));
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(bars.stream().map(this::dailyFrom).toList());
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(bars.stream().map(this::weeklyFrom).toList());
+    when(dailySrRepo.findByTickerAndPriceDate(ticker, latestDate))
+        .thenReturn(List.of(DailySupportResistance.builder().build()));
+    when(weeklySrRepo.findByTickerAndPriceDate(ticker, latestDate))
+        .thenReturn(List.of(WeeklySupportResistance.builder().build()));
 
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
@@ -177,787 +244,271 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
-  void testEmptyBarsReturnsEarly() {
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
-
-    verify(dailySrRepo, never()).findByTickerAndPriceDate(any(), any());
-    verify(weeklySrRepo, never()).findByTickerAndPriceDate(any(), any());
-    verify(dailySrRepo, never()).saveAll(any());
-    verify(weeklySrRepo, never()).saveAll(any());
-  }
-
-  @Test
-  void testTouchAndSliceBucketScenarios() {
-    // Generate bars to specifically test touchCount >= 3 and role reversal
-    List<DailyPrice> bars = new ArrayList<>();
-    for (int i = 0; i < 4; i++) {
-      bars.add(
-          DailyPrice.builder()
-              .ticker(ticker)
-              .priceDate(EPOCH.plusDays(i))
-              .priceOpen(new BigDecimal("100.00"))
-              .priceHigh(new BigDecimal("100.50"))
-              .priceLow(new BigDecimal("99.50"))
-              .priceClose(new BigDecimal("100.20"))
-              .volume(BigDecimal.TEN)
-              .build());
-    }
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+  void testDoesNotSaveWhenNoBucketsComputed() {
+    List<PriceBar> flatBars = List.of(bar(0, 100, 105, 95, 100));
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(flatBars.stream().map(this::dailyFrom).toList());
     when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
 
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    assertFalse(captor.getValue().isEmpty());
-    DailySupportResistance saved = captor.getValue().getFirst();
-    org.junit.jupiter.api.Assertions.assertNotNull(saved.getFirstTouchDate());
-    org.junit.jupiter.api.Assertions.assertNotNull(saved.getLastTouchDate());
-  }
-
-  @Test
-  void testComputeSupportResistancesWhenNoProvenBucketsDoesNotSave() {
-    LocalDate d1 = LocalDate.of(2026, 1, 1);
-    DailyPrice p1 =
-        DailyPrice.builder()
-            .ticker(ticker)
-            .priceDate(d1)
-            .priceOpen(BigDecimal.valueOf(100))
-            .priceHigh(BigDecimal.valueOf(105))
-            .priceLow(BigDecimal.valueOf(95))
-            .priceClose(BigDecimal.valueOf(100))
-            .volume(BigDecimal.valueOf(1000))
-            .build();
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(p1));
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
+    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(eq(ticker), any());
     verify(dailySrRepo, never()).saveAll(any());
   }
 
   @Test
-  void testBucketTouchDatesTrackingAndReset() {
-    Bucket bucket =
-        new Bucket(EPOCH, BigDecimal.valueOf(100), BigDecimal.valueOf(105), LevelType.SUPPORT);
-    org.junit.jupiter.api.Assertions.assertNull(bucket.getFirstTouchDate());
-    org.junit.jupiter.api.Assertions.assertNull(bucket.getLastTouchDate());
+  void testComputeBucketsReturnsEmptyWhenZoneWidthIsNonPositive() {
+    config.setZoneAtrMultiplier(BigDecimal.ZERO);
+    List<PriceBar> bars = buildOscillatingBars(125);
 
-    LocalDate d1 = LocalDate.of(2026, 1, 10);
-    bucket.incrementTouchCount(d1);
-    assertEquals(1, bucket.getTouchCount());
-    assertEquals(d1, bucket.getFirstTouchDate());
-    assertEquals(d1, bucket.getLastTouchDate());
+    List<Bucket> buckets = calculator.computeBuckets(bars);
 
-    LocalDate d2 = LocalDate.of(2026, 1, 15);
-    bucket.incrementTouchCount(d2);
-    assertEquals(2, bucket.getTouchCount());
-    assertEquals(d1, bucket.getFirstTouchDate());
-    assertEquals(d2, bucket.getLastTouchDate());
-
-    LocalDate d3 = LocalDate.of(2026, 1, 20);
-    bucket.incrementTouchCount(d3);
-    assertEquals(3, bucket.getTouchCount());
-    assertEquals(d1, bucket.getFirstTouchDate());
-    assertEquals(d3, bucket.getLastTouchDate());
-
-    bucket.resetTouchCount();
-    assertEquals(0, bucket.getTouchCount());
-    org.junit.jupiter.api.Assertions.assertNull(bucket.getFirstTouchDate());
-    org.junit.jupiter.api.Assertions.assertNull(bucket.getLastTouchDate());
+    assertTrue(buckets.isEmpty());
   }
 
   @Test
-  void testUnsupportedTimeframeInLoadBarsThrowsException() throws Exception {
+  void testPolarityFlipReinforcesZoneAndFlipsRoleOnBreakout() {
+    List<PriceBar> bars = new ArrayList<>();
+    bars.add(bar(0, 120, 125, 115, 120));
+    bars.add(bar(1, 120, 125, 115, 120));
+    bars.add(bar(2, 120, 125, 115, 120)); // Seed ATR(3) = 10
+    // Peak #1 at 150
+    appendLeg(bars, 120, 150);
+    final LocalDate peakDate = bars.getLast().date();
+    // Pullback to Trough #1 at 110 (confirms Peak #1 = 150)
+    appendLeg(bars, 150, 110);
+    // Breakout rally through 150 to Peak #2 at 200 (confirms Trough #1 = 110)
+    appendLeg(bars, 110, 200);
+    // Pullback to Trough #2 at 151 (confirms Peak #2 = 200)
+    appendLeg(bars, 200, 151);
+    final LocalDate retestDate = bars.getLast().date();
+    // Rally to 185 (confirms Trough #2 = 151 -> clusters with Peak #1 = 150!)
+    appendLeg(bars, 151, 185);
+
+    List<Bucket> buckets = calculator.computeBuckets(bars);
+
+    // Isolated pivots (110 and 200) have 1 touch (< 2) and are excluded.
+    // Polarity zone around 150.5 has 2 touches (1 HIGH + 1 LOW), and close (185) > top -> SUPPORT!
+    assertEquals(1, buckets.size());
+    Bucket polarityZone = buckets.getFirst();
+    assertEquals(2, polarityZone.getTouchCount());
+    assertEquals(LevelType.SUPPORT, polarityZone.getLevelType());
+    assertEquals(peakDate, polarityZone.getFirstTouchDate());
+    assertEquals(retestDate, polarityZone.getLastTouchDate());
+  }
+
+  @Test
+  void testSupportBreaksDownAndFlipsToResistanceOnSingleDecisiveBreach() {
+    List<PriceBar> bars = new ArrayList<>();
+    bars.add(bar(0, 180, 185, 175, 180));
+    bars.add(bar(1, 180, 185, 175, 180));
+    bars.add(bar(2, 180, 185, 175, 180)); // Seed ATR(3) = 10
+    // Trough #1 at 150
+    appendLeg(bars, 180, 150);
+    // Rally to Peak #1 at 190 (confirms Trough #1 = 150)
+    appendLeg(bars, 150, 190);
+    // Breakdown through 150 down to Trough #2 at 100 (1st decisive flip: SUPPORT -> RESISTANCE)
+    appendLeg(bars, 190, 100);
+    // Retest up to Peak #2 at 149 (confirms Trough #2 = 100; clusters with Trough #1 = 150!)
+    appendLeg(bars, 100, 149);
+    // Drop to 115 (confirms Peak #2 = 149)
+    appendLeg(bars, 149, 115);
+
+    List<Bucket> buckets = calculator.computeBuckets(bars);
+
+    assertEquals(1, buckets.size());
+    Bucket flippedZone = buckets.getFirst();
+    assertEquals(2, flippedZone.getTouchCount());
+    assertEquals(LevelType.RESISTANCE, flippedZone.getLevelType());
+  }
+
+  @Test
+  void testZoneInvalidatedWhenSlicedThroughBeyondMaxAllowedFlips() {
+    List<PriceBar> bars = new ArrayList<>();
+    bars.add(bar(0, 120, 125, 115, 120));
+    bars.add(bar(1, 120, 125, 115, 120));
+    bars.add(bar(2, 120, 125, 115, 120)); // Seed ATR(3) = 10
+    // Peak #1 at 150 (RESISTANCE)
+    appendLeg(bars, 120, 150);
+    // Pullback to 110 (confirms Peak #1 = 150)
+    appendLeg(bars, 150, 110);
+    // Breakout up to 200 (1st decisive crossing: RESISTANCE -> SUPPORT)
+    appendLeg(bars, 110, 200);
+    // Pullback to 151 (clusters with 150 -> 2 touches)
+    appendLeg(bars, 200, 151);
+    // Rally to 185 (confirms Trough #2 = 151)
+    appendLeg(bars, 151, 185);
+    // Collapse cleanly BELOW 150 down to 105 (2nd decisive crossing > maxAllowedFlips=1 -> RESET!)
+    appendLeg(bars, 185, 105);
+    // Bounce slightly to 120 (zone ~150 was broken and wiped)
+    appendLeg(bars, 105, 120);
+
+    List<Bucket> buckets = calculator.computeBuckets(bars);
+
+    // The ~150 zone was sliced through twice (up then down) -> invalidated!
+    boolean hasBroken150Zone =
+        buckets.stream()
+            .anyMatch(
+                bucket ->
+                    bucket.getMidpoint().compareTo(new BigDecimal("140")) >= 0
+                        && bucket.getMidpoint().compareTo(new BigDecimal("160")) <= 0);
+    assertFalse(hasBroken150Zone, "Zone sliced through more than maxAllowedFlips must be dropped");
+  }
+
+  @Test
+  void testSingleFalseBreakoutForgivenAndSecondFalseBreakoutInvalidatesZone() {
+    // Base oscillating bars have SUPPORT zone around ~100.5 ([~95.5, ~105.5], ATR ~ 10)
+    // A close at 92 is below zoneBottom (~95.5) but above zoneBottom - ATR (~85.5) -> mild breach!
+    List<PriceBar> oneFalseBreakoutBars = buildOscillatingBars(105);
+    // Mild dip #1 to 92 then reclaim to 110 (1 false breakout <= maxFalseBreakouts=1 -> forgiven!)
+    oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 100, 100, 91, 92));
+    oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 92, 104, 92, 103));
+    oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 103, 112, 102, 110));
+
+    List<Bucket> afterOneFbo = calculator.computeBuckets(oneFalseBreakoutBars);
+    boolean hasSupportAfterOneFbo =
+        afterOneFbo.stream()
+            .anyMatch(bucket -> bucket.getMidpoint().compareTo(new BigDecimal("110")) < 0);
+    assertTrue(hasSupportAfterOneFbo, "Single false breakout should be forgiven");
+
+    // Mild dip #2 to 92 then reclaim to 110 (2nd false breakout > maxFalseBreakouts=1 -> reset!)
+    List<PriceBar> twoFalseBreakoutBars = new ArrayList<>(oneFalseBreakoutBars);
+    twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 102, 102, 91, 92));
+    twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 92, 104, 92, 103));
+    twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 103, 112, 102, 110));
+
+    List<Bucket> afterTwoFbo = calculator.computeBuckets(twoFalseBreakoutBars);
+    boolean hasSupportAfterTwoFbo =
+        afterTwoFbo.stream()
+            .anyMatch(bucket -> bucket.getMidpoint().compareTo(new BigDecimal("110")) < 0);
+    assertFalse(
+        hasSupportAfterTwoFbo, "Exceeding maxFalseBreakouts must invalidate whipsawed zone");
+  }
+
+  @Test
+  void testInsideZoneRetainsLastSwingStructuralRole() {
+    // 1. Price rallies into the ~150.5 zone (close=151, inside [~145.5, ~155.5]) -> stays RESISTANCE
+    List<PriceBar> testingResistanceBars = buildOscillatingBars(151);
+    List<Bucket> resistanceTestBuckets = calculator.computeBuckets(testingResistanceBars);
+    Bucket upperZone = resistanceTestBuckets.getFirst();
+    assertTrue(new BigDecimal("151").compareTo(upperZone.getBottom()) >= 0);
+    assertTrue(new BigDecimal("151").compareTo(upperZone.getTop()) <= 0);
+    assertEquals(
+        LevelType.RESISTANCE,
+        upperZone.getLevelType(),
+        "Close inside resistance band without clearing top must remain RESISTANCE");
+
+    // 2. Price pulls back into the ~100.5 zone (close=102, inside [~95.5, ~105.5]) -> stays SUPPORT
+    List<PriceBar> testingSupportBars = buildOscillatingBars(102);
+    List<Bucket> supportTestBuckets = calculator.computeBuckets(testingSupportBars);
+    Bucket lowerZone = supportTestBuckets.getLast();
+    assertTrue(new BigDecimal("102").compareTo(lowerZone.getBottom()) >= 0);
+    assertTrue(new BigDecimal("102").compareTo(lowerZone.getTop()) <= 0);
+    assertEquals(
+        LevelType.SUPPORT,
+        lowerZone.getLevelType(),
+        "Close inside support band without breaking bottom must remain SUPPORT");
+  }
+
+  @Test
+  void testApplyNonOverlappingSuppressionAndDeterministicTieBreaking() {
+    Bucket strong =
+        new Bucket(
+            EPOCH.plusDays(20),
+            new BigDecimal("100.0000"),
+            new BigDecimal("110.0000"),
+            LevelType.SUPPORT,
+            5,
+            EPOCH,
+            EPOCH.plusDays(15));
+    Bucket overlappingAbove =
+        new Bucket(
+            EPOCH.plusDays(20),
+            new BigDecimal("105.0000"),
+            new BigDecimal("115.0000"),
+            LevelType.SUPPORT,
+            3,
+            EPOCH,
+            EPOCH.plusDays(16));
+    Bucket aboveNonOverlap =
+        new Bucket(
+            EPOCH.plusDays(20),
+            new BigDecimal("120.0000"),
+            new BigDecimal("130.0000"),
+            LevelType.RESISTANCE,
+            4,
+            EPOCH,
+            EPOCH.plusDays(12));
+    Bucket belowNonOverlap =
+        new Bucket(
+            EPOCH.plusDays(20),
+            new BigDecimal("80.0000"),
+            new BigDecimal("90.0000"),
+            LevelType.SUPPORT,
+            4,
+            EPOCH,
+            EPOCH.plusDays(12));
+
+    List<Bucket> selected =
+        calculator.applyNonOverlappingSuppression(
+            List.of(overlappingAbove, belowNonOverlap, strong, aboveNonOverlap));
+
+    assertEquals(3, selected.size());
+    assertFalse(selected.contains(overlappingAbove));
+    assertEquals(aboveNonOverlap, selected.get(0));
+    assertEquals(strong, selected.get(1));
+    assertEquals(belowNonOverlap, selected.get(2));
+  }
+
+  @Test
+  void testUnsupportedTimeframeBranchesThrowIllegalArgumentException() throws Exception {
     Method loadBarsMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
             "loadBars", Ticker.class, Timeframe.class);
     loadBarsMethod.setAccessible(true);
-
-    InvocationTargetException ex =
+    InvocationTargetException loadException =
         assertThrows(
             InvocationTargetException.class,
             () -> loadBarsMethod.invoke(calculator, ticker, (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
+    assertTrue(loadException.getCause() instanceof IllegalArgumentException);
 
-  @Test
-  void testUnsupportedTimeframeInSaveSupportResistancesThrowsException() throws Exception {
-    Method saveMethod =
-        SupportResistanceCalculator.class.getDeclaredMethod(
-            "saveSupportResistances", Ticker.class, List.class, Timeframe.class);
-    saveMethod.setAccessible(true);
-
-    Bucket bucket = new Bucket(EPOCH, BigDecimal.TEN, BigDecimal.valueOf(11), LevelType.SUPPORT);
-
-    InvocationTargetException ex =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> saveMethod.invoke(calculator, ticker, List.of(bucket), (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
-
-  @Test
-  void testUnsupportedTimeframeInIsAlreadyComputedThrowsException() throws Exception {
     Method isAlreadyComputedMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
             "isAlreadyComputed", Ticker.class, LocalDate.class, Timeframe.class);
     isAlreadyComputedMethod.setAccessible(true);
-
-    InvocationTargetException ex =
+    InvocationTargetException existsException =
         assertThrows(
             InvocationTargetException.class,
             () -> isAlreadyComputedMethod.invoke(calculator, ticker, EPOCH, (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
+    assertTrue(existsException.getCause() instanceof IllegalArgumentException);
 
-  @Test
-  void testDeleteOlderSupportResistances() throws Exception {
     Method deleteMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
             "deleteOlderSupportResistances", Ticker.class, LocalDate.class, Timeframe.class);
     deleteMethod.setAccessible(true);
-
-    LocalDate cutoff = LocalDate.of(2026, 1, 1);
-    deleteMethod.invoke(calculator, ticker, cutoff, Timeframe.DAILY);
-    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, cutoff);
-
-    deleteMethod.invoke(calculator, ticker, cutoff, Timeframe.WEEKLY);
-    verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, cutoff);
-
-    InvocationTargetException ex =
+    InvocationTargetException deleteException =
         assertThrows(
             InvocationTargetException.class,
-            () -> deleteMethod.invoke(calculator, ticker, cutoff, (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
-
-  @Test
-  void testBucketConsecutiveBreachCountTrackingAndReset() {
-    Bucket bucket =
-        new Bucket(EPOCH, BigDecimal.valueOf(100), BigDecimal.valueOf(105), LevelType.SUPPORT);
-    assertEquals(0, bucket.getConsecutiveBreachCount());
-    assertEquals(0, bucket.getFalseBreakoutCount());
-
-    bucket.incrementConsecutiveBreachCount();
-    assertEquals(1, bucket.getConsecutiveBreachCount());
-
-    bucket.incrementConsecutiveBreachCount();
-    assertEquals(2, bucket.getConsecutiveBreachCount());
-
-    bucket.resetConsecutiveBreachCount();
-    assertEquals(0, bucket.getConsecutiveBreachCount());
-
-    bucket.incrementFalseBreakoutCount();
-    assertEquals(1, bucket.getFalseBreakoutCount());
-
-    bucket.incrementConsecutiveBreachCount();
-    bucket.incrementFalseBreakoutCount();
-    assertEquals(1, bucket.getConsecutiveBreachCount());
-    assertEquals(2, bucket.getFalseBreakoutCount());
-
-    bucket.resetTouchCount();
-    assertEquals(0, bucket.getConsecutiveBreachCount());
-    assertEquals(0, bucket.getFalseBreakoutCount());
-  }
-
-  @Test
-  void testSupportFalseBreakoutPreservesBucketWithoutAwardingTouch() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // Day 0: Touch 1 (Support [99.00, 100.00])
-    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
-    // Day 2: False breakout breach (close < 99.00), breachCount becomes 1 <= 2
-    bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
-    // Day 3: Reclaim! Close >= 99.00, breachCount resets, but NO touch awarded (touchCount remains
-    // 2)
-    bars.add(createBar(3, "101.00", "101.50", "100.20", "101.20"));
-    // Day 4: Clean Touch 3 & Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
-    bars.add(createBar(4, "99.50", "100.80", "99.20", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-    assertFalse(saved.isEmpty());
-
-    DailySupportResistance sr =
-        saved.stream()
-            .filter(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0)
-            .findFirst()
-            .orElse(null);
-
-    assertNotNull(sr, "Support bucket [99.00, 100.00] should be proven and saved");
-    assertEquals(3, sr.getTouchCount());
-    assertEquals(EPOCH, sr.getFirstTouchDate());
-    assertEquals(EPOCH.plusDays(4), sr.getLastTouchDate());
-  }
-
-  @Test
-  void testSecondFalseBreakoutInvalidatesLevelWhenMaxFalseBreakoutsIsOne() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // Day 0: Touch 1
-    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
-    // Day 2: Touch 3
-    bars.add(createBar(2, "100.20", "100.50", "99.30", "99.60"));
-    // Day 3: False breakout 1 breach (close < 99.00)
-    bars.add(createBar(3, "99.50", "99.50", "98.00", "98.50"));
-    // Day 4: Reclaim 1 (close >= 99.00) -> falseBreakoutCount becomes 1
-    bars.add(createBar(4, "101.00", "101.50", "100.20", "101.20"));
-    // Day 5: Clean Touch 4
-    bars.add(createBar(5, "100.20", "100.50", "99.40", "99.80"));
-    // Day 6: False breakout 2 breach (close < 99.00) -> falseBreakoutCount is already 1 >= max (1)
-    // -> resets!
-    bars.add(createBar(6, "99.50", "99.50", "98.00", "98.50"));
-    // Day 7: Anchor bar (P = 100.00, W = 1.00)
-    bars.add(createBar(7, "100.00", "100.00", "100.00", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    boolean hasProvenLevel =
-        saved.stream()
-            .anyMatch(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0);
-    assertFalse(
-        hasProvenLevel,
-        "Support bucket should be invalidated when false breakout count exceeds max allowed");
-  }
-
-  @Test
-  void testSupportConfirmedBreakdownResetsBucket() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // Day 0: Touch 1
-    bars.add(createBar(0, "100.20", "100.50", "99.50", "99.80"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "100.20", "100.50", "99.20", "99.70"));
-    // Day 2: Breach 1 (close < 99.00) -> breachCount = 1
-    bars.add(createBar(2, "99.50", "99.50", "98.00", "98.50"));
-    // Day 3: Breach 2 (close < 99.00) -> breachCount = 2 >= 2 -> resetTouchCount()!
-    bars.add(createBar(3, "98.50", "98.80", "97.50", "98.00"));
-    // Day 4: Anchor bar (P = 100.00, W = 1.00)
-    bars.add(createBar(4, "100.00", "100.00", "100.00", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    boolean hasProvenLevel =
-        saved.stream()
-            .anyMatch(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("99.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("99")) == 0);
-    assertFalse(hasProvenLevel, "Broken support bucket should NOT be saved as proven");
-  }
-
-  @Test
-  void testResistanceFalseBreakoutPreservesBucketWithoutAwardingTouch() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // Day 0: Touch 1 (Resistance [100.00, 101.00])
-    bars.add(createBar(0, "99.50", "100.50", "99.00", "99.80"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "99.50", "100.80", "99.00", "99.70"));
-    // Day 2: False breakout breach above (close > 101.00) -> breachCount = 1
-    bars.add(createBar(2, "100.50", "102.50", "100.20", "101.80"));
-    // Day 3: Reclaim below, but away from zone (close <= 101.00) -> no touch awarded
-    bars.add(createBar(3, "99.00", "99.50", "98.50", "99.20"));
-    // Day 4: Clean Touch 3 & Anchor bar (P = (100.80 + 99.20 + 100.00) / 3 = 100.00, W = 1.00)
-    bars.add(createBar(4, "99.50", "100.80", "99.20", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-    assertFalse(saved.isEmpty());
-
-    DailySupportResistance sr =
-        saved.stream()
-            .filter(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("100.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("100")) == 0)
-            .findFirst()
-            .orElse(null);
-
-    assertNotNull(sr, "Resistance bucket [100.00, 101.00] should be proven and saved");
-    assertEquals(3, sr.getTouchCount());
-    assertEquals(EPOCH, sr.getFirstTouchDate());
-    assertEquals(EPOCH.plusDays(4), sr.getLastTouchDate());
-  }
-
-  @Test
-  void testResistanceConfirmedBreakoutResetsBucket() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // Day 0: Touch 1
-    bars.add(createBar(0, "99.50", "100.50", "99.00", "99.80"));
-    // Day 1: Touch 2
-    bars.add(createBar(1, "99.50", "100.80", "99.00", "99.70"));
-    // Day 2: Breach 1 (close > 101.00) -> breachCount = 1
-    bars.add(createBar(2, "100.50", "102.50", "100.20", "101.80"));
-    // Day 3: Breach 2 (close > 101.00) -> breachCount = 2 >= 2 -> resetTouchCount()!
-    bars.add(createBar(3, "101.50", "103.00", "101.20", "102.50"));
-    // Day 4: Anchor bar (P = 100.00, W = 1.00)
-    bars.add(createBar(4, "100.00", "100.00", "100.00", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    boolean hasProvenLevel =
-        saved.stream()
-            .anyMatch(
-                s ->
-                    s.getZoneBottom().compareTo(new BigDecimal("100.0000")) == 0
-                        || s.getZoneBottom().compareTo(new BigDecimal("100")) == 0);
-    assertFalse(hasProvenLevel, "Broken resistance bucket should NOT be saved as proven");
-  }
-
-  @Test
-  void testRetentionCleanupDeletesOlderRecords() {
-    List<DailyPrice> daily = createDailyBars(5);
-    List<WeeklyPrice> weekly = createWeeklyBars(5);
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(daily);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weekly);
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-    when(weeklySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
-
-    LocalDate expectedDailyCutoff = daily.getLast().getPriceDate().minusDays(30);
-    LocalDate expectedWeeklyCutoff = weekly.getLast().getPriceDate().minusDays(180);
-
-    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, expectedDailyCutoff);
-    verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, expectedWeeklyCutoff);
-  }
-
-  @Test
-  void testDynamicBucketsSupportWidePriceRangesFarBeyondStaticLimit() {
-    List<DailyPrice> bars = new ArrayList<>();
-    // 3 touches around 150.50 (k = 50 above pivot 100, far beyond old 20-bucket limit)
-    bars.add(createBar(0, "150.20", "150.80", "150.10", "150.40"));
-    bars.add(createBar(1, "150.30", "150.90", "150.20", "150.50"));
-    bars.add(createBar(2, "150.10", "150.70", "150.05", "150.30"));
-
-    // 3 touches around 70.50 (k = -30 below pivot 100, far below old 20-bucket limit)
-    bars.add(createBar(3, "70.20", "70.80", "70.10", "70.40"));
-    bars.add(createBar(4, "70.30", "70.90", "70.20", "70.50"));
-    bars.add(createBar(5, "70.10", "70.70", "70.05", "70.30"));
-
-    // Anchor bar: high 120, low 80, close 100 -> Pivot = (120 + 80 + 100) / 3 =
-    // 100.00, W = 1.00, close = 100.00
-    bars.add(createBar(6, "100.00", "120.00", "80.00", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    DailySupportResistance highZone =
-        saved.stream()
-            .filter(
-                savedRecord ->
-                    savedRecord.getZoneBottom().compareTo(new BigDecimal("150.0000")) == 0)
-            .findFirst()
-            .orElse(null);
-    assertNotNull(highZone, "Zone [150.00, 151.00] (k=50) should be computed and saved");
-    assertEquals(3, highZone.getTouchCount());
-    assertEquals("RESISTANCE", highZone.getLevelType());
-    assertEquals(EPOCH.plusDays(6), highZone.getPriceDate());
-
-    DailySupportResistance lowZone =
-        saved.stream()
-            .filter(
-                savedRecord ->
-                    savedRecord.getZoneBottom().compareTo(new BigDecimal("70.0000")) == 0)
-            .findFirst()
-            .orElse(null);
-    assertNotNull(lowZone, "Zone [70.00, 71.00] (k=-30) should be computed and saved");
-    assertEquals(3, lowZone.getTouchCount());
-    assertEquals("SUPPORT", lowZone.getLevelType());
-    assertEquals(EPOCH.plusDays(6), lowZone.getPriceDate());
-  }
-
-  @Test
-  void testMaxAllowedBucketsCapsBucketGeneration() {
-    supportResistanceConfig.setMaxAllowedBuckets(10);
-    List<DailyPrice> bars = new ArrayList<>();
-    // Touch 3 times at 97.50 (Support [97.00, 98.00], k=-3 within 10-bucket range below pivot 100)
-    bars.add(createBar(0, "97.60", "97.90", "97.20", "97.50"));
-    bars.add(createBar(1, "97.60", "97.90", "97.20", "97.50"));
-    bars.add(createBar(2, "97.60", "97.90", "97.20", "97.50"));
-
-    // Touches at 150.50 with a spike to 200 (maxPrice = 200, so maxDiff = 100)
-    bars.add(createBar(3, "150.20", "200.00", "150.10", "150.40"));
-    bars.add(createBar(4, "150.30", "150.90", "150.20", "150.50"));
-    bars.add(createBar(5, "150.10", "150.70", "150.05", "150.30"));
-
-    // Anchor bar: high 102, low 98, close 100 -> pivot = 100, W = 1
-    bars.add(createBar(6, "99.00", "102.00", "98.00", "100.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    // Verify within-cap level was saved
-    boolean hasLevelWithinCap =
-        saved.stream()
-            .anyMatch(
-                savedRecord ->
-                    savedRecord.getZoneBottom().compareTo(new BigDecimal("97.0000")) == 0);
-    assertTrue(hasLevelWithinCap, "Level within capped bucket range should be generated and saved");
-
-    // Since maxAllowedBuckets is 10, resistance only goes up to 110, so 150.50 is not reached
-    boolean hasLevelAboveCap =
-        saved.stream()
-            .anyMatch(
-                savedRecord ->
-                    savedRecord.getZoneBottom().compareTo(new BigDecimal("150.0000")) == 0);
-    assertFalse(hasLevelAboveCap, "Level outside capped bucket range should not be generated");
-  }
-
-  @Test
-  void testClusterSeamUnificationWithOverlappingStrideAndNms() {
-    // AC-1: Given 5 candle lows clustered around $100.50 (100.40, 100.45, 100.50, 100.55, 100.60)
-    List<DailyPrice> bars = new ArrayList<>();
-    bars.add(createBar(0, "101.50", "102.00", "100.40", "101.50"));
-    bars.add(createBar(1, "101.50", "102.00", "100.45", "101.50"));
-    bars.add(createBar(2, "101.50", "102.00", "100.50", "101.50"));
-    bars.add(createBar(3, "101.50", "102.00", "100.55", "101.50"));
-    bars.add(createBar(4, "101.50", "102.00", "100.60", "101.50"));
-    // Anchor bar with close 102.00, pivot = 102.00, width = 1.00 via fallback (low = 102.00 > zone top 101.00)
-    supportResistanceConfig.setBucketWidthPct(1.0 / 102.0);
-    bars.add(createBar(5, "102.00", "102.00", "102.00", "102.00"));
-
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(bars);
-    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<DailySupportResistance>> captor = ArgumentCaptor.forClass(List.class);
-    verify(dailySrRepo).saveAll(captor.capture());
-    List<DailySupportResistance> saved = captor.getValue();
-
-    List<DailySupportResistance> clusterSupportZones =
-        saved.stream()
-            .filter(
-                sr ->
-                    sr.getZoneBottom().compareTo(new BigDecimal("100.0000")) == 0
-                        || (sr.getZoneBottom().compareTo(new BigDecimal("99.5000")) >= 0
-                            && sr.getZoneBottom().compareTo(new BigDecimal("100.5000")) <= 0))
-            .toList();
-
-    assertEquals(1, clusterSupportZones.size(), "Exactly ONE unified support zone should be preserved via NMS");
-    DailySupportResistance unifiedZone = clusterSupportZones.getFirst();
-    assertEquals(5, unifiedZone.getTouchCount(), "Unified zone should capture all 5 clustered touches");
-    assertEquals("SUPPORT", unifiedZone.getLevelType(), "Zone below latest close should be classified as SUPPORT");
-  }
-
-  @Test
-  void testAtrScaledZoneWidths() {
-    // AC-2: High-volatility stock (ATR = $6.00) -> width = $3.00
-    // Low-volatility stock (ATR = $0.40) -> width = $0.20
-    List<PriceBar> highVolBars = new ArrayList<>();
-    for (int i = 0; i < 14; i++) {
-      highVolBars.add(
-          new PriceBar(
-              EPOCH.plusDays(i),
-              new BigDecimal("100.00"),
-              new BigDecimal("106.00"),
-              new BigDecimal("100.00"),
-              new BigDecimal("103.00"),
-              BigDecimal.TEN));
-    }
-    BigDecimal highVolAtr = calculator.calculateAtr(highVolBars, 14);
-    assertEquals(new BigDecimal("6.0000"), highVolAtr);
-
-    List<Bucket> highVolBuckets = calculator.computeBuckets(highVolBars);
-    assertFalse(highVolBuckets.isEmpty());
-    highVolBuckets.forEach(
-        bucket ->
-            assertEquals(
-                new BigDecimal("3.0000"),
-                bucket.getTop().subtract(bucket.getBottom()).setScale(4, RoundingMode.HALF_UP)));
-
-    List<PriceBar> lowVolBars = new ArrayList<>();
-    for (int i = 0; i < 14; i++) {
-      lowVolBars.add(
-          new PriceBar(
-              EPOCH.plusDays(i),
-              new BigDecimal("100.00"),
-              new BigDecimal("100.40"),
-              new BigDecimal("100.00"),
-              new BigDecimal("100.20"),
-              BigDecimal.TEN));
-    }
-    BigDecimal lowVolAtr = calculator.calculateAtr(lowVolBars, 14);
-    assertEquals(new BigDecimal("0.4000"), lowVolAtr);
-
-    List<Bucket> lowVolBuckets = calculator.computeBuckets(lowVolBars);
-    assertFalse(lowVolBuckets.isEmpty());
-    lowVolBuckets.forEach(
-        bucket ->
-            assertEquals(
-                new BigDecimal("0.2000"),
-                bucket.getTop().subtract(bucket.getBottom()).setScale(4, RoundingMode.HALF_UP)));
-  }
-
-  @Test
-  void testNonMaximumSuppressionSuppressesOverlappingLowerTouchBucket() {
-    // AC-3: Candidate buckets with 4 and 3 touches sharing 60% overlap
-    Bucket fourTouchBucket =
-        new Bucket(EPOCH, new BigDecimal("100.00"), new BigDecimal("101.00"), LevelType.SUPPORT);
-    for (int i = 0; i < 4; i++) {
-      fourTouchBucket.incrementTouchCount(EPOCH.plusDays(i));
-    }
-
-    Bucket threeTouchOverlap60 =
-        new Bucket(EPOCH, new BigDecimal("100.40"), new BigDecimal("101.40"), LevelType.SUPPORT);
-    for (int i = 0; i < 3; i++) {
-      threeTouchOverlap60.incrementTouchCount(EPOCH.plusDays(i));
-    }
-
-    Bucket threeTouchOverlap30 =
-        new Bucket(EPOCH, new BigDecimal("100.70"), new BigDecimal("101.70"), LevelType.SUPPORT);
-    for (int i = 0; i < 3; i++) {
-      threeTouchOverlap30.incrementTouchCount(EPOCH.plusDays(i));
-    }
-
-    Bucket threeTouchNoOverlap =
-        new Bucket(EPOCH, new BigDecimal("105.00"), new BigDecimal("106.00"), LevelType.RESISTANCE);
-    for (int i = 0; i < 3; i++) {
-      threeTouchNoOverlap.incrementTouchCount(EPOCH.plusDays(i));
-    }
-
-    List<Bucket> candidates = List.of(threeTouchOverlap60, fourTouchBucket, threeTouchOverlap30, threeTouchNoOverlap);
-    List<Bucket> suppressed = calculator.applyNonMaximumSuppression(candidates);
-
-    assertTrue(suppressed.contains(fourTouchBucket), "4-touch bucket should be preserved");
-    assertFalse(suppressed.contains(threeTouchOverlap60), "3-touch bucket with 60% overlap must be suppressed");
-    assertTrue(suppressed.contains(threeTouchOverlap30), "3-touch bucket with 30% overlap should NOT be suppressed");
-    assertTrue(suppressed.contains(threeTouchNoOverlap), "Non-overlapping bucket should be preserved");
-  }
-
-  @Test
-  void testDailyCloseRoleReversalClassification() {
-    // AC-4: Proven zone at midpoint $101.00 with candle closing at $105.00 -> SUPPORT
-    // Proven zone at midpoint $106.00 with candle closing at $105.00 -> RESISTANCE
-    List<PriceBar> bars = new ArrayList<>();
-    // Generate 14 bars to satisfy ATR requirement
-    for (int i = 0; i < 13; i++) {
-      bars.add(
-          new PriceBar(
-              EPOCH.plusDays(i),
-              new BigDecimal("100.00"),
-              new BigDecimal("106.50"),
-              new BigDecimal("100.50"),
-              new BigDecimal("103.00"),
-              BigDecimal.TEN));
-    }
-    // Bar 13: Closes at 105.00
-    bars.add(
-        new PriceBar(
-            EPOCH.plusDays(13),
-            new BigDecimal("103.00"),
-            new BigDecimal("106.50"),
-            new BigDecimal("100.50"),
-            new BigDecimal("105.00"),
-            BigDecimal.TEN));
-
-    List<Bucket> buckets = calculator.computeBuckets(bars);
-
-    for (Bucket bucket : buckets) {
-      if (bucket.getMidpoint().compareTo(new BigDecimal("105.00")) < 0) {
-        assertEquals(LevelType.SUPPORT, bucket.getLevelType(), "Midpoint below close should be SUPPORT");
-      } else {
-        assertEquals(LevelType.RESISTANCE, bucket.getLevelType(), "Midpoint above or equal close should be RESISTANCE");
-      }
-    }
-  }
-
-  @Test
-  void testCatastrophicGapBreachDoesNotAwardTouch() {
-    // AC-5: Catastrophic earnings gap through support [$100.00, $102.00] with Low = $94.50 and Close = $95.00
-    Bucket supportBucket =
-        new Bucket(EPOCH, new BigDecimal("100.00"), new BigDecimal("102.00"), LevelType.SUPPORT);
-    supportBucket.incrementTouchCount(EPOCH);
-    assertEquals(1, supportBucket.getTouchCount());
-    assertEquals(0, supportBucket.getConsecutiveBreachCount());
-
-    PriceBar catastrophicGapBar =
-        new PriceBar(
-            EPOCH.plusDays(1),
-            new BigDecimal("96.00"),
-            new BigDecimal("96.00"),
-            new BigDecimal("94.50"),
-            new BigDecimal("95.00"),
-            BigDecimal.TEN);
-
-    // Run existing touch and breach logic manually on the bucket
-    boolean inTouchRange =
-        catastrophicGapBar.low().compareTo(supportBucket.getBottom()) >= 0
-            && catastrophicGapBar.low().compareTo(supportBucket.getTop()) <= 0;
-    assertFalse(inTouchRange, "Catastrophic low should not be within defended support zone");
-
-    boolean isBreach = catastrophicGapBar.close().compareTo(supportBucket.getBottom()) < 0;
-    assertTrue(isBreach, "Close below support floor constitutes a breach");
-
-    if (isBreach) {
-      supportBucket.incrementConsecutiveBreachCount();
-    }
-
-    assertEquals(1, supportBucket.getTouchCount(), "Touch count must NOT increment during catastrophic gap");
-    assertEquals(1, supportBucket.getConsecutiveBreachCount(), "Consecutive breach count must increment to 1");
-  }
-
-  @Test
-  void testAtrFallbackWhenFewerThan14Bars() {
-    // AC-6: Fewer than 14 bars falls back safely to percentage-based width without throwing exceptions
-    List<PriceBar> shortBars = new ArrayList<>();
-    for (int i = 0; i < 5; i++) {
-      shortBars.add(
-          new PriceBar(
-              EPOCH.plusDays(i),
-              new BigDecimal("100.00"),
-              new BigDecimal("105.00"),
-              new BigDecimal("95.00"),
-              new BigDecimal("100.00"),
-              BigDecimal.TEN));
-    }
-
-    assertDoesNotThrow(() -> calculator.computeBuckets(shortBars));
-    List<Bucket> buckets = calculator.computeBuckets(shortBars);
-    assertNotNull(buckets);
-  }
-
-  @Test
-  void testCalculateAtrWithMoreThanFourteenBars() {
-    // Exercises startIndex > 0 in calculateAtr
-    List<PriceBar> fifteenBars = new ArrayList<>();
-    for (int i = 0; i < 15; i++) {
-      fifteenBars.add(
-          new PriceBar(
-              EPOCH.plusDays(i),
-              new BigDecimal("100.00"),
-              new BigDecimal("102.00"),
-              new BigDecimal("98.00"),
-              new BigDecimal("100.00"),
-              BigDecimal.TEN));
-    }
-    BigDecimal atr = calculator.calculateAtr(fifteenBars, 14);
-    assertEquals(new BigDecimal("4.0000"), atr);
-  }
-
-  private DailyPrice createBar(int dayOffset, String open, String high, String low, String close) {
-    return DailyPrice.builder()
-        .ticker(ticker)
-        .priceDate(EPOCH.plusDays(dayOffset))
-        .priceOpen(new BigDecimal(open))
-        .priceHigh(new BigDecimal(high))
-        .priceLow(new BigDecimal(low))
-        .priceClose(new BigDecimal(close))
-        .volume(BigDecimal.TEN)
-        .build();
-  }
-
-  private List<DailyPrice> createDailyBars(int count) {
-    List<DailyPrice> bars = new ArrayList<>();
-    for (int i = 0; i < count; i++) {
-      bars.add(
-          DailyPrice.builder()
-              .ticker(ticker)
-              .priceDate(EPOCH.plusDays(i))
-              .priceOpen(new BigDecimal("100.00"))
-              .priceHigh(new BigDecimal("105.00"))
-              .priceLow(new BigDecimal("95.00"))
-              .priceClose(new BigDecimal("100.00"))
-              .volume(new BigDecimal("1000"))
-              .build());
-    }
-    return bars;
-  }
-
-  private List<WeeklyPrice> createWeeklyBars(int count) {
-    List<WeeklyPrice> bars = new ArrayList<>();
-    for (int i = 0; i < count; i++) {
-      bars.add(
-          WeeklyPrice.builder()
-              .ticker(ticker)
-              .priceDate(EPOCH.plusWeeks(i))
-              .priceOpen(new BigDecimal("100.00"))
-              .priceHigh(new BigDecimal("105.00"))
-              .priceLow(new BigDecimal("95.00"))
-              .priceClose(new BigDecimal("100.00"))
-              .volume(new BigDecimal("5000"))
-              .build());
-    }
-    return bars;
+            () -> deleteMethod.invoke(calculator, ticker, EPOCH, (Timeframe) null));
+    assertTrue(deleteException.getCause() instanceof IllegalArgumentException);
+
+    Method saveMethod =
+        SupportResistanceCalculator.class.getDeclaredMethod(
+            "saveSupportResistances", Ticker.class, List.class, Timeframe.class);
+    saveMethod.setAccessible(true);
+    Bucket sampleBucket =
+        new Bucket(
+            EPOCH,
+            new BigDecimal("100.0000"),
+            new BigDecimal("110.0000"),
+            LevelType.SUPPORT,
+            2,
+            EPOCH,
+            EPOCH);
+    InvocationTargetException saveException =
+        assertThrows(
+            InvocationTargetException.class,
+            () -> saveMethod.invoke(calculator, ticker, List.of(sampleBucket), (Timeframe) null));
+    assertTrue(saveException.getCause() instanceof IllegalArgumentException);
   }
 }
