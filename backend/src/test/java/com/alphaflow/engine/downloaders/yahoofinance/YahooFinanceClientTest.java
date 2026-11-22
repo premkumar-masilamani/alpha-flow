@@ -43,24 +43,10 @@ class YahooFinanceClientTest {
           }
         });
 
-    byte[] noDataJson =
+    byte[] badRequestJson =
         ("{\"chart\":{\"result\":null,\"error\":{\"code\":\"Bad Request\","
                 + "\"description\":\"Data doesn't exist for startDate = 1795219200, "
                 + "endDate = 1795285800\"}}}")
-            .getBytes(StandardCharsets.UTF_8);
-    server.createContext(
-        "/no-data",
-        exchange -> {
-          exchange.getResponseHeaders().set("Content-Type", "application/json");
-          exchange.sendResponseHeaders(400, noDataJson.length);
-          try (OutputStream os = exchange.getResponseBody()) {
-            os.write(noDataJson);
-          }
-        });
-
-    byte[] badRequestJson =
-        ("{\"chart\":{\"result\":null,\"error\":{\"code\":\"Bad Request\","
-                + "\"description\":\"Invalid symbol\"}}}")
             .getBytes(StandardCharsets.UTF_8);
     server.createContext(
         "/bad-request",
@@ -126,9 +112,9 @@ class YahooFinanceClientTest {
   }
 
   @Test
-  void testFetchDailyPricesHolidayOrWeekendNoDataReturnsEmptyGracefully() {
+  void testFetchDailyPricesBadRequestReturnsEmpty() {
     YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl(baseUrl + "/no-data?symbol={symbol}&start={start}&end={end}");
+    config.setDownloadUrl(baseUrl + "/bad-request?symbol={symbol}&start={start}&end={end}");
 
     YahooFinanceClient client = new YahooFinanceClient(config);
 
@@ -138,22 +124,6 @@ class YahooFinanceClientTest {
     ticker.setCountry(Country.IN);
 
     List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1795219200L, 1795285800L);
-    assertTrue(prices.isEmpty());
-  }
-
-  @Test
-  void testFetchDailyPricesGenericBadRequestReturnsEmpty() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl(baseUrl + "/bad-request?symbol={symbol}&start={start}&end={end}");
-
-    YahooFinanceClient client = new YahooFinanceClient(config);
-
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("INVALID");
-    ticker.setCountry(Country.US);
-
-    List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1000L, 2000L);
     assertTrue(prices.isEmpty());
   }
 

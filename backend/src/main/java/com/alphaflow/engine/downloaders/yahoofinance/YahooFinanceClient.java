@@ -10,10 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -26,7 +24,6 @@ public class YahooFinanceClient {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
   private static final String ACCEPT_HEADER = "Accept";
   private static final String ACCEPT_JSON = "application/json";
-  private static final String NO_DATA_ERROR_MESSAGE = "Data doesn't exist";
 
   private final YahooFinanceConfig config;
   private final RestClient restClient;
@@ -60,29 +57,11 @@ public class YahooFinanceClient {
       try {
         String json = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
         return YahooResponseParser.parse(json, ticker);
-      } catch (HttpClientErrorException.BadRequest badRequestException) {
-        String responseBody = badRequestException.getResponseBodyAsString();
-        if (Strings.CI.contains(responseBody, NO_DATA_ERROR_MESSAGE)) {
-          log.info(
-              "No Yahoo Finance trading data available for {} in requested window ({} to {}); "
-                  + "likely a weekend or exchange holiday.",
-              ticker.getTickerSymbol(),
-              startTs,
-              endTs);
-        } else {
-          log.error(
-              "Failed to download Yahoo Finance data for {}: {}",
-              ticker.getTickerSymbol(),
-              badRequestException.getMessage(),
-              badRequestException);
-        }
-        return Collections.emptyList();
       } catch (RestClientException | IOException exception) {
         log.error(
             "Failed to download Yahoo Finance data for {}: {}",
             ticker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
+            exception.getMessage());
         return Collections.emptyList();
       }
     } else {
