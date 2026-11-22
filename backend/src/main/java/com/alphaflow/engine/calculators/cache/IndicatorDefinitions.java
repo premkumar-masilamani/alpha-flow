@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class IndicatorDefinitions {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(IndicatorDefinitions.class);
+  private static final Logger logger = LoggerFactory.getLogger(IndicatorDefinitions.class);
 
   private final IndicatorDefinitionRepository indicatorDefinitionRepository;
   private final List<IndicatorDefinition> cachedDefinitions = new ArrayList<>();
@@ -29,12 +29,12 @@ public class IndicatorDefinitions {
   }
 
   public synchronized void loadFromDatabase() {
-    LOGGER.info("Loading indicator definitions from database...");
+    logger.info("Loading indicator definitions from database...");
     List<IndicatorDefinition> all = indicatorDefinitionRepository.findAll();
 
     cachedDefinitions.clear();
     cachedDefinitions.addAll(all);
-    LOGGER.info("Successfully loaded and cached {} indicator definitions.", all.size());
+    logger.info("Successfully loaded and cached {} indicator definitions.", all.size());
   }
 
   public List<IndicatorDefinition> getDefinitions() {

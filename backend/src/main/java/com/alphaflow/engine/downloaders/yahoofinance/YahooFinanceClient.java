@@ -25,14 +25,11 @@ public class YahooFinanceClient {
   private static final String ACCEPT_HEADER = "Accept";
   private static final String ACCEPT_JSON = "application/json";
 
-  private final YahooFinanceConfig config;
   private final RestClient restClient;
 
   @Autowired
   public YahooFinanceClient(
-      YahooFinanceConfig config,
       @Autowired(required = false) RestClient.Builder restClientBuilder) {
-    this.config = config;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder())
             .defaultHeader(USER_AGENT_HEADER, USER_AGENT_VALUE)
@@ -40,23 +37,30 @@ public class YahooFinanceClient {
             .build();
   }
 
-  public YahooFinanceClient(YahooFinanceConfig config) {
-    this(config, null);
-  }
-
   public List<DailyPrice> fetchDailyPrices(Ticker ticker, long startTs, long endTs) {
     if (ticker != null) {
       String encodedSymbol = URLEncoder.encode(ticker.getTickerSymbol(), StandardCharsets.UTF_8);
       String url =
-          config
-              .getDownloadUrl()
+          YahooFinanceConfig.DOWNLOAD_URL
               .replace("{symbol}", encodedSymbol)
               .replace("{start}", String.valueOf(startTs))
               .replace("{end}", String.valueOf(endTs));
 
+      log.debug(
+          "Fetching Yahoo Finance daily prices for {} (startTs={}, endTs={}, url={})",
+          ticker.getTickerSymbol(),
+          startTs,
+          endTs,
+          url);
+
       try {
         String json = restClient.get().uri(URI.create(url)).retrieve().body(String.class);
-        return YahooResponseParser.parse(json, ticker);
+        List<DailyPrice> parsedPrices = YahooResponseParser.parse(json, ticker);
+        log.debug(
+            "Fetched and parsed {} daily price records from Yahoo Finance for {}",
+            parsedPrices.size(),
+            ticker.getTickerSymbol());
+        return parsedPrices;
       } catch (RestClientException | IOException exception) {
         log.error(
             "Failed to download Yahoo Finance data for {}: {}",

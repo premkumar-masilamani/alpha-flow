@@ -42,6 +42,13 @@ public class CandlestickPatternService {
     LocalDate endDate = LocalDate.now();
     PageRequest pageRequest = PageRequest.of(page, size);
 
+    log.debug(
+        "Fetching {} candlestick patterns for ticker {} (page={}, size={})",
+        timeframe,
+        ticker.getTickerSymbol(),
+        page,
+        size);
+
     List<LocalDate> pageDates;
     if (timeframe == Timeframe.DAILY) {
       pageDates = dailyPriceRepository.findRecentPriceDatesUpTo(ticker, endDate, pageRequest);
@@ -53,6 +60,12 @@ public class CandlestickPatternService {
     }
 
     if (pageDates.isEmpty()) {
+      log.debug(
+          "No {} price dates found for ticker {} (page={}, size={}); returning empty patterns.",
+          timeframe,
+          ticker.getTickerSymbol(),
+          page,
+          size);
       return List.of();
     }
 
@@ -60,13 +73,31 @@ public class CandlestickPatternService {
     LocalDate end = pageDates.getFirst();
 
     if (timeframe == Timeframe.DAILY) {
-      return dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
-          .toList();
+      List<CandlestickPatternDto> patterns =
+          dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
+              .map(
+                  record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
+              .toList();
+      log.debug(
+          "Retrieved {} DAILY candlestick patterns for ticker {} between {} and {}",
+          patterns.size(),
+          ticker.getTickerSymbol(),
+          start,
+          end);
+      return patterns;
     } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-          .map(record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
-          .toList();
+      List<CandlestickPatternDto> patterns =
+          weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
+              .map(
+                  record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
+              .toList();
+      log.debug(
+          "Retrieved {} WEEKLY candlestick patterns for ticker {} between {} and {}",
+          patterns.size(),
+          ticker.getTickerSymbol(),
+          start,
+          end);
+      return patterns;
     } else {
       log.error("Unsupported timeframe for fetching candlestick patterns: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

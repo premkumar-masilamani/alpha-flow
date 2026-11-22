@@ -30,14 +30,33 @@ public class SupportResistanceService {
 
   public List<SupportResistanceDto> getSupportResistances(
       Ticker ticker, Timeframe timeframe, LocalDate date) {
+    log.debug(
+        "Fetching {} S&R zones for ticker {} on date {}",
+        timeframe,
+        ticker.getTickerSymbol(),
+        date);
     if (timeframe == Timeframe.DAILY) {
-      return dailySupportResistanceRepository.findByTickerAndPriceDate(ticker, date).stream()
-          .map(this::toDto)
-          .toList();
+      List<SupportResistanceDto> zones =
+          dailySupportResistanceRepository.findByTickerAndPriceDate(ticker, date).stream()
+              .map(this::toDto)
+              .toList();
+      log.debug(
+          "Retrieved {} DAILY S&R zones for ticker {} on {}",
+          zones.size(),
+          ticker.getTickerSymbol(),
+          date);
+      return zones;
     } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklySupportResistanceRepository.findByTickerAndPriceDate(ticker, date).stream()
-          .map(this::toDto)
-          .toList();
+      List<SupportResistanceDto> zones =
+          weeklySupportResistanceRepository.findByTickerAndPriceDate(ticker, date).stream()
+              .map(this::toDto)
+              .toList();
+      log.debug(
+          "Retrieved {} WEEKLY S&R zones for ticker {} on {}",
+          zones.size(),
+          ticker.getTickerSymbol(),
+          date);
+      return zones;
     } else {
       log.error("Unsupported timeframe for support resistance: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

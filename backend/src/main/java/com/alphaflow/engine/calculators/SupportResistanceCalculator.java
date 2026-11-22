@@ -40,7 +40,6 @@ public class SupportResistanceCalculator {
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
-  private final SupportResistanceConfig supportResistanceConfig;
   private final DowAtrSwingDetector dowAtrSwingDetector;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
@@ -51,14 +50,12 @@ public class SupportResistanceCalculator {
       WeeklyPriceRepository weeklyPriceRepository,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository,
-      SupportResistanceConfig supportResistanceConfig,
       DowAtrSwingDetector dowAtrSwingDetector) {
     this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
-    this.supportResistanceConfig = supportResistanceConfig;
     this.dowAtrSwingDetector = dowAtrSwingDetector;
   }
 
@@ -92,13 +89,30 @@ public class SupportResistanceCalculator {
       LocalDate priceDate = priceBars.getLast().date();
       if (!isAlreadyComputed(ticker, priceDate, timeframe)) {
         LocalDate cutoffDate =
-            priceDate.minusDays(supportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
+            priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
+        log.debug(
+            "Purging {} S&R records older than {} for ticker {}.",
+            timeframe,
+            cutoffDate,
+            ticker.getTickerSymbol());
         deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
 
         List<Bucket> buckets = computeBuckets(priceBars);
 
         if (!buckets.isEmpty()) {
           saveSupportResistances(ticker, buckets, timeframe);
+          log.info(
+              "Saved {} {} S&R zones for ticker {} (priceDate={}).",
+              buckets.size(),
+              timeframe,
+              ticker.getTickerSymbol(),
+              priceDate);
+        } else {
+          log.debug(
+              "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
+              timeframe,
+              ticker.getTickerSymbol(),
+              priceDate);
         }
       } else {
         log.debug(
@@ -107,32 +121,41 @@ public class SupportResistanceCalculator {
             timeframe,
             priceDate);
       }
+    } else {
+      log.debug(
+          "No {} price bars found for ticker {}; skipping S&R computation.",
+          timeframe,
+          ticker.getTickerSymbol());
     }
   }
 
   public List<Bucket> computeBuckets(List<PriceBar> bars) {
-    int atrPeriod = supportResistanceConfig.getAtrPeriod();
     List<SwingPoint> swings =
         dowAtrSwingDetector.detectSwings(
-            bars, atrPeriod, supportResistanceConfig.getSwingAtrMultiplier());
+            bars, SupportResistanceConfig.ATR_PERIOD, SupportResistanceConfig.SWING_ATR_MULTIPLIER);
 
-    if (swings.size() >= supportResistanceConfig.getMinTouchCount()) {
-      List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, atrPeriod);
+    if (swings.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
+      List<BigDecimal> atrSeries =
+          IndicatorMath.calculateWilderAtrSeries(bars, SupportResistanceConfig.ATR_PERIOD);
       BigDecimal latestAtr = atrSeries.getLast();
-      BigDecimal zoneWidth = latestAtr.multiply(supportResistanceConfig.getZoneAtrMultiplier());
+      BigDecimal zoneWidth = latestAtr.multiply(SupportResistanceConfig.ZONE_ATR_MULTIPLIER);
 
-      if (zoneWidth.signum() > 0) {
-        List<Bucket> candidates = buildCandidateZones(bars, atrSeries, swings, zoneWidth);
-        return applyNonOverlappingSuppression(candidates);
-      } else {
-        log.debug("Computed zone width is non-positive ({}); skipping S&R generation.", zoneWidth);
-        return List.of();
-      }
+      List<Bucket> candidates = buildCandidateZones(bars, atrSeries, swings, zoneWidth);
+      List<Bucket> selected = applyNonOverlappingSuppression(candidates);
+      log.debug(
+          "S&R zone computation completed: {} swings -> {} surviving candidates -> {} final zones "
+              + "(latestAtr={}, zoneWidth={}).",
+          swings.size(),
+          candidates.size(),
+          selected.size(),
+          IndicatorMath.publish(latestAtr),
+          IndicatorMath.publish(zoneWidth));
+      return selected;
     } else {
       log.debug(
           "Insufficient confirmed Dow swings ({} < {}) to form S&R zones.",
           swings.size(),
-          supportResistanceConfig.getMinTouchCount());
+          SupportResistanceConfig.MIN_TOUCH_COUNT);
       return List.of();
     }
   }
@@ -171,7 +194,6 @@ public class SupportResistanceCalculator {
       List<SwingPoint> swings,
       BigDecimal zoneWidth) {
     BigDecimal halfZone = IndicatorMath.divide(zoneWidth, BigDecimal.valueOf(2));
-    int minTouchCount = supportResistanceConfig.getMinTouchCount();
 
     List<Bucket> candidates = new ArrayList<>();
     for (SwingPoint anchor : swings) {
@@ -188,7 +210,7 @@ public class SupportResistanceCalculator {
         }
       }
 
-      if (members.size() >= minTouchCount) {
+      if (members.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
         BigDecimal initialCentroid =
             IndicatorMath.divide(sumPrice, BigDecimal.valueOf(members.size()));
         BigDecimal initialBottom = IndicatorMath.publish(initialCentroid.subtract(halfZone));
@@ -206,9 +228,10 @@ public class SupportResistanceCalculator {
 
   /**
    * Evaluates a candidate zone chronologically from its first pivot to the latest bar using
-   * volatility-confirmed breaches ({@code breachAtrMultiplier * ATR[i]}). Forgives minor false
-   * breakouts up to {@code maxFalseBreakouts}, allows up to {@code maxAllowedFlips} clean polarity
-   * flips, and resets active touch history whenever a zone is decisively broken or whipsawed.
+   * volatility-confirmed breaches ({@code BREACH_ATR_MULTIPLIER * ATR[i]}). Forgives minor false
+   * breakouts up to {@code MAX_FALSE_BREAKOUTS}, allows up to {@code MAX_ALLOWED_FLIPS} clean
+   * polarity flips, and resets active touch history whenever a zone is decisively broken or
+   * whipsawed.
    */
   private Bucket evaluateZoneLifecycle(
       List<PriceBar> bars,
@@ -221,10 +244,6 @@ public class SupportResistanceCalculator {
     for (SwingPoint member : members) {
       membersByBarIndex.put(member.barIndex(), member);
     }
-
-    BigDecimal breachMultiplier = supportResistanceConfig.getBreachAtrMultiplier();
-    int maxAllowedFlips = supportResistanceConfig.getMaxAllowedFlips();
-    int maxFalseBreakouts = supportResistanceConfig.getMaxFalseBreakouts();
 
     List<SwingPoint> activeMembers = new ArrayList<>();
     LevelType activeRole = null;
@@ -244,7 +263,7 @@ public class SupportResistanceCalculator {
 
       if (!activeMembers.isEmpty()) {
         BigDecimal barClose = bars.get(i).close();
-        BigDecimal breachMargin = atrSeries.get(i).multiply(breachMultiplier);
+        BigDecimal breachMargin = atrSeries.get(i).multiply(SupportResistanceConfig.BREACH_ATR_MULTIPLIER);
         boolean isDecisiveBreach;
         boolean isMildBreach;
 
@@ -257,7 +276,7 @@ public class SupportResistanceCalculator {
         }
 
         if (isDecisiveBreach) {
-          if (flipCount < maxAllowedFlips) {
+          if (flipCount < SupportResistanceConfig.MAX_ALLOWED_FLIPS) {
             flipCount++;
             activeRole =
                 (activeRole == LevelType.SUPPORT) ? LevelType.RESISTANCE : LevelType.SUPPORT;
@@ -275,7 +294,7 @@ public class SupportResistanceCalculator {
         } else if (inMildBreach) {
           falseBreakoutCount++;
           inMildBreach = false;
-          if (falseBreakoutCount > maxFalseBreakouts) {
+          if (falseBreakoutCount > SupportResistanceConfig.MAX_FALSE_BREAKOUTS) {
             activeMembers.clear();
             activeRole = null;
             flipCount = 0;
@@ -285,7 +304,7 @@ public class SupportResistanceCalculator {
       }
     }
 
-    if (activeMembers.size() >= supportResistanceConfig.getMinTouchCount()) {
+    if (activeMembers.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
       BigDecimal activeSum = BigDecimal.ZERO;
       for (SwingPoint activeMember : activeMembers) {
         activeSum = activeSum.add(activeMember.price());

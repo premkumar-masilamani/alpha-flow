@@ -8,15 +8,11 @@ import org.junit.jupiter.api.Test;
 class YahooFinanceConfigTest {
 
   @Test
-  void testConfigProperties() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-
-    config.setDownloadUrl("https://example.com");
-    config.setDelayMilliseconds(1000L);
-    config.setBackfillStartDate(LocalDate.of(2000, 1, 1));
-
-    assertEquals("https://example.com", config.getDownloadUrl());
-    assertEquals(1000L, config.getDelayMilliseconds());
-    assertEquals(LocalDate.of(2000, 1, 1), config.getBackfillStartDate());
+  void testConfigConstants() {
+    assertEquals(
+        "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?period1={start}&period2={end}&interval=1d",
+        YahooFinanceConfig.DOWNLOAD_URL);
+    assertEquals(1000L, YahooFinanceConfig.DELAY_MILLISECONDS);
+    assertEquals(LocalDate.of(1900, 1, 1), YahooFinanceConfig.BACKFILL_START_DATE);
   }
 }

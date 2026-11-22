@@ -7,6 +7,7 @@ import com.alphaflow.engine.structure.enums.SwingType;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
  * S/R, angular trendlines, and classical chart pattern recognition.
  */
 @Component
+@Slf4j
 public class DowAtrSwingDetector {
 
   /**
@@ -34,8 +36,20 @@ public class DowAtrSwingDetector {
         && swingAtrMultiplier.signum() > 0
         && bars.size() > atrPeriod) {
       List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, atrPeriod);
-      return runWaveStateMachine(bars, atrSeries, atrPeriod, swingAtrMultiplier);
+      List<SwingPoint> swings = runWaveStateMachine(bars, atrSeries, atrPeriod, swingAtrMultiplier);
+      log.debug(
+          "Detected {} confirmed Dow-ATR swings across {} bars (atrPeriod={}, multiplier={}).",
+          swings.size(),
+          bars.size(),
+          atrPeriod,
+          swingAtrMultiplier);
+      return swings;
     } else {
+      log.debug(
+          "Skipping Dow-ATR swing detection due to invalid parameters or insufficient bars "
+              + "(atrPeriod={}, multiplier={}).",
+          atrPeriod,
+          swingAtrMultiplier);
       return List.of();
     }
   }

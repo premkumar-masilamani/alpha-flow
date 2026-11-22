@@ -47,8 +47,6 @@ class SupportResistanceCalculatorTest {
   private WeeklyPriceRepository weeklyPriceRepo;
   private DailySupportResistanceRepository dailySrRepo;
   private WeeklySupportResistanceRepository weeklySrRepo;
-  private SupportResistanceConfig config;
-  private DowAtrSwingDetector swingDetector;
   private SupportResistanceCalculator calculator;
   private Ticker ticker;
 
@@ -59,12 +57,6 @@ class SupportResistanceCalculatorTest {
     weeklyPriceRepo = mock(WeeklyPriceRepository.class);
     dailySrRepo = mock(DailySupportResistanceRepository.class);
     weeklySrRepo = mock(WeeklySupportResistanceRepository.class);
-    config = new SupportResistanceConfig();
-    config.setAtrPeriod(3);
-    config.setSwingAtrMultiplier(new BigDecimal("2.0"));
-    config.setZoneAtrMultiplier(new BigDecimal("1.0"));
-    config.setMinTouchCount(2);
-    swingDetector = new DowAtrSwingDetector();
 
     calculator =
         new SupportResistanceCalculator(
@@ -73,8 +65,7 @@ class SupportResistanceCalculatorTest {
             weeklyPriceRepo,
             dailySrRepo,
             weeklySrRepo,
-            config,
-            swingDetector);
+            new DowAtrSwingDetector());
 
     ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
   }
@@ -87,6 +78,13 @@ class SupportResistanceCalculatorTest {
         BigDecimal.valueOf(low),
         BigDecimal.valueOf(close),
         BigDecimal.TEN);
+  }
+
+  /** Appends {@code ATR_PERIOD} steady 10-point seed bars centered around {@code basePrice}. */
+  private void appendSeedBars(List<PriceBar> bars, int basePrice) {
+    for (int i = 0; i < SupportResistanceConfig.ATR_PERIOD; i++) {
+      bars.add(bar(bars.size(), basePrice, basePrice + 5, basePrice - 5, basePrice));
+    }
   }
 
   /** Appends steady 10-point bars stepping from {@code startPrice} to {@code endPrice}. */
@@ -130,28 +128,18 @@ class SupportResistanceCalculatorTest {
   }
 
   /**
-   * Builds a steady 10-point-ATR series forming:
+   * Builds a steady 10-point-ATR series using production {@code ATR_PERIOD = 14}, forming:
    * - Swing High #1 = 150, Swing High #2 = 151 (cluster around 150.5, zone ~ [145.5, 155.5])
    * - Swing Low #1 = 100, Swing Low #2 = 101 (cluster around 100.5, zone ~ [95.5, 105.5])
-   * Ends at {@code finalClose} via a steady multi-bar leg (preserving ATR ~ 10).
    */
   private List<PriceBar> buildOscillatingBars(int finalClose) {
     List<PriceBar> bars = new ArrayList<>();
-    // Seed ATR(3) = 10
-    bars.add(bar(0, 120, 125, 115, 120));
-    bars.add(bar(1, 120, 125, 115, 120));
-    bars.add(bar(2, 120, 125, 115, 120));
-    // Leg 1: 120 -> 150 (Peak #1 = 150)
+    appendSeedBars(bars, 120);
     appendLeg(bars, 120, 150);
-    // Leg 2: 150 -> 100 (confirms Peak #1 = 150; Trough #1 = 100)
     appendLeg(bars, 150, 100);
-    // Leg 3: 100 -> 151 (confirms Trough #1 = 100; Peak #2 = 151)
     appendLeg(bars, 100, 151);
-    // Leg 4: 151 -> 101 (confirms Peak #2 = 151; Trough #2 = 101)
     appendLeg(bars, 151, 101);
-    // Leg 5: 101 -> 131 (confirms Trough #2 = 101)
     appendLeg(bars, 101, 131);
-    // Final leg to desired close (without triggering a new swing unless intended)
     appendLeg(bars, 131, finalClose);
     return bars;
   }
@@ -257,38 +245,19 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
-  void testComputeBucketsReturnsEmptyWhenZoneWidthIsNonPositive() {
-    config.setZoneAtrMultiplier(BigDecimal.ZERO);
-    List<PriceBar> bars = buildOscillatingBars(125);
-
-    List<Bucket> buckets = calculator.computeBuckets(bars);
-
-    assertTrue(buckets.isEmpty());
-  }
-
-  @Test
   void testPolarityFlipReinforcesZoneAndFlipsRoleOnBreakout() {
     List<PriceBar> bars = new ArrayList<>();
-    bars.add(bar(0, 120, 125, 115, 120));
-    bars.add(bar(1, 120, 125, 115, 120));
-    bars.add(bar(2, 120, 125, 115, 120)); // Seed ATR(3) = 10
-    // Peak #1 at 150
+    appendSeedBars(bars, 120);
     appendLeg(bars, 120, 150);
     final LocalDate peakDate = bars.getLast().date();
-    // Pullback to Trough #1 at 110 (confirms Peak #1 = 150)
     appendLeg(bars, 150, 110);
-    // Breakout rally through 150 to Peak #2 at 200 (confirms Trough #1 = 110)
     appendLeg(bars, 110, 200);
-    // Pullback to Trough #2 at 151 (confirms Peak #2 = 200)
     appendLeg(bars, 200, 151);
     final LocalDate retestDate = bars.getLast().date();
-    // Rally to 185 (confirms Trough #2 = 151 -> clusters with Peak #1 = 150!)
     appendLeg(bars, 151, 185);
 
     List<Bucket> buckets = calculator.computeBuckets(bars);
 
-    // Isolated pivots (110 and 200) have 1 touch (< 2) and are excluded.
-    // Polarity zone around 150.5 has 2 touches (1 HIGH + 1 LOW), and close (185) > top -> SUPPORT!
     assertEquals(1, buckets.size());
     Bucket polarityZone = buckets.getFirst();
     assertEquals(2, polarityZone.getTouchCount());
@@ -300,18 +269,11 @@ class SupportResistanceCalculatorTest {
   @Test
   void testSupportBreaksDownAndFlipsToResistanceOnSingleDecisiveBreach() {
     List<PriceBar> bars = new ArrayList<>();
-    bars.add(bar(0, 180, 185, 175, 180));
-    bars.add(bar(1, 180, 185, 175, 180));
-    bars.add(bar(2, 180, 185, 175, 180)); // Seed ATR(3) = 10
-    // Trough #1 at 150
+    appendSeedBars(bars, 180);
     appendLeg(bars, 180, 150);
-    // Rally to Peak #1 at 190 (confirms Trough #1 = 150)
     appendLeg(bars, 150, 190);
-    // Breakdown through 150 down to Trough #2 at 100 (1st decisive flip: SUPPORT -> RESISTANCE)
     appendLeg(bars, 190, 100);
-    // Retest up to Peak #2 at 149 (confirms Trough #2 = 100; clusters with Trough #1 = 150!)
     appendLeg(bars, 100, 149);
-    // Drop to 115 (confirms Peak #2 = 149)
     appendLeg(bars, 149, 115);
 
     List<Bucket> buckets = calculator.computeBuckets(bars);
@@ -325,27 +287,17 @@ class SupportResistanceCalculatorTest {
   @Test
   void testZoneInvalidatedWhenSlicedThroughBeyondMaxAllowedFlips() {
     List<PriceBar> bars = new ArrayList<>();
-    bars.add(bar(0, 120, 125, 115, 120));
-    bars.add(bar(1, 120, 125, 115, 120));
-    bars.add(bar(2, 120, 125, 115, 120)); // Seed ATR(3) = 10
-    // Peak #1 at 150 (RESISTANCE)
+    appendSeedBars(bars, 120);
     appendLeg(bars, 120, 150);
-    // Pullback to 110 (confirms Peak #1 = 150)
     appendLeg(bars, 150, 110);
-    // Breakout up to 200 (1st decisive crossing: RESISTANCE -> SUPPORT)
     appendLeg(bars, 110, 200);
-    // Pullback to 151 (clusters with 150 -> 2 touches)
     appendLeg(bars, 200, 151);
-    // Rally to 185 (confirms Trough #2 = 151)
     appendLeg(bars, 151, 185);
-    // Collapse cleanly BELOW 150 down to 105 (2nd decisive crossing > maxAllowedFlips=1 -> RESET!)
     appendLeg(bars, 185, 105);
-    // Bounce slightly to 120 (zone ~150 was broken and wiped)
     appendLeg(bars, 105, 120);
 
     List<Bucket> buckets = calculator.computeBuckets(bars);
 
-    // The ~150 zone was sliced through twice (up then down) -> invalidated!
     boolean hasBroken150Zone =
         buckets.stream()
             .anyMatch(
@@ -357,10 +309,7 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testSingleFalseBreakoutForgivenAndSecondFalseBreakoutInvalidatesZone() {
-    // Base oscillating bars have SUPPORT zone around ~100.5 ([~95.5, ~105.5], ATR ~ 10)
-    // A close at 92 is below zoneBottom (~95.5) but above zoneBottom - ATR (~85.5) -> mild breach!
     List<PriceBar> oneFalseBreakoutBars = buildOscillatingBars(105);
-    // Mild dip #1 to 92 then reclaim to 110 (1 false breakout <= maxFalseBreakouts=1 -> forgiven!)
     oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 100, 100, 91, 92));
     oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 92, 104, 92, 103));
     oneFalseBreakoutBars.add(bar(oneFalseBreakoutBars.size(), 103, 112, 102, 110));
@@ -371,7 +320,6 @@ class SupportResistanceCalculatorTest {
             .anyMatch(bucket -> bucket.getMidpoint().compareTo(new BigDecimal("110")) < 0);
     assertTrue(hasSupportAfterOneFbo, "Single false breakout should be forgiven");
 
-    // Mild dip #2 to 92 then reclaim to 110 (2nd false breakout > maxFalseBreakouts=1 -> reset!)
     List<PriceBar> twoFalseBreakoutBars = new ArrayList<>(oneFalseBreakoutBars);
     twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 102, 102, 91, 92));
     twoFalseBreakoutBars.add(bar(twoFalseBreakoutBars.size(), 92, 104, 92, 103));
@@ -387,7 +335,6 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testInsideZoneRetainsLastSwingStructuralRole() {
-    // 1. Price rallies into the ~150.5 zone (close=151, inside [~145.5, ~155.5]) -> stays RESISTANCE
     List<PriceBar> testingResistanceBars = buildOscillatingBars(151);
     List<Bucket> resistanceTestBuckets = calculator.computeBuckets(testingResistanceBars);
     Bucket upperZone = resistanceTestBuckets.getFirst();
@@ -398,7 +345,6 @@ class SupportResistanceCalculatorTest {
         upperZone.getLevelType(),
         "Close inside resistance band without clearing top must remain RESISTANCE");
 
-    // 2. Price pulls back into the ~100.5 zone (close=102, inside [~95.5, ~105.5]) -> stays SUPPORT
     List<PriceBar> testingSupportBars = buildOscillatingBars(102);
     List<Bucket> supportTestBuckets = calculator.computeBuckets(testingSupportBars);
     Bucket lowerZone = supportTestBuckets.getLast();

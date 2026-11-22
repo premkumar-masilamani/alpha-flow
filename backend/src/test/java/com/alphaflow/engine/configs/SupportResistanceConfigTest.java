@@ -10,55 +10,25 @@ import org.junit.jupiter.api.Test;
 class SupportResistanceConfigTest {
 
   @Test
-  void testConfigProperties() {
-    SupportResistanceConfig config = new SupportResistanceConfig();
-
-    assertEquals(14, config.getAtrPeriod());
-    config.setAtrPeriod(20);
-    assertEquals(20, config.getAtrPeriod());
-
-    assertEquals(0, new BigDecimal("2.0").compareTo(config.getSwingAtrMultiplier()));
-    config.setSwingAtrMultiplier(new BigDecimal("2.5"));
-    assertEquals(0, new BigDecimal("2.5").compareTo(config.getSwingAtrMultiplier()));
-
-    assertEquals(0, new BigDecimal("1.0").compareTo(config.getZoneAtrMultiplier()));
-    config.setZoneAtrMultiplier(new BigDecimal("1.5"));
-    assertEquals(0, new BigDecimal("1.5").compareTo(config.getZoneAtrMultiplier()));
-
-    assertEquals(0, new BigDecimal("1.0").compareTo(config.getBreachAtrMultiplier()));
-    config.setBreachAtrMultiplier(new BigDecimal("1.25"));
-    assertEquals(0, new BigDecimal("1.25").compareTo(config.getBreachAtrMultiplier()));
-
-    assertEquals(1, config.getMaxAllowedFlips());
-    config.setMaxAllowedFlips(0);
-    assertEquals(0, config.getMaxAllowedFlips());
-
-    assertEquals(1, config.getMaxFalseBreakouts());
-    config.setMaxFalseBreakouts(2);
-    assertEquals(2, config.getMaxFalseBreakouts());
-
-    assertEquals(2, config.getMinTouchCount());
-    config.setMinTouchCount(3);
-    assertEquals(3, config.getMinTouchCount());
-
-    assertEquals(30, config.getDailyRetentionDays());
-    config.setDailyRetentionDays(45);
-    assertEquals(45, config.getDailyRetentionDays());
-
-    assertEquals(180, config.getWeeklyRetentionDays());
-    config.setWeeklyRetentionDays(90);
-    assertEquals(90, config.getWeeklyRetentionDays());
+  void testConfigConstants() {
+    assertEquals(14, SupportResistanceConfig.ATR_PERIOD);
+    assertEquals(0, new BigDecimal("2.0").compareTo(SupportResistanceConfig.SWING_ATR_MULTIPLIER));
+    assertEquals(0, new BigDecimal("1.0").compareTo(SupportResistanceConfig.ZONE_ATR_MULTIPLIER));
+    assertEquals(0, new BigDecimal("1.0").compareTo(SupportResistanceConfig.BREACH_ATR_MULTIPLIER));
+    assertEquals(1, SupportResistanceConfig.MAX_ALLOWED_FLIPS);
+    assertEquals(1, SupportResistanceConfig.MAX_FALSE_BREAKOUTS);
+    assertEquals(2, SupportResistanceConfig.MIN_TOUCH_COUNT);
+    assertEquals(30, SupportResistanceConfig.DAILY_RETENTION_DAYS);
+    assertEquals(180, SupportResistanceConfig.WEEKLY_RETENTION_DAYS);
   }
 
   @Test
   void testGetRetentionDaysForTimeframe() {
-    SupportResistanceConfig config = new SupportResistanceConfig();
-    config.setDailyRetentionDays(30);
-    config.setWeeklyRetentionDays(180);
+    assertEquals(30, SupportResistanceConfig.getRetentionDaysForTimeframe(Timeframe.DAILY));
+    assertEquals(180, SupportResistanceConfig.getRetentionDaysForTimeframe(Timeframe.WEEKLY));
 
-    assertEquals(30, config.getRetentionDaysForTimeframe(Timeframe.DAILY));
-    assertEquals(180, config.getRetentionDaysForTimeframe(Timeframe.WEEKLY));
-
-    assertThrows(IllegalArgumentException.class, () -> config.getRetentionDaysForTimeframe(null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SupportResistanceConfig.getRetentionDaysForTimeframe(null));
   }
 }

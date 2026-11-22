@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -12,11 +11,13 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 class YahooFinanceClientTest {
@@ -69,12 +70,18 @@ class YahooFinanceClientTest {
     }
   }
 
+  private RestClient.Builder redirectingBuilder(String targetBaseAndPath) {
+    SimpleClientHttpRequestFactory delegate = new SimpleClientHttpRequestFactory();
+    return RestClient.builder()
+        .requestFactory(
+            (uri, httpMethod) ->
+                delegate.createRequest(
+                    URI.create(targetBaseAndPath + "?" + uri.getRawQuery()), httpMethod));
+  }
+
   @Test
   void testFetchDailyPricesValid() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl(baseUrl + "/valid?symbol={symbol}&start={start}&end={end}");
-
-    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceClient client = new YahooFinanceClient(redirectingBuilder(baseUrl + "/valid"));
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -88,8 +95,7 @@ class YahooFinanceClientTest {
 
   @Test
   void testFetchDailyPricesNullTicker() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceClient client = new YahooFinanceClient(null);
 
     List<DailyPrice> prices = client.fetchDailyPrices(null, 1000L, 2000L);
     assertTrue(prices.isEmpty());
@@ -97,10 +103,8 @@ class YahooFinanceClientTest {
 
   @Test
   void testFetchDailyPricesHttpError() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl("http://localhost:1/invalid?symbol={symbol}&start={start}&end={end}");
-
-    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceClient client =
+        new YahooFinanceClient(redirectingBuilder("http://localhost:1/invalid"));
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -113,10 +117,8 @@ class YahooFinanceClientTest {
 
   @Test
   void testFetchDailyPricesBadRequestReturnsEmpty() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    config.setDownloadUrl(baseUrl + "/bad-request?symbol={symbol}&start={start}&end={end}");
-
-    YahooFinanceClient client = new YahooFinanceClient(config);
+    YahooFinanceClient client =
+        new YahooFinanceClient(redirectingBuilder(baseUrl + "/bad-request"));
 
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
@@ -125,12 +127,5 @@ class YahooFinanceClientTest {
 
     List<DailyPrice> prices = client.fetchDailyPrices(ticker, 1795219200L, 1795285800L);
     assertTrue(prices.isEmpty());
-  }
-
-  @Test
-  void testConstructorWithCustomRestClientBuilder() {
-    YahooFinanceConfig config = new YahooFinanceConfig();
-    YahooFinanceClient client = new YahooFinanceClient(config, RestClient.builder());
-    assertNotNull(client);
   }
 }
