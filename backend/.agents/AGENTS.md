@@ -32,6 +32,7 @@ make format
 - Fail fast immediately on application startup or execution if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 - Use Apache Commons Lang `StringUtils` (`org.apache.commons.lang3.StringUtils`) for string blank/empty checks instead of custom utility classes.
 - Use `Map.ofEntries(Map.entry(...))` to construct immutable variable maps for template rendering and request payloads rather than mutating a `HashMap`.
+- Declare all defined constants as `static final` in `UPPER_SNAKE_CASE` (e.g. `public static final int ATR_PERIOD = 14;` or `private static final Logger LOGGER = ...;`). Never leave defined constants as lowercase or non-static instance fields.
 
 ### Ask first
 - Adding third-party libraries/dependencies to `build.gradle`.

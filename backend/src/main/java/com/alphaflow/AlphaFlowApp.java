@@ -12,11 +12,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 public class AlphaFlowApp {
 
-  private static final Logger logger = LoggerFactory.getLogger(AlphaFlowApp.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(AlphaFlowApp.class);
 
   public static void main(String[] args) {
-    logger.info("Starting Alpha Flow Application...");
+    LOGGER.info("Starting Alpha Flow Application...");
     SpringApplication.run(AlphaFlowApp.class, args);
-    logger.info("Alpha Flow Application started successfully.");
+    LOGGER.info("Alpha Flow Application started successfully.");
   }
 }

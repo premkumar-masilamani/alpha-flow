@@ -21,6 +21,13 @@ import org.springframework.web.client.RestClientException;
 @Slf4j
 public class YahooFinanceClient {
 
+  private static final String USER_AGENT_HEADER = "User-Agent";
+  private static final String USER_AGENT_VALUE =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  private static final String ACCEPT_HEADER = "Accept";
+  private static final String ACCEPT_JSON = "application/json";
+  private static final String NO_DATA_ERROR_MESSAGE = "Data doesn't exist";
+
   private final YahooFinanceConfig config;
   private final RestClient restClient;
 
@@ -31,10 +38,8 @@ public class YahooFinanceClient {
     this.config = config;
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder())
-            .defaultHeader(
-                "User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .defaultHeader("Accept", "application/json")
+            .defaultHeader(USER_AGENT_HEADER, USER_AGENT_VALUE)
+            .defaultHeader(ACCEPT_HEADER, ACCEPT_JSON)
             .build();
   }
 
@@ -57,7 +62,7 @@ public class YahooFinanceClient {
         return YahooResponseParser.parse(json, ticker);
       } catch (HttpClientErrorException.BadRequest badRequestException) {
         String responseBody = badRequestException.getResponseBodyAsString();
-        if (Strings.CI.contains(responseBody, "Data doesn't exist")) {
+        if (Strings.CI.contains(responseBody, NO_DATA_ERROR_MESSAGE)) {
           log.info(
               "No Yahoo Finance trading data available for {} in requested window ({} to {}); "
                   + "likely a weekend or exchange holiday.",
