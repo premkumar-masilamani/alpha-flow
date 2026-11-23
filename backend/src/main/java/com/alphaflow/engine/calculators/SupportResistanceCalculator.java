@@ -31,6 +31,22 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Computes and persists horizontal support and resistance (S&amp;R) zones across daily and weekly
+ * timeframes using a four-stage Dow-ATR pipeline.
+ *
+ * <p>Pipeline stages:
+ *
+ * <ol>
+ *   <li>Compute Wilder's rolling ATR series once for the entire price history.
+ *   <li>Detect Close-confirmed Dow Theory swing pivots via {@link DowAtrSwingDetector}.
+ *   <li>Cluster nearby swing pivots into pivot-anchored candidate bands sized to current-regime
+ *       volatility and validate each candidate chronologically for breaches, polarity flips, and
+ *       false breakouts.
+ *   <li>Deduplicate overlapping surviving candidates via greedy non-overlapping suppression ranked
+ *       by touch strength and recency.
+ * </ol>
+ */
 @Component
 @Slf4j
 public class SupportResistanceCalculator {
@@ -59,11 +75,18 @@ public class SupportResistanceCalculator {
     this.dowAtrSwingDetector = dowAtrSwingDetector;
   }
 
+  /**
+   * Computes S&amp;R zones for all active tickers on the requested timeframe, isolating failures so
+   * an error on one ticker does not abort the remaining tickers.
+   *
+   * @param timeframe market timeframe to compute
+   */
   public void computeSupportResistances(Timeframe timeframe) {
     log.info("Computing {} support and resistances...", timeframe);
     List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for {} S&R.", tickers.size(), timeframe);
 
+    // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
     SupportResistanceCalculator proxy = (self != null) ? self : this;
 
     for (Ticker ticker : tickers) {
@@ -81,6 +104,14 @@ public class SupportResistanceCalculator {
     log.info("{} support and resistances computed.", timeframe);
   }
 
+  /**
+   * Computes and persists the latest S&amp;R snapshot for a single ticker within an isolated
+   * transaction. Skips recomputation if a snapshot already exists for the latest bar date and
+   * purges expired snapshots beyond the configured timeframe retention window.
+   *
+   * @param ticker target ticker entity
+   * @param timeframe target market timeframe
+   */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeSupportResistancesForTicker(Ticker ticker, Timeframe timeframe) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
@@ -88,6 +119,7 @@ public class SupportResistanceCalculator {
     if (!priceBars.isEmpty()) {
       LocalDate priceDate = priceBars.getLast().date();
       if (!isAlreadyComputed(ticker, priceDate, timeframe)) {
+        // Purge expired historical snapshots before writing the new snapshot for priceDate.
         LocalDate cutoffDate =
             priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
         log.debug(
@@ -129,9 +161,22 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /**
+   * Runs the pure in-memory S&amp;R computation pipeline for a chronologically ordered bar series.
+   *
+   * <p>Wilder ATR is computed once and reused across all downstream stages: historical per-bar ATR
+   * drives swing reversal detection and lifecycle breach checks, while the latest ATR sizes the
+   * actionable thickness of today's zones.
+   *
+   * @param bars chronologically ordered OHLCV bars
+   * @return surviving non-overlapping S&amp;R zones ordered from highest midpoint to lowest
+   */
   public List<Bucket> computeBuckets(List<PriceBar> bars) {
+    // Stage 1: Compute Wilder ATR once for reuse across swing detection, sizing, and breach checks.
     List<BigDecimal> atrSeries =
         IndicatorMath.calculateWilderAtrSeries(bars, SupportResistanceConfig.ATR_PERIOD);
+
+    // Stage 2: Extract alternating Close-confirmed Dow Theory swing pivots.
     List<SwingPoint> swings =
         dowAtrSwingDetector.detectSwings(
             bars,
@@ -140,10 +185,14 @@ public class SupportResistanceCalculator {
             SupportResistanceConfig.SWING_ATR_MULTIPLIER);
 
     if (swings.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
+      // Size current-chart zones using latest volatility so all candidates share one uniform ruler.
       BigDecimal latestAtr = atrSeries.getLast();
       BigDecimal zoneWidth = latestAtr.multiply(SupportResistanceConfig.ZONE_ATR_MULTIPLIER);
 
+      // Stage 3: Cluster pivots into candidate bands and replay historical lifecycle rules.
       List<Bucket> candidates = buildCandidateZones(bars, atrSeries, swings, zoneWidth);
+
+      // Stage 4: Keep only the strongest non-overlapping zones.
       List<Bucket> selected = applyNonOverlappingSuppression(candidates);
       log.debug(
           "S&R zone computation completed: {} swings -> {} surviving candidates -> {} final zones "
@@ -163,6 +212,15 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /**
+   * Deduplicates overlapping candidate zones using greedy non-overlapping suppression. Candidates
+   * are prioritized by highest surviving touch count, then most recent touch date, then highest
+   * midpoint; any lower-ranked candidate whose price interval strictly overlaps an already selected
+   * zone is discarded.
+   *
+   * @param candidates surviving candidate zones from lifecycle evaluation
+   * @return non-overlapping zones sorted by midpoint descending
+   */
   public List<Bucket> applyNonOverlappingSuppression(List<Bucket> candidates) {
     List<Bucket> sorted =
         candidates.stream()
@@ -177,6 +235,7 @@ public class SupportResistanceCalculator {
     for (Bucket candidate : sorted) {
       boolean overlaps = false;
       for (Bucket kept : selected) {
+        // Strict open-interval overlap check: [bottom, top] overlaps iff both ranges intersect.
         if (candidate.getBottom().compareTo(kept.getTop()) < 0
             && candidate.getTop().compareTo(kept.getBottom()) > 0) {
           overlaps = true;
@@ -187,10 +246,19 @@ public class SupportResistanceCalculator {
         selected.add(candidate);
       }
     }
+    // Present final zones in descending price order for consistent persistence and display.
     selected.sort(Comparator.comparing(Bucket::getMidpoint).reversed());
     return selected;
   }
 
+  /**
+   * Generates and validates candidate S&amp;R zones via pivot-anchored clustering.
+   *
+   * <p>Each confirmed swing proposes a clustering window of width {@code zoneWidth} centered on its
+   * own price, avoiding fixed-grid seam splits. Clusters meeting {@code MIN_TOUCH_COUNT} are
+   * centered on their member price mean to establish stationary breach boundaries and then passed
+   * to {@link #evaluateZoneLifecycle}.
+   */
   private List<Bucket> buildCandidateZones(
       List<PriceBar> bars,
       List<BigDecimal> atrSeries,
@@ -200,6 +268,7 @@ public class SupportResistanceCalculator {
 
     List<Bucket> candidates = new ArrayList<>();
     for (SwingPoint anchor : swings) {
+      // Open a search window centered on this swing to gather all nearby structural pivots.
       BigDecimal windowBottom = anchor.price().subtract(halfZone);
       BigDecimal windowTop = anchor.price().add(halfZone);
 
@@ -213,7 +282,9 @@ public class SupportResistanceCalculator {
         }
       }
 
+      // Skip isolated single-swing pivots before paying the cost of bar-by-bar lifecycle replay.
       if (members.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
+        // Center the breach-testing band on the cluster mean so member touches sit symmetrically.
         BigDecimal initialCentroid =
             IndicatorMath.divide(sumPrice, BigDecimal.valueOf(members.size()));
         BigDecimal initialBottom = IndicatorMath.publish(initialCentroid.subtract(halfZone));
@@ -230,11 +301,27 @@ public class SupportResistanceCalculator {
   }
 
   /**
-   * Evaluates a candidate zone chronologically from its first pivot to the latest bar using
-   * volatility-confirmed breaches ({@code BREACH_ATR_MULTIPLIER * ATR[i]}). Forgives minor false
-   * breakouts up to {@code MAX_FALSE_BREAKOUTS}, allows up to {@code MAX_ALLOWED_FLIPS} clean
-   * polarity flips, and resets active touch history whenever a zone is decisively broken or
-   * whipsawed.
+   * Replays price history chronologically from a cluster's earliest swing to the latest bar to
+   * validate structural integrity under volatility-confirmed breach rules.
+   *
+   * <p>For each bar after the zone activates:
+   *
+   * <ul>
+   *   <li>A Close beyond the boundary plus {@code BREACH_ATR_MULTIPLIER * ATR[i]} is a decisive
+   *       breach: it flips the zone's active polarity up to {@code MAX_ALLOWED_FLIPS} times (and
+   *       resets false-breakout tracking), after which any further decisive breach invalidates and
+   *       clears accumulated touches.
+   *   <li>A Close outside the boundary without exceeding the decisive margin marks a mild breach;
+   *       reclaiming the safe side increments {@code falseBreakoutCount}, and exceeding {@code
+   *       MAX_FALSE_BREAKOUTS} invalidates and clears accumulated touches.
+   * </ul>
+   *
+   * <p>If at least {@code MIN_TOUCH_COUNT} active touches survive through the latest bar, the final
+   * zone band is rebuilt around the surviving touches' centroid and classified relative to the
+   * latest bar's Close.
+   *
+   * @return validated {@link Bucket}, or {@code null} if fewer than {@code MIN_TOUCH_COUNT} touches
+   *     survive
    */
   private Bucket evaluateZoneLifecycle(
       List<PriceBar> bars,
@@ -243,6 +330,7 @@ public class SupportResistanceCalculator {
       BigDecimal zoneBottom,
       BigDecimal zoneTop,
       BigDecimal halfZone) {
+    // Index clustered swing pivots by bar index for O(1) lookup during chronological bar replay.
     Map<Integer, SwingPoint> membersByBarIndex = new HashMap<>(members.size());
     for (SwingPoint member : members) {
       membersByBarIndex.put(member.barIndex(), member);
@@ -255,9 +343,11 @@ public class SupportResistanceCalculator {
     boolean inMildBreach = false;
 
     for (int i = members.getFirst().barIndex(); i < bars.size(); i++) {
+      // Activate or reinforce the zone whenever the replay reaches one of its clustered pivots.
       SwingPoint swingAtBar = membersByBarIndex.get(i);
       if (swingAtBar != null) {
         if (activeMembers.isEmpty()) {
+          // Establish initial structural role from the first pivot after creation or reset.
           activeRole =
               (swingAtBar.type() == SwingType.LOW) ? LevelType.SUPPORT : LevelType.RESISTANCE;
         }
@@ -266,7 +356,9 @@ public class SupportResistanceCalculator {
 
       if (!activeMembers.isEmpty()) {
         BigDecimal barClose = bars.get(i).close();
-        BigDecimal breachMargin = atrSeries.get(i).multiply(SupportResistanceConfig.BREACH_ATR_MULTIPLIER);
+        // Scale breach confirmation to bar i's contemporaneous ATR.
+        BigDecimal breachMargin =
+            atrSeries.get(i).multiply(SupportResistanceConfig.BREACH_ATR_MULTIPLIER);
         boolean isDecisiveBreach;
         boolean isMildBreach;
 
@@ -280,12 +372,14 @@ public class SupportResistanceCalculator {
 
         if (isDecisiveBreach) {
           if (flipCount < SupportResistanceConfig.MAX_ALLOWED_FLIPS) {
+            // Clean polarity reversal: flip active role and reset mild-breach counters.
             flipCount++;
             activeRole =
                 (activeRole == LevelType.SUPPORT) ? LevelType.RESISTANCE : LevelType.SUPPORT;
             inMildBreach = false;
             falseBreakoutCount = 0;
           } else {
+            // Zone exceeded allowed flips: discard prior touch history so it must rebuild fresh.
             activeMembers.clear();
             activeRole = null;
             flipCount = 0;
@@ -293,11 +387,14 @@ public class SupportResistanceCalculator {
             inMildBreach = false;
           }
         } else if (isMildBreach) {
+          // Price closed past the zone edge without decisive conviction; await reclaim or break.
           inMildBreach = true;
         } else if (inMildBreach) {
+          // Price reclaimed the safe side after a mild breach; count one completed false breakout.
           falseBreakoutCount++;
           inMildBreach = false;
           if (falseBreakoutCount > SupportResistanceConfig.MAX_FALSE_BREAKOUTS) {
+            // Excessive whipsaw invalidates prior touches and resets lifecycle tracking.
             activeMembers.clear();
             activeRole = null;
             flipCount = 0;
@@ -307,6 +404,7 @@ public class SupportResistanceCalculator {
       }
     }
 
+    // Emit the zone only if enough post-reset touches survived through the latest bar.
     if (activeMembers.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
       BigDecimal activeSum = BigDecimal.ZERO;
       for (SwingPoint activeMember : activeMembers) {
@@ -333,6 +431,12 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /**
+   * Classifies a surviving zone's final polarity relative to the latest bar's closing price. Closes
+   * strictly above the band classify as {@link LevelType#SUPPORT}, closes strictly below classify
+   * as {@link LevelType#RESISTANCE}, and closes inside the band preserve the zone's active
+   * structural role.
+   */
   private LevelType resolveLevelType(
       BigDecimal latestClose,
       BigDecimal zoneBottom,
@@ -347,6 +451,7 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /** Checks whether S&amp;R records have already been persisted for the ticker and snapshot date. */
   private boolean isAlreadyComputed(Ticker ticker, LocalDate priceDate, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return !dailySupportResistanceRepository
@@ -362,6 +467,7 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /** Loads chronologically ordered price bars for the ticker and timeframe. */
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
@@ -377,6 +483,7 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /** Deletes persisted S&amp;R snapshots older than the retention cutoff date. */
   private void deleteOlderSupportResistances(
       Ticker ticker, LocalDate cutoffDate, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
@@ -389,6 +496,7 @@ public class SupportResistanceCalculator {
     }
   }
 
+  /** Maps surviving {@link Bucket} zones to timeframe-specific JPA entities and persists them. */
   private void saveSupportResistances(Ticker ticker, List<Bucket> buckets, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       List<DailySupportResistance> toSave = new ArrayList<>();

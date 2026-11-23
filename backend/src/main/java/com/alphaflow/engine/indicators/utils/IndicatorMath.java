@@ -62,15 +62,18 @@ public final class IndicatorMath {
   }
 
   /**
-   * Calculates True Range for a single price bar relative to its previous bar.
+   * Calculates True Range for a single price bar relative to its preceding bar. True Range
+   * captures both intraday spread and overnight gaps as the maximum of {@code high - low},
+   * {@code |high - prevClose|}, and {@code |low - prevClose|}.
    *
-   * @param currentBar current bar
-   * @param previousBar previous bar, or null for the first bar in a series
-   * @return True Range value
+   * @param currentBar bar being evaluated
+   * @param previousBar immediately preceding bar, or {@code null} for the first bar in a series
+   * @return True Range value at internal precision
    */
   public static BigDecimal calculateTrueRange(PriceBar currentBar, PriceBar previousBar) {
     BigDecimal highLowRange = currentBar.high().subtract(currentBar.low()).abs();
     if (previousBar != null) {
+      // Expand beyond the bar's own high-low spread whenever price gaps away from prior close.
       BigDecimal highPrevClose = currentBar.high().subtract(previousBar.close()).abs();
       BigDecimal lowPrevClose = currentBar.low().subtract(previousBar.close()).abs();
       return highLowRange.max(highPrevClose).max(lowPrevClose);
@@ -81,11 +84,16 @@ public final class IndicatorMath {
 
   /**
    * Computes Wilder's rolling Average True Range (ATR) series in O(N) time at internal precision.
-   * Indices prior to {@code period - 1} are {@code null}.
+   *
+   * <p>The first {@code period - 1} entries are {@code null} while accumulating the seed window.
+   * Index {@code period - 1} is initialized to the simple mean of the first {@code period} True
+   * Ranges, and every subsequent entry applies Wilder's recursive smoothing {@code (prevAtr *
+   * (period - 1) + trueRange) / period} to decay prior volatility smoothly without window drop-off
+   * discontinuities.
    *
    * @param bars chronologically ordered price bars
    * @param period Wilder smoothing period (must be positive)
-   * @return rolling ATR series matching {@code bars.size()}, or empty list if insufficient data
+   * @return rolling ATR series aligned 1-to-1 with {@code bars}, or empty list if insufficient data
    */
   public static List<BigDecimal> calculateWilderAtrSeries(List<PriceBar> bars, int period) {
     if (bars != null && period > 0 && bars.size() >= period) {
@@ -101,13 +109,16 @@ public final class IndicatorMath {
         BigDecimal trueRange = calculateTrueRange(currentBar, previousBar);
 
         if (i < period - 1) {
+          // Warm-up phase: accumulate True Ranges until a full seed window is available.
           initialTrueRangeSum = initialTrueRangeSum.add(trueRange);
           atrSeries.add(null);
         } else if (i == period - 1) {
+          // Seed Wilder's recurrence with the unweighted mean of the initial window.
           initialTrueRangeSum = initialTrueRangeSum.add(trueRange);
           currentAtr = divide(initialTrueRangeSum, periodDecimal);
           atrSeries.add(currentAtr);
         } else {
+          // Recursive Wilder smoothing weights the prior ATR by (period - 1) / period.
           currentAtr = divide(currentAtr.multiply(smoothingFactor).add(trueRange), periodDecimal);
           atrSeries.add(currentAtr);
         }
