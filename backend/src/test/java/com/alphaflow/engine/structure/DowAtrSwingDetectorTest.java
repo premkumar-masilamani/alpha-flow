@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.engine.structure.dtos.SwingPoint;
 import com.alphaflow.engine.structure.enums.SwingType;
 import java.math.BigDecimal;
@@ -35,13 +36,23 @@ class DowAtrSwingDetectorTest {
             bar(0, "100", "105", "95", "100"),
             bar(1, "100", "105", "95", "100"),
             bar(2, "100", "105", "95", "100"));
+    List<BigDecimal> shortAtr = IndicatorMath.calculateWilderAtrSeries(shortBars, 3);
 
-    assertTrue(detector.detectSwings(null, 3, new BigDecimal("2.0")).isEmpty());
-    assertTrue(detector.detectSwings(shortBars, 0, new BigDecimal("2.0")).isEmpty());
-    assertTrue(detector.detectSwings(shortBars, 3, null).isEmpty());
-    assertTrue(detector.detectSwings(shortBars, 3, BigDecimal.ZERO).isEmpty());
-    assertTrue(detector.detectSwings(shortBars, 3, new BigDecimal("-1.0")).isEmpty());
-    assertTrue(detector.detectSwings(shortBars, 3, new BigDecimal("2.0")).isEmpty());
+    assertTrue(detector.detectSwings(null, shortAtr, 3, new BigDecimal("2.0")).isEmpty());
+    assertTrue(detector.detectSwings(shortBars, null, 3, new BigDecimal("2.0")).isEmpty());
+    assertTrue(detector.detectSwings(shortBars, shortAtr, 0, new BigDecimal("2.0")).isEmpty());
+    assertTrue(detector.detectSwings(shortBars, shortAtr, 3, null).isEmpty());
+    assertTrue(detector.detectSwings(shortBars, shortAtr, 3, BigDecimal.ZERO).isEmpty());
+    assertTrue(detector.detectSwings(shortBars, shortAtr, 3, new BigDecimal("-1.0")).isEmpty());
+    assertTrue(detector.detectSwings(shortBars, shortAtr, 3, new BigDecimal("2.0")).isEmpty());
+
+    List<PriceBar> fourBars =
+        List.of(
+            bar(0, "100", "105", "95", "100"),
+            bar(1, "100", "105", "95", "100"),
+            bar(2, "100", "105", "95", "100"),
+            bar(3, "100", "105", "95", "100"));
+    assertTrue(detector.detectSwings(fourBars, shortAtr, 3, new BigDecimal("2.0")).isEmpty());
   }
 
   @Test
@@ -51,7 +62,8 @@ class DowAtrSwingDetectorTest {
       flatBars.add(bar(i, "100", "100", "100", "100"));
     }
 
-    List<SwingPoint> swings = detector.detectSwings(flatBars, 3, new BigDecimal("2.0"));
+    List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(flatBars, 3);
+    List<SwingPoint> swings = detector.detectSwings(flatBars, atrSeries, 3, new BigDecimal("2.0"));
     assertTrue(swings.isEmpty());
   }
 
@@ -86,7 +98,8 @@ class DowAtrSwingDetectorTest {
     bars.add(bar(14, "115", "115", "105", "106"));
     bars.add(bar(15, "106", "106", "96", "97"));
 
-    List<SwingPoint> swings = detector.detectSwings(bars, 3, new BigDecimal("2.0"));
+    List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, 3);
+    List<SwingPoint> swings = detector.detectSwings(bars, atrSeries, 3, new BigDecimal("2.0"));
 
     assertEquals(3, swings.size());
     assertEquals(SwingType.HIGH, swings.get(0).type());
@@ -118,7 +131,8 @@ class DowAtrSwingDetectorTest {
     bars.add(bar(5, "99", "109", "99", "108"));
     bars.add(bar(6, "108", "118", "108", "116")); // 116 - 88 = 28 >= 2*ATR -> confirms LOW at bar 3
 
-    List<SwingPoint> swings = detector.detectSwings(bars, 3, new BigDecimal("2.0"));
+    List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, 3);
+    List<SwingPoint> swings = detector.detectSwings(bars, atrSeries, 3, new BigDecimal("2.0"));
 
     assertEquals(1, swings.size());
     assertEquals(SwingType.LOW, swings.getFirst().type());
@@ -136,7 +150,8 @@ class DowAtrSwingDetectorTest {
     // Huge intraday dip to 60, but closes at 101 (105 - 101 = 4 < 2*ATR) -> no confirmed swing
     bars.add(bar(3, "100", "105", "60", "101"));
 
-    List<SwingPoint> swings = detector.detectSwings(bars, 3, new BigDecimal("2.0"));
+    List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, 3);
+    List<SwingPoint> swings = detector.detectSwings(bars, atrSeries, 3, new BigDecimal("2.0"));
     assertTrue(swings.isEmpty());
   }
 
@@ -147,7 +162,8 @@ class DowAtrSwingDetectorTest {
       bars.add(bar(i, "100", "105", "95", "100"));
     }
 
-    List<SwingPoint> swings = detector.detectSwings(bars, 3, new BigDecimal("2.0"));
+    List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, 3);
+    List<SwingPoint> swings = detector.detectSwings(bars, atrSeries, 3, new BigDecimal("2.0"));
     assertTrue(swings.isEmpty());
   }
 }

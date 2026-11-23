@@ -1,7 +1,6 @@
 package com.alphaflow.engine.structure;
 
 import com.alphaflow.engine.indicators.dtos.PriceBar;
-import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.engine.structure.dtos.SwingPoint;
 import com.alphaflow.engine.structure.enums.SwingType;
 import java.math.BigDecimal;
@@ -20,22 +19,28 @@ import org.springframework.stereotype.Component;
 public class DowAtrSwingDetector {
 
   /**
-   * Detects confirmed Dow Theory Swing Highs and Swing Lows across a chronological price series.
+   * Detects confirmed Dow Theory Swing Highs and Swing Lows across a chronological price series
+   * using a precomputed Wilder ATR series.
    *
    * @param bars chronologically ordered OHLCV price bars
-   * @param atrPeriod Wilder ATR smoothing period
+   * @param atrSeries precomputed Wilder ATR series aligned with {@code bars}
+   * @param atrPeriod Wilder ATR smoothing period used to compute {@code atrSeries}
    * @param swingAtrMultiplier multiple of rolling ATR required in Close retracement to confirm a
    *     wave reversal
    * @return strictly alternating list of confirmed swing pivots, or empty list if insufficient data
    */
   public List<SwingPoint> detectSwings(
-      List<PriceBar> bars, int atrPeriod, BigDecimal swingAtrMultiplier) {
+      List<PriceBar> bars,
+      List<BigDecimal> atrSeries,
+      int atrPeriod,
+      BigDecimal swingAtrMultiplier) {
     if (bars != null
+        && atrSeries != null
         && atrPeriod > 0
         && swingAtrMultiplier != null
         && swingAtrMultiplier.signum() > 0
-        && bars.size() > atrPeriod) {
-      List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, atrPeriod);
+        && bars.size() > atrPeriod
+        && atrSeries.size() == bars.size()) {
       List<SwingPoint> swings = runWaveStateMachine(bars, atrSeries, atrPeriod, swingAtrMultiplier);
       log.debug(
           "Detected {} confirmed Dow-ATR swings across {} bars (atrPeriod={}, multiplier={}).",

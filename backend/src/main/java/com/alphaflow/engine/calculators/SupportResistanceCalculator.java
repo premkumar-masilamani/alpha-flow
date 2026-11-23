@@ -130,13 +130,16 @@ public class SupportResistanceCalculator {
   }
 
   public List<Bucket> computeBuckets(List<PriceBar> bars) {
+    List<BigDecimal> atrSeries =
+        IndicatorMath.calculateWilderAtrSeries(bars, SupportResistanceConfig.ATR_PERIOD);
     List<SwingPoint> swings =
         dowAtrSwingDetector.detectSwings(
-            bars, SupportResistanceConfig.ATR_PERIOD, SupportResistanceConfig.SWING_ATR_MULTIPLIER);
+            bars,
+            atrSeries,
+            SupportResistanceConfig.ATR_PERIOD,
+            SupportResistanceConfig.SWING_ATR_MULTIPLIER);
 
     if (swings.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
-      List<BigDecimal> atrSeries =
-          IndicatorMath.calculateWilderAtrSeries(bars, SupportResistanceConfig.ATR_PERIOD);
       BigDecimal latestAtr = atrSeries.getLast();
       BigDecimal zoneWidth = latestAtr.multiply(SupportResistanceConfig.ZONE_ATR_MULTIPLIER);
 
