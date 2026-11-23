@@ -9,8 +9,10 @@ import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.engine.structure.DowAtrSwingDetector;
 import com.alphaflow.engine.structure.dtos.SwingPoint;
 import com.alphaflow.engine.structure.enums.SwingType;
+import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
@@ -24,6 +26,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -115,11 +118,11 @@ public class SupportResistanceCalculator {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeSupportResistancesForTicker(Ticker ticker, Timeframe timeframe) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
-    List<PriceBar> priceBars = loadBars(ticker, timeframe);
-    if (!priceBars.isEmpty()) {
-      LocalDate priceDate = priceBars.getLast().date();
+    Optional<LocalDate> latestPriceDateOpt = findLatestPriceDate(ticker, timeframe);
+    if (latestPriceDateOpt.isPresent()) {
+      LocalDate priceDate = latestPriceDateOpt.get();
       if (!isAlreadyComputed(ticker, priceDate, timeframe)) {
-        // Purge expired historical snapshots before writing the new snapshot for priceDate.
+        List<PriceBar> priceBars = loadBars(ticker, timeframe);
         LocalDate cutoffDate =
             priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
         log.debug(
@@ -470,6 +473,22 @@ public class SupportResistanceCalculator {
       return LevelType.RESISTANCE;
     } else {
       return activeRole;
+    }
+  }
+
+  /** Resolves the latest available price date for the ticker on the requested timeframe. */
+  private Optional<LocalDate> findLatestPriceDate(Ticker ticker, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyPriceRepository
+          .findTopByTickerOrderByPriceDateDesc(ticker)
+          .map(DailyPrice::getPriceDate);
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyPriceRepository
+          .findTopByTickerOrderByPriceDateDesc(ticker)
+          .map(WeeklyPrice::getPriceDate);
+    } else {
+      log.error("Unsupported timeframe for finding latest price date: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
 
