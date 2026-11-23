@@ -252,48 +252,66 @@ public class SupportResistanceCalculator {
   }
 
   /**
-   * Generates and validates candidate S&amp;R zones via pivot-anchored clustering.
+   * Generates and validates candidate S&amp;R zones via price-sorted two-pointer clustering.
    *
-   * <p>Each confirmed swing proposes a clustering window of width {@code zoneWidth} centered on its
-   * own price, avoiding fixed-grid seam splits. Clusters meeting {@code MIN_TOUCH_COUNT} are
-   * centered on their member price mean to establish stationary breach boundaries and then passed
-   * to {@link #evaluateZoneLifecycle}.
+   * <p>Swings are sorted by price ascending so search windows move monotonically, advancing sliding
+   * pointers {@code left} and {@code right} in O(S) time across the entire pass. Consecutive
+   * anchors capturing identical member subsets are deduplicated in O(1) time without Set overhead.
+   * Clusters meeting {@code MIN_TOUCH_COUNT} are centered on their member price mean to establish
+   * stationary breach boundaries and passed to {@link #evaluateZoneLifecycle}.
    */
   private List<Bucket> buildCandidateZones(
       List<PriceBar> bars,
       List<BigDecimal> atrSeries,
       List<SwingPoint> swings,
       BigDecimal zoneWidth) {
+
     BigDecimal halfZone = IndicatorMath.divide(zoneWidth, BigDecimal.valueOf(2));
 
+    List<SwingPoint> sortedByPrice =
+        swings.stream().sorted(Comparator.comparing(SwingPoint::price)).toList();
+    int swingCount = sortedByPrice.size();
+
     List<Bucket> candidates = new ArrayList<>();
-    for (SwingPoint anchor : swings) {
-      // Open a search window centered on this swing to gather all nearby structural pivots.
+    int left = 0;
+    int right = 0;
+    int prevLeft = -1;
+    int prevRight = -1;
+
+    for (int i = 0; i < swingCount; i++) {
+      SwingPoint anchor = sortedByPrice.get(i);
       BigDecimal windowBottom = anchor.price().subtract(halfZone);
       BigDecimal windowTop = anchor.price().add(halfZone);
 
-      List<SwingPoint> members = new ArrayList<>();
-      BigDecimal sumPrice = BigDecimal.ZERO;
-      for (SwingPoint swing : swings) {
-        if (swing.price().compareTo(windowBottom) >= 0
-            && swing.price().compareTo(windowTop) <= 0) {
-          members.add(swing);
-          sumPrice = sumPrice.add(swing.price());
-        }
+      while (right < swingCount && sortedByPrice.get(right).price().compareTo(windowTop) <= 0) {
+        right++;
+      }
+      while (sortedByPrice.get(left).price().compareTo(windowBottom) < 0) {
+        left++;
       }
 
-      // Skip isolated single-swing pivots before paying the cost of bar-by-bar lifecycle replay.
-      if (members.size() >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
-        // Center the breach-testing band on the cluster mean so member touches sit symmetrically.
-        BigDecimal initialCentroid =
-            IndicatorMath.divide(sumPrice, BigDecimal.valueOf(members.size()));
-        BigDecimal initialBottom = IndicatorMath.publish(initialCentroid.subtract(halfZone));
-        BigDecimal initialTop = IndicatorMath.publish(initialCentroid.add(halfZone));
+      int memberCount = right - left;
+      if (memberCount >= SupportResistanceConfig.MIN_TOUCH_COUNT) {
+        if (left != prevLeft || right != prevRight) {
+          prevLeft = left;
+          prevRight = right;
 
-        Bucket survivingZone =
-            evaluateZoneLifecycle(bars, atrSeries, members, initialBottom, initialTop, halfZone);
-        if (survivingZone != null) {
-          candidates.add(survivingZone);
+          List<SwingPoint> members = sortedByPrice.subList(left, right);
+          BigDecimal sumPrice = BigDecimal.ZERO;
+          for (SwingPoint member : members) {
+            sumPrice = sumPrice.add(member.price());
+          }
+
+          BigDecimal initialCentroid =
+              IndicatorMath.divide(sumPrice, BigDecimal.valueOf(memberCount));
+          BigDecimal initialBottom = IndicatorMath.publish(initialCentroid.subtract(halfZone));
+          BigDecimal initialTop = IndicatorMath.publish(initialCentroid.add(halfZone));
+
+          Bucket survivingZone =
+              evaluateZoneLifecycle(bars, atrSeries, members, initialBottom, initialTop, halfZone);
+          if (survivingZone != null) {
+            candidates.add(survivingZone);
+          }
         }
       }
     }
@@ -327,13 +345,17 @@ public class SupportResistanceCalculator {
       List<PriceBar> bars,
       List<BigDecimal> atrSeries,
       List<SwingPoint> members,
-      BigDecimal zoneBottom,
-      BigDecimal zoneTop,
+      BigDecimal initialZoneBottom,
+      BigDecimal initialZoneTop,
       BigDecimal halfZone) {
-    // Index clustered swing pivots by bar index for O(1) lookup during chronological bar replay.
+    // Index clustered swing pivots by bar index and resolve earliest activation bar.
     Map<Integer, SwingPoint> membersByBarIndex = new HashMap<>(members.size());
+    int earliestBarIndex = Integer.MAX_VALUE;
     for (SwingPoint member : members) {
       membersByBarIndex.put(member.barIndex(), member);
+      if (member.barIndex() < earliestBarIndex) {
+        earliestBarIndex = member.barIndex();
+      }
     }
 
     List<SwingPoint> activeMembers = new ArrayList<>();
@@ -342,7 +364,7 @@ public class SupportResistanceCalculator {
     int falseBreakoutCount = 0;
     boolean inMildBreach = false;
 
-    for (int i = members.getFirst().barIndex(); i < bars.size(); i++) {
+    for (int i = earliestBarIndex; i < bars.size(); i++) {
       // Activate or reinforce the zone whenever the replay reaches one of its clustered pivots.
       SwingPoint swingAtBar = membersByBarIndex.get(i);
       if (swingAtBar != null) {
@@ -363,11 +385,11 @@ public class SupportResistanceCalculator {
         boolean isMildBreach;
 
         if (activeRole == LevelType.SUPPORT) {
-          isDecisiveBreach = barClose.compareTo(zoneBottom.subtract(breachMargin)) < 0;
-          isMildBreach = barClose.compareTo(zoneBottom) < 0;
+          isDecisiveBreach = barClose.compareTo(initialZoneBottom.subtract(breachMargin)) < 0;
+          isMildBreach = barClose.compareTo(initialZoneBottom) < 0;
         } else {
-          isDecisiveBreach = barClose.compareTo(zoneTop.add(breachMargin)) > 0;
-          isMildBreach = barClose.compareTo(zoneTop) > 0;
+          isDecisiveBreach = barClose.compareTo(initialZoneTop.add(breachMargin)) > 0;
+          isMildBreach = barClose.compareTo(initialZoneTop) > 0;
         }
 
         if (isDecisiveBreach) {

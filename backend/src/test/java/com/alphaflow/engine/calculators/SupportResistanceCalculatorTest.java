@@ -357,6 +357,21 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
+  void testTwoPointerExpandsRightWhileLeftRemainsUnchanged() {
+    List<PriceBar> bars = new ArrayList<>();
+    appendSeedBars(bars, 120);
+    appendLeg(bars, 120, 100);
+    appendLeg(bars, 100, 130);
+    appendLeg(bars, 130, 102);
+    appendLeg(bars, 102, 130);
+    appendLeg(bars, 130, 106);
+    appendLeg(bars, 106, 125);
+
+    List<Bucket> buckets = calculator.computeBuckets(bars);
+    assertFalse(buckets.isEmpty());
+  }
+
+  @Test
   void testApplyNonOverlappingSuppressionAndDeterministicTieBreaking() {
     Bucket strong =
         new Bucket(
