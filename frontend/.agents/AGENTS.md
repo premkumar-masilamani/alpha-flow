@@ -25,6 +25,7 @@ make check
 - Use `lightweight-charts` API strictly for daily candlesticks, volume bars, and overlaying indicators.
 - Specify raw hex colors instead of CSS variables (`var(...)`) for Cytoscape.js visualizer rendering.
 - Explicitly fail fast or render informative error UI when required environment variables (e.g. API endpoints) or parameters are missing.
+- Declare all module-level constants in `UPPER_SNAKE_CASE` (e.g. `export const SUPPORT_RESISTANCE_RANGE_PCT = 0.25;`).
 
 ### Ask first
 - Modifying core chart plotting defaults or color schemes.

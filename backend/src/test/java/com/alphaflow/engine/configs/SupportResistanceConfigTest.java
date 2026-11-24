@@ -1,72 +1,34 @@
 package com.alphaflow.engine.configs;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.alphaflow.common.enums.Timeframe;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
 class SupportResistanceConfigTest {
 
   @Test
-  void testConfigProperties() {
-    SupportResistanceConfig config = new SupportResistanceConfig();
-
-    assertEquals(0.01, config.getBucketWidthPct());
-    config.setBucketWidthPct(0.02);
-    assertEquals(0.02, config.getBucketWidthPct());
-
-    assertEquals(500, config.getMaxAllowedBuckets());
-    config.setMaxAllowedBuckets(250);
-    assertEquals(250, config.getMaxAllowedBuckets());
-
-    assertEquals(2, config.getBreakoutConfirmationBars());
-    config.setBreakoutConfirmationBars(3);
-    assertEquals(3, config.getBreakoutConfirmationBars());
-
-    assertEquals(1, config.getMaxFalseBreakouts());
-    config.setMaxFalseBreakouts(2);
-    assertEquals(2, config.getMaxFalseBreakouts());
-
-    assertEquals(30, config.getDailyRetentionDays());
-    config.setDailyRetentionDays(45);
-    assertEquals(45, config.getDailyRetentionDays());
-
-    assertEquals(180, config.getWeeklyRetentionDays());
-    config.setWeeklyRetentionDays(90);
-    assertEquals(90, config.getWeeklyRetentionDays());
-
-    assertEquals(14, config.getAtrPeriod());
-    config.setAtrPeriod(20);
-    assertEquals(20, config.getAtrPeriod());
-
-    assertEquals(0.5, config.getAtrMultiplier());
-    config.setAtrMultiplier(0.75);
-    assertEquals(0.75, config.getAtrMultiplier());
-
-    assertEquals(0.5, config.getStrideRatio());
-    config.setStrideRatio(0.25);
-    assertEquals(0.25, config.getStrideRatio());
-
-    assertEquals(3, config.getMinTouchCount());
-    config.setMinTouchCount(4);
-    assertEquals(4, config.getMinTouchCount());
-
-    assertEquals(0.5, config.getNmsOverlapThreshold());
-    config.setNmsOverlapThreshold(0.6);
-    assertEquals(0.6, config.getNmsOverlapThreshold());
+  void testConfigConstants() {
+    assertEquals(14, SupportResistanceConfig.ATR_PERIOD);
+    assertEquals(0, new BigDecimal("2.0").compareTo(SupportResistanceConfig.SWING_ATR_MULTIPLIER));
+    assertEquals(0, new BigDecimal("1.0").compareTo(SupportResistanceConfig.ZONE_ATR_MULTIPLIER));
+    assertEquals(0, new BigDecimal("1.0").compareTo(SupportResistanceConfig.BREACH_ATR_MULTIPLIER));
+    assertEquals(1, SupportResistanceConfig.MAX_ALLOWED_FLIPS);
+    assertEquals(1, SupportResistanceConfig.MAX_FALSE_BREAKOUTS);
+    assertEquals(2, SupportResistanceConfig.MIN_TOUCH_COUNT);
+    assertEquals(30, SupportResistanceConfig.DAILY_RETENTION_DAYS);
+    assertEquals(180, SupportResistanceConfig.WEEKLY_RETENTION_DAYS);
   }
 
   @Test
   void testGetRetentionDaysForTimeframe() {
-    SupportResistanceConfig config = new SupportResistanceConfig();
-    config.setDailyRetentionDays(30);
-    config.setWeeklyRetentionDays(180);
+    assertEquals(30, SupportResistanceConfig.getRetentionDaysForTimeframe(Timeframe.DAILY));
+    assertEquals(180, SupportResistanceConfig.getRetentionDaysForTimeframe(Timeframe.WEEKLY));
 
-    assertEquals(
-        30, config.getRetentionDaysForTimeframe(com.alphaflow.common.enums.Timeframe.DAILY));
-    assertEquals(
-        180, config.getRetentionDaysForTimeframe(com.alphaflow.common.enums.Timeframe.WEEKLY));
-
-    org.junit.jupiter.api.Assertions.assertThrows(
-        IllegalArgumentException.class, () -> config.getRetentionDaysForTimeframe(null));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> SupportResistanceConfig.getRetentionDaysForTimeframe(null));
   }
 }

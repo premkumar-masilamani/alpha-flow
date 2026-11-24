@@ -40,20 +40,40 @@ public class ChartPatternService {
             ? statuses
             : List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED);
 
+    log.debug(
+        "Fetching {} chart patterns for ticker {} (statuses={}, page={}, size={})",
+        timeframe,
+        ticker.getTickerSymbol(),
+        effectiveStatuses,
+        page,
+        size);
+
     if (timeframe == Timeframe.DAILY) {
-      return dailyChartPatternRepository
-          .findByTickerAndStatusInOrderByEndDateDesc(ticker, effectiveStatuses, pageRequest)
-          .getContent()
-          .stream()
-          .map(this::toDto)
-          .toList();
+      List<ChartPatternDto> patterns =
+          dailyChartPatternRepository
+              .findByTickerAndStatusInOrderByEndDateDesc(ticker, effectiveStatuses, pageRequest)
+              .getContent()
+              .stream()
+              .map(this::toDto)
+              .toList();
+      log.debug(
+          "Retrieved {} DAILY chart patterns for ticker {}",
+          patterns.size(),
+          ticker.getTickerSymbol());
+      return patterns;
     } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyChartPatternRepository
-          .findByTickerAndStatusInOrderByEndDateDesc(ticker, effectiveStatuses, pageRequest)
-          .getContent()
-          .stream()
-          .map(this::toDto)
-          .toList();
+      List<ChartPatternDto> patterns =
+          weeklyChartPatternRepository
+              .findByTickerAndStatusInOrderByEndDateDesc(ticker, effectiveStatuses, pageRequest)
+              .getContent()
+              .stream()
+              .map(this::toDto)
+              .toList();
+      log.debug(
+          "Retrieved {} WEEKLY chart patterns for ticker {}",
+          patterns.size(),
+          ticker.getTickerSymbol());
+      return patterns;
     } else {
       log.error("Unsupported timeframe for fetching chart patterns: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

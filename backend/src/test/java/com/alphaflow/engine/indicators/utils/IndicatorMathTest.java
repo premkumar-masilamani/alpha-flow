@@ -11,7 +11,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -66,7 +65,7 @@ class IndicatorMathTest {
   @Test
   void testCalculateTrueRange() {
     LocalDate date = LocalDate.of(2026, 5, 29);
-    PriceBar previous =
+    PriceBar firstBar =
         new PriceBar(
             date.minusDays(1),
             new BigDecimal("100"),
@@ -74,9 +73,9 @@ class IndicatorMathTest {
             new BigDecimal("98"),
             new BigDecimal("102"),
             new BigDecimal("1000"));
+    assertEquals(new BigDecimal("7"), IndicatorMath.calculateTrueRange(firstBar, null));
 
-    // Case 1: high - low is greatest (110 - 95 = 15) vs |110 - 102| = 8, |95 - 102| = 7
-    PriceBar bar1 =
+    PriceBar normalBar =
         new PriceBar(
             date,
             new BigDecimal("100"),
@@ -84,10 +83,9 @@ class IndicatorMathTest {
             new BigDecimal("95"),
             new BigDecimal("105"),
             new BigDecimal("1000"));
-    assertEquals(new BigDecimal("15"), IndicatorMath.calculateTrueRange(bar1, previous));
+    assertEquals(new BigDecimal("15"), IndicatorMath.calculateTrueRange(normalBar, firstBar));
 
-    // Case 2: |high - prevClose| is greatest (gap up: high=120, low=110, prevClose=102 -> 18)
-    PriceBar bar2 =
+    PriceBar gapUpBar =
         new PriceBar(
             date,
             new BigDecimal("115"),
@@ -95,10 +93,9 @@ class IndicatorMathTest {
             new BigDecimal("110"),
             new BigDecimal("118"),
             new BigDecimal("1000"));
-    assertEquals(new BigDecimal("18"), IndicatorMath.calculateTrueRange(bar2, previous));
+    assertEquals(new BigDecimal("18"), IndicatorMath.calculateTrueRange(gapUpBar, firstBar));
 
-    // Case 3: |low - prevClose| is greatest (gap down: high=90, low=80, prevClose=102 -> 22)
-    PriceBar bar3 =
+    PriceBar gapDownBar =
         new PriceBar(
             date,
             new BigDecimal("85"),
@@ -106,40 +103,54 @@ class IndicatorMathTest {
             new BigDecimal("80"),
             new BigDecimal("82"),
             new BigDecimal("1000"));
-    assertEquals(new BigDecimal("22"), IndicatorMath.calculateTrueRange(bar3, previous));
+    assertEquals(new BigDecimal("22"), IndicatorMath.calculateTrueRange(gapDownBar, firstBar));
   }
 
   @Test
-  void testCalculateAtr() {
-    assertEquals(BigDecimal.ZERO, IndicatorMath.calculateAtr(null, 14));
-    assertEquals(BigDecimal.ZERO, IndicatorMath.calculateAtr(List.of(), 14));
-    assertEquals(BigDecimal.ZERO, IndicatorMath.calculateAtr(List.of(), 0));
+  void testCalculateWilderAtrSeries() {
+    assertTrue(IndicatorMath.calculateWilderAtrSeries(null, 3).isEmpty());
+    assertTrue(IndicatorMath.calculateWilderAtrSeries(List.of(), 3).isEmpty());
 
     LocalDate date = LocalDate.of(2026, 1, 1);
-    List<PriceBar> bars = new ArrayList<>();
-    for (int i = 0; i < 15; i++) {
-      bars.add(
-          new PriceBar(
-              date.plusDays(i),
-              new BigDecimal("100"),
-              new BigDecimal("105"),
-              new BigDecimal("95"),
-              new BigDecimal("100"),
-              new BigDecimal("1000")));
-    }
+    List<PriceBar> bars =
+        List.of(
+            new PriceBar(
+                date,
+                new BigDecimal("100"),
+                new BigDecimal("110"),
+                new BigDecimal("100"),
+                new BigDecimal("105"),
+                BigDecimal.TEN), // TR = 10
+            new PriceBar(
+                date.plusDays(1),
+                new BigDecimal("105"),
+                new BigDecimal("115"),
+                new BigDecimal("105"),
+                new BigDecimal("110"),
+                BigDecimal.TEN), // TR = 10
+            new PriceBar(
+                date.plusDays(2),
+                new BigDecimal("110"),
+                new BigDecimal("120"),
+                new BigDecimal("110"),
+                new BigDecimal("115"),
+                BigDecimal.TEN), // TR = 10 -> Seed ATR(3) = 10
+            new PriceBar(
+                date.plusDays(3),
+                new BigDecimal("115"),
+                new BigDecimal("139"),
+                new BigDecimal("115"),
+                new BigDecimal("130"),
+                BigDecimal.TEN)); // TR = 24 -> Wilder ATR = (10*2 + 24)/3 = 44/3
 
-    BigDecimal atr = IndicatorMath.calculateAtr(bars, 14);
-    assertEquals(0, atr.compareTo(new BigDecimal("10.0000")));
+    assertTrue(IndicatorMath.calculateWilderAtrSeries(bars, 0).isEmpty());
+    assertTrue(IndicatorMath.calculateWilderAtrSeries(bars, 5).isEmpty());
 
-    // When bars size is equal to 1 and period is 1, count is 0 because loop starts at max(1, 1 - 1) = 1
-    PriceBar singleBar =
-        new PriceBar(
-            date,
-            new BigDecimal("100"),
-            new BigDecimal("105"),
-            new BigDecimal("95"),
-            new BigDecimal("100"),
-            new BigDecimal("1000"));
-    assertEquals(BigDecimal.ZERO, IndicatorMath.calculateAtr(List.of(singleBar), 1));
+    List<BigDecimal> atrSeries = IndicatorMath.calculateWilderAtrSeries(bars, 3);
+    assertEquals(4, atrSeries.size());
+    assertNull(atrSeries.get(0));
+    assertNull(atrSeries.get(1));
+    assertEquals(0, new BigDecimal("10").compareTo(atrSeries.get(2)));
+    assertEquals(new BigDecimal("14.6667"), IndicatorMath.publish(atrSeries.get(3)));
   }
 }

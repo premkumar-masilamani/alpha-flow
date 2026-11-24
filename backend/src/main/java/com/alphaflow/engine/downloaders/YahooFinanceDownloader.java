@@ -21,17 +21,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class YahooFinanceDownloader {
 
-  private final YahooFinanceConfig yahooFinanceConfig;
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
   private final AtomicLong nextAllowedTimeMs = new AtomicLong(0);
 
   @Autowired
   public YahooFinanceDownloader(
-      YahooFinanceConfig yahooFinanceConfig,
-      YahooFinanceClient yahooFinanceClient,
-      DailyPriceRepository dailyPriceRepository) {
-    this.yahooFinanceConfig = yahooFinanceConfig;
+      YahooFinanceClient yahooFinanceClient, DailyPriceRepository dailyPriceRepository) {
     this.yahooFinanceClient = yahooFinanceClient;
     this.dailyPriceRepository = dailyPriceRepository;
   }
@@ -71,21 +67,20 @@ public class YahooFinanceDownloader {
   }
 
   private void throttle() {
-    long minDelayMs = yahooFinanceConfig.getDelayMilliseconds();
-    if (minDelayMs > 0) {
-      long now = System.currentTimeMillis();
-      long scheduledTime =
-          nextAllowedTimeMs.updateAndGet(current -> Math.max(current, now) + minDelayMs);
-      long waitMs = scheduledTime - minDelayMs - now;
-      if (waitMs <= 0) {
-        log.debug("No rate limit throttle required");
-      } else {
-        try {
-          Thread.sleep(waitMs);
-        } catch (InterruptedException exception) {
-          Thread.currentThread().interrupt();
-          log.warn("Rate limiter sleep interrupted: {}", exception.getMessage());
-        }
+    long minDelayMs = YahooFinanceConfig.DELAY_MILLISECONDS;
+    long now = System.currentTimeMillis();
+    long scheduledTime =
+        nextAllowedTimeMs.updateAndGet(current -> Math.max(current, now) + minDelayMs);
+    long waitMs = scheduledTime - minDelayMs - now;
+    if (waitMs <= 0) {
+      log.debug("No rate limit throttle required");
+    } else {
+      log.debug("Rate limit throttle active: sleeping {} ms before next request", waitMs);
+      try {
+        Thread.sleep(waitMs);
+      } catch (InterruptedException exception) {
+        Thread.currentThread().interrupt();
+        log.warn("Rate limiter sleep interrupted: {}", exception.getMessage());
       }
     }
   }
@@ -93,7 +88,7 @@ public class YahooFinanceDownloader {
   private int downloadAndPersistForTicker(
       Ticker ticker, LocalDate latestSavedDate, LocalDate today, ZoneId marketZone) {
     LocalDate actualLatestDate =
-        (latestSavedDate != null) ? latestSavedDate : yahooFinanceConfig.getBackfillStartDate();
+        (latestSavedDate != null) ? latestSavedDate : YahooFinanceConfig.BACKFILL_START_DATE;
     LocalDate startDate = actualLatestDate.plusDays(1);
 
     long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();

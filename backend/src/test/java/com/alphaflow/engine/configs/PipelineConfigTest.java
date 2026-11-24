@@ -10,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
-import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
@@ -39,7 +38,6 @@ class PipelineConfigTest {
   private WeeklyPriceCalculator weeklyPriceCalculator;
   private SupportResistanceCalculator supportResistanceCalculator;
   private CandlestickPatternCalculator candlestickPatternCalculator;
-  private ChartPatternCalculator chartPatternCalculator;
   private IndicatorCalculator indicatorCalculator;
   private PipelineConfig pipelineConfig;
   private JobRepository jobRepository;
@@ -51,7 +49,6 @@ class PipelineConfigTest {
     weeklyPriceCalculator = mock(WeeklyPriceCalculator.class);
     supportResistanceCalculator = mock(SupportResistanceCalculator.class);
     candlestickPatternCalculator = mock(CandlestickPatternCalculator.class);
-    chartPatternCalculator = mock(ChartPatternCalculator.class);
     indicatorCalculator = mock(IndicatorCalculator.class);
 
     pipelineConfig =
@@ -60,7 +57,6 @@ class PipelineConfigTest {
             weeklyPriceCalculator,
             supportResistanceCalculator,
             candlestickPatternCalculator,
-            chartPatternCalculator,
             indicatorCalculator);
 
     jobRepository = new ResourcelessJobRepository();
@@ -75,7 +71,6 @@ class PipelineConfigTest {
     assertNotNull(pipelineConfig.getWeeklyPriceCalculator());
     assertNotNull(pipelineConfig.getSupportResistanceCalculator());
     assertNotNull(pipelineConfig.getCandlestickPatternCalculator());
-    assertNotNull(pipelineConfig.getChartPatternCalculator());
     assertNotNull(pipelineConfig.getIndicatorCalculator());
     assertNotNull(pipelineConfig.getTransactionManager());
 
@@ -88,26 +83,20 @@ class PipelineConfigTest {
     Step step3 = pipelineConfig.calculateDailyCandlestickPatternStep(jobRepository);
     assertEquals(PipelineConfig.STEP_CALCULATE_DAILY_CANDLESTICK_PATTERN, step3.getName());
 
-    Step step4 = pipelineConfig.calculateDailyChartPatternStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_DAILY_CHART_PATTERN, step4.getName());
+    Step step4 = pipelineConfig.calculateDailyIndicatorStep(jobRepository);
+    assertEquals(PipelineConfig.STEP_CALCULATE_DAILY_INDICATOR, step4.getName());
 
-    Step step5 = pipelineConfig.calculateDailyIndicatorStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_DAILY_INDICATOR, step5.getName());
+    Step step5 = pipelineConfig.calculateWeeklyPriceStep(jobRepository);
+    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_PRICE, step5.getName());
 
-    Step step6 = pipelineConfig.calculateWeeklyPriceStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_PRICE, step6.getName());
+    Step step6 = pipelineConfig.calculateWeeklySupportResistanceStep(jobRepository);
+    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_SUPPORT_RESISTANCE, step6.getName());
 
-    Step step7 = pipelineConfig.calculateWeeklySupportResistanceStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_SUPPORT_RESISTANCE, step7.getName());
+    Step step7 = pipelineConfig.calculateWeeklyCandlestickPatternStep(jobRepository);
+    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_CANDLESTICK_PATTERN, step7.getName());
 
-    Step step8 = pipelineConfig.calculateWeeklyCandlestickPatternStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_CANDLESTICK_PATTERN, step8.getName());
-
-    Step step9 = pipelineConfig.calculateWeeklyChartPatternStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_CHART_PATTERN, step9.getName());
-
-    Step step10 = pipelineConfig.calculateWeeklyIndicatorStep(jobRepository);
-    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_INDICATOR, step10.getName());
+    Step step8 = pipelineConfig.calculateWeeklyIndicatorStep(jobRepository);
+    assertEquals(PipelineConfig.STEP_CALCULATE_WEEKLY_INDICATOR, step8.getName());
   }
 
   @Test
@@ -117,27 +106,15 @@ class PipelineConfigTest {
     Step step1 = pipelineConfig.downloadDailyPriceStep(jobRepository);
     Step step2 = pipelineConfig.calculateDailySupportResistanceStep(jobRepository);
     Step step3 = pipelineConfig.calculateDailyCandlestickPatternStep(jobRepository);
-    Step step4 = pipelineConfig.calculateDailyChartPatternStep(jobRepository);
-    Step step5 = pipelineConfig.calculateDailyIndicatorStep(jobRepository);
-    Step step6 = pipelineConfig.calculateWeeklyPriceStep(jobRepository);
-    Step step7 = pipelineConfig.calculateWeeklySupportResistanceStep(jobRepository);
-    Step step8 = pipelineConfig.calculateWeeklyCandlestickPatternStep(jobRepository);
-    Step step9 = pipelineConfig.calculateWeeklyChartPatternStep(jobRepository);
-    Step step10 = pipelineConfig.calculateWeeklyIndicatorStep(jobRepository);
+    Step step4 = pipelineConfig.calculateDailyIndicatorStep(jobRepository);
+    Step step5 = pipelineConfig.calculateWeeklyPriceStep(jobRepository);
+    Step step6 = pipelineConfig.calculateWeeklySupportResistanceStep(jobRepository);
+    Step step7 = pipelineConfig.calculateWeeklyCandlestickPatternStep(jobRepository);
+    Step step8 = pipelineConfig.calculateWeeklyIndicatorStep(jobRepository);
 
     Job dailyJob =
         pipelineConfig.dailyPipelineJob(
-            jobRepository,
-            step1,
-            step2,
-            step3,
-            step4,
-            step5,
-            step6,
-            step7,
-            step8,
-            step9,
-            step10);
+            jobRepository, step1, step2, step3, step4, step5, step6, step7, step8);
 
     JobParameters params =
         new JobParametersBuilder().addLong("runTimestamp", 1000L).toJobParameters();
@@ -146,25 +123,22 @@ class PipelineConfigTest {
 
     assertEquals(BatchStatus.COMPLETED, execution.getStatus());
     assertEquals(PipelineConfig.DAILY_PIPELINE_JOB, execution.getJobInstance().getJobName());
-    assertEquals(10, execution.getStepExecutions().size());
+    assertEquals(8, execution.getStepExecutions().size());
 
     InOrder inOrder =
         inOrder(
             yahooFinanceDownloader,
             supportResistanceCalculator,
             candlestickPatternCalculator,
-            chartPatternCalculator,
             indicatorCalculator,
             weeklyPriceCalculator);
     inOrder.verify(yahooFinanceDownloader).downloadAndPersistDailyPrices();
     inOrder.verify(supportResistanceCalculator).computeSupportResistances(Timeframe.DAILY);
     inOrder.verify(candlestickPatternCalculator).computeCandleStickPatterns(Timeframe.DAILY);
-    inOrder.verify(chartPatternCalculator).computeChartPatterns(Timeframe.DAILY);
     inOrder.verify(indicatorCalculator).computeIndicators(Timeframe.DAILY);
     inOrder.verify(weeklyPriceCalculator).computeWeeklyPrices();
     inOrder.verify(supportResistanceCalculator).computeSupportResistances(Timeframe.WEEKLY);
     inOrder.verify(candlestickPatternCalculator).computeCandleStickPatterns(Timeframe.WEEKLY);
-    inOrder.verify(chartPatternCalculator).computeChartPatterns(Timeframe.WEEKLY);
     inOrder.verify(indicatorCalculator).computeIndicators(Timeframe.WEEKLY);
   }
 

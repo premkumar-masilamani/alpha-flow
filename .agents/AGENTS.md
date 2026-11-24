@@ -25,6 +25,7 @@ make lint
 - Read the corresponding `.agents/AGENTS.md` file inside the `backend/`, `frontend/`, or `database/` submodules before modifying their files.
 - Fail fast immediately on startup or invocation if any required configuration, environment variable, or parameter is missing or unexpanded (e.g. `${VAR}`).
 - Use `org.apache.commons.lang3.StringUtils` for string blank/empty checks in the backend rather than custom string utility classes.
+- Declare pure defined constants (values defined in one place) in `UPPER_SNAKE_CASE` (and as `static final` in Java); exclude loggers and variables initialized from `application.properties` or environment configuration.
 
 ### Ask first
 - Modifying scheduled core jobs or the downloader frequency/rate-limiting logic.

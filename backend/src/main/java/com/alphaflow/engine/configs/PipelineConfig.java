@@ -2,7 +2,6 @@ package com.alphaflow.engine.configs;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.CandlestickPatternCalculator;
-import com.alphaflow.engine.calculators.ChartPatternCalculator;
 import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
@@ -38,23 +37,18 @@ public class PipelineConfig {
       "CALCULATE_DAILY_SUPPORT_RESISTANCE";
   public static final String STEP_CALCULATE_DAILY_CANDLESTICK_PATTERN =
       "CALCULATE_DAILY_CANDLESTICK_PATTERN";
-  public static final String STEP_CALCULATE_DAILY_CHART_PATTERN =
-      "CALCULATE_DAILY_CHART_PATTERN";
   public static final String STEP_CALCULATE_DAILY_INDICATOR = "CALCULATE_DAILY_INDICATOR";
   public static final String STEP_CALCULATE_WEEKLY_PRICE = "CALCULATE_WEEKLY_PRICE";
   public static final String STEP_CALCULATE_WEEKLY_SUPPORT_RESISTANCE =
       "CALCULATE_WEEKLY_SUPPORT_RESISTANCE";
   public static final String STEP_CALCULATE_WEEKLY_CANDLESTICK_PATTERN =
       "CALCULATE_WEEKLY_CANDLESTICK_PATTERN";
-  public static final String STEP_CALCULATE_WEEKLY_CHART_PATTERN =
-      "CALCULATE_WEEKLY_CHART_PATTERN";
   public static final String STEP_CALCULATE_WEEKLY_INDICATOR = "CALCULATE_WEEKLY_INDICATOR";
 
   private final YahooFinanceDownloader yahooFinanceDownloader;
   private final WeeklyPriceCalculator weeklyPriceCalculator;
   private final SupportResistanceCalculator supportResistanceCalculator;
   private final CandlestickPatternCalculator candlestickPatternCalculator;
-  private final ChartPatternCalculator chartPatternCalculator;
   private final IndicatorCalculator indicatorCalculator;
   private final ResourcelessTransactionManager transactionManager =
       new ResourcelessTransactionManager();
@@ -64,13 +58,11 @@ public class PipelineConfig {
       WeeklyPriceCalculator weeklyPriceCalculator,
       SupportResistanceCalculator supportResistanceCalculator,
       CandlestickPatternCalculator candlestickPatternCalculator,
-      ChartPatternCalculator chartPatternCalculator,
       IndicatorCalculator indicatorCalculator) {
     this.yahooFinanceDownloader = yahooFinanceDownloader;
     this.weeklyPriceCalculator = weeklyPriceCalculator;
     this.supportResistanceCalculator = supportResistanceCalculator;
     this.candlestickPatternCalculator = candlestickPatternCalculator;
-    this.chartPatternCalculator = chartPatternCalculator;
     this.indicatorCalculator = indicatorCalculator;
   }
 
@@ -78,7 +70,7 @@ public class PipelineConfig {
   public Step downloadDailyPriceStep(JobRepository jobRepository) {
     return buildStep(
         STEP_DOWNLOAD_DAILY_PRICE,
-            yahooFinanceDownloader::downloadAndPersistDailyPrices,
+        yahooFinanceDownloader::downloadAndPersistDailyPrices,
         jobRepository);
   }
 
@@ -99,14 +91,6 @@ public class PipelineConfig {
   }
 
   @Bean
-  public Step calculateDailyChartPatternStep(JobRepository jobRepository) {
-    return buildStep(
-        STEP_CALCULATE_DAILY_CHART_PATTERN,
-        () -> chartPatternCalculator.computeChartPatterns(Timeframe.DAILY),
-        jobRepository);
-  }
-
-  @Bean
   public Step calculateDailyIndicatorStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_DAILY_INDICATOR,
@@ -117,9 +101,7 @@ public class PipelineConfig {
   @Bean
   public Step calculateWeeklyPriceStep(JobRepository jobRepository) {
     return buildStep(
-        STEP_CALCULATE_WEEKLY_PRICE,
-            weeklyPriceCalculator::computeWeeklyPrices,
-        jobRepository);
+        STEP_CALCULATE_WEEKLY_PRICE, weeklyPriceCalculator::computeWeeklyPrices, jobRepository);
   }
 
   @Bean
@@ -139,14 +121,6 @@ public class PipelineConfig {
   }
 
   @Bean
-  public Step calculateWeeklyChartPatternStep(JobRepository jobRepository) {
-    return buildStep(
-        STEP_CALCULATE_WEEKLY_CHART_PATTERN,
-        () -> chartPatternCalculator.computeChartPatterns(Timeframe.WEEKLY),
-        jobRepository);
-  }
-
-  @Bean
   public Step calculateWeeklyIndicatorStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_WEEKLY_INDICATOR,
@@ -160,24 +134,20 @@ public class PipelineConfig {
       Step downloadDailyPriceStep,
       Step calculateDailySupportResistanceStep,
       Step calculateDailyCandlestickPatternStep,
-      Step calculateDailyChartPatternStep,
       Step calculateDailyIndicatorStep,
       Step calculateWeeklyPriceStep,
       Step calculateWeeklySupportResistanceStep,
       Step calculateWeeklyCandlestickPatternStep,
-      Step calculateWeeklyChartPatternStep,
       Step calculateWeeklyIndicatorStep) {
     TreeMap<Integer, Step> steps = new TreeMap<>();
     steps.put(1, downloadDailyPriceStep);
     steps.put(2, calculateDailySupportResistanceStep);
     steps.put(3, calculateDailyCandlestickPatternStep);
-    steps.put(4, calculateDailyChartPatternStep);
-    steps.put(5, calculateDailyIndicatorStep);
-    steps.put(6, calculateWeeklyPriceStep);
-    steps.put(7, calculateWeeklySupportResistanceStep);
-    steps.put(8, calculateWeeklyCandlestickPatternStep);
-    steps.put(9, calculateWeeklyChartPatternStep);
-    steps.put(10, calculateWeeklyIndicatorStep);
+    steps.put(4, calculateDailyIndicatorStep);
+    steps.put(5, calculateWeeklyPriceStep);
+    steps.put(6, calculateWeeklySupportResistanceStep);
+    steps.put(7, calculateWeeklyCandlestickPatternStep);
+    steps.put(8, calculateWeeklyIndicatorStep);
     return buildJob(DAILY_PIPELINE_JOB, steps, jobRepository);
   }
 
