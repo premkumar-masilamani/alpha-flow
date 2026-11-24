@@ -1,5 +1,6 @@
 package com.alphaflow.persistence.repositories;
 
+import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import java.time.LocalDate;
@@ -14,7 +15,28 @@ import org.springframework.stereotype.Repository;
 public interface WeeklySupportResistanceRepository
     extends JpaRepository<WeeklySupportResistance, Long> {
 
+  @Query(
+      """
+      SELECT new com.alphaflow.persistence.dtos.TickerSyncState(
+          tk,
+          (SELECT MAX(wp.priceDate) FROM WeeklyPrice wp WHERE wp.ticker = tk),
+          (SELECT MAX(wsr.priceDate) FROM WeeklySupportResistance wsr WHERE wsr.ticker = tk)
+      )
+      FROM Ticker tk
+      WHERE tk.isActive = true
+      """)
+  List<TickerSyncState> findSyncStatesForActiveTickers();
+
   List<WeeklySupportResistance> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
+
+  @Modifying(flushAutomatically = true)
+  @Query(
+      """
+      DELETE FROM WeeklySupportResistance wsr
+      WHERE wsr.ticker = :ticker AND wsr.priceDate = :priceDate
+      """)
+  void deleteByTickerAndPriceDate(
+      @Param("ticker") Ticker ticker, @Param("priceDate") LocalDate priceDate);
 
   @Modifying
   @Query(

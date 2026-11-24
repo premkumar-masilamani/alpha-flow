@@ -4,6 +4,7 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.ChartPatternPivot;
 import com.alphaflow.persistence.entities.DailyChartPattern;
 import com.alphaflow.persistence.entities.Ticker;
@@ -12,7 +13,6 @@ import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.enums.ChartPatternType;
 import com.alphaflow.persistence.repositories.DailyChartPatternRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyChartPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
@@ -44,7 +44,6 @@ public class ChartPatternCalculator {
   private static final BigDecimal TOLERANCE_5_PERCENT = new BigDecimal("0.050");
   private static final BigDecimal MIN_DEPTH_RATIO = new BigDecimal("0.015");
 
-  private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyChartPatternRepository dailyChartPatternRepository;
@@ -53,12 +52,10 @@ public class ChartPatternCalculator {
   @Autowired @Lazy private ChartPatternCalculator selfProxy;
 
   public ChartPatternCalculator(
-      TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyChartPatternRepository dailyChartPatternRepository,
       WeeklyChartPatternRepository weeklyChartPatternRepository) {
-    this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyChartPatternRepository = dailyChartPatternRepository;
@@ -67,27 +64,64 @@ public class ChartPatternCalculator {
 
   public void computeChartPatterns(Timeframe timeframe) {
     log.info("Computing {} classical chart patterns...", timeframe);
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info(
-        "Found {} active tickers to process for {} chart patterns.",
-        activeTickers.size(),
-        timeframe);
-
-    ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-    for (Ticker activeTicker : activeTickers) {
-      try {
-        proxy.computeChartPatternsForTicker(activeTicker, timeframe);
-      } catch (Exception exception) {
-        log.error(
-            "Failed to compute {} chart patterns for ticker {}: {}",
-            timeframe,
-            activeTicker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
+    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    List<TickerSyncState> staleStates = new ArrayList<>();
+    for (TickerSyncState syncState : syncStates) {
+      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
+      if (PipelineGating.requiresUpdate(
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+        staleStates.add(syncState);
+      } else {
+        log.debug(
+            "{}: up to date (source={}, calculated={}). Skipping.",
+            syncState.ticker().getTickerSymbol(),
+            syncState.latestSourceDate(),
+            syncState.latestCalculatedDate());
       }
     }
-    log.info("{} chart patterns computation completed.", timeframe);
+
+    int totalActiveTickers = syncStates.size();
+    int staleCount = staleStates.size();
+    if (staleCount > 0) {
+      log.info(
+          "{} chart pattern computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
+          timeframe,
+          staleCount,
+          totalActiveTickers,
+          totalActiveTickers - staleCount);
+
+      ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
+
+      for (TickerSyncState syncState : staleStates) {
+        try {
+          proxy.computeChartPatternsForTicker(syncState.ticker(), timeframe);
+        } catch (Exception exception) {
+          log.error(
+              "Failed to compute {} chart patterns for ticker {}: {}",
+              timeframe,
+              syncState.ticker().getTickerSymbol(),
+              exception.getMessage(),
+              exception);
+        }
+      }
+      log.info("{} chart patterns computation completed.", timeframe);
+    } else {
+      log.info(
+          "{} chart pattern computation: 0 of {} active tickers require processing; skipping step.",
+          timeframe,
+          totalActiveTickers);
+    }
+  }
+
+  private List<TickerSyncState> loadSyncStates(Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyChartPatternRepository.findSyncStatesForActiveTickers();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyChartPatternRepository.findSyncStatesForActiveTickers();
+    } else {
+      log.error("Unsupported timeframe for loading chart pattern sync states: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

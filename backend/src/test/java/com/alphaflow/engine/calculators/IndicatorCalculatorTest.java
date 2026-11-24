@@ -16,27 +16,28 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.engine.indicators.EmaIndicator;
 import com.alphaflow.engine.indicators.MacdIndicator;
 import com.alphaflow.engine.indicators.RsiIndicator;
 import com.alphaflow.engine.indicators.SmaIndicator;
 import com.alphaflow.engine.indicators.StochasticIndicator;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
+import com.alphaflow.persistence.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Indicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
+import com.alphaflow.persistence.entities.WeeklyPrice;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -51,18 +52,21 @@ import org.mockito.ArgumentCaptor;
 class IndicatorCalculatorTest {
 
   private static final LocalDate EPOCH = LocalDate.of(2021, 1, 4); // a Monday
-  private static final int N = 12;
+  private static final LocalDate HISTORICAL_MONDAY = LocalDate.of(2025, 1, 6);
+  private static final int BAR_COUNT = 12;
 
-  private TickerRepository tickerRepo;
   private DailyPriceRepository dailyRepo;
   private WeeklyPriceRepository weeklyRepo;
   private DailyIndicatorRepository dailyIndicatorRepo;
   private WeeklyIndicatorRepository weeklyIndicatorRepo;
   private IndicatorCalculator calculator;
   private Ticker ticker;
+  private IndicatorDefinition emaDefinition;
+  private IndicatorDefinition smaVolumeDefinition;
 
   private static IndicatorDefinition emaDef() {
     return IndicatorDefinition.builder()
+        .indicatorDefinitionId(1L)
         .indicatorType(IndicatorType.EMA)
         .source(PriceSource.CLOSE)
         .params(Map.of("period", 3))
@@ -71,6 +75,7 @@ class IndicatorCalculatorTest {
 
   private static IndicatorDefinition smaVolumeDef() {
     return IndicatorDefinition.builder()
+        .indicatorDefinitionId(2L)
         .indicatorType(IndicatorType.SMA)
         .source(PriceSource.VOLUME)
         .params(Map.of("period", 2))
@@ -81,13 +86,13 @@ class IndicatorCalculatorTest {
     return EPOCH.plusDays(index);
   }
 
-  private static List<DailyPrice> dailyBars(Ticker ticker) {
-    List<DailyPrice> bars = new ArrayList<>(N);
-    for (int i = 0; i < N; i++) {
+  private static List<DailyPrice> dailyBars(Ticker targetTicker) {
+    List<DailyPrice> bars = new ArrayList<>(BAR_COUNT);
+    for (int i = 0; i < BAR_COUNT; i++) {
       BigDecimal close = BigDecimal.valueOf(10 + i).setScale(4);
       bars.add(
           DailyPrice.builder()
-              .ticker(ticker)
+              .ticker(targetTicker)
               .priceDate(date(i))
               .priceOpen(close)
               .priceHigh(close.add(BigDecimal.ONE))
@@ -99,9 +104,21 @@ class IndicatorCalculatorTest {
     return bars;
   }
 
+  private static WeeklyPrice weeklyBar(Ticker targetTicker, LocalDate priceDate, int closeVal) {
+    BigDecimal close = BigDecimal.valueOf(closeVal);
+    return WeeklyPrice.builder()
+        .ticker(targetTicker)
+        .priceDate(priceDate)
+        .priceOpen(close)
+        .priceHigh(close)
+        .priceLow(close)
+        .priceClose(close)
+        .volume(BigDecimal.valueOf(100L))
+        .build();
+  }
+
   @BeforeEach
   void setUp() {
-    tickerRepo = mock(TickerRepository.class);
     dailyRepo = mock(DailyPriceRepository.class);
     weeklyRepo = mock(WeeklyPriceRepository.class);
     dailyIndicatorRepo = mock(DailyIndicatorRepository.class);
@@ -116,170 +133,256 @@ class IndicatorCalculatorTest {
                 new MacdIndicator(),
                 new StochasticIndicator()));
 
-    IndicatorDefinitions properties =
-        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(List.of(emaDef(), smaVolumeDef()));
-
     calculator =
         new IndicatorCalculator(
-            tickerRepo,
-            registry,
-            properties,
-            dailyRepo,
-            weeklyRepo,
-            dailyIndicatorRepo,
-            weeklyIndicatorRepo);
+            registry, dailyRepo, weeklyRepo, dailyIndicatorRepo, weeklyIndicatorRepo);
 
     ticker =
         Ticker.builder()
             .tickerId(1L)
             .tickerSymbol("TEST")
             .tickerName("Test")
+            .country(Country.US)
             .isActive(true)
             .build();
+    emaDefinition = emaDef();
+    smaVolumeDefinition = smaVolumeDef();
 
     when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyBars(ticker));
     when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
   }
 
   @Test
-  void testComputeIndicatorsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
-    Ticker t1 = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    Ticker t2 = Ticker.builder().tickerId(2L).tickerSymbol("MSFT").isActive(true).build();
+  void testComputeIndicatorsAllUpToDateAndEmptyDefinitionsShortCircuit() {
+    Ticker noSourceTicker =
+        Ticker.builder()
+            .tickerId(2L)
+            .tickerSymbol("NOSRC")
+            .country(Country.US)
+            .isActive(true)
+            .build();
 
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(t1, t2));
+    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerIndicatorSyncState(ticker, emaDefinition, date(11), date(11)),
+                new TickerIndicatorSyncState(noSourceTicker, emaDefinition, null, null)));
+    when(weeklyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerIndicatorSyncState(
+                    ticker, emaDefinition, HISTORICAL_MONDAY, HISTORICAL_MONDAY)));
+
+    calculator.computeIndicators(Timeframe.DAILY);
+    calculator.computeIndicators(Timeframe.WEEKLY);
+
+    // Empty indicator_definitions table returns empty bulk state list
+    when(dailyIndicatorRepo.findSyncStatesForActiveTickers()).thenReturn(List.of());
+    calculator.computeIndicators(Timeframe.DAILY);
+
+    verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(any());
+    verify(weeklyRepo, never()).findByTickerOrderByPriceDateAsc(any());
+    verify(dailyIndicatorRepo, never()).saveAll(any());
+    verify(weeklyIndicatorRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testComputeIndicatorsOnlyComputesNewlyAddedOrStaleDefinitions() {
+    Ticker upToDateTicker =
+        Ticker.builder()
+            .tickerId(2L)
+            .tickerSymbol("MSFT")
+            .country(Country.US)
+            .isActive(true)
+            .build();
+
+    // For `ticker`: emaDefinition is already up to date, smaVolumeDefinition is newly added (null).
+    // For `upToDateTicker`: all definitions are up to date.
+    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerIndicatorSyncState(ticker, emaDefinition, date(11), date(11)),
+                new TickerIndicatorSyncState(ticker, smaVolumeDefinition, date(11), null),
+                new TickerIndicatorSyncState(upToDateTicker, emaDefinition, date(11), date(11)),
+                new TickerIndicatorSyncState(
+                    upToDateTicker, smaVolumeDefinition, date(11), date(11))));
+
+    calculator.computeIndicators(Timeframe.DAILY);
+
+    verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(ticker);
+    verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
+
+    List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
+    List<? extends Indicator> smaValues = capturedValues(IndicatorType.SMA);
+    assertEquals(0, emaValues.size());
+    assertEquals(11, smaValues.size());
+  }
+
+  @Test
+  void testComputeIndicatorsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
+    Ticker failingTicker =
+        Ticker.builder()
+            .tickerId(1L)
+            .tickerSymbol("AAPL")
+            .country(Country.US)
+            .isActive(true)
+            .build();
+    Ticker healthyTicker =
+        Ticker.builder()
+            .tickerId(2L)
+            .tickerSymbol("MSFT")
+            .country(Country.US)
+            .isActive(true)
+            .build();
+
+    TickerIndicatorSyncState failingState =
+        new TickerIndicatorSyncState(failingTicker, emaDefinition, date(11), null);
+    TickerIndicatorSyncState healthyState =
+        new TickerIndicatorSyncState(healthyTicker, emaDefinition, date(11), null);
+
+    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(failingState, healthyState));
+    when(weeklyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerIndicatorSyncState(failingTicker, emaDefinition, HISTORICAL_MONDAY, null),
+                new TickerIndicatorSyncState(
+                    healthyTicker, emaDefinition, HISTORICAL_MONDAY, null)));
 
     IndicatorCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
         .when(calculatorSpy)
-        .computeIndicatorForTicker(t1, Timeframe.DAILY);
-    doNothing().when(calculatorSpy).computeIndicatorForTicker(t2, Timeframe.DAILY);
+        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(failingState));
+    doNothing()
+        .when(calculatorSpy)
+        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(healthyState));
 
     calculatorSpy.computeIndicators(Timeframe.DAILY);
 
-    verify(calculatorSpy).computeIndicatorForTicker(t1, Timeframe.DAILY);
-    verify(calculatorSpy).computeIndicatorForTicker(t2, Timeframe.DAILY);
+    verify(calculatorSpy)
+        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(failingState));
+    verify(calculatorSpy)
+        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(healthyState));
 
     IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
-    java.lang.reflect.Field selfField =
-        IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
+    Field selfField = IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 
     calculator.computeIndicators(Timeframe.WEEKLY);
 
-    verify(selfMock).computeIndicatorForTicker(t1, Timeframe.WEEKLY);
-    verify(selfMock).computeIndicatorForTicker(t2, Timeframe.WEEKLY);
+    verify(selfMock).computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.WEEKLY), any());
+    verify(selfMock).computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.WEEKLY), any());
   }
 
   @Test
-  void processTickerDeletesAndBackfillsWholeSeries() {
-    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY);
+  void testComputeIndicatorsUnsupportedTimeframeThrows() {
+    assertThrows(IllegalArgumentException.class, () -> calculator.computeIndicators(null));
+  }
 
-    // Verify check of last stored indicator date
-    verify(dailyIndicatorRepo, times(2))
-        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
+  @Test
+  void processTickerBackfillsWholeSeriesWhenLatestCalculatedIsNull() {
+    List<TickerIndicatorSyncState> staleStates =
+        List.of(
+            new TickerIndicatorSyncState(ticker, emaDefinition, date(11), null),
+            new TickerIndicatorSyncState(ticker, smaVolumeDefinition, date(11), null));
 
-    // Verify saving of computed indicators
+    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, staleStates);
+
     List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
-    // EMA with period 3: first 2 prices are warm up, so N - 2 = 10 points
     assertEquals(10, emaValues.size());
 
     List<? extends Indicator> smaValues = capturedValues(IndicatorType.SMA);
-    // SMA with period 2: first 1 price is warm up, so N - 1 = 11 points
     assertEquals(11, smaValues.size());
+  }
+
+  @Test
+  void processTickerDailyIncrementalOnlySavesDatesAfterLatestCalculated() {
+    List<TickerIndicatorSyncState> staleStates =
+        List.of(new TickerIndicatorSyncState(ticker, emaDefinition, date(11), date(8)));
+
+    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, staleStates);
+
+    List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
+    // Dates 9, 10, 11 are strictly after date(8)
+    assertEquals(3, emaValues.size());
+    assertEquals(date(9), emaValues.getFirst().getPriceDate());
+    assertEquals(date(11), emaValues.getLast().getPriceDate());
   }
 
   @Test
   void processTimeframeWithEmptyBarsReturnsEarly() {
     when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
 
-    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY);
+    calculator.computeIndicatorForTicker(
+        ticker,
+        Timeframe.DAILY,
+        List.of(new TickerIndicatorSyncState(ticker, emaDefinition, date(11), null)));
 
-    verify(dailyIndicatorRepo, never())
-        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(any(), any());
-    verify(weeklyIndicatorRepo, never())
-        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(any(), any());
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
   }
 
   @Test
-  void weeklyTimeframeProcessing() {
-    com.alphaflow.persistence.entities.WeeklyPrice w1 =
-        com.alphaflow.persistence.entities.WeeklyPrice.builder()
-            .ticker(ticker)
-            .priceDate(date(0))
-            .priceOpen(BigDecimal.TEN)
-            .priceHigh(BigDecimal.TEN)
-            .priceLow(BigDecimal.TEN)
-            .priceClose(BigDecimal.TEN)
-            .volume(BigDecimal.valueOf(100L))
-            .build();
+  void weeklyTimeframeBackfillAndMidWeekRefreshIdempotency() {
+    LocalDate week1 = HISTORICAL_MONDAY;
+    LocalDate week2 = HISTORICAL_MONDAY.plusWeeks(1);
+    LocalDate week3 = HISTORICAL_MONDAY.plusWeeks(2);
 
-    com.alphaflow.persistence.entities.WeeklyPrice w2 =
-        com.alphaflow.persistence.entities.WeeklyPrice.builder()
-            .ticker(ticker)
-            .priceDate(date(1))
-            .priceOpen(BigDecimal.TEN)
-            .priceHigh(BigDecimal.TEN)
-            .priceLow(BigDecimal.TEN)
-            .priceClose(BigDecimal.TEN)
-            .volume(BigDecimal.valueOf(100L))
-            .build();
-
-    when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(w1, w2));
+    when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(
+            List.of(
+                weeklyBar(ticker, week1, 10),
+                weeklyBar(ticker, week2, 12),
+                weeklyBar(ticker, week3, 15)));
 
     IndicatorDefinition weeklyDef =
         IndicatorDefinition.builder()
+            .indicatorDefinitionId(10L)
             .indicatorType(IndicatorType.EMA)
             .source(PriceSource.CLOSE)
             .params(Map.of("period", 2))
             .build();
 
-    IndicatorDefinitions properties =
-        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(List.of(weeklyDef));
+    // 1. Initial backfill (latestCalculatedDate == null) -> no delete, inserts week2 & week3
+    calculator.computeIndicatorForTicker(
+        ticker,
+        Timeframe.WEEKLY,
+        List.of(new TickerIndicatorSyncState(ticker, weeklyDef, week3, null)));
 
-    calculator =
-        new IndicatorCalculator(
-            tickerRepo,
-            new IndicatorRegistry(
-                List.of(
-                    new EmaIndicator(),
-                    new SmaIndicator(),
-                    new RsiIndicator(),
-                    new MacdIndicator(),
-                    new StochasticIndicator())),
-            properties,
-            dailyRepo,
-            weeklyRepo,
-            dailyIndicatorRepo,
-            weeklyIndicatorRepo);
+    verify(weeklyIndicatorRepo, never())
+        .deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(any(), any(), any());
+    assertEquals(2, capturedValues(IndicatorType.EMA).size());
 
-    when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    calculator.computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
+    // 2. Mid-week refresh (latestCalculatedDate == week3) -> atomic delete >= week3, inserts week3
+    calculator.computeIndicatorForTicker(
+        ticker,
+        Timeframe.WEEKLY,
+        List.of(new TickerIndicatorSyncState(ticker, weeklyDef, week3, week3)));
 
-    verify(weeklyIndicatorRepo)
-        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
-    List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
-    assertEquals(1, emaValues.size()); // EMA period 2 over 2 bars yields 1 value (the second bar)
+    verify(weeklyIndicatorRepo, times(1))
+        .deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(ticker, weeklyDef, week3);
+    // Total captured across both calls: 2 (backfill) + 1 (week3 refresh) = 3
+    assertEquals(3, capturedValues(IndicatorType.EMA).size());
   }
 
   @Test
   void processTickerWithInsufficientBarsDoesNotSave() {
-    IndicatorDefinition emaDef =
+    IndicatorDefinition longEmaDef =
         IndicatorDefinition.builder()
+            .indicatorDefinitionId(99L)
             .indicatorType(IndicatorType.EMA)
             .source(PriceSource.CLOSE)
             .params(Map.of("period", 10))
             .build();
 
-    IndicatorDefinitions properties =
-        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(List.of(emaDef));
-
-    Ticker testTicker = Ticker.builder().tickerId(99L).tickerSymbol("TEST").isActive(true).build();
+    Ticker testTicker =
+        Ticker.builder()
+            .tickerId(99L)
+            .tickerSymbol("SHORT")
+            .country(Country.US)
+            .isActive(true)
+            .build();
     BigDecimal close = BigDecimal.TEN;
     List<DailyPrice> bars =
         List.of(
@@ -304,86 +407,40 @@ class IndicatorCalculatorTest {
 
     when(dailyRepo.findByTickerOrderByPriceDateAsc(testTicker)).thenReturn(bars);
 
-    IndicatorCalculator testCalculator =
-        new IndicatorCalculator(
-            tickerRepo,
-            new IndicatorRegistry(List.of(new EmaIndicator())),
-            properties,
-            dailyRepo,
-            weeklyRepo,
-            dailyIndicatorRepo,
-            weeklyIndicatorRepo);
+    calculator.computeIndicatorForTicker(
+        testTicker,
+        Timeframe.DAILY,
+        List.of(new TickerIndicatorSyncState(testTicker, longEmaDef, date(1), null)));
 
-    testCalculator.computeIndicatorForTicker(testTicker, Timeframe.DAILY);
-
-    verify(dailyIndicatorRepo)
-        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(testTicker), any());
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
   }
 
   @Test
   void processWeeklyTickerWithInsufficientBarsDoesNotSave() {
-    com.alphaflow.persistence.entities.WeeklyPrice w1 =
-        com.alphaflow.persistence.entities.WeeklyPrice.builder()
-            .ticker(ticker)
-            .priceDate(date(0))
-            .priceOpen(BigDecimal.TEN)
-            .priceHigh(BigDecimal.TEN)
-            .priceLow(BigDecimal.TEN)
-            .priceClose(BigDecimal.TEN)
-            .volume(BigDecimal.valueOf(100L))
-            .build();
-
-    when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of(w1));
+    when(weeklyRepo.findByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(List.of(weeklyBar(ticker, HISTORICAL_MONDAY, 10)));
 
     IndicatorDefinition weeklyDef =
         IndicatorDefinition.builder()
+            .indicatorDefinitionId(11L)
             .indicatorType(IndicatorType.EMA)
             .source(PriceSource.CLOSE)
             .params(Map.of("period", 5))
             .build();
 
-    IndicatorDefinitions properties =
-        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(List.of(weeklyDef));
+    calculator.computeIndicatorForTicker(
+        ticker,
+        Timeframe.WEEKLY,
+        List.of(new TickerIndicatorSyncState(ticker, weeklyDef, HISTORICAL_MONDAY, null)));
 
-    calculator =
-        new IndicatorCalculator(
-            tickerRepo,
-            new IndicatorRegistry(List.of(new EmaIndicator())),
-            properties,
-            dailyRepo,
-            weeklyRepo,
-            dailyIndicatorRepo,
-            weeklyIndicatorRepo);
-
-    when(dailyRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    calculator.computeIndicatorForTicker(ticker, Timeframe.WEEKLY);
-
-    verify(weeklyIndicatorRepo)
-        .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(eq(ticker), any());
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
   }
 
   @Test
-  void testComputeIndicatorsWithNoDefinitionsReturnsEarly() {
-    IndicatorDefinitions properties =
-        new IndicatorDefinitions(mock(IndicatorDefinitionRepository.class));
-    properties.setCachedDefinitions(List.of());
-
-    IndicatorCalculator testCalculator =
-        new IndicatorCalculator(
-            tickerRepo,
-            new IndicatorRegistry(List.of(new EmaIndicator())),
-            properties,
-            dailyRepo,
-            weeklyRepo,
-            dailyIndicatorRepo,
-            weeklyIndicatorRepo);
-
-    testCalculator.computeIndicatorForTicker(ticker, Timeframe.DAILY);
+  void testComputeIndicatorsWithNoStaleDefinitionsReturnsEarly() {
+    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, List.of());
 
     verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(any());
     verify(weeklyRepo, never()).findByTickerOrderByPriceDateAsc(any());
@@ -395,41 +452,25 @@ class IndicatorCalculatorTest {
         IndicatorCalculator.class.getDeclaredMethod("loadBars", Ticker.class, Timeframe.class);
     loadBarsMethod.setAccessible(true);
 
-    InvocationTargetException ex =
+    InvocationTargetException exception =
         assertThrows(
             InvocationTargetException.class,
             () -> loadBarsMethod.invoke(calculator, ticker, (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+    assertInstanceOf(IllegalArgumentException.class, exception.getCause());
   }
 
   @Test
-  void testUnsupportedTimeframeInSaveIndicatorsThrowsException() throws Exception {
+  void testUnsupportedTimeframeInComputeAndSaveIndicatorsThrowsException() throws Exception {
     Method saveMethod =
         IndicatorCalculator.class.getDeclaredMethod(
-            "saveIndicators", Ticker.class, Timeframe.class, Map.class);
+            "computeAndSaveIndicators", Ticker.class, Timeframe.class, List.class, List.class);
     saveMethod.setAccessible(true);
 
-    InvocationTargetException ex =
+    InvocationTargetException exception =
         assertThrows(
             InvocationTargetException.class,
-            () ->
-                saveMethod.invoke(
-                    calculator, ticker, (Timeframe) null, Map.of(emaDef(), Map.of())));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
-
-  @Test
-  void testUnsupportedTimeframeInGetLastComputedDateThrowsException() throws Exception {
-    Method getLastComputedDateMethod =
-        IndicatorCalculator.class.getDeclaredMethod(
-            "getLastComputedDate", Ticker.class, IndicatorDefinition.class, Timeframe.class);
-    getLastComputedDateMethod.setAccessible(true);
-
-    InvocationTargetException ex =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> getLastComputedDateMethod.invoke(calculator, ticker, emaDef(), (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+            () -> saveMethod.invoke(calculator, ticker, (Timeframe) null, List.of(), List.of()));
+    assertInstanceOf(IllegalArgumentException.class, exception.getCause());
   }
 
   @SuppressWarnings("unchecked")
@@ -444,6 +485,6 @@ class IndicatorCalculatorTest {
     dailyCaptor.getAllValues().forEach(allValues::addAll);
     weeklyCaptor.getAllValues().forEach(allValues::addAll);
 
-    return allValues.stream().filter(v -> v.getIndicatorType() == type).toList();
+    return allValues.stream().filter(indicator -> indicator.getIndicatorType() == type).toList();
   }
 }

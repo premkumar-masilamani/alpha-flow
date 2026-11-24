@@ -38,31 +38,52 @@ public class YahooFinanceDownloader {
     Map<Ticker, LocalDate> latestSavedDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
 
-    log.info("Found {} active Yahoo Finance tickers to sync.", latestSavedDates.size());
-
-    int totalNewlyIngestedRows = 0;
-    List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
-    for (Ticker ticker : tickers) {
-      ZoneId marketZone = ticker.getCountry().getZoneId();
-      LocalDate today = LocalDate.now(marketZone);
-      LocalDate latestSavedDate = latestSavedDates.get(ticker);
+    List<Ticker> staleTickers = new ArrayList<>();
+    for (Map.Entry<Ticker, LocalDate> entry : latestSavedDates.entrySet()) {
+      Ticker ticker = entry.getKey();
+      LocalDate today = LocalDate.now(ticker.getCountry().getZoneId());
+      LocalDate latestSavedDate = entry.getValue();
 
       if (latestSavedDate == null || latestSavedDate.isBefore(today)) {
+        staleTickers.add(ticker);
+      } else {
+        log.debug(
+            "{}: up to date (source={}, calculated={}). Skipping.",
+            ticker.getTickerSymbol(),
+            today,
+            latestSavedDate);
+      }
+    }
+
+    int totalActiveTickers = latestSavedDates.size();
+    int staleCount = staleTickers.size();
+    if (staleCount > 0) {
+      log.info(
+          "Yahoo Finance daily download: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
+          staleCount,
+          totalActiveTickers,
+          totalActiveTickers - staleCount);
+
+      int totalNewlyIngestedRows = 0;
+      for (Ticker ticker : staleTickers) {
+        ZoneId marketZone = ticker.getCountry().getZoneId();
+        LocalDate today = LocalDate.now(marketZone);
+        LocalDate latestSavedDate = latestSavedDates.get(ticker);
+
         throttle();
         int ingestedRows = downloadAndPersistForTicker(ticker, latestSavedDate, today, marketZone);
         totalNewlyIngestedRows += ingestedRows;
-      } else {
-        log.debug(
-            "{}: up to date (latest saved: {}, today: {}). Skipping.",
-            ticker.getTickerSymbol(),
-            latestSavedDate,
-            today);
       }
+      log.info(
+          "All Yahoo Finance downloads completed! Total newly ingested rows: {}",
+          totalNewlyIngestedRows);
+      return totalNewlyIngestedRows;
+    } else {
+      log.info(
+          "Yahoo Finance daily download: 0 of {} active tickers require processing; skipping step.",
+          totalActiveTickers);
+      return 0;
     }
-    log.info(
-        "All Yahoo Finance downloads completed! Total newly ingested rows: {}",
-        totalNewlyIngestedRows);
-    return totalNewlyIngestedRows;
   }
 
   private void throttle() {

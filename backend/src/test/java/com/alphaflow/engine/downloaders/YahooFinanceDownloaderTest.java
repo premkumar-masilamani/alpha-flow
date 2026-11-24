@@ -152,6 +152,35 @@ class YahooFinanceDownloaderTest {
   }
 
   @Test
+  void testDownloadPartialStalenessOnlyFetchesStaleTickers() {
+    Ticker upToDateTicker = new Ticker();
+    upToDateTicker.setTickerId(1L);
+    upToDateTicker.setTickerSymbol("AAPL");
+    upToDateTicker.setCountry(Country.US);
+    upToDateTicker.setActive(true);
+
+    Ticker staleTicker = new Ticker();
+    staleTicker.setTickerId(2L);
+    staleTicker.setTickerSymbol("MSFT");
+    staleTicker.setCountry(Country.US);
+    staleTicker.setActive(true);
+
+    Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
+    latestDates.put(upToDateTicker, LocalDate.now(Country.US.getZoneId()));
+    latestDates.put(staleTicker, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceClient client = createClient(baseUrl + "/valid", false);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
+    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+
+    assertEquals(2, ingestedRows);
+    verify(dailyRepo, times(1)).saveAll(any());
+  }
+
+  @Test
   void testDownloadValidParseAndSave() {
     Ticker ticker1 = new Ticker();
     ticker1.setTickerId(1L);

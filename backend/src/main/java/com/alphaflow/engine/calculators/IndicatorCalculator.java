@@ -1,24 +1,22 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.calculators.cache.IndicatorDefinitions;
 import com.alphaflow.engine.indicators.Indicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
+import com.alphaflow.persistence.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class IndicatorCalculator {
 
-  private final TickerRepository tickerRepository;
   private final IndicatorRegistry indicatorRegistry;
-  private final IndicatorDefinitions indicatorDefinitions;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyIndicatorRepository dailyIndicatorRepository;
@@ -44,16 +40,12 @@ public class IndicatorCalculator {
   @Autowired @Lazy private IndicatorCalculator indicatorCalculator;
 
   public IndicatorCalculator(
-      TickerRepository tickerRepository,
       IndicatorRegistry registry,
-      IndicatorDefinitions properties,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyIndicatorRepository dailyIndicatorRepository,
       WeeklyIndicatorRepository weeklyIndicatorRepository) {
-    this.tickerRepository = tickerRepository;
     this.indicatorRegistry = registry;
-    this.indicatorDefinitions = properties;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyIndicatorRepository = dailyIndicatorRepository;
@@ -63,44 +55,104 @@ public class IndicatorCalculator {
   public void computeIndicators(Timeframe timeframe) {
     log.info("Computing {} indicators...", timeframe);
 
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for {} indicators.", tickers.size(), timeframe);
+    List<TickerIndicatorSyncState> syncStates = loadSyncStates(timeframe);
+    Map<Ticker, List<TickerIndicatorSyncState>> statesByTicker = new LinkedHashMap<>();
+    for (TickerIndicatorSyncState syncState : syncStates) {
+      statesByTicker
+          .computeIfAbsent(syncState.ticker(), ignoredTicker -> new ArrayList<>())
+          .add(syncState);
+    }
 
-    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
-
-    for (Ticker ticker : tickers) {
-      try {
-        proxy.computeIndicatorForTicker(ticker, timeframe);
-      } catch (Exception exception) {
-        log.error(
-            "Failed to compute {} indicators for ticker {}: {}",
-            timeframe,
+    Map<Ticker, List<TickerIndicatorSyncState>> staleByTicker = new LinkedHashMap<>();
+    for (Map.Entry<Ticker, List<TickerIndicatorSyncState>> entry : statesByTicker.entrySet()) {
+      Ticker ticker = entry.getKey();
+      LocalDate today = LocalDate.now(ticker.getCountry().getZoneId());
+      List<TickerIndicatorSyncState> staleDefinitions = new ArrayList<>();
+      for (TickerIndicatorSyncState syncState : entry.getValue()) {
+        if (PipelineGating.requiresUpdate(
+            timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          staleDefinitions.add(syncState);
+        }
+      }
+      if (!staleDefinitions.isEmpty()) {
+        staleByTicker.put(ticker, staleDefinitions);
+      } else {
+        log.debug(
+            "{}: up to date across all {} indicator definitions. Skipping.",
             ticker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
+            entry.getValue().size());
       }
     }
 
-    log.info("{} indicators computed.", timeframe);
+    int totalActiveTickers = statesByTicker.size();
+    int staleTickerCount = staleByTicker.size();
+    if (staleTickerCount > 0) {
+      log.info(
+          "{} indicator computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
+          timeframe,
+          staleTickerCount,
+          totalActiveTickers,
+          totalActiveTickers - staleTickerCount);
+
+      IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
+
+      for (Map.Entry<Ticker, List<TickerIndicatorSyncState>> entry : staleByTicker.entrySet()) {
+        Ticker ticker = entry.getKey();
+        try {
+          proxy.computeIndicatorForTicker(ticker, timeframe, entry.getValue());
+        } catch (Exception exception) {
+          log.error(
+              "Failed to compute {} indicators for ticker {}: {}",
+              timeframe,
+              ticker.getTickerSymbol(),
+              exception.getMessage(),
+              exception);
+        }
+      }
+
+      log.info("{} indicators computed.", timeframe);
+    } else {
+      log.info(
+          "{} indicator computation: 0 of {} active tickers require processing; skipping step.",
+          timeframe,
+          totalActiveTickers);
+    }
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeIndicatorForTicker(Ticker ticker, Timeframe timeframe) {
+  public void computeIndicatorForTicker(
+      Ticker ticker, Timeframe timeframe, List<TickerIndicatorSyncState> staleStates) {
     log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
-    List<IndicatorDefinition> definitions = this.indicatorDefinitions.getDefinitions();
-    if (!definitions.isEmpty()) {
+    if (!staleStates.isEmpty()) {
       List<PriceBar> bars = loadBars(ticker, timeframe);
-      Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computedIndicators =
-          computeIndicatorSeries(bars, definitions);
-      int savedCount = saveIndicators(ticker, timeframe, computedIndicators);
-      log.info(
-          "Ticker {}: Saved {} {} indicators.",
-          ticker.getTickerSymbol(),
-          savedCount,
-          timeframe.name().toLowerCase());
+      if (!bars.isEmpty()) {
+        int savedCount = computeAndSaveIndicators(ticker, timeframe, bars, staleStates);
+        log.info(
+            "Ticker {}: Saved {} {} indicators.",
+            ticker.getTickerSymbol(),
+            savedCount,
+            timeframe.name().toLowerCase());
+      } else {
+        log.debug(
+            "{}: No {} price bars found. Skipping indicator computation.",
+            ticker.getTickerSymbol(),
+            timeframe.name().toLowerCase());
+      }
     } else {
       log.info(
-          "{}: No indicator definitions found. Skipping computation.", ticker.getTickerSymbol());
+          "{}: No stale indicator definitions found. Skipping computation.",
+          ticker.getTickerSymbol());
+    }
+  }
+
+  private List<TickerIndicatorSyncState> loadSyncStates(Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyIndicatorRepository.findSyncStatesForActiveTickers();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyIndicatorRepository.findSyncStatesForActiveTickers();
+    } else {
+      log.error("Unsupported timeframe for loading indicator sync states: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
 
@@ -113,48 +165,27 @@ public class IndicatorCalculator {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
           .map(PriceBar::from)
           .toList();
+    } else {
+      log.error("Unsupported timeframe for loading bars: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-
-    log.error("Unsupported timeframe for loading bars: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
-  private Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computeIndicatorSeries(
-      List<PriceBar> bars, List<IndicatorDefinition> definitions) {
-    if (bars.isEmpty()) {
-      return Collections.emptyMap();
-    }
-
-    Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> results =
-        new LinkedHashMap<>();
-    for (IndicatorDefinition definition : definitions) {
-      Indicator indicator = indicatorRegistry.get(definition.getType());
-      IndicatorParams params = IndicatorParams.of(definition.getParams());
-      Map<LocalDate, Map<String, BigDecimal>> computed =
-          indicator.compute(bars, params, definition.getSource());
-      results.put(definition, computed);
-    }
-    return results;
-  }
-
-  private int saveIndicators(
+  private int computeAndSaveIndicators(
       Ticker ticker,
       Timeframe timeframe,
-      Map<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> computedIndicators) {
-    if (computedIndicators.isEmpty()) {
-      return 0;
-    }
-
+      List<PriceBar> bars,
+      List<TickerIndicatorSyncState> staleStates) {
     if (timeframe == Timeframe.DAILY) {
       List<DailyIndicator> toInsert = new ArrayList<>();
-      for (Map.Entry<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> entry :
-          computedIndicators.entrySet()) {
-        IndicatorDefinition definition = entry.getKey();
-        LocalDate lastDate = getLastComputedDate(ticker, definition, Timeframe.DAILY);
+      for (TickerIndicatorSyncState syncState : staleStates) {
+        IndicatorDefinition definition = syncState.indicatorDefinition();
+        LocalDate latestCalculatedDate = syncState.latestCalculatedDate();
+        Map<LocalDate, Map<String, BigDecimal>> computed = computeSingleSeries(bars, definition);
 
-        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : entry.getValue().entrySet()) {
+        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : computed.entrySet()) {
           LocalDate date = point.getKey();
-          if (lastDate == null || date.isAfter(lastDate)) {
+          if (latestCalculatedDate == null || date.isAfter(latestCalculatedDate)) {
             toInsert.add(
                 DailyIndicator.builder()
                     .ticker(ticker)
@@ -169,18 +200,25 @@ public class IndicatorCalculator {
       if (!toInsert.isEmpty()) {
         dailyIndicatorRepository.saveAll(toInsert);
         return toInsert.size();
+      } else {
+        return 0;
       }
-      return 0;
     } else if (timeframe == Timeframe.WEEKLY) {
       List<WeeklyIndicator> toInsert = new ArrayList<>();
-      for (Map.Entry<IndicatorDefinition, Map<LocalDate, Map<String, BigDecimal>>> entry :
-          computedIndicators.entrySet()) {
-        IndicatorDefinition definition = entry.getKey();
-        LocalDate lastDate = getLastComputedDate(ticker, definition, Timeframe.WEEKLY);
+      for (TickerIndicatorSyncState syncState : staleStates) {
+        IndicatorDefinition definition = syncState.indicatorDefinition();
+        LocalDate latestCalculatedDate = syncState.latestCalculatedDate();
+        Map<LocalDate, Map<String, BigDecimal>> computed = computeSingleSeries(bars, definition);
 
-        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : entry.getValue().entrySet()) {
+        if (latestCalculatedDate != null) {
+          weeklyIndicatorRepository
+              .deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(
+                  ticker, definition, latestCalculatedDate);
+        }
+
+        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : computed.entrySet()) {
           LocalDate date = point.getKey();
-          if (lastDate == null || date.isAfter(lastDate)) {
+          if (latestCalculatedDate == null || !date.isBefore(latestCalculatedDate)) {
             toInsert.add(
                 WeeklyIndicator.builder()
                     .ticker(ticker)
@@ -195,29 +233,19 @@ public class IndicatorCalculator {
       if (!toInsert.isEmpty()) {
         weeklyIndicatorRepository.saveAll(toInsert);
         return toInsert.size();
+      } else {
+        return 0;
       }
-      return 0;
+    } else {
+      log.error("Unsupported timeframe for saving indicators: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-
-    log.error("Unsupported timeframe for saving indicators: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
-  private LocalDate getLastComputedDate(
-      Ticker ticker, IndicatorDefinition definition, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyIndicatorRepository
-          .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(ticker, definition)
-          .map(com.alphaflow.persistence.entities.Indicator::getPriceDate)
-          .orElse(null);
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyIndicatorRepository
-          .findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(ticker, definition)
-          .map(com.alphaflow.persistence.entities.Indicator::getPriceDate)
-          .orElse(null);
-    }
-
-    log.error("Unsupported timeframe for fetching last computed date: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  private Map<LocalDate, Map<String, BigDecimal>> computeSingleSeries(
+      List<PriceBar> bars, IndicatorDefinition definition) {
+    Indicator indicator = indicatorRegistry.get(definition.getType());
+    IndicatorParams params = IndicatorParams.of(definition.getParams());
+    return indicator.compute(bars, params, definition.getSource());
   }
 }

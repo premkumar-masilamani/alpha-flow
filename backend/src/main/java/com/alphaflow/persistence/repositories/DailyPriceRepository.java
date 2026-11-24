@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,9 +14,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
-  Optional<DailyPrice> findTopByTickerOrderByPriceDateAsc(Ticker ticker);
-
-  Optional<DailyPrice> findTopByTickerOrderByPriceDateDesc(Ticker ticker);
 
   @Query(
       """

@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,14 +18,15 @@ import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.structure.DowAtrSwingDetector;
+import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
-import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.lang.reflect.Field;
@@ -34,7 +36,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -42,8 +43,8 @@ import org.mockito.ArgumentCaptor;
 class SupportResistanceCalculatorTest {
 
   private static final LocalDate EPOCH = LocalDate.of(2026, 1, 1);
+  private static final LocalDate HISTORICAL_MONDAY = LocalDate.of(2025, 1, 6);
 
-  private TickerRepository tickerRepo;
   private DailyPriceRepository dailyPriceRepo;
   private WeeklyPriceRepository weeklyPriceRepo;
   private DailySupportResistanceRepository dailySrRepo;
@@ -53,7 +54,6 @@ class SupportResistanceCalculatorTest {
 
   @BeforeEach
   void setUp() {
-    tickerRepo = mock(TickerRepository.class);
     dailyPriceRepo = mock(DailyPriceRepository.class);
     weeklyPriceRepo = mock(WeeklyPriceRepository.class);
     dailySrRepo = mock(DailySupportResistanceRepository.class);
@@ -61,14 +61,15 @@ class SupportResistanceCalculatorTest {
 
     calculator =
         new SupportResistanceCalculator(
-            tickerRepo,
-            dailyPriceRepo,
-            weeklyPriceRepo,
-            dailySrRepo,
-            weeklySrRepo,
-            new DowAtrSwingDetector());
+            dailyPriceRepo, weeklyPriceRepo, dailySrRepo, weeklySrRepo, new DowAtrSwingDetector());
 
-    ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
+    ticker =
+        Ticker.builder()
+            .tickerId(1L)
+            .tickerSymbol("AAPL")
+            .country(Country.US)
+            .isActive(true)
+            .build();
   }
 
   private PriceBar bar(int dayOffset, int open, int high, int low, int close) {
@@ -146,20 +147,76 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
-  void testComputeSupportResistancesOrchestratorSuccessAndErrorIsolation() {
-    Ticker okTicker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
-    Ticker failingTicker =
-        Ticker.builder().tickerId(2L).tickerSymbol("FAIL").isActive(true).build();
+  void testComputeSupportResistancesAllUpToDateShortCircuitsDailyAndWeekly() {
+    Ticker noSourceTicker =
+        Ticker.builder()
+            .tickerId(2L)
+            .tickerSymbol("NOSRC")
+            .country(Country.US)
+            .isActive(true)
+            .build();
 
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(okTicker, failingTicker));
-    when(dailyPriceRepo.findTopByTickerOrderByPriceDateDesc(okTicker)).thenReturn(Optional.empty());
-    when(dailyPriceRepo.findTopByTickerOrderByPriceDateDesc(failingTicker))
+    when(dailySrRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerSyncState(ticker, EPOCH, EPOCH),
+                new TickerSyncState(noSourceTicker, null, null)));
+    when(weeklySrRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerSyncState(ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY),
+                new TickerSyncState(noSourceTicker, null, null)));
+
+    calculator.computeSupportResistances(Timeframe.DAILY);
+    calculator.computeSupportResistances(Timeframe.WEEKLY);
+
+    verify(dailySrRepo).findSyncStatesForActiveTickers();
+    verify(weeklySrRepo).findSyncStatesForActiveTickers();
+    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
+    verify(weeklyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
+    verify(dailySrRepo, never()).saveAll(any());
+    verify(weeklySrRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testComputeSupportResistancesOrchestratorPartialStalenessAndErrorIsolation() {
+    Ticker okTicker =
+        Ticker.builder()
+            .tickerId(1L)
+            .tickerSymbol("AAPL")
+            .country(Country.US)
+            .isActive(true)
+            .build();
+    Ticker failingTicker =
+        Ticker.builder()
+            .tickerId(2L)
+            .tickerSymbol("FAIL")
+            .country(Country.US)
+            .isActive(true)
+            .build();
+    Ticker upToDateTicker =
+        Ticker.builder()
+            .tickerId(3L)
+            .tickerSymbol("MSFT")
+            .country(Country.US)
+            .isActive(true)
+            .build();
+
+    when(dailySrRepo.findSyncStatesForActiveTickers())
+        .thenReturn(
+            List.of(
+                new TickerSyncState(okTicker, EPOCH, EPOCH.minusDays(1)),
+                new TickerSyncState(failingTicker, EPOCH, null),
+                new TickerSyncState(upToDateTicker, EPOCH, EPOCH)));
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(okTicker)).thenReturn(List.of());
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
     calculator.computeSupportResistances(Timeframe.DAILY);
 
-    verify(dailyPriceRepo).findTopByTickerOrderByPriceDateDesc(okTicker);
-    verify(dailyPriceRepo).findTopByTickerOrderByPriceDateDesc(failingTicker);
+    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(okTicker);
+    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(failingTicker);
+    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
   }
 
   @Test
@@ -169,11 +226,18 @@ class SupportResistanceCalculatorTest {
     selfField.setAccessible(true);
     selfField.set(calculator, mockSelf);
 
-    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(weeklySrRepo.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, HISTORICAL_MONDAY, null)));
 
     calculator.computeSupportResistances(Timeframe.WEEKLY);
 
-    verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
+    verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, null);
+  }
+
+  @Test
+  void testComputeSupportResistancesUnsupportedTimeframeThrows() {
+    assertThrows(
+        IllegalArgumentException.class, () -> calculator.computeSupportResistances(null));
   }
 
   @Test
@@ -182,21 +246,16 @@ class SupportResistanceCalculatorTest {
     List<DailyPrice> dailyPrices = bars.stream().map(this::dailyFrom).toList();
     List<WeeklyPrice> weeklyPrices = bars.stream().map(this::weeklyFrom).toList();
 
-    when(dailyPriceRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dailyPrices.getLast()));
-    when(weeklyPriceRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(weeklyPrices.getLast()));
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
-    when(weeklySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, null);
 
     LocalDate latestDate = bars.getLast().date();
     verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, latestDate.minusDays(30));
     verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, latestDate.minusDays(180));
+    verify(weeklySrRepo, never()).deleteByTickerAndPriceDate(any(), any());
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailySupportResistance>> dailyCaptor = ArgumentCaptor.forClass(List.class);
@@ -216,38 +275,38 @@ class SupportResistanceCalculatorTest {
   }
 
   @Test
-  void testSkipsAlreadyComputedDailyAndWeekly() {
+  void testWeeklyMidWeekRefreshDeletesExistingSnapshotBeforeSavingIdempotently() {
     List<PriceBar> bars = buildOscillatingBars(125);
+    List<WeeklyPrice> weeklyPrices = bars.stream().map(this::weeklyFrom).toList();
     LocalDate latestDate = bars.getLast().date();
 
-    when(dailyPriceRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dailyFrom(bars.getLast())));
-    when(weeklyPriceRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(weeklyFrom(bars.getLast())));
-    when(dailySrRepo.findByTickerAndPriceDate(ticker, latestDate))
-        .thenReturn(List.of(DailySupportResistance.builder().build()));
-    when(weeklySrRepo.findByTickerAndPriceDate(ticker, latestDate))
-        .thenReturn(List.of(WeeklySupportResistance.builder().build()));
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
 
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
+    // 1. Advancing to a newer week (latestCalculatedDate < priceDate) does not delete priceDate
+    calculator.computeSupportResistancesForTicker(
+        ticker, Timeframe.WEEKLY, latestDate.minusWeeks(1));
+    verify(weeklySrRepo, never()).deleteByTickerAndPriceDate(any(), any());
 
-    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(weeklyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailySrRepo, never()).saveAll(any());
-    verify(weeklySrRepo, never()).saveAll(any());
+    // 2. Mid-week refresh on same priceDate (called twice) deletes and saves idempotently
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, latestDate);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, latestDate);
+
+    verify(weeklySrRepo, times(2)).deleteByTickerAndPriceDate(ticker, latestDate);
+    verify(weeklySrRepo, times(3)).saveAll(any());
   }
 
   @Test
-  void testDoesNotSaveWhenNoBucketsComputed() {
+  void testDoesNotSaveWhenNoPriceBarsOrNoBucketsComputed() {
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
+    verify(dailySrRepo, never()).deleteByTickerAndPriceDateLessThan(any(), any());
+    verify(dailySrRepo, never()).saveAll(any());
+
     List<PriceBar> flatBars = List.of(bar(0, 100, 105, 95, 100));
-    when(dailyPriceRepo.findTopByTickerOrderByPriceDateDesc(ticker))
-        .thenReturn(Optional.of(dailyFrom(flatBars.getLast())));
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(flatBars.stream().map(this::dailyFrom).toList());
-    when(dailySrRepo.findByTickerAndPriceDate(eq(ticker), any())).thenReturn(List.of());
 
-    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY);
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
 
     verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(eq(ticker), any());
     verify(dailySrRepo, never()).saveAll(any());
@@ -431,16 +490,6 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testUnsupportedTimeframeBranchesThrowIllegalArgumentException() throws Exception {
-    Method findLatestPriceDateMethod =
-        SupportResistanceCalculator.class.getDeclaredMethod(
-            "findLatestPriceDate", Ticker.class, Timeframe.class);
-    findLatestPriceDateMethod.setAccessible(true);
-    InvocationTargetException findLatestException =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> findLatestPriceDateMethod.invoke(calculator, ticker, (Timeframe) null));
-    assertTrue(findLatestException.getCause() instanceof IllegalArgumentException);
-
     Method loadBarsMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
             "loadBars", Ticker.class, Timeframe.class);
@@ -450,16 +499,6 @@ class SupportResistanceCalculatorTest {
             InvocationTargetException.class,
             () -> loadBarsMethod.invoke(calculator, ticker, (Timeframe) null));
     assertTrue(loadException.getCause() instanceof IllegalArgumentException);
-
-    Method isAlreadyComputedMethod =
-        SupportResistanceCalculator.class.getDeclaredMethod(
-            "isAlreadyComputed", Ticker.class, LocalDate.class, Timeframe.class);
-    isAlreadyComputedMethod.setAccessible(true);
-    InvocationTargetException existsException =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> isAlreadyComputedMethod.invoke(calculator, ticker, EPOCH, (Timeframe) null));
-    assertTrue(existsException.getCause() instanceof IllegalArgumentException);
 
     Method deleteMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(

@@ -1,12 +1,11 @@
 package com.alphaflow.persistence.repositories;
 
+import com.alphaflow.persistence.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.DailyIndicator;
-import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -14,8 +13,18 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, Long> {
 
-  Optional<DailyIndicator> findFirstByTickerAndIndicatorDefinitionOrderByPriceDateDesc(
-      Ticker ticker, IndicatorDefinition indicatorDefinition);
+  @Query(
+      """
+      SELECT new com.alphaflow.persistence.dtos.TickerIndicatorSyncState(
+          tk,
+          idDef,
+          (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
+          (SELECT MAX(di.priceDate) FROM DailyIndicator di WHERE di.ticker = tk AND di.indicatorDefinition = idDef)
+      )
+      FROM Ticker tk, IndicatorDefinition idDef
+      WHERE tk.isActive = true
+      """)
+  List<TickerIndicatorSyncState> findSyncStatesForActiveTickers();
 
   @Query(
       """
