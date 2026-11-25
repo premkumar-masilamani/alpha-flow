@@ -1,7 +1,10 @@
 package com.alphaflow.engine.downloaders;
 
+import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.PipelineConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
@@ -19,7 +22,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class YahooFinanceDownloader {
+public class YahooFinanceDownloader implements PipelineJob {
 
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
@@ -30,6 +33,31 @@ public class YahooFinanceDownloader {
       YahooFinanceClient yahooFinanceClient, DailyPriceRepository dailyPriceRepository) {
     this.yahooFinanceClient = yahooFinanceClient;
     this.dailyPriceRepository = dailyPriceRepository;
+  }
+
+  @Override
+  public String getJobName() {
+    return PipelineConfig.STEP_DOWNLOAD_DAILY_PRICE;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    Map<Ticker, LocalDate> latestSavedDates =
+        dailyPriceRepository.findLatestPriceDatesForActiveTickers();
+    for (Map.Entry<Ticker, LocalDate> entry : latestSavedDates.entrySet()) {
+      Ticker ticker = entry.getKey();
+      LocalDate today = LocalDate.now(ticker.getCountry().getZoneId());
+      LocalDate latestSavedDate = entry.getValue();
+      if (latestSavedDate == null || latestSavedDate.isBefore(today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    downloadAndPersistDailyPrices();
   }
 
   public int downloadAndPersistDailyPrices() {

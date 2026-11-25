@@ -6,6 +6,7 @@ import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.engine.structure.DowAtrSwingDetector;
 import com.alphaflow.engine.structure.dtos.SwingPoint;
 import com.alphaflow.engine.structure.enums.SwingType;
@@ -49,7 +50,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 @Slf4j
-public class SupportResistanceCalculator {
+public class SupportResistanceCalculator implements PipelineJob {
+
+  public static final String JOB_NAME = "CALCULATE_SUPPORT_RESISTANCE";
 
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
@@ -70,6 +73,29 @@ public class SupportResistanceCalculator {
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
     this.dowAtrSwingDetector = dowAtrSwingDetector;
+  }
+
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    for (TickerSyncState syncState : syncStates) {
+      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
+      if (PipelineGating.requiresUpdate(
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    computeSupportResistances(timeframe);
   }
 
   /**

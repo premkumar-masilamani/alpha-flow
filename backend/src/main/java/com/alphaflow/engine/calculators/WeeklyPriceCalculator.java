@@ -1,5 +1,8 @@
 package com.alphaflow.engine.calculators;
 
+import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.PipelineConfig;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
@@ -25,7 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class WeeklyPriceCalculator {
+public class WeeklyPriceCalculator implements PipelineJob {
 
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
@@ -36,6 +39,29 @@ public class WeeklyPriceCalculator {
       DailyPriceRepository dailyPriceRepository, WeeklyPriceRepository weeklyPriceRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
+  }
+
+  @Override
+  public String getJobName() {
+    return PipelineConfig.STEP_CALCULATE_WEEKLY_PRICE;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    List<TickerSyncState> syncStates = weeklyPriceRepository.findSyncStatesForActiveTickers();
+    for (TickerSyncState syncState : syncStates) {
+      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
+      if (PipelineGating.requiresWeeklyPriceUpdate(
+          syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    computeWeeklyPrices();
   }
 
   public void computeWeeklyPrices() {

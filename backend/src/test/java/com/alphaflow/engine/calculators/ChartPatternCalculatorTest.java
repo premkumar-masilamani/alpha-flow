@@ -794,4 +794,20 @@ class ChartPatternCalculatorTest {
                 calculator, noBreakoutBars, 0, new BigDecimal("110"), true);
     assertNull(breakoutDateNull);
   }
+
+  @Test
+  void testPipelineJobMethods() {
+    assertEquals("CALCULATE_CHART_PATTERN", calculator.getJobName());
+
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, base, base)));
+    assertFalse(calculator.shouldRun(Timeframe.DAILY));
+
+    when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, base.plusDays(1), base)));
+    assertTrue(calculator.shouldRun(Timeframe.DAILY));
+
+    calculator.execute(Timeframe.DAILY);
+  }
 }

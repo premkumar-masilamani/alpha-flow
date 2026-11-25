@@ -4,6 +4,7 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.PatternMatch;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
@@ -29,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class CandlestickPatternCalculator {
+public class CandlestickPatternCalculator implements PipelineJob {
+
+  public static final String JOB_NAME = "CALCULATE_CANDLESTICK_PATTERN";
 
   private static final MathContext MC = new MathContext(18, RoundingMode.HALF_UP);
   private static final BigDecimal THRESHOLD_LARGE = new BigDecimal("1.5");
@@ -63,6 +66,29 @@ public class CandlestickPatternCalculator {
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyCandlestickPatternRepository = dailyCandlestickPatternRepository;
     this.weeklyCandlestickPatternRepository = weeklyCandlestickPatternRepository;
+  }
+
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    for (TickerSyncState syncState : syncStates) {
+      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
+      if (PipelineGating.requiresUpdate(
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    computeCandleStickPatterns(timeframe);
   }
 
   public void computeCandleStickPatterns(Timeframe timeframe) {

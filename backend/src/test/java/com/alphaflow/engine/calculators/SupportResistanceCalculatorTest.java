@@ -529,4 +529,19 @@ class SupportResistanceCalculatorTest {
             () -> saveMethod.invoke(calculator, ticker, List.of(sampleBucket), (Timeframe) null));
     assertTrue(saveException.getCause() instanceof IllegalArgumentException);
   }
+
+  @Test
+  void testPipelineJobMethods() {
+    assertEquals("CALCULATE_SUPPORT_RESISTANCE", calculator.getJobName());
+
+    when(dailySrRepo.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, EPOCH, EPOCH)));
+    assertFalse(calculator.shouldRun(Timeframe.DAILY));
+
+    when(dailySrRepo.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, EPOCH.plusDays(1), EPOCH)));
+    assertTrue(calculator.shouldRun(Timeframe.DAILY));
+
+    calculator.execute(Timeframe.DAILY);
+  }
 }

@@ -242,4 +242,22 @@ class WeeklyPriceCalculatorTest {
     assertThat(saved.getFirst().getPriceDate()).isEqualTo(MONDAY);
     assertThat(saved.getLast().getPriceDate()).isEqualTo(nextMonday);
   }
+
+  @Test
+  void testPipelineJobMethods() {
+    assertThat(calculator.getJobName()).isEqualTo("CALCULATE_WEEKLY_PRICE");
+
+    // When up to date: shouldRun returns false
+    when(weeklyPriceRepository.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY)));
+    assertThat(calculator.shouldRun(null)).isFalse();
+
+    // When stale: shouldRun returns true (source date in a newer week than calculated Monday)
+    when(weeklyPriceRepository.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, HISTORICAL_MONDAY.plusWeeks(1), HISTORICAL_MONDAY)));
+    assertThat(calculator.shouldRun(null)).isTrue();
+
+    // Test execute delegating to computeWeeklyPrices
+    calculator.execute(null);
+  }
 }

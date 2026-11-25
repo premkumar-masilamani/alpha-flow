@@ -1062,4 +1062,20 @@ class CandlestickPatternCalculatorTest {
       org.mockito.Mockito.reset(dailyCandlestickPatternRepository);
     }
   }
+
+  @Test
+  void testPipelineJobMethods() {
+    assertThat(calculator.getJobName()).isEqualTo("CALCULATE_CANDLESTICK_PATTERN");
+
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    when(dailyCandlestickPatternRepository.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, base, base)));
+    assertThat(calculator.shouldRun(Timeframe.DAILY)).isFalse();
+
+    when(dailyCandlestickPatternRepository.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerSyncState(ticker, base.plusDays(1), base)));
+    assertThat(calculator.shouldRun(Timeframe.DAILY)).isTrue();
+
+    calculator.execute(Timeframe.DAILY);
+  }
 }

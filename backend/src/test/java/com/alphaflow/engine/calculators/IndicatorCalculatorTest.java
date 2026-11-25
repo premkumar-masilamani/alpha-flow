@@ -487,4 +487,20 @@ class IndicatorCalculatorTest {
 
     return allValues.stream().filter(indicator -> indicator.getIndicatorType() == type).toList();
   }
+
+  @Test
+  void testPipelineJobMethods() {
+    assertEquals("CALCULATE_INDICATOR", calculator.getJobName());
+
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerIndicatorSyncState(ticker, emaDefinition, base, base)));
+    org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
+
+    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
+        .thenReturn(List.of(new TickerIndicatorSyncState(ticker, emaDefinition, base.plusDays(1), base)));
+    org.junit.jupiter.api.Assertions.assertTrue(calculator.shouldRun(Timeframe.DAILY));
+
+    calculator.execute(Timeframe.DAILY);
+  }
 }

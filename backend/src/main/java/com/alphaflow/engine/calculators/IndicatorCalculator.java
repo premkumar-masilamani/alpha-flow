@@ -5,6 +5,7 @@ import com.alphaflow.engine.indicators.Indicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
@@ -29,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class IndicatorCalculator {
+public class IndicatorCalculator implements PipelineJob {
+
+  public static final String JOB_NAME = "CALCULATE_INDICATOR";
 
   private final IndicatorRegistry indicatorRegistry;
   private final DailyPriceRepository dailyPriceRepository;
@@ -50,6 +53,29 @@ public class IndicatorCalculator {
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyIndicatorRepository = dailyIndicatorRepository;
     this.weeklyIndicatorRepository = weeklyIndicatorRepository;
+  }
+
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    List<TickerIndicatorSyncState> syncStates = loadSyncStates(timeframe);
+    for (TickerIndicatorSyncState syncState : syncStates) {
+      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
+      if (PipelineGating.requiresUpdate(
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    computeIndicators(timeframe);
   }
 
   public void computeIndicators(Timeframe timeframe) {

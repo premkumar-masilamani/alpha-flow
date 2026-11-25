@@ -370,4 +370,39 @@ class YahooFinanceDownloaderTest {
     assertTrue(Thread.interrupted());
     assertEquals(4, ingestedRows);
   }
+
+  @Test
+  void testPipelineJobMethods() {
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    YahooFinanceClient client = mock(YahooFinanceClient.class);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
+
+    assertEquals("DOWNLOAD_DAILY_PRICE", downloader.getJobName());
+
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    LocalDate today = LocalDate.now(Country.US.getZoneId());
+
+    // When up to date: shouldRun returns false
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of(ticker, today));
+    assertEquals(false, downloader.shouldRun(null));
+
+    // When latestSavedDate is null: shouldRun returns true
+    Map<Ticker, LocalDate> nullMap = new LinkedHashMap<>();
+    nullMap.put(ticker, null);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(nullMap);
+    assertEquals(true, downloader.shouldRun(null));
+
+    // When stale: shouldRun returns true
+    when(dailyRepo.findLatestPriceDatesForActiveTickers())
+        .thenReturn(Map.of(ticker, today.minusDays(1)));
+    assertEquals(true, downloader.shouldRun(null));
+
+    // Test execute delegating to downloadAndPersistDailyPrices
+    downloader.execute(null);
+  }
 }

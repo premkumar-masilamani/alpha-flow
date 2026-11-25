@@ -102,7 +102,14 @@ class PipelineConfigTest {
 
   @Test
   void testDailyPipelineJobExecutesAllConfiguredStepsInOrder() throws Exception {
-    when(yahooFinanceDownloader.downloadAndPersistDailyPrices()).thenReturn(5);
+    when(yahooFinanceDownloader.shouldRun(null)).thenReturn(true);
+    when(supportResistanceCalculator.shouldRun(Timeframe.DAILY)).thenReturn(true);
+    when(candlestickPatternCalculator.shouldRun(Timeframe.DAILY)).thenReturn(true);
+    when(indicatorCalculator.shouldRun(Timeframe.DAILY)).thenReturn(true);
+    when(weeklyPriceCalculator.shouldRun(null)).thenReturn(true);
+    when(supportResistanceCalculator.shouldRun(Timeframe.WEEKLY)).thenReturn(true);
+    when(candlestickPatternCalculator.shouldRun(Timeframe.WEEKLY)).thenReturn(true);
+    when(indicatorCalculator.shouldRun(Timeframe.WEEKLY)).thenReturn(true);
 
     Step step1 = pipelineConfig.downloadDailyPriceStep(jobRepository);
     Step step2 = pipelineConfig.calculateDailySupportResistanceStep(jobRepository);
@@ -133,21 +140,25 @@ class PipelineConfigTest {
             candlestickPatternCalculator,
             indicatorCalculator,
             weeklyPriceCalculator);
-    inOrder.verify(yahooFinanceDownloader).downloadAndPersistDailyPrices();
-    inOrder.verify(supportResistanceCalculator).computeSupportResistances(Timeframe.DAILY);
-    inOrder.verify(candlestickPatternCalculator).computeCandleStickPatterns(Timeframe.DAILY);
-    inOrder.verify(indicatorCalculator).computeIndicators(Timeframe.DAILY);
-    inOrder.verify(weeklyPriceCalculator).computeWeeklyPrices();
-    inOrder.verify(supportResistanceCalculator).computeSupportResistances(Timeframe.WEEKLY);
-    inOrder.verify(candlestickPatternCalculator).computeCandleStickPatterns(Timeframe.WEEKLY);
-    inOrder.verify(indicatorCalculator).computeIndicators(Timeframe.WEEKLY);
+    inOrder.verify(yahooFinanceDownloader).execute(null);
+    inOrder.verify(supportResistanceCalculator).execute(Timeframe.DAILY);
+    inOrder.verify(candlestickPatternCalculator).execute(Timeframe.DAILY);
+    inOrder.verify(indicatorCalculator).execute(Timeframe.DAILY);
+    inOrder.verify(weeklyPriceCalculator).execute(null);
+    inOrder.verify(supportResistanceCalculator).execute(Timeframe.WEEKLY);
+    inOrder.verify(candlestickPatternCalculator).execute(Timeframe.WEEKLY);
+    inOrder.verify(indicatorCalculator).execute(Timeframe.WEEKLY);
   }
 
   @Test
   void testIntermediateStepFailureLogsFailedAndContinuesSubsequentSteps() throws Exception {
+    when(yahooFinanceDownloader.shouldRun(null)).thenReturn(true);
+    when(supportResistanceCalculator.shouldRun(Timeframe.DAILY)).thenReturn(true);
+    when(indicatorCalculator.shouldRun(Timeframe.DAILY)).thenReturn(true);
+
     doThrow(new RuntimeException("Simulated SR failure"))
         .when(supportResistanceCalculator)
-        .computeSupportResistances(Timeframe.DAILY);
+        .execute(Timeframe.DAILY);
 
     Step step1 = pipelineConfig.downloadDailyPriceStep(jobRepository);
     Step step2 = pipelineConfig.calculateDailySupportResistanceStep(jobRepository);
@@ -176,6 +187,26 @@ class PipelineConfigTest {
     assertEquals(
         PipelineConfig.STEP_CALCULATE_DAILY_INDICATOR, stepExecutions.get(2).getStepName());
     assertEquals(BatchStatus.COMPLETED, stepExecutions.get(2).getStatus());
+  }
+
+  @Test
+  void testStepSkippedWhenShouldRunReturnsFalse() throws Exception {
+    when(yahooFinanceDownloader.shouldRun(null)).thenReturn(false);
+
+    Step step1 = pipelineConfig.downloadDailyPriceStep(jobRepository);
+    TreeMap<Integer, Step> steps = new TreeMap<>();
+    steps.put(1, step1);
+
+    Job testJob = pipelineConfig.buildJob("skipJob", steps, jobRepository);
+    JobParameters params =
+        new JobParametersBuilder().addLong("runTimestamp", 7000L).toJobParameters();
+
+    JobExecution execution = jobLauncher.run(testJob, params);
+
+    assertEquals(BatchStatus.COMPLETED, execution.getStatus());
+    List<StepExecution> stepExecutions = new ArrayList<>(execution.getStepExecutions());
+    assertEquals(1, stepExecutions.size());
+    assertEquals(BatchStatus.COMPLETED, stepExecutions.get(0).getStatus());
   }
 
   @Test

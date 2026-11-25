@@ -4,6 +4,7 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.ChartPatternPivot;
 import com.alphaflow.persistence.entities.DailyChartPattern;
@@ -31,7 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class ChartPatternCalculator {
+public class ChartPatternCalculator implements PipelineJob {
+
+  public static final String JOB_NAME = "CALCULATE_CHART_PATTERN";
 
   private static final MathContext MATH_CONTEXT = new MathContext(18, RoundingMode.HALF_UP);
   private static final int PRICE_SCALE = 4;
@@ -60,6 +63,29 @@ public class ChartPatternCalculator {
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyChartPatternRepository = dailyChartPatternRepository;
     this.weeklyChartPatternRepository = weeklyChartPatternRepository;
+  }
+
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    for (TickerSyncState syncState : syncStates) {
+      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
+      if (PipelineGating.requiresUpdate(
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    computeChartPatterns(timeframe);
   }
 
   public void computeChartPatterns(Timeframe timeframe) {
