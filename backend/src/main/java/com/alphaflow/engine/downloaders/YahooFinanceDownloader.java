@@ -1,6 +1,7 @@
 package com.alphaflow.engine.downloaders;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.PipelineGating;
 import com.alphaflow.engine.configs.PipelineConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
@@ -14,6 +15,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +29,8 @@ public class YahooFinanceDownloader implements PipelineJob {
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
   private final AtomicLong nextAllowedTimeMs = new AtomicLong(0);
+  private final ConcurrentHashMap<String, LocalDate> lastCheckedExpectedDate =
+      new ConcurrentHashMap<>();
 
   @Autowired
   public YahooFinanceDownloader(
@@ -44,10 +48,16 @@ public class YahooFinanceDownloader implements PipelineJob {
   public boolean shouldRun(Timeframe timeframe) {
     Map<Ticker, LocalDate> latestSavedDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
+    Instant now = Instant.now();
     for (Map.Entry<Ticker, LocalDate> entry : latestSavedDates.entrySet()) {
+      Ticker ticker = entry.getKey();
       LocalDate latestSavedDate = entry.getValue();
-      if (latestSavedDate == null || latestSavedDate.isBefore(todayUtc)) {
+      LocalDate expectedTradingDate =
+          PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
+      boolean alreadyChecked =
+          expectedTradingDate.equals(lastCheckedExpectedDate.get(ticker.getTickerSymbol()));
+      if (latestSavedDate == null
+          || (!alreadyChecked && latestSavedDate.isBefore(expectedTradingDate))) {
         return true;
       }
     }
@@ -65,20 +75,25 @@ public class YahooFinanceDownloader implements PipelineJob {
     Map<Ticker, LocalDate> latestSavedDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
 
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
+    Instant now = Instant.now();
     List<Ticker> staleTickers = new ArrayList<>();
     for (Map.Entry<Ticker, LocalDate> entry : latestSavedDates.entrySet()) {
       Ticker ticker = entry.getKey();
       LocalDate latestSavedDate = entry.getValue();
+      LocalDate expectedTradingDate =
+          PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
+      boolean alreadyChecked =
+          expectedTradingDate.equals(lastCheckedExpectedDate.get(ticker.getTickerSymbol()));
 
-      if (latestSavedDate == null || latestSavedDate.isBefore(todayUtc)) {
+      if (latestSavedDate == null
+          || (!alreadyChecked && latestSavedDate.isBefore(expectedTradingDate))) {
         staleTickers.add(ticker);
       } else {
         log.debug(
-            "{}: up to date (source={}, calculated={}). Skipping.",
+            "{}: up to date (source={}, expected={}). Skipping.",
             ticker.getTickerSymbol(),
-            todayUtc,
-            latestSavedDate);
+            latestSavedDate,
+            expectedTradingDate);
       }
     }
 
@@ -94,10 +109,13 @@ public class YahooFinanceDownloader implements PipelineJob {
       int totalNewlyIngestedRows = 0;
       for (Ticker ticker : staleTickers) {
         LocalDate latestSavedDate = latestSavedDates.get(ticker);
+        LocalDate expectedTradingDate =
+            PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
 
         throttle();
         int ingestedRows =
-            downloadAndPersistForTicker(ticker, latestSavedDate, todayUtc);
+            downloadAndPersistForTicker(ticker, latestSavedDate, expectedTradingDate);
+        lastCheckedExpectedDate.put(ticker.getTickerSymbol(), expectedTradingDate);
         totalNewlyIngestedRows += ingestedRows;
       }
       log.info(
@@ -132,7 +150,7 @@ public class YahooFinanceDownloader implements PipelineJob {
   }
 
   private int downloadAndPersistForTicker(
-      Ticker ticker, LocalDate latestSavedDate, LocalDate todayUtc) {
+      Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate) {
     LocalDate actualLatestDate =
         (latestSavedDate != null) ? latestSavedDate : YahooFinanceConfig.BACKFILL_START_DATE;
     LocalDate startDate = actualLatestDate.plusDays(1);
@@ -141,7 +159,7 @@ public class YahooFinanceDownloader implements PipelineJob {
     long endTs =
         Math.max(
             Instant.now().getEpochSecond(),
-            todayUtc.plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond());
+            expectedTradingDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond());
 
     log.info(
         "Syncing {} from {} (timestamp: {}) to timestamp: {}",

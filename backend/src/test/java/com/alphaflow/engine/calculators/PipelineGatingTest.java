@@ -1,11 +1,16 @@
 package com.alphaflow.engine.calculators;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.persistence.enums.Country;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import org.junit.jupiter.api.Test;
 
 class PipelineGatingTest {
@@ -97,5 +102,83 @@ class PipelineGatingTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> PipelineGating.requiresUpdate(null, WEDNESDAY, MONDAY, WEDNESDAY));
+  }
+
+  @Test
+  void testGetLatestExpectedTradingDateNullValidation() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> PipelineGating.getLatestExpectedTradingDate(null, Instant.now()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> PipelineGating.getLatestExpectedTradingDate(Country.US, null));
+  }
+
+  @Test
+  void testGetLatestExpectedTradingDateUsMarketHoursAndWeekends() {
+    ZoneId usZone = Country.US.getZoneId();
+    // Wednesday 10:00 AM EST (before close 16:00) -> returns Tuesday
+    Instant wedBeforeClose = ZonedDateTime.of(2025, 1, 8, 10, 0, 0, 0, usZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 7),
+        PipelineGating.getLatestExpectedTradingDate(Country.US, wedBeforeClose));
+
+    // Wednesday 16:01 PM EST (after close 16:00) -> returns Wednesday
+    Instant wedAfterClose = ZonedDateTime.of(2025, 1, 8, 16, 1, 0, 0, usZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 8),
+        PipelineGating.getLatestExpectedTradingDate(Country.US, wedAfterClose));
+
+    // Saturday 12:00 PM EST -> returns Friday
+    Instant satMidday = ZonedDateTime.of(2025, 1, 11, 12, 0, 0, 0, usZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 10),
+        PipelineGating.getLatestExpectedTradingDate(Country.US, satMidday));
+
+    // Sunday 18:00 PM EST -> returns Friday
+    Instant sunEvening = ZonedDateTime.of(2025, 1, 12, 18, 0, 0, 0, usZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 10),
+        PipelineGating.getLatestExpectedTradingDate(Country.US, sunEvening));
+
+    // Monday 08:00 AM EST (before close 16:00) -> candidate Sunday -> returns Friday
+    Instant monBeforeClose = ZonedDateTime.of(2025, 1, 6, 8, 0, 0, 0, usZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 3),
+        PipelineGating.getLatestExpectedTradingDate(Country.US, monBeforeClose));
+
+    // Monday 16:00 PM EST (exact close) -> returns Monday
+    Instant monExactClose = ZonedDateTime.of(2025, 1, 6, 16, 0, 0, 0, usZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 6),
+        PipelineGating.getLatestExpectedTradingDate(Country.US, monExactClose));
+  }
+
+  @Test
+  void testGetLatestExpectedTradingDateInMarketHours() {
+    ZoneId inZone = Country.IN.getZoneId();
+    // Wednesday 14:00 PM IST (before close 15:30) -> returns Tuesday
+    Instant wedBeforeClose = ZonedDateTime.of(2025, 1, 8, 14, 0, 0, 0, inZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 7),
+        PipelineGating.getLatestExpectedTradingDate(Country.IN, wedBeforeClose));
+
+    // Wednesday 15:30 PM IST (exact close 15:30) -> returns Wednesday
+    Instant wedExactClose = ZonedDateTime.of(2025, 1, 8, 15, 30, 0, 0, inZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 8),
+        PipelineGating.getLatestExpectedTradingDate(Country.IN, wedExactClose));
+
+    // Wednesday 19:04 PM IST (user scenario) -> returns Wednesday
+    Instant wedEvening = ZonedDateTime.of(2026, 11, 25, 19, 4, 31, 0, inZone).toInstant();
+    assertEquals(
+        LocalDate.of(2026, 11, 25),
+        PipelineGating.getLatestExpectedTradingDate(Country.IN, wedEvening));
+
+    // Saturday in India -> returns Friday
+    Instant satIn = ZonedDateTime.of(2025, 1, 11, 18, 0, 0, 0, inZone).toInstant();
+    assertEquals(
+        LocalDate.of(2025, 1, 10),
+        PipelineGating.getLatestExpectedTradingDate(Country.IN, satIn));
   }
 }

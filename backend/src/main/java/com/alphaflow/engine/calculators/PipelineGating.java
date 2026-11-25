@@ -1,8 +1,14 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.MarketConfig;
+import com.alphaflow.persistence.enums.Country;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.temporal.TemporalAdjusters;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
@@ -109,6 +115,50 @@ public class PipelineGating {
     } else {
       log.error("Unsupported timeframe for pipeline gating check: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
+
+  /**
+   * Returns the latest expected completed market trading date for the given country as of the
+   * provided instant.
+   *
+   * <p>Accounts for market close times (15:30 IST for IN, 16:00 EST for US) and adjusts weekend
+   * dates to Friday.
+   *
+   * @param country market country (US or IN)
+   * @param instant current point in time
+   * @return latest completed trading date in the market's calendar
+   * @throws IllegalArgumentException if country or instant is null
+   */
+  public static LocalDate getLatestExpectedTradingDate(Country country, Instant instant) {
+    if (country == null) {
+      log.error("Country must not be null for expected trading date determination");
+      throw new IllegalArgumentException("Country must not be null");
+    }
+    if (instant == null) {
+      log.error("Instant must not be null for expected trading date determination");
+      throw new IllegalArgumentException("Instant must not be null");
+    }
+
+    ZoneId marketZone = country.getZoneId();
+    ZonedDateTime marketDateTime = instant.atZone(marketZone);
+    LocalDate marketDate = marketDateTime.toLocalDate();
+    LocalTime marketTime = marketDateTime.toLocalTime();
+    LocalTime marketCloseTime =
+        (country == Country.IN)
+            ? MarketConfig.IN_MARKET_CLOSE_TIME
+            : MarketConfig.US_MARKET_CLOSE_TIME;
+
+    boolean isMarketClosedToday = !marketTime.isBefore(marketCloseTime);
+    LocalDate candidateDate = isMarketClosedToday ? marketDate : marketDate.minusDays(1);
+
+    DayOfWeek dayOfWeek = candidateDate.getDayOfWeek();
+    if (dayOfWeek == DayOfWeek.SATURDAY) {
+      return candidateDate.minusDays(1);
+    } else if (dayOfWeek == DayOfWeek.SUNDAY) {
+      return candidateDate.minusDays(2);
+    } else {
+      return candidateDate;
     }
   }
 }

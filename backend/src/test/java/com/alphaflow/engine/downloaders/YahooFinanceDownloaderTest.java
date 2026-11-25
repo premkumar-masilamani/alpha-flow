@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.engine.calculators.PipelineGating;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -19,9 +20,11 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -137,8 +140,10 @@ class YahooFinanceDownloaderTest {
     ticker.setCountry(Country.US);
     ticker.setActive(true);
 
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), Instant.now());
     Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
-    latestDates.put(ticker, LocalDate.now(ZoneOffset.UTC));
+    latestDates.put(ticker, expectedDate);
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
@@ -166,8 +171,10 @@ class YahooFinanceDownloaderTest {
     staleTicker.setCountry(Country.US);
     staleTicker.setActive(true);
 
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(upToDateTicker.getCountry(), Instant.now());
     Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
-    latestDates.put(upToDateTicker, LocalDate.now(ZoneOffset.UTC));
+    latestDates.put(upToDateTicker, expectedDate);
     latestDates.put(staleTicker, LocalDate.of(2025, 8, 12));
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
@@ -386,10 +393,11 @@ class YahooFinanceDownloaderTest {
     ticker.setCountry(Country.US);
     ticker.setActive(true);
 
-    LocalDate today = LocalDate.now(ZoneOffset.UTC);
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), Instant.now());
 
     // When up to date: shouldRun returns false
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of(ticker, today));
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of(ticker, expectedDate));
     assertEquals(false, downloader.shouldRun(null));
 
     // When latestSavedDate is null: shouldRun returns true
@@ -400,10 +408,45 @@ class YahooFinanceDownloaderTest {
 
     // When stale: shouldRun returns true
     when(dailyRepo.findLatestPriceDatesForActiveTickers())
-        .thenReturn(Map.of(ticker, today.minusDays(1)));
+        .thenReturn(Map.of(ticker, expectedDate.minusDays(5)));
     assertEquals(true, downloader.shouldRun(null));
 
     // Test execute delegating to downloadAndPersistDailyPrices
     downloader.execute(null);
+
+    // Back-to-back idempotency: shouldRun returns false on second call because ticker was already checked
+    assertEquals(false, downloader.shouldRun(null));
+  }
+
+  @Test
+  void testDownloadBackToBackSkipsAlreadyCheckedTickersEvenIfNoNewDataSaved() {
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    LocalDate staleDate = LocalDate.of(2025, 8, 12);
+    Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
+    latestDates.put(ticker, staleDate);
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceClient client = mock(YahooFinanceClient.class);
+    when(client.fetchDailyPrices(any(), any(Long.class), any(Long.class))).thenReturn(List.of());
+
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
+
+    // First run finds ticker stale and queries client
+    int firstRunIngested = downloader.downloadAndPersistDailyPrices();
+    assertEquals(0, firstRunIngested);
+    verify(client, times(1)).fetchDailyPrices(any(), any(Long.class), any(Long.class));
+
+    // Second run back-to-back skips because ticker was already checked for this expected date
+    assertEquals(false, downloader.shouldRun(null));
+    int secondRunIngested = downloader.downloadAndPersistDailyPrices();
+    assertEquals(0, secondRunIngested);
+    verify(client, times(1)).fetchDailyPrices(any(), any(Long.class), any(Long.class));
   }
 }
