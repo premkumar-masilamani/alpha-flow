@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -76,10 +77,10 @@ public class CandlestickPatternCalculator implements PipelineJob {
   @Override
   public boolean shouldRun(Timeframe timeframe) {
     List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     for (TickerSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         return true;
       }
     }
@@ -94,11 +95,11 @@ public class CandlestickPatternCalculator implements PipelineJob {
   public void computeCandleStickPatterns(Timeframe timeframe) {
     log.info("Computing {} candlestick patterns...", timeframe);
     List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     List<TickerSyncState> staleStates = new ArrayList<>();
     for (TickerSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         staleStates.add(syncState);
       } else {
         log.debug(

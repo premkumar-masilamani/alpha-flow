@@ -17,6 +17,7 @@ import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -63,10 +64,10 @@ public class IndicatorCalculator implements PipelineJob {
   @Override
   public boolean shouldRun(Timeframe timeframe) {
     List<TickerIndicatorSyncState> syncStates = loadSyncStates(timeframe);
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     for (TickerIndicatorSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         return true;
       }
     }
@@ -89,14 +90,14 @@ public class IndicatorCalculator implements PipelineJob {
           .add(syncState);
     }
 
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     Map<Ticker, List<TickerIndicatorSyncState>> staleByTicker = new LinkedHashMap<>();
     for (Map.Entry<Ticker, List<TickerIndicatorSyncState>> entry : statesByTicker.entrySet()) {
       Ticker ticker = entry.getKey();
-      LocalDate today = LocalDate.now(ticker.getCountry().getZoneId());
       List<TickerIndicatorSyncState> staleDefinitions = new ArrayList<>();
       for (TickerIndicatorSyncState syncState : entry.getValue()) {
         if (PipelineGating.requiresUpdate(
-            timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+            timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
           staleDefinitions.add(syncState);
         }
       }

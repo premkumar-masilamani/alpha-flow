@@ -38,7 +38,7 @@ public class PipelineGating {
    *
    * @param latestDailyDate latest persisted daily price date (null if no daily prices exist)
    * @param latestWeeklyDate latest persisted weekly price Monday date (null if never computed)
-   * @param today current market date in the ticker's timezone
+   * @param today current date in UTC
    * @return {@code true} iff weekly aggregation must run for this ticker
    */
   public static boolean requiresWeeklyPriceUpdate(
@@ -60,7 +60,7 @@ public class PipelineGating {
    *
    * @param latestWeeklyPriceDate latest persisted weekly price Monday date (null if none exist)
    * @param latestCalculatedDate latest persisted calculated date (null if never computed)
-   * @param today current market date in the ticker's timezone
+   * @param today current date in UTC
    * @return {@code true} iff the weekly downstream calculation must run for this ticker
    */
   public static boolean requiresWeeklyUpdate(
@@ -76,7 +76,7 @@ public class PipelineGating {
    * weekMonday} is the Monday of {@code today}'s trading week.
    *
    * @param weekMonday Monday anchor date of a weekly candle
-   * @param today current market date in the ticker's timezone
+   * @param today current date in UTC
    * @return {@code true} iff {@code weekMonday} represents the currently active weekday trading
    *     week
    */
@@ -93,7 +93,7 @@ public class PipelineGating {
    * @param timeframe target market timeframe
    * @param latestSourceDate latest persisted source price date
    * @param latestCalculatedDate latest persisted calculated date
-   * @param today current market date in the ticker's timezone
+   * @param today current date in UTC
    * @return {@code true} iff the ticker requires processing for the requested timeframe
    * @throws IllegalArgumentException if {@code timeframe} is null or unsupported
    */

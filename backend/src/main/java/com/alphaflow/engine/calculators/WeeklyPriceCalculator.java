@@ -12,6 +12,7 @@ import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -49,10 +50,10 @@ public class WeeklyPriceCalculator implements PipelineJob {
   @Override
   public boolean shouldRun(Timeframe timeframe) {
     List<TickerSyncState> syncStates = weeklyPriceRepository.findSyncStatesForActiveTickers();
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     for (TickerSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresWeeklyPriceUpdate(
-          syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         return true;
       }
     }
@@ -68,11 +69,11 @@ public class WeeklyPriceCalculator implements PipelineJob {
     log.info("Starting weekly price computation...");
 
     List<TickerSyncState> syncStates = weeklyPriceRepository.findSyncStatesForActiveTickers();
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     List<TickerSyncState> staleStates = new ArrayList<>();
     for (TickerSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresWeeklyPriceUpdate(
-          syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         staleStates.add(syncState);
       } else {
         log.debug(

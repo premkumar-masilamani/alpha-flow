@@ -20,6 +20,7 @@ import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -83,10 +84,10 @@ public class SupportResistanceCalculator implements PipelineJob {
   @Override
   public boolean shouldRun(Timeframe timeframe) {
     List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     for (TickerSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         return true;
       }
     }
@@ -108,11 +109,11 @@ public class SupportResistanceCalculator implements PipelineJob {
   public void computeSupportResistances(Timeframe timeframe) {
     log.info("Computing {} support and resistances...", timeframe);
     List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
     List<TickerSyncState> staleStates = new ArrayList<>();
     for (TickerSyncState syncState : syncStates) {
-      LocalDate today = LocalDate.now(syncState.ticker().getCountry().getZoneId());
       if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), today)) {
+          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
         staleStates.add(syncState);
       } else {
         log.debug(

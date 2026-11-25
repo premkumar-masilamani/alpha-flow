@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
@@ -137,7 +138,7 @@ class YahooFinanceDownloaderTest {
     ticker.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
-    latestDates.put(ticker, LocalDate.now(Country.US.getZoneId()));
+    latestDates.put(ticker, LocalDate.now(ZoneOffset.UTC));
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
@@ -166,7 +167,7 @@ class YahooFinanceDownloaderTest {
     staleTicker.setActive(true);
 
     Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
-    latestDates.put(upToDateTicker, LocalDate.now(Country.US.getZoneId()));
+    latestDates.put(upToDateTicker, LocalDate.now(ZoneOffset.UTC));
     latestDates.put(staleTicker, LocalDate.of(2025, 8, 12));
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
@@ -385,7 +386,7 @@ class YahooFinanceDownloaderTest {
     ticker.setCountry(Country.US);
     ticker.setActive(true);
 
-    LocalDate today = LocalDate.now(Country.US.getZoneId());
+    LocalDate today = LocalDate.now(ZoneOffset.UTC);
 
     // When up to date: shouldRun returns false
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of(ticker, today));
