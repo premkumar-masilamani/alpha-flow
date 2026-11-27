@@ -1,6 +1,7 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.dtos.ChartPatternEvaluation;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.configs.ChartPatternConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -758,24 +759,22 @@ public class ChartPatternCalculator implements PipelineJob {
       BigDecimal invalidationPrice,
       boolean isBullish,
       List<ChartPatternPivot> patternPivots) {
-    ChartPatternStatus status =
-        evaluateStatus(
+    ChartPatternEvaluation evaluation =
+        evaluateStatusAndBreakout(
             priceBars,
             lastPivot.barIndex(),
             triggerPrice,
             targetPrice,
             invalidationPrice,
             isBullish);
-    LocalDate breakoutDate =
-        findBreakoutDate(priceBars, lastPivot.barIndex(), triggerPrice, isBullish);
 
     return ChartPatternMatch.builder()
         .patternType(patternType)
         .sentiment(patternType.getSentiment())
-        .status(status)
+        .status(evaluation.status())
         .startDate(startDate)
         .endDate(lastPivot.date())
-        .breakoutDate(breakoutDate)
+        .breakoutDate(evaluation.breakoutDate())
         .necklinePrice(scalePrice(triggerPrice))
         .targetPrice(targetPrice)
         .stopLossPrice(stopLossPrice)
@@ -793,7 +792,7 @@ public class ChartPatternCalculator implements PipelineJob {
     return price.setScale(ChartPatternConfig.PRICE_SCALE, RoundingMode.HALF_UP);
   }
 
-  private ChartPatternStatus evaluateStatus(
+  private ChartPatternEvaluation evaluateStatusAndBreakout(
       List<PriceBar> priceBars,
       int lastPivotIndex,
       BigDecimal triggerPrice,
@@ -802,63 +801,53 @@ public class ChartPatternCalculator implements PipelineJob {
       boolean isBullish) {
     if (lastPivotIndex < priceBars.size() - 1) {
       boolean brokenOut = false;
+      LocalDate breakoutDate = null;
       for (int i = lastPivotIndex + 1; i < priceBars.size(); i++) {
         PriceBar bar = priceBars.get(i);
         if (isBullish) {
           if (!brokenOut) {
             if (bar.close().compareTo(triggerPrice) > 0) {
               brokenOut = true;
+              breakoutDate = bar.date();
             } else if (bar.close().compareTo(invalidationPrice) < 0) {
-              return ChartPatternStatus.INVALIDATED;
+              return new ChartPatternEvaluation(ChartPatternStatus.INVALIDATED, null);
             }
           }
           if (brokenOut) {
             if (bar.high().compareTo(targetPrice) >= 0) {
-              return ChartPatternStatus.TARGET_REACHED;
+              return new ChartPatternEvaluation(ChartPatternStatus.TARGET_REACHED, breakoutDate);
             }
             if (bar.close().compareTo(invalidationPrice) < 0) {
-              return ChartPatternStatus.INVALIDATED;
+              return new ChartPatternEvaluation(ChartPatternStatus.INVALIDATED, breakoutDate);
             }
           }
         } else {
           if (!brokenOut) {
             if (bar.close().compareTo(triggerPrice) < 0) {
               brokenOut = true;
+              breakoutDate = bar.date();
             } else if (bar.close().compareTo(invalidationPrice) > 0) {
-              return ChartPatternStatus.INVALIDATED;
+              return new ChartPatternEvaluation(ChartPatternStatus.INVALIDATED, null);
             }
           }
           if (brokenOut) {
             if (bar.low().compareTo(targetPrice) <= 0) {
-              return ChartPatternStatus.TARGET_REACHED;
+              return new ChartPatternEvaluation(ChartPatternStatus.TARGET_REACHED, breakoutDate);
             }
             if (bar.close().compareTo(invalidationPrice) > 0) {
-              return ChartPatternStatus.INVALIDATED;
+              return new ChartPatternEvaluation(ChartPatternStatus.INVALIDATED, breakoutDate);
             }
           }
         }
       }
 
       if (brokenOut) {
-        return ChartPatternStatus.COMPLETED;
+        return new ChartPatternEvaluation(ChartPatternStatus.COMPLETED, breakoutDate);
       } else {
-        return ChartPatternStatus.IN_PROGRESS;
+        return new ChartPatternEvaluation(ChartPatternStatus.IN_PROGRESS, null);
       }
     } else {
-      return ChartPatternStatus.IN_PROGRESS;
+      return new ChartPatternEvaluation(ChartPatternStatus.IN_PROGRESS, null);
     }
-  }
-
-  private LocalDate findBreakoutDate(
-      List<PriceBar> priceBars, int lastPivotIndex, BigDecimal triggerPrice, boolean isBullish) {
-    for (int i = lastPivotIndex + 1; i < priceBars.size(); i++) {
-      PriceBar bar = priceBars.get(i);
-      if (isBullish && bar.close().compareTo(triggerPrice) > 0) {
-        return bar.date();
-      } else if (!isBullish && bar.close().compareTo(triggerPrice) < 0) {
-        return bar.date();
-      }
-    }
-    return null;
   }
 }
