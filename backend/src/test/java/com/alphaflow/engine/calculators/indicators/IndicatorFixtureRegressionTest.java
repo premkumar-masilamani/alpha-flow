@@ -2,19 +2,12 @@ package com.alphaflow.engine.calculators.indicators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.alphaflow.engine.indicators.BollingerBandsIndicator;
-import com.alphaflow.engine.indicators.EmaIndicator;
-import com.alphaflow.engine.indicators.MacdIndicator;
-import com.alphaflow.engine.indicators.RsiIndicator;
-import com.alphaflow.engine.indicators.SmaIndicator;
-import com.alphaflow.engine.indicators.StochasticIndicator;
-import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.fixtures.CsvFixtureLoader;
 import com.alphaflow.fixtures.MarketDataFixture;
-import com.alphaflow.persistence.enums.IndicatorOutputKey;
 import com.alphaflow.persistence.enums.IndicatorType;
-import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.EnumSet;
@@ -34,106 +27,45 @@ class IndicatorFixtureRegressionTest {
 
   private static final String DAILY_FIXTURE_PATH = "fixtures/aapl_daily.csv";
   private static final String WEEKLY_FIXTURE_PATH = "fixtures/aapl_weekly.csv";
+  private static final String INDICATOR_DEFINITIONS_PATH = "fixtures/indicator_definitions.json";
 
   private static MarketDataFixture dailyFixture;
   private static MarketDataFixture weeklyFixture;
+  private static List<IndicatorFixtureCase> indicatorCases;
 
   @BeforeAll
   static void loadFixtures() {
     dailyFixture = CsvFixtureLoader.load(DAILY_FIXTURE_PATH);
     weeklyFixture = CsvFixtureLoader.load(WEEKLY_FIXTURE_PATH);
-  }
-
-  private static List<IndicatorFixtureCase> indicatorCases() {
-    return List.of(
-        new IndicatorFixtureCase(
-            "SMA(CLOSE, 20)",
-            new SmaIndicator(),
-            IndicatorParams.parse("period=20"),
-            PriceSource.CLOSE,
-            Map.of(IndicatorOutputKey.VALUE.getValue(), "sma_close_20")),
-        new IndicatorFixtureCase(
-            "SMA(VOLUME, 20)",
-            new SmaIndicator(),
-            IndicatorParams.parse("period=20"),
-            PriceSource.VOLUME,
-            Map.of(IndicatorOutputKey.VALUE.getValue(), "sma_volume_20")),
-        new IndicatorFixtureCase(
-            "EMA(CLOSE, 5)",
-            new EmaIndicator(),
-            IndicatorParams.parse("period=5"),
-            PriceSource.CLOSE,
-            Map.of(IndicatorOutputKey.VALUE.getValue(), "ema_close_5")),
-        new IndicatorFixtureCase(
-            "EMA(CLOSE, 13)",
-            new EmaIndicator(),
-            IndicatorParams.parse("period=13"),
-            PriceSource.CLOSE,
-            Map.of(IndicatorOutputKey.VALUE.getValue(), "ema_close_13")),
-        new IndicatorFixtureCase(
-            "EMA(CLOSE, 26)",
-            new EmaIndicator(),
-            IndicatorParams.parse("period=26"),
-            PriceSource.CLOSE,
-            Map.of(IndicatorOutputKey.VALUE.getValue(), "ema_close_26")),
-        new IndicatorFixtureCase(
-            "RSI(CLOSE, 14)",
-            new RsiIndicator(),
-            IndicatorParams.parse("period=14"),
-            PriceSource.CLOSE,
-            Map.of(IndicatorOutputKey.VALUE.getValue(), "rsi_close_14")),
-        new IndicatorFixtureCase(
-            "MACD(CLOSE, 12/26/9)",
-            new MacdIndicator(),
-            IndicatorParams.parse("fast=12,slow=26,signal=9"),
-            PriceSource.CLOSE,
-            Map.of(
-                IndicatorOutputKey.MACD.getValue(), "macd_close_12_26_9_macd",
-                IndicatorOutputKey.SIGNAL.getValue(), "macd_close_12_26_9_signal",
-                IndicatorOutputKey.HISTOGRAM.getValue(), "macd_close_12_26_9_histogram")),
-        new IndicatorFixtureCase(
-            "STOCHASTIC(CLOSE, 14/3/3)",
-            new StochasticIndicator(),
-            IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3"),
-            PriceSource.CLOSE,
-            Map.of(
-                IndicatorOutputKey.K.getValue(), "stochastic_close_14_3_3_k",
-                IndicatorOutputKey.D.getValue(), "stochastic_close_14_3_3_d")),
-        new IndicatorFixtureCase(
-            "BB(CLOSE, 20, 2)",
-            new BollingerBandsIndicator(),
-            IndicatorParams.parse("period=20,stdDev=2"),
-            PriceSource.CLOSE,
-            Map.of(
-                IndicatorOutputKey.UPPER.getValue(), "bb_close_20_2_upper",
-                IndicatorOutputKey.MIDDLE.getValue(), "bb_close_20_2_middle",
-                IndicatorOutputKey.LOWER.getValue(), "bb_close_20_2_lower",
-                IndicatorOutputKey.BANDWIDTH.getValue(), "bb_close_20_2_bandwidth")));
+    indicatorCases = IndicatorDefinitionFixtureLoader.load(INDICATOR_DEFINITIONS_PATH);
   }
 
   private static Stream<Arguments> fixtureAndIndicatorCases() {
-    List<MarketDataFixture> fixtures = List.of(dailyFixture, weeklyFixture);
-    return fixtures.stream()
-        .flatMap(
-            fixture ->
-                indicatorCases().stream()
-                    .map(
-                        fixtureCase ->
-                            Arguments.of(
-                                fixture.resourcePath(), fixtureCase.name(), fixture, fixtureCase)));
+    Map<Timeframe, MarketDataFixture> fixturesByTimeframe =
+        Map.of(
+            Timeframe.DAILY, dailyFixture,
+            Timeframe.WEEKLY, weeklyFixture);
+    List<Timeframe> orderedTimeframes = List.of(Timeframe.DAILY, Timeframe.WEEKLY);
+
+    return orderedTimeframes.stream()
+        .flatMap(timeframe -> {
+          MarketDataFixture fixture = fixturesByTimeframe.get(timeframe);
+          return indicatorCases.stream()
+              .map(
+                  fixtureCase -> Arguments.of(timeframe, fixtureCase.name(), fixture, fixtureCase));
+        });
   }
 
   @ParameterizedTest(name = "{0} :: {1}")
   @MethodSource("fixtureAndIndicatorCases")
   void indicatorMatchesFixtureGoldenValues(
-      String fixtureLabel,
+      Timeframe timeframe,
       String caseName,
       MarketDataFixture fixture,
       IndicatorFixtureCase fixtureCase) {
+    String fixtureLabel = timeframe + " (" + fixture.resourcePath() + ")";
     Map<LocalDate, Map<String, BigDecimal>> computed =
-        fixtureCase
-            .indicator()
-            .compute(fixture.bars(), fixtureCase.params(), fixtureCase.source());
+        fixtureCase.indicator().compute(fixture.bars(), fixtureCase.params(), fixtureCase.source());
 
     assertFalse(
         computed.isEmpty(),
@@ -172,6 +104,7 @@ class IndicatorFixtureRegressionTest {
                   + outputKey);
     }
 
+    int totalValueChecks = 0;
     for (Map.Entry<LocalDate, Map<String, BigDecimal>> barEntry : computed.entrySet()) {
       LocalDate date = barEntry.getKey();
       Map<String, BigDecimal> actualBarValues = barEntry.getValue();
@@ -186,13 +119,7 @@ class IndicatorFixtureRegressionTest {
       assertEquals(
           expectedKeysForDate,
           actualBarValues.keySet(),
-          () ->
-              "Output keys mismatch for "
-                  + fixtureLabel
-                  + " :: "
-                  + caseName
-                  + " date="
-                  + date);
+          () -> "Output keys mismatch for " + fixtureLabel + " :: " + caseName + " date=" + date);
 
       for (Map.Entry<String, BigDecimal> valueEntry : actualBarValues.entrySet()) {
         String outputKey = valueEntry.getKey();
@@ -216,14 +143,46 @@ class IndicatorFixtureRegressionTest {
                     + expectedValue
                     + " actual="
                     + actualValue);
+        totalValueChecks++;
       }
     }
+
+    int totalBars = fixture.bars().size();
+    int computedBars = computed.size();
+    int warmupBars = totalBars - computedBars;
+    LocalDate firstDate = fixture.bars().getFirst().date();
+    LocalDate lastDate = fixture.bars().getLast().date();
+    System.out.println(
+        "[INDICATOR-FIXTURE] Timeframe="
+            + timeframe
+            + " | Indicator="
+            + caseName
+            + " | Source="
+            + fixtureCase.source()
+            + " | Params="
+            + fixtureCase.params().canonical()
+            + " | Bars="
+            + computedBars
+            + "/"
+            + totalBars
+            + " computed ("
+            + warmupBars
+            + " warm-up blank, "
+            + firstDate
+            + ".."
+            + lastDate
+            + ")"
+            + " | OutputKeys="
+            + fixtureCase.outputKeyToColumn().keySet()
+            + " | ValueAssertions="
+            + totalValueChecks
+            + " | PASS");
   }
 
   @Test
   void allIndicatorTypesAreCoveredByFixtures() {
     Set<IndicatorType> coveredTypes =
-        indicatorCases().stream()
+        indicatorCases.stream()
             .map(fixtureCase -> fixtureCase.indicator().type())
             .collect(Collectors.toSet());
 
@@ -231,5 +190,15 @@ class IndicatorFixtureRegressionTest {
         EnumSet.allOf(IndicatorType.class),
         coveredTypes,
         "Every IndicatorType must be covered by at least one IndicatorFixtureCase");
+  }
+
+  @Test
+  void loadedIndicatorDefinitionsAreImmutableAndLoaderFailsFast() {
+    assertThrows(UnsupportedOperationException.class, indicatorCases::clear);
+    assertThrows(
+        IllegalStateException.class,
+        () -> IndicatorDefinitionFixtureLoader.load("fixtures/does_not_exist.json"));
+    assertThrows(
+        IllegalArgumentException.class, () -> IndicatorDefinitionFixtureLoader.load("   "));
   }
 }

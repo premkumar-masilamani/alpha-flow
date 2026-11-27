@@ -59,12 +59,11 @@ public final class IndicatorTestHelper {
   public static Map<LocalDate, Map<String, BigDecimal>> from(
       Map<LocalDate, Map<String, BigDecimal>> values, LocalDate fromInclusive) {
     Map<LocalDate, Map<String, BigDecimal>> result = new java.util.LinkedHashMap<>();
-    values.forEach(
-        (date, map) -> {
-          if (!date.isBefore(fromInclusive)) {
-            result.put(date, map);
-          }
-        });
+    values.forEach((date, map) -> {
+      if (!date.isBefore(fromInclusive)) {
+        result.put(date, map);
+      }
+    });
     return result;
   }
 

@@ -154,7 +154,9 @@ class CsvFixtureLoaderTest {
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> CsvFixtureLoader.load("bad_date.csv", new BufferedReader(new StringReader(badDateCsv))));
+        () ->
+            CsvFixtureLoader.load(
+                "bad_date.csv", new BufferedReader(new StringReader(badDateCsv))));
     assertThrows(
         IllegalArgumentException.class,
         () ->

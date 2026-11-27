@@ -75,8 +75,8 @@ public class CandlestickPatternService {
     if (timeframe == Timeframe.DAILY) {
       List<CandlestickPatternDto> patterns =
           dailyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-              .map(
-                  record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
+              .map(record ->
+                  toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
               .toList();
       log.debug(
           "Retrieved {} DAILY candlestick patterns for ticker {} between {} and {}",
@@ -88,8 +88,8 @@ public class CandlestickPatternService {
     } else if (timeframe == Timeframe.WEEKLY) {
       List<CandlestickPatternDto> patterns =
           weeklyCandlestickPatternRepository.findSeriesBetween(ticker, start, end).stream()
-              .map(
-                  record -> toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
+              .map(record ->
+                  toDto(record.getPriceDate(), record.getPattern(), record.getSentiment()))
               .toList();
       log.debug(
           "Retrieved {} WEEKLY candlestick patterns for ticker {} between {} and {}",

@@ -408,10 +408,9 @@ class CandlestickPatternCalculatorTest {
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .anyMatch(
-            p ->
-                p.getPriceDate().equals(base.plusDays(14))
-                    && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+        .anyMatch(p ->
+            p.getPriceDate().equals(base.plusDays(14))
+                && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test
@@ -438,10 +437,9 @@ class CandlestickPatternCalculatorTest {
     ArgumentCaptor<List<WeeklyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(weeklyCandlestickPatternRepository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .anyMatch(
-            p ->
-                p.getPriceDate().equals(base.plusDays(14 * 7))
-                    && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+        .anyMatch(p ->
+            p.getPriceDate().equals(base.plusDays(14 * 7))
+                && p.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test

@@ -35,14 +35,12 @@ class MacdIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap ->
-                barMap.forEach(
-                    (key, val) ->
-                        assertEquals(
-                            0,
-                            val.compareTo(bd(0)),
-                            "constant series must give zero macd/signal/histogram (" + key + ")")));
+        .forEach(barMap ->
+            barMap.forEach((key, val) ->
+                assertEquals(
+                    0,
+                    val.compareTo(bd(0)),
+                    "constant series must give zero macd/signal/histogram (" + key + ")")));
   }
 
   @Test

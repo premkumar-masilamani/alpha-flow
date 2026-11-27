@@ -1,0 +1,89 @@
+[
+  {
+    "name": "EMA(CLOSE, period=5)",
+    "indicatorType": "EMA",
+    "source": "CLOSE",
+    "params": "period=5",
+    "outputKeyToColumn": {
+      "value": "ema_close_5"
+    }
+  },
+  {
+    "name": "EMA(CLOSE, period=13)",
+    "indicatorType": "EMA",
+    "source": "CLOSE",
+    "params": "period=13",
+    "outputKeyToColumn": {
+      "value": "ema_close_13"
+    }
+  },
+  {
+    "name": "EMA(CLOSE, period=26)",
+    "indicatorType": "EMA",
+    "source": "CLOSE",
+    "params": "period=26",
+    "outputKeyToColumn": {
+      "value": "ema_close_26"
+    }
+  },
+  {
+    "name": "RSI(CLOSE, period=14)",
+    "indicatorType": "RSI",
+    "source": "CLOSE",
+    "params": "period=14",
+    "outputKeyToColumn": {
+      "value": "rsi_close_14"
+    }
+  },
+  {
+    "name": "STOCHASTIC(CLOSE, k=14, kSmooth=3, dSmooth=3)",
+    "indicatorType": "STOCHASTIC",
+    "source": "CLOSE",
+    "params": "k=14,kSmooth=3,dSmooth=3",
+    "outputKeyToColumn": {
+      "k": "stochastic_close_14_3_3_k",
+      "d": "stochastic_close_14_3_3_d"
+    }
+  },
+  {
+    "name": "SMA(VOLUME, period=20)",
+    "indicatorType": "SMA",
+    "source": "VOLUME",
+    "params": "period=20",
+    "outputKeyToColumn": {
+      "value": "sma_volume_20"
+    }
+  },
+  {
+    "name": "SMA(CLOSE, period=20)",
+    "indicatorType": "SMA",
+    "source": "CLOSE",
+    "params": "period=20",
+    "outputKeyToColumn": {
+      "value": "sma_close_20"
+    }
+  },
+  {
+    "name": "MACD(CLOSE, fast=12, slow=26, signal=9)",
+    "indicatorType": "MACD",
+    "source": "CLOSE",
+    "params": "fast=12,slow=26,signal=9",
+    "outputKeyToColumn": {
+      "macd": "macd_close_12_26_9_macd",
+      "signal": "macd_close_12_26_9_signal",
+      "histogram": "macd_close_12_26_9_histogram"
+    }
+  },
+  {
+    "name": "BB(CLOSE, period=20, stdDev=2)",
+    "indicatorType": "BB",
+    "source": "CLOSE",
+    "params": "period=20,stdDev=2",
+    "outputKeyToColumn": {
+      "upper": "bb_close_20_2_upper",
+      "middle": "bb_close_20_2_middle",
+      "lower": "bb_close_20_2_lower",
+      "bandwidth": "bb_close_20_2_bandwidth"
+    }
+  }
+]

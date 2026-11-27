@@ -129,9 +129,9 @@ class SupportResistanceCalculatorTest {
   }
 
   /**
-   * Builds a steady 10-point-ATR series using production {@code ATR_PERIOD = 14}, forming:
-   * - Swing High #1 = 150, Swing High #2 = 151 (cluster around 150.5, zone ~ [145.5, 155.5])
-   * - Swing Low #1 = 100, Swing Low #2 = 101 (cluster around 100.5, zone ~ [95.5, 105.5])
+   * Builds a steady 10-point-ATR series using production {@code ATR_PERIOD = 14}, forming: - Swing
+   * High #1 = 150, Swing High #2 = 151 (cluster around 150.5, zone ~ [145.5, 155.5]) - Swing Low #1
+   * = 100, Swing Low #2 = 101 (cluster around 100.5, zone ~ [95.5, 105.5])
    */
   private List<PriceBar> buildOscillatingBars(int finalClose) {
     List<PriceBar> bars = new ArrayList<>();
@@ -309,10 +309,9 @@ class SupportResistanceCalculatorTest {
 
     boolean hasBroken150Zone =
         buckets.stream()
-            .anyMatch(
-                bucket ->
-                    bucket.getMidpoint().compareTo(new BigDecimal("140")) >= 0
-                        && bucket.getMidpoint().compareTo(new BigDecimal("160")) <= 0);
+            .anyMatch(bucket ->
+                bucket.getMidpoint().compareTo(new BigDecimal("140")) >= 0
+                    && bucket.getMidpoint().compareTo(new BigDecimal("160")) <= 0);
     assertFalse(hasBroken150Zone, "Zone sliced through more than maxAllowedFlips must be dropped");
   }
 

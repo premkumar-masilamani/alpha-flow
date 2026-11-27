@@ -72,12 +72,12 @@ checkstyle {
 spotless {
     java {
         target 'src/*/java/**/*.java'
-        googleJavaFormat('1.27.0')
+        googleJavaFormat('2.0.0')
     }
 }
 
 pmd {
-    toolVersion = '7.21.0'
+    toolVersion = '7.27.0'
     ignoreFailures = false
     consoleOutput = true
     ruleSets = []
@@ -127,6 +127,11 @@ tasks.withType(SpotBugsTask).configureEach {
 
 test {
     useJUnitPlatform()
+    onOutput { descriptor, event ->
+        if (event.message.contains('[INDICATOR-FIXTURE]')) {
+            logger.lifecycle(event.message.trim())
+        }
+    }
     finalizedBy jacocoTestReport
 }
 

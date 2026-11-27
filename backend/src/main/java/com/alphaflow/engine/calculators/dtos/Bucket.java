@@ -63,8 +63,7 @@ public class Bucket {
     this.bottom = bottom;
     this.top = top;
     this.midpoint =
-        IndicatorMath.publish(
-            IndicatorMath.divide(bottom.add(top), BigDecimal.valueOf(2)));
+        IndicatorMath.publish(IndicatorMath.divide(bottom.add(top), BigDecimal.valueOf(2)));
     this.levelType = levelType;
     this.touchCount = touchCount;
     this.firstTouchDate = firstTouchDate;

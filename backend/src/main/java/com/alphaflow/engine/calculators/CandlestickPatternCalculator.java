@@ -5,10 +5,8 @@ import com.alphaflow.engine.calculators.dtos.PatternMatch;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
-import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyCandlestickPattern;
-import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.CandlestickPattern;
 import com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
@@ -198,27 +196,25 @@ public class CandlestickPatternCalculator {
       if (timeframe == Timeframe.DAILY) {
         List<DailyCandlestickPattern> newPatterns =
             matches.stream()
-                .map(
-                    match ->
-                        DailyCandlestickPattern.builder()
-                            .ticker(ticker)
-                            .priceDate(match.date())
-                            .pattern(match.pattern())
-                            .sentiment(match.pattern().getSentiment())
-                            .build())
+                .map(match ->
+                    DailyCandlestickPattern.builder()
+                        .ticker(ticker)
+                        .priceDate(match.date())
+                        .pattern(match.pattern())
+                        .sentiment(match.pattern().getSentiment())
+                        .build())
                 .toList();
         dailyCandlestickPatternRepository.saveAll(newPatterns);
       } else if (timeframe == Timeframe.WEEKLY) {
         List<WeeklyCandlestickPattern> newPatterns =
             matches.stream()
-                .map(
-                    match ->
-                        WeeklyCandlestickPattern.builder()
-                            .ticker(ticker)
-                            .priceDate(match.date())
-                            .pattern(match.pattern())
-                            .sentiment(match.pattern().getSentiment())
-                            .build())
+                .map(match ->
+                    WeeklyCandlestickPattern.builder()
+                        .ticker(ticker)
+                        .priceDate(match.date())
+                        .pattern(match.pattern())
+                        .sentiment(match.pattern().getSentiment())
+                        .build())
                 .toList();
         weeklyCandlestickPatternRepository.saveAll(newPatterns);
       } else {

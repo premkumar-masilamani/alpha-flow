@@ -96,14 +96,13 @@ class YahooFinanceDownloaderTest {
     SimpleClientHttpRequestFactory delegate = new SimpleClientHttpRequestFactory();
     RestClient.Builder builder =
         RestClient.builder()
-            .requestFactory(
-                (uri, httpMethod) -> {
-                  String target =
-                      preservePath
-                          ? targetBaseAndPath + uri.getRawPath() + "?" + uri.getRawQuery()
-                          : targetBaseAndPath + "?" + uri.getRawQuery();
-                  return delegate.createRequest(URI.create(target), httpMethod);
-                });
+            .requestFactory((uri, httpMethod) -> {
+              String target =
+                  preservePath
+                      ? targetBaseAndPath + uri.getRawPath() + "?" + uri.getRawQuery()
+                      : targetBaseAndPath + "?" + uri.getRawQuery();
+              return delegate.createRequest(URI.create(target), httpMethod);
+            });
     return new YahooFinanceClient(builder);
   }
 
