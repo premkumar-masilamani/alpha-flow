@@ -2,7 +2,6 @@ package com.alphaflow.engine.calculators;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -646,16 +645,19 @@ class ChartPatternCalculatorTest {
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.IN_PROGRESS, inProgress.status());
+    assertNull(inProgress.breakoutDate());
 
-    // Bullish: INVALIDATED before breakout
+    // Bullish: INVALIDATED before breakout, followed by a later trigger cross
     List<PriceBar> invalidatedPreBars = new ArrayList<>(flatBars(11, 110));
     invalidatedPreBars.set(9, bar(9, 100, 101, 95, 96));
+    invalidatedPreBars.set(10, bar(10, 120, 126, 119, 125));
     ChartPatternMatch invPre =
         calculator.detectPatternsFromSwings(invalidatedPreBars, bullishSwings).stream()
             .filter(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE)
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.INVALIDATED, invPre.status());
+    assertNull(invPre.breakoutDate());
 
     // Bullish: COMPLETED (broken out, neither target nor invalidation hit)
     List<PriceBar> completedBars = new ArrayList<>(flatBars(11, 110));
@@ -667,7 +669,7 @@ class ChartPatternCalculatorTest {
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.COMPLETED, completed.status());
-    assertNotNull(completed.breakoutDate());
+    assertEquals(completedBars.get(9).date(), completed.breakoutDate());
 
     // Bullish: INVALIDATED after breakout
     List<PriceBar> invalidatedPostBars = new ArrayList<>(flatBars(11, 110));
@@ -679,8 +681,9 @@ class ChartPatternCalculatorTest {
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.INVALIDATED, invPost.status());
+    assertEquals(invalidatedPostBars.get(9).date(), invPost.breakoutDate());
 
-    // Bearish: INVALIDATED before breakout & after breakout & COMPLETED
+    // Bearish: INVALIDATED before breakout (with later trigger cross), COMPLETED, & after breakout
     List<SwingPoint> bearishSwings =
         List.of(
             swing(2, 100, SwingType.LOW),
@@ -690,12 +693,14 @@ class ChartPatternCalculatorTest {
 
     List<PriceBar> bearInvPre = new ArrayList<>(flatBars(11, 110));
     bearInvPre.set(9, bar(9, 118, 125, 117, 123));
+    bearInvPre.set(10, bar(10, 100, 101, 94, 95));
     ChartPatternMatch bearishInvPre =
         calculator.detectPatternsFromSwings(bearInvPre, bearishSwings).stream()
             .filter(match -> match.patternType() == ChartPatternType.DESCENDING_TRIANGLE)
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.INVALIDATED, bearishInvPre.status());
+    assertNull(bearishInvPre.breakoutDate());
 
     List<PriceBar> bearCompleted = new ArrayList<>(flatBars(11, 110));
     bearCompleted.set(9, bar(9, 100, 101, 95, 96));
@@ -706,6 +711,7 @@ class ChartPatternCalculatorTest {
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.COMPLETED, bearishCompleted.status());
+    assertEquals(bearCompleted.get(9).date(), bearishCompleted.breakoutDate());
 
     List<PriceBar> bearInvPost = new ArrayList<>(flatBars(11, 110));
     bearInvPost.set(9, bar(9, 100, 101, 95, 96));
@@ -716,6 +722,7 @@ class ChartPatternCalculatorTest {
             .findFirst()
             .orElseThrow();
     assertEquals(ChartPatternStatus.INVALIDATED, bearishInvPost.status());
+    assertEquals(bearInvPost.get(9).date(), bearishInvPost.breakoutDate());
   }
 
   @Test
