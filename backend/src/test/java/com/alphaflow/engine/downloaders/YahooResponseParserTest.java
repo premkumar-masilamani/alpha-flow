@@ -11,7 +11,9 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -90,6 +92,7 @@ class YahooResponseParserTest {
   @Test
   void testParseMissingChartOrResult() throws IOException {
     Ticker ticker = new Ticker();
+    assertTrue(YahooResponseParser.parse("null", ticker).isEmpty());
     assertTrue(YahooResponseParser.parse("{\"chart\": null}", ticker).isEmpty());
     assertTrue(YahooResponseParser.parse("{\"chart\": {\"result\": null}}", ticker).isEmpty());
     assertTrue(YahooResponseParser.parse("{\"chart\": {\"result\": []}}", ticker).isEmpty());
@@ -109,8 +112,7 @@ class YahooResponseParserTest {
   void testParseMissingTimestampsOrQuote() throws IOException {
     Ticker ticker = new Ticker();
     assertTrue(
-        YahooResponseParser.parse(
-                "{\"chart\": {\"result\": [{\"timestamp\": null}]}}", ticker)
+        YahooResponseParser.parse("{\"chart\": {\"result\": [{\"timestamp\": null}]}}", ticker)
             .isEmpty());
     assertTrue(
         YahooResponseParser.parse(
@@ -216,5 +218,105 @@ class YahooResponseParserTest {
         """;
     List<DailyPrice> list = YahooResponseParser.parse(invalidBarsJson, ticker);
     assertEquals(1, list.size());
+  }
+
+  @Test
+  void testParseSameDayDuplicateKeepsLaterValidEntry() throws IOException {
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+
+    long day1Ts = Instant.parse("2026-11-05T14:30:00Z").getEpochSecond();
+    long day2FirstTs = Instant.parse("2026-11-06T14:30:00Z").getEpochSecond();
+    long day2SecondTs = Instant.parse("2026-11-06T20:00:00Z").getEpochSecond();
+
+    String duplicateJson =
+        """
+        {
+          "chart": {
+            "result": [
+              {
+                "timestamp": [{ts1}, {ts2}, {ts3}],
+                "indicators": {
+                  "quote": [
+                    {
+                      "open": [148.0, 150.0, 150.5],
+                      "high": [151.0, 152.0, 154.0],
+                      "low": [147.0, 149.0, 149.5],
+                      "close": [150.0, 151.0, 153.5],
+                      "volume": [900000, 1000000, 1250000]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+        """
+            .replace("{ts1}", String.valueOf(day1Ts))
+            .replace("{ts2}", String.valueOf(day2FirstTs))
+            .replace("{ts3}", String.valueOf(day2SecondTs));
+
+    List<DailyPrice> result = YahooResponseParser.parse(duplicateJson, ticker);
+    assertEquals(2, result.size());
+    assertEquals(LocalDate.of(2026, 11, 5), result.getFirst().getPriceDate());
+
+    DailyPrice dedupedDay2 = result.get(1);
+    assertEquals(LocalDate.of(2026, 11, 6), dedupedDay2.getPriceDate());
+    assertEquals(0, new BigDecimal("150.5").compareTo(dedupedDay2.getPriceOpen()));
+    assertEquals(0, new BigDecimal("154.0").compareTo(dedupedDay2.getPriceHigh()));
+    assertEquals(0, new BigDecimal("149.5").compareTo(dedupedDay2.getPriceLow()));
+    assertEquals(0, new BigDecimal("153.5").compareTo(dedupedDay2.getPriceClose()));
+    assertEquals(0, new BigDecimal("1250000").compareTo(dedupedDay2.getVolume()));
+  }
+
+  @Test
+  void testParseSameDayDuplicateDiscardsInvalidSecondEntry() throws IOException {
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+
+    long firstTs = Instant.parse("2026-11-06T14:30:00Z").getEpochSecond();
+    long nullSecondTs = Instant.parse("2026-11-06T20:00:00Z").getEpochSecond();
+    long zeroThirdTs = Instant.parse("2026-11-06T21:00:00Z").getEpochSecond();
+
+    String json =
+        """
+        {
+          "chart": {
+            "result": [
+              {
+                "timestamp": [{ts1}, {ts2}, {ts3}],
+                "indicators": {
+                  "quote": [
+                    {
+                      "open": [150.0, 151.0, 151.0],
+                      "high": [152.0, 153.0, 153.0],
+                      "low": [149.0, 150.0, 150.0],
+                      "close": [151.5, null, 0],
+                      "volume": [1000000, 1100000, 1200000]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+        """
+            .replace("{ts1}", String.valueOf(firstTs))
+            .replace("{ts2}", String.valueOf(nullSecondTs))
+            .replace("{ts3}", String.valueOf(zeroThirdTs));
+
+    List<DailyPrice> result = YahooResponseParser.parse(json, ticker);
+    assertEquals(1, result.size());
+    DailyPrice preserved = result.getFirst();
+    assertEquals(LocalDate.of(2026, 11, 6), preserved.getPriceDate());
+    assertEquals(0, new BigDecimal("150.0").compareTo(preserved.getPriceOpen()));
+    assertEquals(0, new BigDecimal("152.0").compareTo(preserved.getPriceHigh()));
+    assertEquals(0, new BigDecimal("149.0").compareTo(preserved.getPriceLow()));
+    assertEquals(0, new BigDecimal("151.5").compareTo(preserved.getPriceClose()));
+    assertEquals(0, new BigDecimal("1000000").compareTo(preserved.getVolume()));
   }
 }
