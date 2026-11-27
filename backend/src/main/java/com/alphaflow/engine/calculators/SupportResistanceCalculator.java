@@ -97,17 +97,6 @@ public class SupportResistanceCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    computeSupportResistances(timeframe);
-  }
-
-  /**
-   * Computes S&amp;R zones for all stale active tickers on the requested timeframe using a single
-   * upfront bulk state query, isolating failures so an error on one ticker does not abort the
-   * remaining tickers.
-   *
-   * @param timeframe market timeframe to compute
-   */
-  public void computeSupportResistances(Timeframe timeframe) {
     if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
       log.error("Unsupported timeframe for S&R computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

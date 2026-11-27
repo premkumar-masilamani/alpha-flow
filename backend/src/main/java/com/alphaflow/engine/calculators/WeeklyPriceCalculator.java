@@ -57,10 +57,6 @@ public class WeeklyPriceCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    computeWeeklyPrices();
-  }
-
-  public void computeWeeklyPrices() {
     log.info("Starting weekly price computation...");
 
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();

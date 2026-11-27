@@ -52,10 +52,6 @@ public class YahooFinanceDownloader implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    downloadAndPersistDailyPrices();
-  }
-
-  public int downloadAndPersistDailyPrices() {
     log.info("Starting Yahoo Finance data download process...");
 
     Map<Ticker, LocalDate> latestSavedDates =
@@ -80,7 +76,6 @@ public class YahooFinanceDownloader implements PipelineJob {
     log.info(
         "All Yahoo Finance downloads completed! Total newly ingested rows: {}",
         totalNewlyIngestedRows);
-    return totalNewlyIngestedRows;
   }
 
   private void throttle() {

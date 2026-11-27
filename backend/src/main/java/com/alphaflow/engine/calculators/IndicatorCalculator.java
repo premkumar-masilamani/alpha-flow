@@ -81,10 +81,6 @@ public class IndicatorCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    computeIndicators(timeframe);
-  }
-
-  public void computeIndicators(Timeframe timeframe) {
     if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
       log.error("Unsupported timeframe for indicator computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

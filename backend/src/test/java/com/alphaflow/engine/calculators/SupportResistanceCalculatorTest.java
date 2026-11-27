@@ -191,7 +191,7 @@ class SupportResistanceCalculatorTest {
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
-    calculator.computeSupportResistances(Timeframe.DAILY);
+    calculator.execute(Timeframe.DAILY);
 
     verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(okTicker);
     verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(failingTicker);
@@ -207,7 +207,7 @@ class SupportResistanceCalculatorTest {
 
     when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
 
-    calculator.computeSupportResistances(Timeframe.WEEKLY);
+    calculator.execute(Timeframe.WEEKLY);
 
     verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
   }
@@ -216,7 +216,7 @@ class SupportResistanceCalculatorTest {
   void testComputeSupportResistancesUnsupportedTimeframeThrows() {
     when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
     assertThrows(
-        IllegalArgumentException.class, () -> calculator.computeSupportResistances(null));
+        IllegalArgumentException.class, () -> calculator.execute(null));
   }
 
   @Test

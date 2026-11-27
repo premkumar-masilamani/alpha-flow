@@ -90,10 +90,6 @@ public class CandlestickPatternCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    computeCandleStickPatterns(timeframe);
-  }
-
-  public void computeCandleStickPatterns(Timeframe timeframe) {
     if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
       log.error("Unsupported timeframe for candlestick patterns computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

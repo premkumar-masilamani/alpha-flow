@@ -112,7 +112,7 @@ class CandlestickPatternCalculatorTest {
   @Test
   void testComputePatternsUnsupportedTimeframeThrows() throws Exception {
     assertThrows(
-        IllegalArgumentException.class, () -> calculator.computeCandleStickPatterns(null));
+        IllegalArgumentException.class, () -> calculator.execute(null));
 
     Method loadBarsMethod =
         CandlestickPatternCalculator.class.getDeclaredMethod(
@@ -185,7 +185,7 @@ class CandlestickPatternCalculatorTest {
         .when(calculatorSpy)
         .computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.DAILY);
 
-    calculatorSpy.computeCandleStickPatterns(Timeframe.DAILY);
+    calculatorSpy.execute(Timeframe.DAILY);
 
     verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.DAILY);
     verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY);
@@ -197,7 +197,7 @@ class CandlestickPatternCalculatorTest {
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 
-    calculator.computeCandleStickPatterns(Timeframe.WEEKLY);
+    calculator.execute(Timeframe.WEEKLY);
 
     verify(selfMock).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.WEEKLY);
     verify(selfMock).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY);

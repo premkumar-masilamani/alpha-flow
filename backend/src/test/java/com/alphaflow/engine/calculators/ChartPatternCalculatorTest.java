@@ -92,7 +92,7 @@ class ChartPatternCalculatorTest {
   @Test
   void testComputeChartPatternsUnsupportedTimeframeThrows() {
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
-    assertThrows(IllegalArgumentException.class, () -> calculator.computeChartPatterns(null));
+    assertThrows(IllegalArgumentException.class, () -> calculator.execute(null));
   }
 
   @Test
@@ -120,7 +120,7 @@ class ChartPatternCalculatorTest {
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
-    calculator.computeChartPatterns(Timeframe.DAILY);
+    calculator.execute(Timeframe.DAILY);
 
     verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
     verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(failingTicker);
@@ -131,7 +131,7 @@ class ChartPatternCalculatorTest {
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 
-    calculator.computeChartPatterns(Timeframe.WEEKLY);
+    calculator.execute(Timeframe.WEEKLY);
 
     verify(selfMock).computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
     verify(selfMock).computeChartPatternsForTicker(failingTicker, Timeframe.WEEKLY);

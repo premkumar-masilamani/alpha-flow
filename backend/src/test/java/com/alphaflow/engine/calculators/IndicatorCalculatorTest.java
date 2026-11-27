@@ -200,7 +200,7 @@ class IndicatorCalculatorTest {
     when(dailyRepo.findByTickerOrderByPriceDateAsc(upToDateTicker))
         .thenReturn(dailyBars(upToDateTicker));
 
-    calculator.computeIndicators(Timeframe.DAILY);
+    calculator.execute(Timeframe.DAILY);
 
     verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(ticker);
     verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(upToDateTicker);
@@ -239,7 +239,7 @@ class IndicatorCalculatorTest {
         .when(calculatorSpy)
         .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(emaDefinition));
 
-    calculatorSpy.computeIndicators(Timeframe.DAILY);
+    calculatorSpy.execute(Timeframe.DAILY);
 
     verify(calculatorSpy)
         .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(emaDefinition));
@@ -251,7 +251,7 @@ class IndicatorCalculatorTest {
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 
-    calculator.computeIndicators(Timeframe.WEEKLY);
+    calculator.execute(Timeframe.WEEKLY);
 
     verify(selfMock)
         .computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.WEEKLY), any(List.class));
@@ -263,7 +263,7 @@ class IndicatorCalculatorTest {
   void testComputeIndicatorsUnsupportedTimeframeThrows() {
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
     when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(emaDefinition));
-    assertThrows(IllegalArgumentException.class, () -> calculator.computeIndicators(null));
+    assertThrows(IllegalArgumentException.class, () -> calculator.execute(null));
   }
 
   @Test

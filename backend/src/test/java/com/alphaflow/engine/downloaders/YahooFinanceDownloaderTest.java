@@ -125,9 +125,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(null);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -149,9 +148,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = mock(YahooFinanceClient.class);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(client, never()).fetchDailyPrices(any(), any(Long.class), any(Long.class));
     verify(dailyRepo, never()).saveAll(any());
   }
@@ -181,9 +179,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -209,9 +206,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(4, ingestedRows);
     verify(dailyRepo, times(2)).saveAll(any());
   }
 
@@ -231,9 +227,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -253,9 +248,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -275,9 +269,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/empty", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -288,9 +281,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(null);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -310,9 +302,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient("http://localhost:1/invalid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -332,9 +323,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/special-symbol", true);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -373,9 +363,9 @@ class YahooFinanceDownloaderTest {
             })
         .start();
 
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
     assertTrue(Thread.interrupted());
-    assertEquals(4, ingestedRows);
+    verify(dailyRepo, times(2)).saveAll(any());
   }
 
   @Test
@@ -395,7 +385,7 @@ class YahooFinanceDownloaderTest {
     assertEquals(true, downloader.shouldRun(null));
 
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
-    // Test execute delegating to downloadAndPersistDailyPrices
+    // Test execute
     downloader.execute(null);
   }
 
@@ -420,8 +410,7 @@ class YahooFinanceDownloaderTest {
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
 
     assertEquals(false, downloader.shouldRun(null));
-    int ingested = downloader.downloadAndPersistDailyPrices();
-    assertEquals(0, ingested);
+    downloader.execute(null);
     verify(client, never()).fetchDailyPrices(any(), any(Long.class), any(Long.class));
   }
 }

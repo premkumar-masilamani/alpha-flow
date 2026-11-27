@@ -87,10 +87,6 @@ public class ChartPatternCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    computeChartPatterns(timeframe);
-  }
-
-  public void computeChartPatterns(Timeframe timeframe) {
     if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
       log.error("Unsupported timeframe for chart pattern computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

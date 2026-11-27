@@ -96,7 +96,7 @@ class WeeklyPriceCalculatorTest {
     doNothing().when(calculatorSpy).processTicker(staleTicker);
     doNothing().when(calculatorSpy).processTicker(upToDateTicker);
 
-    calculatorSpy.computeWeeklyPrices();
+    calculatorSpy.execute(null);
 
     verify(calculatorSpy).processTicker(failingTicker);
     verify(calculatorSpy).processTicker(staleTicker);
@@ -107,7 +107,7 @@ class WeeklyPriceCalculatorTest {
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 
-    calculator.computeWeeklyPrices();
+    calculator.execute(null);
 
     verify(selfMock).processTicker(failingTicker);
     verify(selfMock).processTicker(staleTicker);
