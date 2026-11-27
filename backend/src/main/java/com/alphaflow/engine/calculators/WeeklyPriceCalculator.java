@@ -1,5 +1,8 @@
 package com.alphaflow.engine.calculators;
 
+import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.configs.PipelineConfig;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
@@ -11,11 +14,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,40 +28,55 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class WeeklyPriceCalculator {
+public class WeeklyPriceCalculator implements PipelineJob {
 
-  private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
+  private final TickerRepository tickerRepository;
 
   @Autowired @Lazy private WeeklyPriceCalculator weeklyPriceCalculator;
 
   public WeeklyPriceCalculator(
-      TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
-      WeeklyPriceRepository weeklyPriceRepository) {
-    this.tickerRepository = tickerRepository;
+      WeeklyPriceRepository weeklyPriceRepository,
+      TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
+    this.tickerRepository = tickerRepository;
   }
 
-  public void computeWeeklyPrices() {
+  @Override
+  public String getJobName() {
+    return PipelineConfig.STEP_CALCULATE_WEEKLY_PRICE;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    return weeklyPriceRepository.hasPendingWeeklyPrices();
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
     log.info("Starting weekly price computation...");
 
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for weekly prices.", tickers.size());
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for weekly prices.", activeTickers.size());
+
+    Map<Ticker, LocalDate> latestDates =
+        weeklyPriceRepository.findLatestPriceDatesForActiveTickers();
 
     WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
 
-    for (Ticker ticker : tickers) {
+    for (Ticker ticker : activeTickers) {
       try {
-        proxy.processTicker(ticker);
-      } catch (Exception e) {
+        LocalDate latestCalculatedDate = latestDates.get(ticker);
+        proxy.processTicker(ticker, latestCalculatedDate);
+      } catch (Exception exception) {
         log.error(
             "Failed to compute weekly prices for ticker {}: {}",
             ticker.getTickerSymbol(),
-            e.getMessage(),
-            e);
+            exception.getMessage(),
+            exception);
       }
     }
 
@@ -67,77 +84,36 @@ public class WeeklyPriceCalculator {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void processTicker(Ticker ticker) {
-    // Step 1: Load the daily bars with the computed start date (separate functions)
-    Optional<LocalDate> startDateOpt = computeStartDate(ticker);
-    if (startDateOpt.isEmpty()) {
-      return;
-    }
-    LocalDate startDate = startDateOpt.get();
-    List<DailyPrice> dailyBars = loadDailyBars(ticker, startDate);
-    if (dailyBars.isEmpty()) {
-      return;
-    }
-
-    // Step 2: Compute the weekly bars
-    List<WeeklyPrice> weeklyBars = computeWeeklyBars(ticker, dailyBars);
-
-    // Step 3: Save the weekly bars
-    saveWeeklyBars(ticker, weeklyBars, startDate);
-  }
-
-  private Optional<LocalDate> computeStartDate(Ticker ticker) {
-    Optional<WeeklyPrice> latestWeeklyOpt =
-        weeklyPriceRepository.findTopByTickerOrderByPriceDateDesc(ticker);
-
-    if (latestWeeklyOpt.isPresent()) {
-      WeeklyPrice latestWeekly = latestWeeklyOpt.get();
-      LocalDate calculationStartDate = latestWeekly.getPriceDate();
+  public void processTicker(Ticker ticker, LocalDate latestCalculatedDate) {
+    List<DailyPrice> dailyBars = loadDailyBars(ticker, latestCalculatedDate);
+    if (!dailyBars.isEmpty()) {
+      LocalDate startDate =
+          (latestCalculatedDate != null)
+              ? latestCalculatedDate
+              : dailyBars
+                  .getFirst()
+                  .getPriceDate()
+                  .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+      List<WeeklyPrice> weeklyBars = computeWeeklyBars(ticker, dailyBars);
+      saveWeeklyBars(ticker, weeklyBars, startDate);
+    } else {
       log.debug(
-          "Ticker {}: Starting weekly price computation from latest Monday to overwrite/update: {}",
+          "Ticker {}: No daily prices found to aggregate into weekly bars (since={}).",
           ticker.getTickerSymbol(),
-          calculationStartDate);
-      return Optional.of(calculationStartDate);
+          latestCalculatedDate);
     }
-
-    Optional<DailyPrice> earliestDailyOpt =
-        dailyPriceRepository.findTopByTickerOrderByPriceDateAsc(ticker);
-    if (earliestDailyOpt.isEmpty()) {
-      log.warn(
-          "Ticker {}: No daily prices found! Skipping weekly price computation.",
-          ticker.getTickerSymbol());
-      return Optional.empty();
-    }
-
-    LocalDate calculationStartDate =
-        earliestDailyOpt
-            .get()
-            .getPriceDate()
-            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-    log.debug(
-        "Ticker {}: No weekly prices found. Starting computation from earliest daily price date (aligned to Monday): {}",
-        ticker.getTickerSymbol(),
-        calculationStartDate);
-    return Optional.of(calculationStartDate);
   }
 
-  private List<DailyPrice> loadDailyBars(Ticker ticker, LocalDate startDate) {
-    List<DailyPrice> dailyPrices =
-        dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
-            ticker, startDate);
-
-    if (dailyPrices.isEmpty()) {
-      log.debug(
-          "Ticker {}: No new daily prices found since {}.", ticker.getTickerSymbol(), startDate);
+  private List<DailyPrice> loadDailyBars(Ticker ticker, LocalDate latestCalculatedDate) {
+    if (latestCalculatedDate != null) {
+      return dailyPriceRepository.findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(
+          ticker, latestCalculatedDate);
+    } else {
+      return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker);
     }
-    return dailyPrices;
   }
 
   private List<WeeklyPrice> computeWeeklyBars(Ticker ticker, List<DailyPrice> dailyBars) {
-    if (dailyBars.isEmpty()) {
-      return Collections.emptyList();
-    }
-
     // Group daily prices by week-start Monday
     Map<LocalDate, List<DailyPrice>> dailyPricesByWeek =
         dailyBars.stream()
@@ -193,14 +169,10 @@ public class WeeklyPriceCalculator {
   }
 
   private void saveWeeklyBars(Ticker ticker, List<WeeklyPrice> weeklyBars, LocalDate startDate) {
-    if (weeklyBars.isEmpty()) {
-      return;
-    }
-
     // Fetch all existing weekly rows in the affected range once (avoids an N+1 query per week)
     Map<LocalDate, WeeklyPrice> existingWeeklyByMonday =
         weeklyPriceRepository.findByTickerAndPriceDateGreaterThanEqual(ticker, startDate).stream()
-            .collect(Collectors.toMap(WeeklyPrice::getPriceDate, wp -> wp));
+            .collect(Collectors.toMap(WeeklyPrice::getPriceDate, Function.identity()));
 
     List<WeeklyPrice> weeklyPricesToSave = new ArrayList<>();
     for (WeeklyPrice computed : weeklyBars) {

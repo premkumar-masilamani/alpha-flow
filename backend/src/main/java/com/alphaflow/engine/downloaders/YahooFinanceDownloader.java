@@ -1,13 +1,18 @@
 package com.alphaflow.engine.downloaders;
 
+import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.PipelineGating;
+import com.alphaflow.engine.configs.PipelineConfig;
 import com.alphaflow.engine.configs.YahooFinanceConfig;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +24,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class YahooFinanceDownloader {
+public class YahooFinanceDownloader implements PipelineJob {
 
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
@@ -32,37 +37,45 @@ public class YahooFinanceDownloader {
     this.dailyPriceRepository = dailyPriceRepository;
   }
 
-  public int downloadAndPersistDailyPrices() {
+  @Override
+  public String getJobName() {
+    return PipelineConfig.STEP_DOWNLOAD_DAILY_PRICE;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    Instant now = Instant.now();
+    LocalDate usExpected = PipelineGating.getLatestExpectedTradingDate(Country.US, now);
+    LocalDate inExpected = PipelineGating.getLatestExpectedTradingDate(Country.IN, now);
+    return dailyPriceRepository.hasPendingDailyPrices(usExpected, inExpected);
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
     log.info("Starting Yahoo Finance data download process...");
 
     Map<Ticker, LocalDate> latestSavedDates =
         dailyPriceRepository.findLatestPriceDatesForActiveTickers();
-
     log.info("Found {} active Yahoo Finance tickers to sync.", latestSavedDates.size());
 
+    Instant now = Instant.now();
     int totalNewlyIngestedRows = 0;
-    List<Ticker> tickers = new ArrayList<>(latestSavedDates.keySet());
-    for (Ticker ticker : tickers) {
-      ZoneId marketZone = ticker.getCountry().getZoneId();
-      LocalDate today = LocalDate.now(marketZone);
-      LocalDate latestSavedDate = latestSavedDates.get(ticker);
+    for (Map.Entry<Ticker, LocalDate> entry : latestSavedDates.entrySet()) {
+      Ticker ticker = entry.getKey();
+      LocalDate latestSavedDate = entry.getValue();
+      LocalDate expectedTradingDate =
+          PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
 
-      if (latestSavedDate == null || latestSavedDate.isBefore(today)) {
+      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
         throttle();
-        int ingestedRows = downloadAndPersistForTicker(ticker, latestSavedDate, today, marketZone);
+        int ingestedRows =
+            downloadAndPersistForTicker(ticker, latestSavedDate, expectedTradingDate);
         totalNewlyIngestedRows += ingestedRows;
-      } else {
-        log.debug(
-            "{}: up to date (latest saved: {}, today: {}). Skipping.",
-            ticker.getTickerSymbol(),
-            latestSavedDate,
-            today);
       }
     }
     log.info(
         "All Yahoo Finance downloads completed! Total newly ingested rows: {}",
         totalNewlyIngestedRows);
-    return totalNewlyIngestedRows;
   }
 
   private void throttle() {
@@ -85,16 +98,16 @@ public class YahooFinanceDownloader {
   }
 
   private int downloadAndPersistForTicker(
-      Ticker ticker, LocalDate latestSavedDate, LocalDate today, ZoneId marketZone) {
+      Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate) {
     LocalDate actualLatestDate =
         (latestSavedDate != null) ? latestSavedDate : YahooFinanceConfig.BACKFILL_START_DATE;
     LocalDate startDate = actualLatestDate.plusDays(1);
 
-    long startTs = startDate.atStartOfDay(ZoneId.of("UTC")).toEpochSecond();
+    long startTs = startDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
     long endTs =
         Math.max(
             Instant.now().getEpochSecond(),
-            today.plusDays(1).atStartOfDay(marketZone).toEpochSecond());
+            expectedTradingDate.plusDays(1).atStartOfDay(ZoneOffset.UTC).toEpochSecond());
 
     log.info(
         "Syncing {} from {} (timestamp: {}) to timestamp: {}",

@@ -6,13 +6,12 @@ import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.engine.structure.DowAtrSwingDetector;
 import com.alphaflow.engine.structure.dtos.SwingPoint;
 import com.alphaflow.engine.structure.enums.SwingType;
-import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
@@ -22,11 +21,11 @@ import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -52,49 +51,73 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 @Slf4j
-public class SupportResistanceCalculator {
+public class SupportResistanceCalculator implements PipelineJob {
 
-  private final TickerRepository tickerRepository;
+  public static final String JOB_NAME = "CALCULATE_SUPPORT_RESISTANCE";
+
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailySupportResistanceRepository dailySupportResistanceRepository;
   private final WeeklySupportResistanceRepository weeklySupportResistanceRepository;
+  private final TickerRepository tickerRepository;
   private final DowAtrSwingDetector dowAtrSwingDetector;
 
   @Autowired @Lazy private SupportResistanceCalculator self;
 
   public SupportResistanceCalculator(
-      TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailySupportResistanceRepository dailySupportResistanceRepository,
       WeeklySupportResistanceRepository weeklySupportResistanceRepository,
+      TickerRepository tickerRepository,
       DowAtrSwingDetector dowAtrSwingDetector) {
-    this.tickerRepository = tickerRepository;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailySupportResistanceRepository = dailySupportResistanceRepository;
     this.weeklySupportResistanceRepository = weeklySupportResistanceRepository;
+    this.tickerRepository = tickerRepository;
     this.dowAtrSwingDetector = dowAtrSwingDetector;
   }
 
-  /**
-   * Computes S&amp;R zones for all active tickers on the requested timeframe, isolating failures so
-   * an error on one ticker does not abort the remaining tickers.
-   *
-   * @param timeframe market timeframe to compute
-   */
-  public void computeSupportResistances(Timeframe timeframe) {
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailySupportResistanceRepository.hasPendingDailySupportResistance();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklySupportResistanceRepository.hasPendingWeeklySupportResistance();
+    } else {
+      log.error("Unsupported timeframe for S&R shouldRun: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+      log.error("Unsupported timeframe for S&R computation: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
     log.info("Computing {} support and resistances...", timeframe);
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for {} S&R.", tickers.size(), timeframe);
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for {} S&R.", activeTickers.size(), timeframe);
+
+    Map<Ticker, LocalDate> latestWeeklyDates =
+        (timeframe == Timeframe.WEEKLY)
+            ? weeklySupportResistanceRepository.findLatestPriceDatesForActiveTickers()
+            : Collections.emptyMap();
 
     // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
     SupportResistanceCalculator proxy = (self != null) ? self : this;
 
-    for (Ticker ticker : tickers) {
+    for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeSupportResistancesForTicker(ticker, timeframe);
+        LocalDate latestCalculatedDate = latestWeeklyDates.get(ticker);
+        proxy.computeSupportResistancesForTicker(ticker, timeframe, latestCalculatedDate);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} S&R for ticker {}: {}",
@@ -109,51 +132,54 @@ public class SupportResistanceCalculator {
 
   /**
    * Computes and persists the latest S&amp;R snapshot for a single ticker within an isolated
-   * transaction. Skips recomputation if a snapshot already exists for the latest bar date and
+   * transaction. Replaces existing weekly snapshot rows idempotently during mid-week refreshes and
    * purges expired snapshots beyond the configured timeframe retention window.
    *
    * @param ticker target ticker entity
    * @param timeframe target market timeframe
+   * @param latestCalculatedDate latest persisted snapshot date for the ticker (nullable)
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeSupportResistancesForTicker(Ticker ticker, Timeframe timeframe) {
+  public void computeSupportResistancesForTicker(
+      Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
-    Optional<LocalDate> latestPriceDateOpt = findLatestPriceDate(ticker, timeframe);
-    if (latestPriceDateOpt.isPresent()) {
-      LocalDate priceDate = latestPriceDateOpt.get();
-      if (!isAlreadyComputed(ticker, priceDate, timeframe)) {
-        List<PriceBar> priceBars = loadBars(ticker, timeframe);
-        LocalDate cutoffDate =
-            priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
+    List<PriceBar> priceBars = loadBars(ticker, timeframe);
+    if (!priceBars.isEmpty()) {
+      LocalDate priceDate = priceBars.getLast().date();
+      LocalDate cutoffDate =
+          priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
+      log.debug(
+          "Purging {} S&R records older than {} for ticker {}.",
+          timeframe,
+          cutoffDate,
+          ticker.getTickerSymbol());
+      deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
+
+      if (timeframe == Timeframe.WEEKLY
+          && latestCalculatedDate != null
+          && !latestCalculatedDate.isBefore(priceDate)) {
         log.debug(
-            "Purging {} S&R records older than {} for ticker {}.",
+            "Refreshing in-progress weekly S&R zones for ticker {} on {}.",
+            ticker.getTickerSymbol(),
+            priceDate);
+        weeklySupportResistanceRepository.deleteByTickerAndPriceDate(ticker, priceDate);
+      }
+
+      List<Bucket> buckets = computeBuckets(priceBars);
+
+      if (!buckets.isEmpty()) {
+        saveSupportResistances(ticker, buckets, timeframe);
+        log.info(
+            "Saved {} {} S&R zones for ticker {} (priceDate={}).",
+            buckets.size(),
             timeframe,
-            cutoffDate,
-            ticker.getTickerSymbol());
-        deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
-
-        List<Bucket> buckets = computeBuckets(priceBars);
-
-        if (!buckets.isEmpty()) {
-          saveSupportResistances(ticker, buckets, timeframe);
-          log.info(
-              "Saved {} {} S&R zones for ticker {} (priceDate={}).",
-              buckets.size(),
-              timeframe,
-              ticker.getTickerSymbol(),
-              priceDate);
-        } else {
-          log.debug(
-              "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
-              timeframe,
-              ticker.getTickerSymbol(),
-              priceDate);
-        }
+            ticker.getTickerSymbol(),
+            priceDate);
       } else {
         log.debug(
-            "S&R already computed for ticker {} and timeframe {} for {}",
-            ticker.getTickerSymbol(),
+            "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
             timeframe,
+            ticker.getTickerSymbol(),
             priceDate);
       }
     } else {
@@ -469,40 +495,6 @@ public class SupportResistanceCalculator {
       return LevelType.RESISTANCE;
     } else {
       return activeRole;
-    }
-  }
-
-  /** Resolves the latest available price date for the ticker on the requested timeframe. */
-  private Optional<LocalDate> findLatestPriceDate(Ticker ticker, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyPriceRepository
-          .findTopByTickerOrderByPriceDateDesc(ticker)
-          .map(DailyPrice::getPriceDate);
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyPriceRepository
-          .findTopByTickerOrderByPriceDateDesc(ticker)
-          .map(WeeklyPrice::getPriceDate);
-    } else {
-      log.error("Unsupported timeframe for finding latest price date: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-    }
-  }
-
-  /**
-   * Checks whether S&amp;R records have already been persisted for the ticker and snapshot date.
-   */
-  private boolean isAlreadyComputed(Ticker ticker, LocalDate priceDate, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return !dailySupportResistanceRepository
-          .findByTickerAndPriceDate(ticker, priceDate)
-          .isEmpty();
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return !weeklySupportResistanceRepository
-          .findByTickerAndPriceDate(ticker, priceDate)
-          .isEmpty();
-    } else {
-      log.error("Unsupported timeframe for S&R existence check: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
 

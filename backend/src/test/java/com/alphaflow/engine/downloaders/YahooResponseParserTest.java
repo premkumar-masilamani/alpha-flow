@@ -9,8 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooResponseParser;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -34,12 +36,41 @@ class YahooResponseParserTest {
     // Verify properties of parsed elements
     DailyPrice first = result.getFirst();
     assertEquals(ticker, first.getTicker());
-    assertNotNull(first.getPriceDate());
+    assertEquals(LocalDate.of(2026, 5, 28), first.getPriceDate());
     assertNotNull(first.getPriceOpen());
     assertNotNull(first.getPriceHigh());
     assertNotNull(first.getPriceLow());
     assertNotNull(first.getPriceClose());
     assertNotNull(first.getVolume());
+  }
+
+  @Test
+  void testParsePreservesUtcDateForUsAndInTickers() throws IOException {
+    String json;
+    try (var is = getClass().getResourceAsStream("/yahoo_response.json")) {
+      json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+    }
+
+    Ticker usTicker = new Ticker();
+    usTicker.setTickerId(1L);
+    usTicker.setTickerSymbol("AAPL");
+    usTicker.setCountry(Country.US);
+
+    Ticker inTicker = new Ticker();
+    inTicker.setTickerId(2L);
+    inTicker.setTickerSymbol("RELIANCE.NS");
+    inTicker.setCountry(Country.IN);
+
+    List<DailyPrice> usResult = YahooResponseParser.parse(json, usTicker);
+    List<DailyPrice> inResult = YahooResponseParser.parse(json, inTicker);
+
+    assertEquals(2, usResult.size());
+    assertEquals(2, inResult.size());
+    // Both US and IN tickers preserve the identical UTC date from the Unix epoch timestamp
+    assertEquals(LocalDate.of(2026, 5, 28), usResult.getFirst().getPriceDate());
+    assertEquals(LocalDate.of(2026, 5, 28), inResult.getFirst().getPriceDate());
+    assertEquals(LocalDate.of(2026, 5, 29), usResult.get(1).getPriceDate());
+    assertEquals(LocalDate.of(2026, 5, 29), inResult.get(1).getPriceDate());
   }
 
   @Test
@@ -54,5 +85,136 @@ class YahooResponseParserTest {
   void testParseMalformedJsonThrowsException() {
     Ticker ticker = new Ticker();
     assertThrows(IOException.class, () -> YahooResponseParser.parse("{malformed: json}", ticker));
+  }
+
+  @Test
+  void testParseMissingChartOrResult() throws IOException {
+    Ticker ticker = new Ticker();
+    assertTrue(YahooResponseParser.parse("{\"chart\": null}", ticker).isEmpty());
+    assertTrue(YahooResponseParser.parse("{\"chart\": {\"result\": null}}", ticker).isEmpty());
+    assertTrue(YahooResponseParser.parse("{\"chart\": {\"result\": []}}", ticker).isEmpty());
+
+    try (var is = getClass().getResourceAsStream("/yahoo_empty_response.json")) {
+      String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+      assertTrue(YahooResponseParser.parse(json, ticker).isEmpty());
+    }
+
+    try (var is = getClass().getResourceAsStream("/yahoo_response_result_null.json")) {
+      String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+      assertTrue(YahooResponseParser.parse(json, ticker).isEmpty());
+    }
+  }
+
+  @Test
+  void testParseMissingTimestampsOrQuote() throws IOException {
+    Ticker ticker = new Ticker();
+    assertTrue(
+        YahooResponseParser.parse(
+                "{\"chart\": {\"result\": [{\"timestamp\": null}]}}", ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": null}]}}",
+                ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": null}}]}}",
+                ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": []}}]}}",
+                ticker)
+            .isEmpty());
+
+    try (var is = getClass().getResourceAsStream("/yahoo_response_missing.json")) {
+      String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+      assertTrue(YahooResponseParser.parse(json, ticker).isEmpty());
+    }
+
+    try (var is = getClass().getResourceAsStream("/yahoo_response_missing_timestamps.json")) {
+      String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+      assertTrue(YahooResponseParser.parse(json, ticker).isEmpty());
+    }
+  }
+
+  @Test
+  void testParseMissingQuoteFields() throws IOException {
+    Ticker ticker = new Ticker();
+    String base =
+        "{\"chart\": {\"result\": [{\"timestamp\": [1780000000], \"indicators\": {\"quote\": [%s]}}]}}";
+
+    assertTrue(
+        YahooResponseParser.parse(
+                String.format(
+                    base,
+                    "{\"open\": null, \"high\": [1], \"low\": [1], \"close\": [1], \"volume\": [1]}"),
+                ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                String.format(
+                    base,
+                    "{\"open\": [1], \"high\": null, \"low\": [1], \"close\": [1], \"volume\": [1]}"),
+                ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                String.format(
+                    base,
+                    "{\"open\": [1], \"high\": [1], \"low\": null, \"close\": [1], \"volume\": [1]}"),
+                ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                String.format(
+                    base,
+                    "{\"open\": [1], \"high\": [1], \"low\": [1], \"close\": null, \"volume\": [1]}"),
+                ticker)
+            .isEmpty());
+    assertTrue(
+        YahooResponseParser.parse(
+                String.format(
+                    base,
+                    "{\"open\": [1], \"high\": [1], \"low\": [1], \"close\": [1], \"volume\": null}"),
+                ticker)
+            .isEmpty());
+  }
+
+  @Test
+  void testParseNullAndInvalidBars() throws IOException {
+    Ticker ticker = new Ticker();
+    try (var is = getClass().getResourceAsStream("/yahoo_response_nulls.json")) {
+      String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+      List<DailyPrice> list = YahooResponseParser.parse(json, ticker);
+      assertNotNull(list);
+    }
+
+    String invalidBarsJson =
+        """
+        {
+          "chart": {
+            "result": [
+              {
+                "timestamp": [1780000000, 1780086400, 1780172800, 1780259200, 1780345600],
+                "indicators": {
+                  "quote": [
+                    {
+                      "open": [-1, 10, 10, 10, 10],
+                      "high": [10, -1, 10, 10, 10],
+                      "low": [10, 10, -1, 10, 10],
+                      "close": [10, 10, 10, -1, 10],
+                      "volume": [100, 100, 100, 100, 100]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+        """;
+    List<DailyPrice> list = YahooResponseParser.parse(invalidBarsJson, ticker);
+    assertEquals(1, list.size());
   }
 }

@@ -4,6 +4,7 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.PatternMatch;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyCandlestickPattern;
@@ -20,6 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -29,7 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class CandlestickPatternCalculator {
+public class CandlestickPatternCalculator implements PipelineJob {
+
+  public static final String JOB_NAME = "CALCULATE_CANDLESTICK_PATTERN";
 
   private static final MathContext MC = new MathContext(18, RoundingMode.HALF_UP);
   private static final BigDecimal THRESHOLD_LARGE = new BigDecimal("1.5");
@@ -47,37 +51,65 @@ public class CandlestickPatternCalculator {
   private static final int LOOKBACK_BARS = MIN_BARS - 1;
   private static final int PERIOD_BODY_SMA = 14;
 
-  private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyCandlestickPatternRepository dailyCandlestickPatternRepository;
   private final WeeklyCandlestickPatternRepository weeklyCandlestickPatternRepository;
+  private final TickerRepository tickerRepository;
 
   @Autowired @Lazy private CandlestickPatternCalculator selfProxy;
 
   public CandlestickPatternCalculator(
-      TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyCandlestickPatternRepository dailyCandlestickPatternRepository,
-      WeeklyCandlestickPatternRepository weeklyCandlestickPatternRepository) {
-    this.tickerRepository = tickerRepository;
+      WeeklyCandlestickPatternRepository weeklyCandlestickPatternRepository,
+      TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyCandlestickPatternRepository = dailyCandlestickPatternRepository;
     this.weeklyCandlestickPatternRepository = weeklyCandlestickPatternRepository;
+    this.tickerRepository = tickerRepository;
   }
 
-  public void computeCandleStickPatterns(Timeframe timeframe) {
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyCandlestickPatternRepository.hasPendingDailyCandlestickPatterns();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyCandlestickPatternRepository.hasPendingWeeklyCandlestickPatterns();
+    } else {
+      log.error("Unsupported timeframe for candlestick patterns shouldRun: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+      log.error("Unsupported timeframe for candlestick patterns computation: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
     log.info("Computing {} candlestick patterns...", timeframe);
-    List<Ticker> tickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for {} patterns.", tickers.size(), timeframe);
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for {} patterns.", activeTickers.size(), timeframe);
+
+    Map<Ticker, LocalDate> latestDates =
+        (timeframe == Timeframe.DAILY)
+            ? dailyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers()
+            : weeklyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers();
 
     CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
-    for (Ticker ticker : tickers) {
+    for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeCandleStickPatternsForTicker(ticker, timeframe);
+        LocalDate latestCalculatedDate = latestDates.get(ticker);
+        proxy.computeCandleStickPatternsForTicker(ticker, timeframe, latestCalculatedDate);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} candlestick patterns for ticker {}: {}",
@@ -91,12 +123,12 @@ public class CandlestickPatternCalculator {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeCandleStickPatternsForTicker(Ticker ticker, Timeframe timeframe) {
+  public void computeCandleStickPatternsForTicker(
+      Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     List<PriceBar> bars = loadBars(ticker, timeframe);
     if (bars.size() >= MIN_BARS) {
       log.info("Ticker {}: Timeframe {} - Calculating...", ticker.getTickerSymbol(), timeframe);
-      LocalDate lastDate = getLastComputedDate(ticker, timeframe);
-      LocalDate recomputeStartDate = calculateRecomputeStartDate(bars, lastDate);
+      LocalDate recomputeStartDate = calculateRecomputeStartDate(bars, latestCalculatedDate);
       List<PatternMatch> matches = computePatterns(bars, recomputeStartDate);
       savePatterns(ticker, timeframe, matches, recomputeStartDate);
     } else {
@@ -117,25 +149,10 @@ public class CandlestickPatternCalculator {
       return weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
           .map(PriceBar::from)
           .toList();
+    } else {
+      log.error("Unsupported timeframe for loading bars: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    log.error("Unsupported timeframe for loading bars: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-  }
-
-  private LocalDate getLastComputedDate(Ticker ticker, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyCandlestickPatternRepository
-          .findFirstByTickerOrderByPriceDateDesc(ticker)
-          .map(DailyCandlestickPattern::getPriceDate)
-          .orElse(null);
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyCandlestickPatternRepository
-          .findFirstByTickerOrderByPriceDateDesc(ticker)
-          .map(WeeklyCandlestickPattern::getPriceDate)
-          .orElse(null);
-    }
-    log.error("Unsupported timeframe for fetching last computed date: {}", timeframe);
-    throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
   }
 
   private List<PatternMatch> computePatterns(List<PriceBar> bars, LocalDate recomputeStartDate) {
@@ -176,11 +193,9 @@ public class CandlestickPatternCalculator {
       if (timeframe == Timeframe.DAILY) {
         dailyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
             ticker, recomputeStartDate);
-        dailyCandlestickPatternRepository.flush();
       } else if (timeframe == Timeframe.WEEKLY) {
         weeklyCandlestickPatternRepository.deleteByTickerAndPriceDateGreaterThanEqual(
             ticker, recomputeStartDate);
-        weeklyCandlestickPatternRepository.flush();
       } else {
         log.error("Unsupported timeframe for cleaning up patterns: {}", timeframe);
         throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);

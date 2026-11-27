@@ -6,6 +6,7 @@ import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import lombok.Getter;
@@ -71,7 +72,8 @@ public class PipelineConfig {
   public Step downloadDailyPriceStep(JobRepository jobRepository) {
     return buildStep(
         STEP_DOWNLOAD_DAILY_PRICE,
-        yahooFinanceDownloader::downloadAndPersistDailyPrices,
+        yahooFinanceDownloader,
+        null,
         jobRepository);
   }
 
@@ -79,7 +81,8 @@ public class PipelineConfig {
   public Step calculateDailySupportResistanceStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_DAILY_SUPPORT_RESISTANCE,
-        () -> supportResistanceCalculator.computeSupportResistances(Timeframe.DAILY),
+        supportResistanceCalculator,
+        Timeframe.DAILY,
         jobRepository);
   }
 
@@ -87,7 +90,8 @@ public class PipelineConfig {
   public Step calculateDailyCandlestickPatternStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_DAILY_CANDLESTICK_PATTERN,
-        () -> candlestickPatternCalculator.computeCandleStickPatterns(Timeframe.DAILY),
+        candlestickPatternCalculator,
+        Timeframe.DAILY,
         jobRepository);
   }
 
@@ -95,21 +99,26 @@ public class PipelineConfig {
   public Step calculateDailyIndicatorStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_DAILY_INDICATOR,
-        () -> indicatorCalculator.computeIndicators(Timeframe.DAILY),
+        indicatorCalculator,
+        Timeframe.DAILY,
         jobRepository);
   }
 
   @Bean
   public Step calculateWeeklyPriceStep(JobRepository jobRepository) {
     return buildStep(
-        STEP_CALCULATE_WEEKLY_PRICE, weeklyPriceCalculator::computeWeeklyPrices, jobRepository);
+        STEP_CALCULATE_WEEKLY_PRICE,
+        weeklyPriceCalculator,
+        null,
+        jobRepository);
   }
 
   @Bean
   public Step calculateWeeklySupportResistanceStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_WEEKLY_SUPPORT_RESISTANCE,
-        () -> supportResistanceCalculator.computeSupportResistances(Timeframe.WEEKLY),
+        supportResistanceCalculator,
+        Timeframe.WEEKLY,
         jobRepository);
   }
 
@@ -117,7 +126,8 @@ public class PipelineConfig {
   public Step calculateWeeklyCandlestickPatternStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_WEEKLY_CANDLESTICK_PATTERN,
-        () -> candlestickPatternCalculator.computeCandleStickPatterns(Timeframe.WEEKLY),
+        candlestickPatternCalculator,
+        Timeframe.WEEKLY,
         jobRepository);
   }
 
@@ -125,7 +135,8 @@ public class PipelineConfig {
   public Step calculateWeeklyIndicatorStep(JobRepository jobRepository) {
     return buildStep(
         STEP_CALCULATE_WEEKLY_INDICATOR,
-        () -> indicatorCalculator.computeIndicators(Timeframe.WEEKLY),
+        indicatorCalculator,
+        Timeframe.WEEKLY,
         jobRepository);
   }
 
@@ -170,30 +181,38 @@ public class PipelineConfig {
     }
   }
 
-  /** Builds an in-memory tasklet step that executes an action and logs timing. */
-  public Step buildStep(String stepName, Runnable action, JobRepository jobRepository) {
+  /**
+   * Builds an in-memory tasklet step that checks if the pipeline job should run before executing.
+   */
+  public Step buildStep(
+      String stepName, PipelineJob job, Timeframe timeframe, JobRepository jobRepository) {
     return new StepBuilder(stepName, jobRepository)
         .tasklet(
             (contribution, chunkContext) -> {
               long startTime = System.currentTimeMillis();
-              log.info("Starting pipeline step {}...", stepName);
-              try {
-                action.run();
-                log.info(
-                    "Pipeline step {} COMPLETED in {}.",
-                    stepName,
-                    DurationFormatUtils.formatDurationWords(
-                        System.currentTimeMillis() - startTime, true, false));
-                return RepeatStatus.FINISHED;
-              } catch (Exception exception) {
-                log.error(
-                    "Pipeline step {} FAILED after {}.",
-                    stepName,
-                    DurationFormatUtils.formatDurationWords(
-                        System.currentTimeMillis() - startTime, true, false),
-                    exception);
-                throw exception;
+              log.info("Checking if pipeline step {} should run...", stepName);
+              if (job.shouldRun(timeframe)) {
+                log.info("Starting pipeline step {}...", stepName);
+                try {
+                  job.execute(timeframe);
+                  log.info(
+                      "Pipeline step {} COMPLETED in {}.",
+                      stepName,
+                      DurationFormatUtils.formatDurationWords(
+                          System.currentTimeMillis() - startTime, true, false));
+                } catch (Exception exception) {
+                  log.error(
+                      "Pipeline step {} FAILED after {}.",
+                      stepName,
+                      DurationFormatUtils.formatDurationWords(
+                          System.currentTimeMillis() - startTime, true, false),
+                      exception);
+                  throw exception;
+                }
+              } else {
+                log.info("Pipeline step {} skipped: all active tickers are up to date.", stepName);
               }
+              return RepeatStatus.FINISHED;
             },
             transactionManager)
         .build();

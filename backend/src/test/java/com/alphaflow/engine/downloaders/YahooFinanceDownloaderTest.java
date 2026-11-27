@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.alphaflow.engine.calculators.PipelineGating;
 import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
@@ -19,8 +20,10 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -122,9 +125,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(null);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -136,19 +138,50 @@ class YahooFinanceDownloaderTest {
     ticker.setCountry(Country.US);
     ticker.setActive(true);
 
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), Instant.now());
     Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
-    latestDates.put(ticker, LocalDate.now(Country.US.getZoneId()));
+    latestDates.put(ticker, expectedDate);
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     YahooFinanceClient client = mock(YahooFinanceClient.class);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(client, never()).fetchDailyPrices(any(), any(Long.class), any(Long.class));
     verify(dailyRepo, never()).saveAll(any());
+  }
+
+  @Test
+  void testDownloadPartialStalenessOnlyFetchesStaleTickers() {
+    Ticker upToDateTicker = new Ticker();
+    upToDateTicker.setTickerId(1L);
+    upToDateTicker.setTickerSymbol("AAPL");
+    upToDateTicker.setCountry(Country.US);
+    upToDateTicker.setActive(true);
+
+    Ticker staleTicker = new Ticker();
+    staleTicker.setTickerId(2L);
+    staleTicker.setTickerSymbol("MSFT");
+    staleTicker.setCountry(Country.US);
+    staleTicker.setActive(true);
+
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(upToDateTicker.getCountry(), Instant.now());
+    Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
+    latestDates.put(upToDateTicker, expectedDate);
+    latestDates.put(staleTicker, LocalDate.of(2025, 8, 12));
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceClient client = createClient(baseUrl + "/valid", false);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
+    downloader.execute(null);
+
+    verify(dailyRepo, times(1)).saveAll(any());
   }
 
   @Test
@@ -173,9 +206,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(4, ingestedRows);
     verify(dailyRepo, times(2)).saveAll(any());
   }
 
@@ -195,9 +227,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -217,9 +248,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/valid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -239,9 +269,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/empty", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -252,9 +281,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = new YahooFinanceClient(null);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -274,9 +302,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient("http://localhost:1/invalid", false);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(0, ingestedRows);
     verify(dailyRepo, never()).saveAll(any());
   }
 
@@ -296,9 +323,8 @@ class YahooFinanceDownloaderTest {
 
     YahooFinanceClient client = createClient(baseUrl + "/special-symbol", true);
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
 
-    assertEquals(2, ingestedRows);
     verify(dailyRepo, times(1)).saveAll(any());
   }
 
@@ -337,8 +363,54 @@ class YahooFinanceDownloaderTest {
             })
         .start();
 
-    int ingestedRows = downloader.downloadAndPersistDailyPrices();
+    downloader.execute(null);
     assertTrue(Thread.interrupted());
-    assertEquals(4, ingestedRows);
+    verify(dailyRepo, times(2)).saveAll(any());
+  }
+
+  @Test
+  void testPipelineJobMethods() {
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    YahooFinanceClient client = mock(YahooFinanceClient.class);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
+
+    assertEquals("DOWNLOAD_DAILY_PRICE", downloader.getJobName());
+
+    // When up to date: shouldRun returns false
+    when(dailyRepo.hasPendingDailyPrices(any(), any())).thenReturn(false);
+    assertEquals(false, downloader.shouldRun(null));
+
+    // When stale: shouldRun returns true
+    when(dailyRepo.hasPendingDailyPrices(any(), any())).thenReturn(true);
+    assertEquals(true, downloader.shouldRun(null));
+
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
+    // Test execute
+    downloader.execute(null);
+  }
+
+  @Test
+  void testDownloadUpToDateTickerDirectlyFromDatabase() {
+    Ticker ticker = new Ticker();
+    ticker.setTickerId(1L);
+    ticker.setTickerSymbol("AAPL");
+    ticker.setCountry(Country.US);
+    ticker.setActive(true);
+
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), Instant.now());
+    Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
+    latestDates.put(ticker, expectedDate);
+
+    DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.hasPendingDailyPrices(any(), any())).thenReturn(false);
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
+
+    YahooFinanceClient client = mock(YahooFinanceClient.class);
+    YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
+
+    assertEquals(false, downloader.shouldRun(null));
+    downloader.execute(null);
+    verify(client, never()).fetchDailyPrices(any(), any(Long.class), any(Long.class));
   }
 }

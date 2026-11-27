@@ -4,6 +4,7 @@ import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.ChartPatternPivot;
 import com.alphaflow.persistence.entities.DailyChartPattern;
 import com.alphaflow.persistence.entities.Ticker;
@@ -31,7 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Component
 @Slf4j
-public class ChartPatternCalculator {
+public class ChartPatternCalculator implements PipelineJob {
+
+  public static final String JOB_NAME = "CALCULATE_CHART_PATTERN";
 
   private static final MathContext MATH_CONTEXT = new MathContext(18, RoundingMode.HALF_UP);
   private static final int PRICE_SCALE = 4;
@@ -44,45 +47,64 @@ public class ChartPatternCalculator {
   private static final BigDecimal TOLERANCE_5_PERCENT = new BigDecimal("0.050");
   private static final BigDecimal MIN_DEPTH_RATIO = new BigDecimal("0.015");
 
-  private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyChartPatternRepository dailyChartPatternRepository;
   private final WeeklyChartPatternRepository weeklyChartPatternRepository;
+  private final TickerRepository tickerRepository;
 
   @Autowired @Lazy private ChartPatternCalculator selfProxy;
 
   public ChartPatternCalculator(
-      TickerRepository tickerRepository,
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyChartPatternRepository dailyChartPatternRepository,
-      WeeklyChartPatternRepository weeklyChartPatternRepository) {
-    this.tickerRepository = tickerRepository;
+      WeeklyChartPatternRepository weeklyChartPatternRepository,
+      TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyChartPatternRepository = dailyChartPatternRepository;
     this.weeklyChartPatternRepository = weeklyChartPatternRepository;
+    this.tickerRepository = tickerRepository;
   }
 
-  public void computeChartPatterns(Timeframe timeframe) {
+  @Override
+  public String getJobName() {
+    return JOB_NAME;
+  }
+
+  @Override
+  public boolean shouldRun(Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyChartPatternRepository.hasPendingDailyChartPatterns();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyChartPatternRepository.hasPendingWeeklyChartPatterns();
+    } else {
+      log.error("Unsupported timeframe for chart pattern shouldRun: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
+
+  @Override
+  public void execute(Timeframe timeframe) {
+    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+      log.error("Unsupported timeframe for chart pattern computation: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
     log.info("Computing {} classical chart patterns...", timeframe);
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info(
-        "Found {} active tickers to process for {} chart patterns.",
-        activeTickers.size(),
-        timeframe);
+    log.info("Found {} active tickers to process for {} chart patterns.", activeTickers.size(), timeframe);
 
     ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
-    for (Ticker activeTicker : activeTickers) {
+    for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeChartPatternsForTicker(activeTicker, timeframe);
+        proxy.computeChartPatternsForTicker(ticker, timeframe);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} chart patterns for ticker {}: {}",
             timeframe,
-            activeTicker.getTickerSymbol(),
+            ticker.getTickerSymbol(),
             exception.getMessage(),
             exception);
       }

@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -106,7 +106,7 @@ public final class YahooResponseParser {
       }
 
       LocalDate date =
-          Instant.ofEpochSecond(result.timestamp().get(i)).atZone(ZoneId.of("UTC")).toLocalDate();
+          Instant.ofEpochSecond(result.timestamp().get(i)).atZone(ZoneOffset.UTC).toLocalDate();
 
       list.add(
           DailyPrice.builder()
