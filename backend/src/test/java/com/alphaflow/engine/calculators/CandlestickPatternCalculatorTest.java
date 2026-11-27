@@ -16,7 +16,6 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.PatternMatch;
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
@@ -108,13 +107,13 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)},
+                new Object[] {noSourceTicker, null, null}));
     when(weeklyCandlestickPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
+                new Object[] {noSourceTicker, null, null}));
 
     calculator.computeCandleStickPatterns(Timeframe.DAILY);
     calculator.computeCandleStickPatterns(Timeframe.WEEKLY);
@@ -192,9 +191,9 @@ class CandlestickPatternCalculatorTest {
     when(dailyCandlestickPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(activeTicker1, sourceDate, null),
-                new TickerSyncState(activeTicker2, sourceDate, priorDate),
-                new TickerSyncState(upToDateTicker, sourceDate, sourceDate)));
+                new Object[] {activeTicker1, sourceDate, null},
+                new Object[] {activeTicker2, sourceDate, priorDate},
+                new Object[] {upToDateTicker, sourceDate, sourceDate}));
 
     CandlestickPatternCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Calculators fail"))
@@ -221,9 +220,9 @@ class CandlestickPatternCalculatorTest {
     when(weeklyCandlestickPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(activeTicker1, HISTORICAL_MONDAY, null),
-                new TickerSyncState(activeTicker2, HISTORICAL_MONDAY, null),
-                new TickerSyncState(upToDateTicker, HISTORICAL_MONDAY, HISTORICAL_MONDAY)));
+                new Object[] {activeTicker1, HISTORICAL_MONDAY, null},
+                new Object[] {activeTicker2, HISTORICAL_MONDAY, null},
+                new Object[] {upToDateTicker, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
 
     calculator.computeCandleStickPatterns(Timeframe.WEEKLY);
 
@@ -1069,11 +1068,11 @@ class CandlestickPatternCalculatorTest {
 
     LocalDate base = LocalDate.of(2026, 1, 1);
     when(dailyCandlestickPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, base, base)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, base, base}));
     assertThat(calculator.shouldRun(Timeframe.DAILY)).isFalse();
 
     when(dailyCandlestickPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, base.plusDays(1), base)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, base.plusDays(1), base}));
     assertThat(calculator.shouldRun(Timeframe.DAILY)).isTrue();
 
     calculator.execute(Timeframe.DAILY);

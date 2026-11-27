@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyChartPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
@@ -20,15 +19,13 @@ public interface DailyChartPatternRepository extends JpaRepository<DailyChartPat
 
   @Query(
       """
-      SELECT new com.alphaflow.engine.calculators.dtos.TickerSyncState(
-          tk,
+      SELECT tk,
           (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
           (SELECT MAX(dcp.endDate) FROM DailyChartPattern dcp WHERE dcp.ticker = tk)
-      )
       FROM Ticker tk
       WHERE tk.isActive = true
       """)
-  List<TickerSyncState> findSyncStatesForActiveTickers();
+  List<Object[]> findSyncStatesForActiveTickers();
 
   Page<DailyChartPattern> findByTickerAndStatusInOrderByEndDateDesc(
       Ticker ticker, Collection<ChartPatternStatus> statuses, Pageable pageable);

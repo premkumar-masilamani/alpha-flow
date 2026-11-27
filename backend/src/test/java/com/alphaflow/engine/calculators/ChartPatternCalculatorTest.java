@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.entities.DailyChartPattern;
 import com.alphaflow.persistence.entities.Ticker;
@@ -87,13 +86,13 @@ class ChartPatternCalculatorTest {
     when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)},
+                new Object[] {noSourceTicker, null, null}));
     when(weeklyChartPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
+                new Object[] {noSourceTicker, null, null}));
 
     calculator.computeChartPatterns(Timeframe.DAILY);
     calculator.computeChartPatterns(Timeframe.WEEKLY);
@@ -129,10 +128,10 @@ class ChartPatternCalculatorTest {
     when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 9)),
-                new TickerSyncState(failingTicker, LocalDate.of(2025, 1, 10), null),
-                new TickerSyncState(
-                    upToDateTicker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10))));
+                new Object[] {ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 9)},
+                new Object[] {failingTicker, LocalDate.of(2025, 1, 10), null},
+                new Object[] {
+                    upToDateTicker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)}));
 
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(failingTicker))
@@ -152,9 +151,9 @@ class ChartPatternCalculatorTest {
     when(weeklyChartPatternRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, HISTORICAL_MONDAY, null),
-                new TickerSyncState(failingTicker, HISTORICAL_MONDAY, null),
-                new TickerSyncState(upToDateTicker, HISTORICAL_MONDAY, HISTORICAL_MONDAY)));
+                new Object[] {ticker, HISTORICAL_MONDAY, null},
+                new Object[] {failingTicker, HISTORICAL_MONDAY, null},
+                new Object[] {upToDateTicker, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
 
     calculator.computeChartPatterns(Timeframe.WEEKLY);
 
@@ -801,11 +800,11 @@ class ChartPatternCalculatorTest {
 
     LocalDate base = LocalDate.of(2026, 1, 1);
     when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, base, base)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, base, base}));
     assertFalse(calculator.shouldRun(Timeframe.DAILY));
 
     when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, base.plusDays(1), base)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, base.plusDays(1), base}));
     assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
     calculator.execute(Timeframe.DAILY);

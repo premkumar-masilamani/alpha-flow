@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
@@ -18,16 +17,14 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
 
   @Query(
       """
-      SELECT new com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState(
-          tk,
+      SELECT tk,
           idDef,
           (SELECT MAX(wp.priceDate) FROM WeeklyPrice wp WHERE wp.ticker = tk),
           (SELECT MAX(wi.priceDate) FROM WeeklyIndicator wi WHERE wi.ticker = tk AND wi.indicatorDefinition = idDef)
-      )
       FROM Ticker tk, IndicatorDefinition idDef
       WHERE tk.isActive = true
       """)
-  List<TickerIndicatorSyncState> findSyncStatesForActiveTickers();
+  List<Object[]> findSyncStatesForActiveTickers();
 
   @Modifying(flushAutomatically = true)
   @Query(

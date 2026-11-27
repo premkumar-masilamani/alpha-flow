@@ -2,7 +2,6 @@ package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.Bucket;
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -83,11 +82,12 @@ public class SupportResistanceCalculator implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    List<Object[]> syncStates = loadSyncStates(timeframe);
     LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    for (TickerSyncState syncState : syncStates) {
-      if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
+    for (Object[] row : syncStates) {
+      LocalDate sourceDate = (LocalDate) row[1];
+      LocalDate calcDate = (LocalDate) row[2];
+      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
         return true;
       }
     }
@@ -108,19 +108,21 @@ public class SupportResistanceCalculator implements PipelineJob {
    */
   public void computeSupportResistances(Timeframe timeframe) {
     log.info("Computing {} support and resistances...", timeframe);
-    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    List<Object[]> syncStates = loadSyncStates(timeframe);
     LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    List<TickerSyncState> staleStates = new ArrayList<>();
-    for (TickerSyncState syncState : syncStates) {
-      if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
-        staleStates.add(syncState);
+    List<Object[]> staleStates = new ArrayList<>();
+    for (Object[] row : syncStates) {
+      Ticker ticker = (Ticker) row[0];
+      LocalDate sourceDate = (LocalDate) row[1];
+      LocalDate calcDate = (LocalDate) row[2];
+      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
+        staleStates.add(row);
       } else {
         log.debug(
             "{}: up to date (source={}, calculated={}). Skipping.",
-            syncState.ticker().getTickerSymbol(),
-            syncState.latestSourceDate(),
-            syncState.latestCalculatedDate());
+            ticker.getTickerSymbol(),
+            sourceDate,
+            calcDate);
       }
     }
 
@@ -137,15 +139,17 @@ public class SupportResistanceCalculator implements PipelineJob {
       // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
       SupportResistanceCalculator proxy = (self != null) ? self : this;
 
-      for (TickerSyncState syncState : staleStates) {
+      for (Object[] row : staleStates) {
+        Ticker ticker = (Ticker) row[0];
+        LocalDate calcDate = (LocalDate) row[2];
         try {
           proxy.computeSupportResistancesForTicker(
-              syncState.ticker(), timeframe, syncState.latestCalculatedDate());
+              ticker, timeframe, calcDate);
         } catch (Exception exception) {
           log.error(
               "Failed to compute {} S&R for ticker {}: {}",
               timeframe,
-              syncState.ticker().getTickerSymbol(),
+              ticker.getTickerSymbol(),
               exception.getMessage(),
               exception);
         }
@@ -528,7 +532,7 @@ public class SupportResistanceCalculator implements PipelineJob {
   }
 
   /** Loads latest source and calculated S&amp;R dates for all active tickers in one bulk query. */
-  private List<TickerSyncState> loadSyncStates(Timeframe timeframe) {
+  private List<Object[]> loadSyncStates(Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailySupportResistanceRepository.findSyncStatesForActiveTickers();
     } else if (timeframe == Timeframe.WEEKLY) {

@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
@@ -17,15 +16,13 @@ public interface DailySupportResistanceRepository
 
   @Query(
       """
-      SELECT new com.alphaflow.engine.calculators.dtos.TickerSyncState(
-          tk,
+      SELECT tk,
           (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
           (SELECT MAX(dsr.priceDate) FROM DailySupportResistance dsr WHERE dsr.ticker = tk)
-      )
       FROM Ticker tk
       WHERE tk.isActive = true
       """)
-  List<TickerSyncState> findSyncStatesForActiveTickers();
+  List<Object[]> findSyncStatesForActiveTickers();
 
   List<DailySupportResistance> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
 

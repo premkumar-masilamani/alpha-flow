@@ -11,7 +11,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
@@ -77,8 +76,8 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY},
+                new Object[] {noSourceTicker, null, null}));
 
     calculator.computeWeeklyPrices();
 
@@ -102,9 +101,9 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(failingTicker, HISTORICAL_FRIDAY, null),
-                new TickerSyncState(staleTicker, HISTORICAL_FRIDAY, previousMonday),
-                new TickerSyncState(upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY)));
+                new Object[] {failingTicker, HISTORICAL_FRIDAY, null},
+                new Object[] {staleTicker, HISTORICAL_FRIDAY, previousMonday},
+                new Object[] {upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY}));
 
     WeeklyPriceCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
@@ -249,12 +248,12 @@ class WeeklyPriceCalculatorTest {
 
     // When up to date: shouldRun returns false
     when(weeklyPriceRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
     assertThat(calculator.shouldRun(null)).isFalse();
 
     // When stale: shouldRun returns true (source date in a newer week than calculated Monday)
     when(weeklyPriceRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, HISTORICAL_MONDAY.plusWeeks(1), HISTORICAL_MONDAY)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, HISTORICAL_MONDAY.plusWeeks(1), HISTORICAL_MONDAY}));
     assertThat(calculator.shouldRun(null)).isTrue();
 
     // Test execute delegating to computeWeeklyPrices

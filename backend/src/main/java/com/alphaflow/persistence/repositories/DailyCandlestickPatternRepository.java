@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
@@ -17,15 +16,13 @@ public interface DailyCandlestickPatternRepository
 
   @Query(
       """
-      SELECT new com.alphaflow.engine.calculators.dtos.TickerSyncState(
-          tk,
+      SELECT tk,
           (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
           (SELECT MAX(dcp.priceDate) FROM DailyCandlestickPattern dcp WHERE dcp.ticker = tk)
-      )
       FROM Ticker tk
       WHERE tk.isActive = true
       """)
-  List<TickerSyncState> findSyncStatesForActiveTickers();
+  List<Object[]> findSyncStatesForActiveTickers();
 
   @Query(
       """

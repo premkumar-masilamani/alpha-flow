@@ -16,7 +16,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState;
 import com.alphaflow.engine.indicators.EmaIndicator;
 import com.alphaflow.engine.indicators.MacdIndicator;
 import com.alphaflow.engine.indicators.RsiIndicator;
@@ -43,6 +42,8 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -165,13 +166,13 @@ class IndicatorCalculatorTest {
     when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerIndicatorSyncState(ticker, emaDefinition, date(11), date(11)),
-                new TickerIndicatorSyncState(noSourceTicker, emaDefinition, null, null)));
+                new Object[] {ticker, emaDefinition, date(11), date(11)},
+                new Object[] {noSourceTicker, emaDefinition, null, null}));
     when(weeklyIndicatorRepo.findSyncStatesForActiveTickers())
         .thenReturn(
-            List.of(
-                new TickerIndicatorSyncState(
-                    ticker, emaDefinition, HISTORICAL_MONDAY, HISTORICAL_MONDAY)));
+            List.<Object[]>of(
+                new Object[] {
+                    ticker, emaDefinition, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
 
     calculator.computeIndicators(Timeframe.DAILY);
     calculator.computeIndicators(Timeframe.WEEKLY);
@@ -201,11 +202,11 @@ class IndicatorCalculatorTest {
     when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerIndicatorSyncState(ticker, emaDefinition, date(11), date(11)),
-                new TickerIndicatorSyncState(ticker, smaVolumeDefinition, date(11), null),
-                new TickerIndicatorSyncState(upToDateTicker, emaDefinition, date(11), date(11)),
-                new TickerIndicatorSyncState(
-                    upToDateTicker, smaVolumeDefinition, date(11), date(11))));
+                new Object[] {ticker, emaDefinition, date(11), date(11)},
+                new Object[] {ticker, smaVolumeDefinition, date(11), null},
+                new Object[] {upToDateTicker, emaDefinition, date(11), date(11)},
+                new Object[] {
+                    upToDateTicker, smaVolumeDefinition, date(11), date(11)}));
 
     calculator.computeIndicators(Timeframe.DAILY);
 
@@ -235,34 +236,34 @@ class IndicatorCalculatorTest {
             .isActive(true)
             .build();
 
-    TickerIndicatorSyncState failingState =
-        new TickerIndicatorSyncState(failingTicker, emaDefinition, date(11), null);
-    TickerIndicatorSyncState healthyState =
-        new TickerIndicatorSyncState(healthyTicker, emaDefinition, date(11), null);
+    Map<IndicatorDefinition, LocalDate> failingMap = Collections.singletonMap(emaDefinition, null);
+    Map<IndicatorDefinition, LocalDate> healthyMap = Collections.singletonMap(emaDefinition, null);
 
     when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(failingState, healthyState));
+        .thenReturn(
+            List.of(
+                new Object[] {failingTicker, emaDefinition, date(11), null},
+                new Object[] {healthyTicker, emaDefinition, date(11), null}));
     when(weeklyIndicatorRepo.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerIndicatorSyncState(failingTicker, emaDefinition, HISTORICAL_MONDAY, null),
-                new TickerIndicatorSyncState(
-                    healthyTicker, emaDefinition, HISTORICAL_MONDAY, null)));
+                new Object[] {failingTicker, emaDefinition, HISTORICAL_MONDAY, null},
+                new Object[] {healthyTicker, emaDefinition, HISTORICAL_MONDAY, null}));
 
     IndicatorCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
         .when(calculatorSpy)
-        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(failingState));
+        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, failingMap);
     doNothing()
         .when(calculatorSpy)
-        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(healthyState));
+        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, healthyMap);
 
     calculatorSpy.computeIndicators(Timeframe.DAILY);
 
     verify(calculatorSpy)
-        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(failingState));
+        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, failingMap);
     verify(calculatorSpy)
-        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(healthyState));
+        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, healthyMap);
 
     IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
     Field selfField = IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
@@ -282,10 +283,9 @@ class IndicatorCalculatorTest {
 
   @Test
   void processTickerBackfillsWholeSeriesWhenLatestCalculatedIsNull() {
-    List<TickerIndicatorSyncState> staleStates =
-        List.of(
-            new TickerIndicatorSyncState(ticker, emaDefinition, date(11), null),
-            new TickerIndicatorSyncState(ticker, smaVolumeDefinition, date(11), null));
+    Map<IndicatorDefinition, LocalDate> staleStates = new LinkedHashMap<>();
+    staleStates.put(emaDefinition, null);
+    staleStates.put(smaVolumeDefinition, null);
 
     calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, staleStates);
 
@@ -298,8 +298,7 @@ class IndicatorCalculatorTest {
 
   @Test
   void processTickerDailyIncrementalOnlySavesDatesAfterLatestCalculated() {
-    List<TickerIndicatorSyncState> staleStates =
-        List.of(new TickerIndicatorSyncState(ticker, emaDefinition, date(11), date(8)));
+    Map<IndicatorDefinition, LocalDate> staleStates = Map.of(emaDefinition, date(8));
 
     calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, staleStates);
 
@@ -317,7 +316,7 @@ class IndicatorCalculatorTest {
     calculator.computeIndicatorForTicker(
         ticker,
         Timeframe.DAILY,
-        List.of(new TickerIndicatorSyncState(ticker, emaDefinition, date(11), null)));
+        Collections.singletonMap(emaDefinition, null));
 
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
@@ -348,7 +347,7 @@ class IndicatorCalculatorTest {
     calculator.computeIndicatorForTicker(
         ticker,
         Timeframe.WEEKLY,
-        List.of(new TickerIndicatorSyncState(ticker, weeklyDef, week3, null)));
+        Collections.singletonMap(weeklyDef, null));
 
     verify(weeklyIndicatorRepo, never())
         .deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(any(), any(), any());
@@ -358,7 +357,7 @@ class IndicatorCalculatorTest {
     calculator.computeIndicatorForTicker(
         ticker,
         Timeframe.WEEKLY,
-        List.of(new TickerIndicatorSyncState(ticker, weeklyDef, week3, week3)));
+        Map.of(weeklyDef, week3));
 
     verify(weeklyIndicatorRepo, times(1))
         .deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(ticker, weeklyDef, week3);
@@ -410,7 +409,7 @@ class IndicatorCalculatorTest {
     calculator.computeIndicatorForTicker(
         testTicker,
         Timeframe.DAILY,
-        List.of(new TickerIndicatorSyncState(testTicker, longEmaDef, date(1), null)));
+        Collections.singletonMap(longEmaDef, null));
 
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
@@ -432,7 +431,7 @@ class IndicatorCalculatorTest {
     calculator.computeIndicatorForTicker(
         ticker,
         Timeframe.WEEKLY,
-        List.of(new TickerIndicatorSyncState(ticker, weeklyDef, HISTORICAL_MONDAY, null)));
+        Collections.singletonMap(weeklyDef, null));
 
     verify(dailyIndicatorRepo, never()).saveAll(any());
     verify(weeklyIndicatorRepo, never()).saveAll(any());
@@ -440,7 +439,7 @@ class IndicatorCalculatorTest {
 
   @Test
   void testComputeIndicatorsWithNoStaleDefinitionsReturnsEarly() {
-    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, List.of());
+    calculator.computeIndicatorForTicker(ticker, Timeframe.DAILY, Map.of());
 
     verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(any());
     verify(weeklyRepo, never()).findByTickerOrderByPriceDateAsc(any());
@@ -463,13 +462,13 @@ class IndicatorCalculatorTest {
   void testUnsupportedTimeframeInComputeAndSaveIndicatorsThrowsException() throws Exception {
     Method saveMethod =
         IndicatorCalculator.class.getDeclaredMethod(
-            "computeAndSaveIndicators", Ticker.class, Timeframe.class, List.class, List.class);
+            "computeAndSaveIndicators", Ticker.class, Timeframe.class, List.class, Map.class);
     saveMethod.setAccessible(true);
 
     InvocationTargetException exception =
         assertThrows(
             InvocationTargetException.class,
-            () -> saveMethod.invoke(calculator, ticker, (Timeframe) null, List.of(), List.of()));
+            () -> saveMethod.invoke(calculator, ticker, (Timeframe) null, List.of(), Map.of()));
     assertInstanceOf(IllegalArgumentException.class, exception.getCause());
   }
 
@@ -494,11 +493,11 @@ class IndicatorCalculatorTest {
 
     LocalDate base = LocalDate.of(2026, 1, 1);
     when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerIndicatorSyncState(ticker, emaDefinition, base, base)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, emaDefinition, base, base}));
     org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
 
     when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerIndicatorSyncState(ticker, emaDefinition, base.plusDays(1), base)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, emaDefinition, base.plusDays(1), base}));
     org.junit.jupiter.api.Assertions.assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
     calculator.execute(Timeframe.DAILY);

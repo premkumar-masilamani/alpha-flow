@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import java.time.LocalDate;
@@ -15,15 +14,13 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
   @Query(
       """
-      SELECT new com.alphaflow.engine.calculators.dtos.TickerSyncState(
-          tk,
+      SELECT tk,
           (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
           (SELECT MAX(wp.priceDate) FROM WeeklyPrice wp WHERE wp.ticker = tk)
-      )
       FROM Ticker tk
       WHERE tk.isActive = true
       """)
-  List<TickerSyncState> findSyncStatesForActiveTickers();
+  List<Object[]> findSyncStatesForActiveTickers();
 
   List<WeeklyPrice> findByTickerAndPriceDateGreaterThanEqual(Ticker ticker, LocalDate priceDate);
 

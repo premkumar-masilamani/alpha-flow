@@ -14,7 +14,6 @@ import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.Bucket;
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -159,13 +158,13 @@ class SupportResistanceCalculatorTest {
     when(dailySrRepo.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, EPOCH, EPOCH),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {ticker, EPOCH, EPOCH},
+                new Object[] {noSourceTicker, null, null}));
     when(weeklySrRepo.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY),
-                new TickerSyncState(noSourceTicker, null, null)));
+                new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
+                new Object[] {noSourceTicker, null, null}));
 
     calculator.computeSupportResistances(Timeframe.DAILY);
     calculator.computeSupportResistances(Timeframe.WEEKLY);
@@ -205,9 +204,9 @@ class SupportResistanceCalculatorTest {
     when(dailySrRepo.findSyncStatesForActiveTickers())
         .thenReturn(
             List.of(
-                new TickerSyncState(okTicker, EPOCH, EPOCH.minusDays(1)),
-                new TickerSyncState(failingTicker, EPOCH, null),
-                new TickerSyncState(upToDateTicker, EPOCH, EPOCH)));
+                new Object[] {okTicker, EPOCH, EPOCH.minusDays(1)},
+                new Object[] {failingTicker, EPOCH, null},
+                new Object[] {upToDateTicker, EPOCH, EPOCH}));
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(okTicker)).thenReturn(List.of());
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
@@ -227,7 +226,7 @@ class SupportResistanceCalculatorTest {
     selfField.set(calculator, mockSelf);
 
     when(weeklySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, HISTORICAL_MONDAY, null)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, HISTORICAL_MONDAY, null}));
 
     calculator.computeSupportResistances(Timeframe.WEEKLY);
 
@@ -535,11 +534,11 @@ class SupportResistanceCalculatorTest {
     assertEquals("CALCULATE_SUPPORT_RESISTANCE", calculator.getJobName());
 
     when(dailySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, EPOCH, EPOCH)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, EPOCH, EPOCH}));
     assertFalse(calculator.shouldRun(Timeframe.DAILY));
 
     when(dailySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.of(new TickerSyncState(ticker, EPOCH.plusDays(1), EPOCH)));
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, EPOCH.plusDays(1), EPOCH}));
     assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
     calculator.execute(Timeframe.DAILY);

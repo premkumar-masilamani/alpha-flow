@@ -3,7 +3,6 @@ package com.alphaflow.engine.calculators;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
-import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.ChartPatternPivot;
@@ -73,11 +72,12 @@ public class ChartPatternCalculator implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    List<Object[]> syncStates = loadSyncStates(timeframe);
     LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    for (TickerSyncState syncState : syncStates) {
-      if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
+    for (Object[] row : syncStates) {
+      LocalDate sourceDate = (LocalDate) row[1];
+      LocalDate calcDate = (LocalDate) row[2];
+      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
         return true;
       }
     }
@@ -91,19 +91,21 @@ public class ChartPatternCalculator implements PipelineJob {
 
   public void computeChartPatterns(Timeframe timeframe) {
     log.info("Computing {} classical chart patterns...", timeframe);
-    List<TickerSyncState> syncStates = loadSyncStates(timeframe);
+    List<Object[]> syncStates = loadSyncStates(timeframe);
     LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    List<TickerSyncState> staleStates = new ArrayList<>();
-    for (TickerSyncState syncState : syncStates) {
-      if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
-        staleStates.add(syncState);
+    List<Object[]> staleStates = new ArrayList<>();
+    for (Object[] row : syncStates) {
+      Ticker ticker = (Ticker) row[0];
+      LocalDate sourceDate = (LocalDate) row[1];
+      LocalDate calcDate = (LocalDate) row[2];
+      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
+        staleStates.add(row);
       } else {
         log.debug(
             "{}: up to date (source={}, calculated={}). Skipping.",
-            syncState.ticker().getTickerSymbol(),
-            syncState.latestSourceDate(),
-            syncState.latestCalculatedDate());
+            ticker.getTickerSymbol(),
+            sourceDate,
+            calcDate);
       }
     }
 
@@ -119,14 +121,15 @@ public class ChartPatternCalculator implements PipelineJob {
 
       ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
-      for (TickerSyncState syncState : staleStates) {
+      for (Object[] row : staleStates) {
+        Ticker ticker = (Ticker) row[0];
         try {
-          proxy.computeChartPatternsForTicker(syncState.ticker(), timeframe);
+          proxy.computeChartPatternsForTicker(ticker, timeframe);
         } catch (Exception exception) {
           log.error(
               "Failed to compute {} chart patterns for ticker {}: {}",
               timeframe,
-              syncState.ticker().getTickerSymbol(),
+              ticker.getTickerSymbol(),
               exception.getMessage(),
               exception);
         }
@@ -140,7 +143,7 @@ public class ChartPatternCalculator implements PipelineJob {
     }
   }
 
-  private List<TickerSyncState> loadSyncStates(Timeframe timeframe) {
+  private List<Object[]> loadSyncStates(Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyChartPatternRepository.findSyncStatesForActiveTickers();
     } else if (timeframe == Timeframe.WEEKLY) {

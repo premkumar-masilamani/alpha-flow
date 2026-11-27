@@ -1,7 +1,6 @@
 package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState;
 import com.alphaflow.engine.indicators.Indicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -63,11 +62,12 @@ public class IndicatorCalculator implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    List<TickerIndicatorSyncState> syncStates = loadSyncStates(timeframe);
+    List<Object[]> syncStates = loadSyncStates(timeframe);
     LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    for (TickerIndicatorSyncState syncState : syncStates) {
-      if (PipelineGating.requiresUpdate(
-          timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
+    for (Object[] row : syncStates) {
+      LocalDate sourceDate = (LocalDate) row[2];
+      LocalDate calcDate = (LocalDate) row[3];
+      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
         return true;
       }
     }
@@ -82,23 +82,26 @@ public class IndicatorCalculator implements PipelineJob {
   public void computeIndicators(Timeframe timeframe) {
     log.info("Computing {} indicators...", timeframe);
 
-    List<TickerIndicatorSyncState> syncStates = loadSyncStates(timeframe);
-    Map<Ticker, List<TickerIndicatorSyncState>> statesByTicker = new LinkedHashMap<>();
-    for (TickerIndicatorSyncState syncState : syncStates) {
+    List<Object[]> syncStates = loadSyncStates(timeframe);
+    Map<Ticker, List<Object[]>> statesByTicker = new LinkedHashMap<>();
+    for (Object[] row : syncStates) {
+      Ticker ticker = (Ticker) row[0];
       statesByTicker
-          .computeIfAbsent(syncState.ticker(), ignoredTicker -> new ArrayList<>())
-          .add(syncState);
+          .computeIfAbsent(ticker, ignoredTicker -> new ArrayList<>())
+          .add(row);
     }
 
     LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    Map<Ticker, List<TickerIndicatorSyncState>> staleByTicker = new LinkedHashMap<>();
-    for (Map.Entry<Ticker, List<TickerIndicatorSyncState>> entry : statesByTicker.entrySet()) {
+    Map<Ticker, Map<IndicatorDefinition, LocalDate>> staleByTicker = new LinkedHashMap<>();
+    for (Map.Entry<Ticker, List<Object[]>> entry : statesByTicker.entrySet()) {
       Ticker ticker = entry.getKey();
-      List<TickerIndicatorSyncState> staleDefinitions = new ArrayList<>();
-      for (TickerIndicatorSyncState syncState : entry.getValue()) {
-        if (PipelineGating.requiresUpdate(
-            timeframe, syncState.latestSourceDate(), syncState.latestCalculatedDate(), todayUtc)) {
-          staleDefinitions.add(syncState);
+      Map<IndicatorDefinition, LocalDate> staleDefinitions = new LinkedHashMap<>();
+      for (Object[] row : entry.getValue()) {
+        IndicatorDefinition definition = (IndicatorDefinition) row[1];
+        LocalDate sourceDate = (LocalDate) row[2];
+        LocalDate calcDate = (LocalDate) row[3];
+        if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
+          staleDefinitions.put(definition, calcDate);
         }
       }
       if (!staleDefinitions.isEmpty()) {
@@ -123,7 +126,7 @@ public class IndicatorCalculator implements PipelineJob {
 
       IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
 
-      for (Map.Entry<Ticker, List<TickerIndicatorSyncState>> entry : staleByTicker.entrySet()) {
+      for (Map.Entry<Ticker, Map<IndicatorDefinition, LocalDate>> entry : staleByTicker.entrySet()) {
         Ticker ticker = entry.getKey();
         try {
           proxy.computeIndicatorForTicker(ticker, timeframe, entry.getValue());
@@ -148,7 +151,7 @@ public class IndicatorCalculator implements PipelineJob {
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(
-      Ticker ticker, Timeframe timeframe, List<TickerIndicatorSyncState> staleStates) {
+      Ticker ticker, Timeframe timeframe, Map<IndicatorDefinition, LocalDate> staleStates) {
     log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
     if (!staleStates.isEmpty()) {
       List<PriceBar> bars = loadBars(ticker, timeframe);
@@ -172,7 +175,7 @@ public class IndicatorCalculator implements PipelineJob {
     }
   }
 
-  private List<TickerIndicatorSyncState> loadSyncStates(Timeframe timeframe) {
+  private List<Object[]> loadSyncStates(Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyIndicatorRepository.findSyncStatesForActiveTickers();
     } else if (timeframe == Timeframe.WEEKLY) {
@@ -202,12 +205,12 @@ public class IndicatorCalculator implements PipelineJob {
       Ticker ticker,
       Timeframe timeframe,
       List<PriceBar> bars,
-      List<TickerIndicatorSyncState> staleStates) {
+      Map<IndicatorDefinition, LocalDate> staleStates) {
     if (timeframe == Timeframe.DAILY) {
       List<DailyIndicator> toInsert = new ArrayList<>();
-      for (TickerIndicatorSyncState syncState : staleStates) {
-        IndicatorDefinition definition = syncState.indicatorDefinition();
-        LocalDate latestCalculatedDate = syncState.latestCalculatedDate();
+      for (Map.Entry<IndicatorDefinition, LocalDate> entry : staleStates.entrySet()) {
+        IndicatorDefinition definition = entry.getKey();
+        LocalDate latestCalculatedDate = entry.getValue();
         Map<LocalDate, Map<String, BigDecimal>> computed = computeSingleSeries(bars, definition);
 
         for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : computed.entrySet()) {
@@ -232,9 +235,9 @@ public class IndicatorCalculator implements PipelineJob {
       }
     } else if (timeframe == Timeframe.WEEKLY) {
       List<WeeklyIndicator> toInsert = new ArrayList<>();
-      for (TickerIndicatorSyncState syncState : staleStates) {
-        IndicatorDefinition definition = syncState.indicatorDefinition();
-        LocalDate latestCalculatedDate = syncState.latestCalculatedDate();
+      for (Map.Entry<IndicatorDefinition, LocalDate> entry : staleStates.entrySet()) {
+        IndicatorDefinition definition = entry.getKey();
+        LocalDate latestCalculatedDate = entry.getValue();
         Map<LocalDate, Map<String, BigDecimal>> computed = computeSingleSeries(bars, definition);
 
         if (latestCalculatedDate != null) {
