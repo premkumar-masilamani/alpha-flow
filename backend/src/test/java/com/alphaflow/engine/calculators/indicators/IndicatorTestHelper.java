@@ -2,10 +2,7 @@ package com.alphaflow.engine.calculators.indicators;
 
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,58 +79,5 @@ public final class IndicatorTestHelper {
       throw new IllegalArgumentException("No plot point found for " + date + " " + output);
     }
     return value;
-  }
-
-  public static List<PriceBar> loadAaplCsv() {
-
-    List<PriceBar> bars = new ArrayList<>();
-
-    try (var is = IndicatorTestHelper.class.getResourceAsStream("/aapl.csv")) {
-
-      if (is == null) {
-
-        throw new IllegalStateException("Could not find /aapl.csv on the classpath");
-      }
-
-      try (var reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-
-        String line = reader.readLine(); // Skip header
-
-        while ((line = reader.readLine()) != null) {
-
-          if (line.isBlank()) {
-
-            continue;
-          }
-
-          String[] parts = line.split(",");
-
-          if (parts.length < 6) {
-
-            continue;
-          }
-
-          LocalDate date = LocalDate.parse(parts[0]);
-
-          BigDecimal open = new BigDecimal(parts[1]);
-
-          BigDecimal high = new BigDecimal(parts[2]);
-
-          BigDecimal low = new BigDecimal(parts[3]);
-
-          BigDecimal close = new BigDecimal(parts[4]);
-
-          BigDecimal volume = new BigDecimal(parts[5]);
-
-          bars.add(new PriceBar(date, open, high, low, close, volume));
-        }
-      }
-
-    } catch (Exception e) {
-
-      throw new RuntimeException("Failed to read aapl.csv from resources", e);
-    }
-
-    return bars;
   }
 }
