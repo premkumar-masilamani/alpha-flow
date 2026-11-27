@@ -16,14 +16,14 @@ describe('Header Component', () => {
         const nyseBadge = screen.getByText(/NYSE:/i);
         expect(nyseBadge).toBeInTheDocument();
 
-        expect(screen.queryByText(/Stale Data/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Corporate Actions/i)).not.toBeInTheDocument();
     });
 
-    it('renders a prominent clickable stale data badge when staleTickersCount > 0', () => {
+    it('renders a prominent clickable corporate actions badge when staleTickersCount > 0', () => {
         const handleOpenModal = vi.fn();
         render(<Header staleTickersCount={3} onOpenStaleModal={handleOpenModal} />);
 
-        const staleBadge = screen.getByRole('button', { name: /Stale Data \(3\)/i });
+        const staleBadge = screen.getByRole('button', { name: /Corporate Actions \(3\)/i });
         expect(staleBadge).toBeInTheDocument();
 
         fireEvent.click(staleBadge);

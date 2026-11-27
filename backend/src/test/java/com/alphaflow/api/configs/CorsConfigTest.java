@@ -42,7 +42,7 @@ class CorsConfigTest {
 
     verify(registration).allowedOrigins("http://localhost:3000", "https://app.example.com");
 
-    verify(registration).allowedMethods("GET", "OPTIONS");
+    verify(registration).allowedMethods("GET", "DELETE", "OPTIONS");
 
     verify(registration).allowedHeaders("Content-Type", "Accept");
   }

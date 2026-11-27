@@ -84,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({ staleTickersCount = 0, onOpenStaleModal
                     >
                         <span className="w-2 h-2 rounded-full inline-block bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
                         <AlertTriangle size={13} />
-                        <span>Stale Data ({staleTickersCount})</span>
+                        <span>Corporate Actions ({staleTickersCount})</span>
                     </button>
                 )}
             </div>
