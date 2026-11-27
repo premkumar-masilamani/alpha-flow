@@ -143,13 +143,10 @@ public class SupportResistanceCalculator implements PipelineJob {
   public void computeSupportResistancesForTicker(
       Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
-    List<PriceBar> priceBars = loadBars(ticker, timeframe);
-    if (!priceBars.isEmpty()) {
-      LocalDate priceDate = priceBars.getLast().date();
-      boolean isAlreadyComputedDaily =
-          timeframe == Timeframe.DAILY
-              && dailySupportResistanceRepository.existsByTickerAndPriceDate(ticker, priceDate);
-      if (!isAlreadyComputedDaily) {
+    if (shouldComputeForTicker(ticker, timeframe)) {
+      List<PriceBar> priceBars = loadBars(ticker, timeframe);
+      if (!priceBars.isEmpty()) {
+        LocalDate priceDate = priceBars.getLast().date();
         LocalDate cutoffDate =
             priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
         log.debug(
@@ -188,15 +185,36 @@ public class SupportResistanceCalculator implements PipelineJob {
         }
       } else {
         log.debug(
-            "Ticker {}: DAILY S&R already computed for {}; skipping.",
-            ticker.getTickerSymbol(),
-            priceDate);
+            "No {} price bars found for ticker {}; skipping S&R computation.",
+            timeframe,
+            ticker.getTickerSymbol());
       }
+    }
+  }
+
+  /**
+   * Pre-load watermark gate that skips loading full daily price history when a ticker has no daily
+   * prices or its latest daily S&amp;R snapshot has already been computed.
+   */
+  private boolean shouldComputeForTicker(Ticker ticker, Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      LocalDate latestDailyDate = dailyPriceRepository.findLatestPriceDateByTicker(ticker);
+      if (latestDailyDate != null
+          && !dailySupportResistanceRepository.existsByTickerAndPriceDate(
+              ticker, latestDailyDate)) {
+        return true;
+      } else {
+        log.debug(
+            "Ticker {}: skipping DAILY S&R computation (latestDailyDate={}).",
+            ticker.getTickerSymbol(),
+            latestDailyDate);
+        return false;
+      }
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return true;
     } else {
-      log.debug(
-          "No {} price bars found for ticker {}; skipping S&R computation.",
-          timeframe,
-          ticker.getTickerSymbol());
+      log.error("Unsupported timeframe for S&R pre-load check: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }
 

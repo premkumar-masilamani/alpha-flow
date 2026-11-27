@@ -189,18 +189,21 @@ class SupportResistanceCalculatorTest {
             .isActive(true)
             .build();
 
+    LocalDate latestDate = LocalDate.of(2026, 1, 10);
     when(tickerRepo.findByIsActiveTrue())
         .thenReturn(List.of(okTicker, failingTicker, upToDateTicker));
+    when(dailyPriceRepo.findLatestPriceDateByTicker(okTicker)).thenReturn(latestDate);
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(okTicker)).thenReturn(List.of());
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(upToDateTicker)).thenReturn(List.of());
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
+    when(dailyPriceRepo.findLatestPriceDateByTicker(upToDateTicker)).thenReturn(latestDate);
+    when(dailySrRepo.existsByTickerAndPriceDate(upToDateTicker, latestDate)).thenReturn(true);
+    when(dailyPriceRepo.findLatestPriceDateByTicker(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
     calculator.execute(Timeframe.DAILY);
 
     verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(okTicker);
-    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(failingTicker);
-    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(upToDateTicker);
+    verify(dailyPriceRepo).findLatestPriceDateByTicker(failingTicker);
+    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
   }
 
   @Test
@@ -232,6 +235,7 @@ class SupportResistanceCalculatorTest {
     List<DailyPrice> dailyPrices = bars.stream().map(this::dailyFrom).toList();
     List<WeeklyPrice> weeklyPrices = bars.stream().map(this::weeklyFrom).toList();
 
+    when(dailyPriceRepo.findLatestPriceDateByTicker(ticker)).thenReturn(bars.getLast().date());
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
     when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
 
@@ -283,16 +287,16 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testDailySkipsWhenAlreadyComputedForLatestDate() {
-    List<PriceBar> bars = buildOscillatingBars(125);
-    List<DailyPrice> dailyPrices = bars.stream().map(this::dailyFrom).toList();
-    LocalDate latestDate = bars.getLast().date();
+    LocalDate latestDate = LocalDate.of(2026, 11, 6);
 
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
+    when(dailyPriceRepo.findLatestPriceDateByTicker(ticker)).thenReturn(latestDate);
     when(dailySrRepo.existsByTickerAndPriceDate(ticker, latestDate)).thenReturn(true);
 
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
 
+    verify(dailyPriceRepo).findLatestPriceDateByTicker(ticker);
     verify(dailySrRepo).existsByTickerAndPriceDate(ticker, latestDate);
+    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
     verify(dailySrRepo, never()).deleteByTickerAndPriceDateLessThan(any(), any());
     verify(dailySrRepo, never()).saveAll(any());
   }
@@ -314,12 +318,20 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testDoesNotSaveWhenNoPriceBarsOrNoBucketsComputed() {
-    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailyPriceRepo.findLatestPriceDateByTicker(ticker)).thenReturn(null);
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
+    verify(dailySrRepo, never()).existsByTickerAndPriceDate(any(), any());
+    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
     verify(dailySrRepo, never()).deleteByTickerAndPriceDateLessThan(any(), any());
     verify(dailySrRepo, never()).saveAll(any());
 
+    when(weeklyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, null);
+    verify(weeklySrRepo, never()).deleteByTickerAndPriceDateLessThan(any(), any());
+    verify(weeklySrRepo, never()).saveAll(any());
+
     List<PriceBar> flatBars = List.of(bar(0, 100, 105, 95, 100));
+    when(dailyPriceRepo.findLatestPriceDateByTicker(ticker)).thenReturn(flatBars.getLast().date());
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker))
         .thenReturn(flatBars.stream().map(this::dailyFrom).toList());
 
@@ -507,6 +519,16 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testUnsupportedTimeframeBranchesThrowIllegalArgumentException() throws Exception {
+    Method shouldComputeMethod =
+        SupportResistanceCalculator.class.getDeclaredMethod(
+            "shouldComputeForTicker", Ticker.class, Timeframe.class);
+    shouldComputeMethod.setAccessible(true);
+    InvocationTargetException shouldComputeException =
+        assertThrows(
+            InvocationTargetException.class,
+            () -> shouldComputeMethod.invoke(calculator, ticker, (Timeframe) null));
+    assertTrue(shouldComputeException.getCause() instanceof IllegalArgumentException);
+
     Method loadBarsMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
             "loadBars", Ticker.class, Timeframe.class);

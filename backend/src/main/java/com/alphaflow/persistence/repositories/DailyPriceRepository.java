@@ -39,6 +39,9 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
       @Param("usExpectedTradingDate") LocalDate usExpectedTradingDate,
       @Param("inExpectedTradingDate") LocalDate inExpectedTradingDate);
 
+  @Query("SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = :ticker")
+  LocalDate findLatestPriceDateByTicker(@Param("ticker") Ticker ticker);
+
   @Query(
       """
           SELECT tk, COALESCE(MAX(dp.priceDate), {d '1900-01-01'})
