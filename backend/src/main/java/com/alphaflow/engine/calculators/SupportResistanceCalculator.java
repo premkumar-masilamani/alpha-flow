@@ -98,23 +98,27 @@ public class SupportResistanceCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+    List<Ticker> targetTickers;
+    Map<Ticker, LocalDate> latestWeeklyDates;
+    if (timeframe == Timeframe.DAILY) {
+      targetTickers =
+          dailySupportResistanceRepository.findTickersWithPendingDailySupportResistance();
+      latestWeeklyDates = Collections.emptyMap();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      targetTickers = tickerRepository.findByIsActiveTrue();
+      latestWeeklyDates = weeklySupportResistanceRepository.findLatestPriceDatesForActiveTickers();
+    } else {
       log.error("Unsupported timeframe for S&R computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    log.info("Computing {} support and resistances...", timeframe);
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for {} S&R.", activeTickers.size(), timeframe);
 
-    Map<Ticker, LocalDate> latestWeeklyDates =
-        (timeframe == Timeframe.WEEKLY)
-            ? weeklySupportResistanceRepository.findLatestPriceDatesForActiveTickers()
-            : Collections.emptyMap();
+    log.info("Computing {} support and resistances...", timeframe);
+    log.info("Found {} tickers to process for {} S&R.", targetTickers.size(), timeframe);
 
     // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
     SupportResistanceCalculator proxy = (self != null) ? self : this;
 
-    for (Ticker ticker : activeTickers) {
+    for (Ticker ticker : targetTickers) {
       try {
         LocalDate latestCalculatedDate = latestWeeklyDates.get(ticker);
         proxy.computeSupportResistancesForTicker(ticker, timeframe, latestCalculatedDate);
@@ -143,78 +147,50 @@ public class SupportResistanceCalculator implements PipelineJob {
   public void computeSupportResistancesForTicker(
       Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);
-    if (shouldComputeForTicker(ticker, timeframe)) {
-      List<PriceBar> priceBars = loadBars(ticker, timeframe);
-      if (!priceBars.isEmpty()) {
-        LocalDate priceDate = priceBars.getLast().date();
-        LocalDate cutoffDate =
-            priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
+    List<PriceBar> priceBars = loadBars(ticker, timeframe);
+    if (!priceBars.isEmpty()) {
+      LocalDate priceDate = priceBars.getLast().date();
+      LocalDate cutoffDate =
+          priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
+      log.debug(
+          "Purging {} S&R records older than {} for ticker {}.",
+          timeframe,
+          cutoffDate,
+          ticker.getTickerSymbol());
+      deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
+
+      if (timeframe == Timeframe.WEEKLY
+          && latestCalculatedDate != null
+          && !latestCalculatedDate.isBefore(priceDate)) {
         log.debug(
-            "Purging {} S&R records older than {} for ticker {}.",
-            timeframe,
-            cutoffDate,
-            ticker.getTickerSymbol());
-        deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
-
-        if (timeframe == Timeframe.WEEKLY
-            && latestCalculatedDate != null
-            && !latestCalculatedDate.isBefore(priceDate)) {
-          log.debug(
-              "Refreshing in-progress weekly S&R zones for ticker {} on {}.",
-              ticker.getTickerSymbol(),
-              priceDate);
-          weeklySupportResistanceRepository.deleteByTickerAndPriceDate(ticker, priceDate);
-        }
-
-        List<Bucket> buckets = computeBuckets(priceBars);
-
-        if (!buckets.isEmpty()) {
-          saveSupportResistances(ticker, buckets, timeframe);
-          log.info(
-              "Saved {} {} S&R zones for ticker {} (priceDate={}).",
-              buckets.size(),
-              timeframe,
-              ticker.getTickerSymbol(),
-              priceDate);
-        } else {
-          log.debug(
-              "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
-              timeframe,
-              ticker.getTickerSymbol(),
-              priceDate);
-        }
-      } else {
-        log.debug(
-            "No {} price bars found for ticker {}; skipping S&R computation.",
-            timeframe,
-            ticker.getTickerSymbol());
-      }
-    }
-  }
-
-  /**
-   * Pre-load watermark gate that skips loading full daily price history when a ticker has no daily
-   * prices or its latest daily S&amp;R snapshot has already been computed.
-   */
-  private boolean shouldComputeForTicker(Ticker ticker, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      LocalDate latestDailyDate = dailyPriceRepository.findLatestPriceDateByTicker(ticker);
-      if (latestDailyDate != null
-          && !dailySupportResistanceRepository.existsByTickerAndPriceDate(
-              ticker, latestDailyDate)) {
-        return true;
-      } else {
-        log.debug(
-            "Ticker {}: skipping DAILY S&R computation (latestDailyDate={}).",
+            "Refreshing in-progress weekly S&R zones for ticker {} on {}.",
             ticker.getTickerSymbol(),
-            latestDailyDate);
-        return false;
+            priceDate);
+        weeklySupportResistanceRepository.deleteByTickerAndPriceDate(ticker, priceDate);
       }
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return true;
+
+      List<Bucket> buckets = computeBuckets(priceBars);
+
+      if (!buckets.isEmpty()) {
+        saveSupportResistances(ticker, buckets, timeframe);
+        log.info(
+            "Saved {} {} S&R zones for ticker {} (priceDate={}).",
+            buckets.size(),
+            timeframe,
+            ticker.getTickerSymbol(),
+            priceDate);
+      } else {
+        log.debug(
+            "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
+            timeframe,
+            ticker.getTickerSymbol(),
+            priceDate);
+      }
     } else {
-      log.error("Unsupported timeframe for S&R pre-load check: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+      log.debug(
+          "No {} price bars found for ticker {}; skipping S&R computation.",
+          timeframe,
+          ticker.getTickerSymbol());
     }
   }
 
