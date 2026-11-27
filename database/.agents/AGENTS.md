@@ -13,6 +13,7 @@ make connect_database
 
 ### Always do
 - Use append-only SQL migration pairs in `database/migrations/`.
+- Always fetch `origin/main` and inspect both local `database/migrations/` and `origin/main` to find the highest existing migration number before authoring a new migration pair, then increment by 1 (`NNN + 1`) so duplicate migration version numbers never occur.
 - Ensure down scripts are exact reversals (`DROP TABLE IF EXISTS ... CASCADE`).
 - Use `IF EXISTS` / `IF NOT EXISTS` guards for idempotency.
 - Use DB migrations strictly for DDL only (schema changes: CREATE, ALTER, DROP).
