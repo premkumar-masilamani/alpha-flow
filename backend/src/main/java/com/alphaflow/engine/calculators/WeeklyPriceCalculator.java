@@ -7,11 +7,11 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,13 +32,17 @@ public class WeeklyPriceCalculator implements PipelineJob {
 
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
+  private final TickerRepository tickerRepository;
 
   @Autowired @Lazy private WeeklyPriceCalculator weeklyPriceCalculator;
 
   public WeeklyPriceCalculator(
-      DailyPriceRepository dailyPriceRepository, WeeklyPriceRepository weeklyPriceRepository) {
+      DailyPriceRepository dailyPriceRepository,
+      WeeklyPriceRepository weeklyPriceRepository,
+      TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
+    this.tickerRepository = tickerRepository;
   }
 
   @Override
@@ -48,16 +52,7 @@ public class WeeklyPriceCalculator implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    List<Object[]> syncStates = weeklyPriceRepository.findSyncStatesForActiveTickers();
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    for (Object[] row : syncStates) {
-      LocalDate sourceDate = (LocalDate) row[1];
-      LocalDate calcDate = (LocalDate) row[2];
-      if (PipelineGating.requiresWeeklyPriceUpdate(sourceDate, calcDate, todayUtc)) {
-        return true;
-      }
-    }
-    return false;
+    return weeklyPriceRepository.hasPendingWeeklyPrices();
   }
 
   @Override
@@ -68,16 +63,14 @@ public class WeeklyPriceCalculator implements PipelineJob {
   public void computeWeeklyPrices() {
     log.info("Starting weekly price computation...");
 
-    List<Object[]> syncStates = weeklyPriceRepository.findSyncStatesForActiveTickers();
-    log.info("Found {} active tickers to process for weekly prices.", syncStates.size());
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for weekly prices.", activeTickers.size());
 
     WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
 
-    for (Object[] row : syncStates) {
-      Ticker ticker = (Ticker) row[0];
-      LocalDate calcDate = (LocalDate) row[2];
+    for (Ticker ticker : activeTickers) {
       try {
-        proxy.processTicker(ticker, calcDate);
+        proxy.processTicker(ticker);
       } catch (Exception exception) {
         log.error(
             "Failed to compute weekly prices for ticker {}: {}",
@@ -91,6 +84,11 @@ public class WeeklyPriceCalculator implements PipelineJob {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void processTicker(Ticker ticker) {
+    LocalDate latestCalculatedDate = weeklyPriceRepository.findLatestPriceDateByTicker(ticker);
+    processTicker(ticker, latestCalculatedDate);
+  }
+
   public void processTicker(Ticker ticker, LocalDate latestCalculatedDate) {
     List<DailyPrice> dailyBars = loadDailyBars(ticker, latestCalculatedDate);
     if (!dailyBars.isEmpty()) {

@@ -386,30 +386,15 @@ class YahooFinanceDownloaderTest {
 
     assertEquals("DOWNLOAD_DAILY_PRICE", downloader.getJobName());
 
-    Ticker ticker = new Ticker();
-    ticker.setTickerId(1L);
-    ticker.setTickerSymbol("AAPL");
-    ticker.setCountry(Country.US);
-    ticker.setActive(true);
-
-    LocalDate expectedDate =
-        PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), Instant.now());
-
     // When up to date: shouldRun returns false
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of(ticker, expectedDate));
+    when(dailyRepo.hasPendingDailyPrices(any(), any())).thenReturn(false);
     assertEquals(false, downloader.shouldRun(null));
 
-    // When latestSavedDate is null: shouldRun returns true
-    Map<Ticker, LocalDate> nullMap = new LinkedHashMap<>();
-    nullMap.put(ticker, null);
-    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(nullMap);
-    assertEquals(true, downloader.shouldRun(null));
-
     // When stale: shouldRun returns true
-    when(dailyRepo.findLatestPriceDatesForActiveTickers())
-        .thenReturn(Map.of(ticker, expectedDate.minusDays(5)));
+    when(dailyRepo.hasPendingDailyPrices(any(), any())).thenReturn(true);
     assertEquals(true, downloader.shouldRun(null));
 
+    when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
     // Test execute delegating to downloadAndPersistDailyPrices
     downloader.execute(null);
   }
@@ -428,6 +413,7 @@ class YahooFinanceDownloaderTest {
     latestDates.put(ticker, expectedDate);
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
+    when(dailyRepo.hasPendingDailyPrices(any(), any())).thenReturn(false);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     YahooFinanceClient client = mock(YahooFinanceClient.class);

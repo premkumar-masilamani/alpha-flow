@@ -16,6 +16,7 @@ import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -45,12 +46,14 @@ class WeeklyPriceCalculatorTest {
 
   @Mock private DailyPriceRepository dailyPriceRepository;
   @Mock private WeeklyPriceRepository weeklyPriceRepository;
+  @Mock private TickerRepository tickerRepository;
 
   private WeeklyPriceCalculator calculator;
 
   @BeforeEach
   void setUp() {
-    calculator = new WeeklyPriceCalculator(dailyPriceRepository, weeklyPriceRepository);
+    calculator =
+        new WeeklyPriceCalculator(dailyPriceRepository, weeklyPriceRepository, tickerRepository);
   }
 
   private DailyPrice daily(
@@ -68,19 +71,10 @@ class WeeklyPriceCalculatorTest {
 
   @Test
   void testComputeWeeklyPricesAllUpToDateShortCircuits() {
-    Ticker upToDateTicker =
-        Ticker.builder().tickerId(1L).tickerSymbol("AAPL").country(Country.US).build();
-    Ticker noSourceTicker =
-        Ticker.builder().tickerId(2L).tickerSymbol("NOSRC").country(Country.US).build();
-
-    when(weeklyPriceRepository.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY},
-                new Object[] {noSourceTicker, null, null}));
+    when(weeklyPriceRepository.hasPendingWeeklyPrices()).thenReturn(false);
 
     assertThat(calculator.shouldRun(null)).isFalse();
-    verify(weeklyPriceRepository).findSyncStatesForActiveTickers();
+    verify(weeklyPriceRepository).hasPendingWeeklyPrices();
   }
 
   @Test
@@ -92,26 +86,21 @@ class WeeklyPriceCalculatorTest {
     Ticker upToDateTicker =
         Ticker.builder().tickerId(3L).tickerSymbol("GOOG").country(Country.US).build();
 
-    LocalDate previousMonday = HISTORICAL_MONDAY.minusWeeks(1);
-    when(weeklyPriceRepository.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {failingTicker, HISTORICAL_FRIDAY, null},
-                new Object[] {staleTicker, HISTORICAL_FRIDAY, previousMonday},
-                new Object[] {upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY}));
+    when(tickerRepository.findByIsActiveTrue())
+        .thenReturn(List.of(failingTicker, staleTicker, upToDateTicker));
 
     WeeklyPriceCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
         .when(calculatorSpy)
-        .processTicker(failingTicker, null);
-    doNothing().when(calculatorSpy).processTicker(staleTicker, previousMonday);
-    doNothing().when(calculatorSpy).processTicker(upToDateTicker, HISTORICAL_MONDAY);
+        .processTicker(failingTicker);
+    doNothing().when(calculatorSpy).processTicker(staleTicker);
+    doNothing().when(calculatorSpy).processTicker(upToDateTicker);
 
     calculatorSpy.computeWeeklyPrices();
 
-    verify(calculatorSpy).processTicker(failingTicker, null);
-    verify(calculatorSpy).processTicker(staleTicker, previousMonday);
-    verify(calculatorSpy).processTicker(upToDateTicker, HISTORICAL_MONDAY);
+    verify(calculatorSpy).processTicker(failingTicker);
+    verify(calculatorSpy).processTicker(staleTicker);
+    verify(calculatorSpy).processTicker(upToDateTicker);
 
     WeeklyPriceCalculator selfMock = mock(WeeklyPriceCalculator.class);
     Field selfField = WeeklyPriceCalculator.class.getDeclaredField("weeklyPriceCalculator");
@@ -120,9 +109,9 @@ class WeeklyPriceCalculatorTest {
 
     calculator.computeWeeklyPrices();
 
-    verify(selfMock).processTicker(failingTicker, null);
-    verify(selfMock).processTicker(staleTicker, previousMonday);
-    verify(selfMock).processTicker(upToDateTicker, HISTORICAL_MONDAY);
+    verify(selfMock).processTicker(failingTicker);
+    verify(selfMock).processTicker(staleTicker);
+    verify(selfMock).processTicker(upToDateTicker);
   }
 
   @Test
@@ -243,16 +232,15 @@ class WeeklyPriceCalculatorTest {
     assertThat(calculator.getJobName()).isEqualTo("CALCULATE_WEEKLY_PRICE");
 
     // When up to date: shouldRun returns false
-    when(weeklyPriceRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
+    when(weeklyPriceRepository.hasPendingWeeklyPrices()).thenReturn(false);
     assertThat(calculator.shouldRun(null)).isFalse();
 
-    // When stale: shouldRun returns true (source date in a newer week than calculated Monday)
-    when(weeklyPriceRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, HISTORICAL_MONDAY.plusWeeks(1), HISTORICAL_MONDAY}));
+    // When stale: shouldRun returns true
+    when(weeklyPriceRepository.hasPendingWeeklyPrices()).thenReturn(true);
     assertThat(calculator.shouldRun(null)).isTrue();
 
     // Test execute delegating to computeWeeklyPrices
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of());
     calculator.execute(null);
   }
 }

@@ -12,11 +12,12 @@ import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,6 +40,8 @@ public class IndicatorCalculator implements PipelineJob {
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyIndicatorRepository dailyIndicatorRepository;
   private final WeeklyIndicatorRepository weeklyIndicatorRepository;
+  private final TickerRepository tickerRepository;
+  private final IndicatorDefinitionRepository indicatorDefinitionRepository;
 
   @Autowired @Lazy private IndicatorCalculator indicatorCalculator;
 
@@ -47,12 +50,16 @@ public class IndicatorCalculator implements PipelineJob {
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyIndicatorRepository dailyIndicatorRepository,
-      WeeklyIndicatorRepository weeklyIndicatorRepository) {
+      WeeklyIndicatorRepository weeklyIndicatorRepository,
+      TickerRepository tickerRepository,
+      IndicatorDefinitionRepository indicatorDefinitionRepository) {
     this.indicatorRegistry = registry;
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyIndicatorRepository = dailyIndicatorRepository;
     this.weeklyIndicatorRepository = weeklyIndicatorRepository;
+    this.tickerRepository = tickerRepository;
+    this.indicatorDefinitionRepository = indicatorDefinitionRepository;
   }
 
   @Override
@@ -62,16 +69,14 @@ public class IndicatorCalculator implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    List<Object[]> syncStates = loadSyncStates(timeframe);
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    for (Object[] row : syncStates) {
-      LocalDate sourceDate = (LocalDate) row[2];
-      LocalDate calcDate = (LocalDate) row[3];
-      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
-        return true;
-      }
+    if (timeframe == Timeframe.DAILY) {
+      return dailyIndicatorRepository.hasPendingDailyIndicators();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyIndicatorRepository.hasPendingWeeklyIndicators();
+    } else {
+      log.error("Unsupported timeframe for loading indicator shouldRun: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    return false;
   }
 
   @Override
@@ -80,27 +85,22 @@ public class IndicatorCalculator implements PipelineJob {
   }
 
   public void computeIndicators(Timeframe timeframe) {
+    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+      log.error("Unsupported timeframe for indicator computation: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
     log.info("Computing {} indicators...", timeframe);
 
-    List<Object[]> syncStates = loadSyncStates(timeframe);
-    Map<Ticker, Map<IndicatorDefinition, LocalDate>> definitionsByTicker = new LinkedHashMap<>();
-    for (Object[] row : syncStates) {
-      Ticker ticker = (Ticker) row[0];
-      IndicatorDefinition definition = (IndicatorDefinition) row[1];
-      LocalDate calcDate = (LocalDate) row[3];
-      definitionsByTicker
-          .computeIfAbsent(ticker, ignoredTicker -> new LinkedHashMap<>())
-          .put(definition, calcDate);
-    }
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    List<IndicatorDefinition> definitions = indicatorDefinitionRepository.findAll();
 
-    log.info("Found {} active tickers to process for {} indicators.", definitionsByTicker.size(), timeframe);
+    log.info("Found {} active tickers to process for {} indicators.", activeTickers.size(), timeframe);
 
     IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
 
-    for (Map.Entry<Ticker, Map<IndicatorDefinition, LocalDate>> entry : definitionsByTicker.entrySet()) {
-      Ticker ticker = entry.getKey();
+    for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeIndicatorForTicker(ticker, timeframe, entry.getValue());
+        proxy.computeIndicatorForTicker(ticker, timeframe, definitions);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} indicators for ticker {}: {}",
@@ -115,6 +115,13 @@ public class IndicatorCalculator implements PipelineJob {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void computeIndicatorForTicker(
+      Ticker ticker, Timeframe timeframe, List<IndicatorDefinition> definitions) {
+    Map<IndicatorDefinition, LocalDate> latestDates =
+        loadLatestDates(ticker, timeframe, definitions);
+    computeIndicatorForTicker(ticker, timeframe, latestDates);
+  }
+
   public void computeIndicatorForTicker(
       Ticker ticker, Timeframe timeframe, Map<IndicatorDefinition, LocalDate> staleStates) {
     log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
@@ -140,15 +147,25 @@ public class IndicatorCalculator implements PipelineJob {
     }
   }
 
-  private List<Object[]> loadSyncStates(Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyIndicatorRepository.findSyncStatesForActiveTickers();
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyIndicatorRepository.findSyncStatesForActiveTickers();
-    } else {
-      log.error("Unsupported timeframe for loading indicator sync states: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+  private Map<IndicatorDefinition, LocalDate> loadLatestDates(
+      Ticker ticker, Timeframe timeframe, List<IndicatorDefinition> definitions) {
+    List<Object[]> rows =
+        (timeframe == Timeframe.DAILY)
+            ? dailyIndicatorRepository.findLatestDatesGroupedByDefinition(ticker)
+            : weeklyIndicatorRepository.findLatestDatesGroupedByDefinition(ticker);
+
+    Map<Long, LocalDate> dateByDefId = new LinkedHashMap<>();
+    for (Object[] row : rows) {
+      IndicatorDefinition def = (IndicatorDefinition) row[0];
+      LocalDate maxDate = (LocalDate) row[1];
+      dateByDefId.put(def.getIndicatorDefinitionId(), maxDate);
     }
+
+    Map<IndicatorDefinition, LocalDate> result = new LinkedHashMap<>();
+    for (IndicatorDefinition def : definitions) {
+      result.put(def, dateByDefId.get(def.getIndicatorDefinitionId()));
+    }
+    return result;
   }
 
   private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {

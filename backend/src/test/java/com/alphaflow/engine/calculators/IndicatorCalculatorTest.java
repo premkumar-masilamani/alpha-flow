@@ -34,6 +34,8 @@ import com.alphaflow.persistence.enums.IndicatorType;
 import com.alphaflow.persistence.enums.PriceSource;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.lang.reflect.Field;
@@ -60,6 +62,8 @@ class IndicatorCalculatorTest {
   private WeeklyPriceRepository weeklyRepo;
   private DailyIndicatorRepository dailyIndicatorRepo;
   private WeeklyIndicatorRepository weeklyIndicatorRepo;
+  private TickerRepository tickerRepository;
+  private IndicatorDefinitionRepository indicatorDefinitionRepository;
   private IndicatorCalculator calculator;
   private Ticker ticker;
   private IndicatorDefinition emaDefinition;
@@ -124,6 +128,8 @@ class IndicatorCalculatorTest {
     weeklyRepo = mock(WeeklyPriceRepository.class);
     dailyIndicatorRepo = mock(DailyIndicatorRepository.class);
     weeklyIndicatorRepo = mock(WeeklyIndicatorRepository.class);
+    tickerRepository = mock(TickerRepository.class);
+    indicatorDefinitionRepository = mock(IndicatorDefinitionRepository.class);
 
     IndicatorRegistry registry =
         new IndicatorRegistry(
@@ -136,7 +142,13 @@ class IndicatorCalculatorTest {
 
     calculator =
         new IndicatorCalculator(
-            registry, dailyRepo, weeklyRepo, dailyIndicatorRepo, weeklyIndicatorRepo);
+            registry,
+            dailyRepo,
+            weeklyRepo,
+            dailyIndicatorRepo,
+            weeklyIndicatorRepo,
+            tickerRepository,
+            indicatorDefinitionRepository);
 
     ticker =
         Ticker.builder()
@@ -155,31 +167,14 @@ class IndicatorCalculatorTest {
 
   @Test
   void testComputeIndicatorsAllUpToDateAndEmptyDefinitionsShortCircuit() {
-    Ticker noSourceTicker =
-        Ticker.builder()
-            .tickerId(2L)
-            .tickerSymbol("NOSRC")
-            .country(Country.US)
-            .isActive(true)
-            .build();
-
-    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, emaDefinition, date(11), date(11)},
-                new Object[] {noSourceTicker, emaDefinition, null, null}));
-    when(weeklyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.<Object[]>of(
-                new Object[] {
-                    ticker, emaDefinition, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
+    when(dailyIndicatorRepo.hasPendingDailyIndicators()).thenReturn(false);
+    when(weeklyIndicatorRepo.hasPendingWeeklyIndicators()).thenReturn(false);
 
     org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
     org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
 
-    // Empty indicator_definitions table returns empty bulk state list
-    when(dailyIndicatorRepo.findSyncStatesForActiveTickers()).thenReturn(List.of());
-    org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
+    verify(dailyIndicatorRepo).hasPendingDailyIndicators();
+    verify(weeklyIndicatorRepo).hasPendingWeeklyIndicators();
   }
 
   @Test
@@ -192,16 +187,18 @@ class IndicatorCalculatorTest {
             .isActive(true)
             .build();
 
-    // For `ticker`: emaDefinition is already up to date, smaVolumeDefinition is newly added (null).
-    // For `upToDateTicker`: all definitions are up to date.
-    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, upToDateTicker));
+    when(indicatorDefinitionRepository.findAll())
+        .thenReturn(List.of(emaDefinition, smaVolumeDefinition));
+    when(dailyIndicatorRepo.findLatestDatesGroupedByDefinition(ticker))
+        .thenReturn(List.<Object[]>of(new Object[] {emaDefinition, date(11)}));
+    when(dailyIndicatorRepo.findLatestDatesGroupedByDefinition(upToDateTicker))
         .thenReturn(
-            List.of(
-                new Object[] {ticker, emaDefinition, date(11), date(11)},
-                new Object[] {ticker, smaVolumeDefinition, date(11), null},
-                new Object[] {upToDateTicker, emaDefinition, date(11), date(11)},
-                new Object[] {
-                    upToDateTicker, smaVolumeDefinition, date(11), date(11)}));
+            List.<Object[]>of(
+                new Object[] {emaDefinition, date(11)},
+                new Object[] {smaVolumeDefinition, date(11)}));
+    when(dailyRepo.findByTickerOrderByPriceDateAsc(upToDateTicker))
+        .thenReturn(dailyBars(upToDateTicker));
 
     calculator.computeIndicators(Timeframe.DAILY);
 
@@ -231,34 +228,23 @@ class IndicatorCalculatorTest {
             .isActive(true)
             .build();
 
-    Map<IndicatorDefinition, LocalDate> failingMap = Collections.singletonMap(emaDefinition, null);
-    Map<IndicatorDefinition, LocalDate> healthyMap = Collections.singletonMap(emaDefinition, null);
-
-    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {failingTicker, emaDefinition, date(11), null},
-                new Object[] {healthyTicker, emaDefinition, date(11), null}));
-    when(weeklyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {failingTicker, emaDefinition, HISTORICAL_MONDAY, null},
-                new Object[] {healthyTicker, emaDefinition, HISTORICAL_MONDAY, null}));
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(failingTicker, healthyTicker));
+    when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(emaDefinition));
 
     IndicatorCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
         .when(calculatorSpy)
-        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, failingMap);
+        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(emaDefinition));
     doNothing()
         .when(calculatorSpy)
-        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, healthyMap);
+        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(emaDefinition));
 
     calculatorSpy.computeIndicators(Timeframe.DAILY);
 
     verify(calculatorSpy)
-        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, failingMap);
+        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(emaDefinition));
     verify(calculatorSpy)
-        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, healthyMap);
+        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(emaDefinition));
 
     IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
     Field selfField = IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
@@ -267,12 +253,16 @@ class IndicatorCalculatorTest {
 
     calculator.computeIndicators(Timeframe.WEEKLY);
 
-    verify(selfMock).computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.WEEKLY), any());
-    verify(selfMock).computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.WEEKLY), any());
+    verify(selfMock)
+        .computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.WEEKLY), any(List.class));
+    verify(selfMock)
+        .computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.WEEKLY), any(List.class));
   }
 
   @Test
   void testComputeIndicatorsUnsupportedTimeframeThrows() {
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(emaDefinition));
     assertThrows(IllegalArgumentException.class, () -> calculator.computeIndicators(null));
   }
 
@@ -486,15 +476,14 @@ class IndicatorCalculatorTest {
   void testPipelineJobMethods() {
     assertEquals("CALCULATE_INDICATOR", calculator.getJobName());
 
-    LocalDate base = LocalDate.of(2026, 1, 1);
-    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, emaDefinition, base, base}));
+    when(dailyIndicatorRepo.hasPendingDailyIndicators()).thenReturn(false);
     org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
 
-    when(dailyIndicatorRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, emaDefinition, base.plusDays(1), base}));
+    when(dailyIndicatorRepo.hasPendingDailyIndicators()).thenReturn(true);
     org.junit.jupiter.api.Assertions.assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of());
+    when(indicatorDefinitionRepository.findAll()).thenReturn(List.of());
     calculator.execute(Timeframe.DAILY);
   }
 }

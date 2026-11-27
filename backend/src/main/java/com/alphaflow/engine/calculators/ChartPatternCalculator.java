@@ -13,13 +13,13 @@ import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.enums.ChartPatternType;
 import com.alphaflow.persistence.repositories.DailyChartPatternRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyChartPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +51,7 @@ public class ChartPatternCalculator implements PipelineJob {
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyChartPatternRepository dailyChartPatternRepository;
   private final WeeklyChartPatternRepository weeklyChartPatternRepository;
+  private final TickerRepository tickerRepository;
 
   @Autowired @Lazy private ChartPatternCalculator selfProxy;
 
@@ -58,11 +59,13 @@ public class ChartPatternCalculator implements PipelineJob {
       DailyPriceRepository dailyPriceRepository,
       WeeklyPriceRepository weeklyPriceRepository,
       DailyChartPatternRepository dailyChartPatternRepository,
-      WeeklyChartPatternRepository weeklyChartPatternRepository) {
+      WeeklyChartPatternRepository weeklyChartPatternRepository,
+      TickerRepository tickerRepository) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyChartPatternRepository = dailyChartPatternRepository;
     this.weeklyChartPatternRepository = weeklyChartPatternRepository;
+    this.tickerRepository = tickerRepository;
   }
 
   @Override
@@ -72,16 +75,14 @@ public class ChartPatternCalculator implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    List<Object[]> syncStates = loadSyncStates(timeframe);
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    for (Object[] row : syncStates) {
-      LocalDate sourceDate = (LocalDate) row[1];
-      LocalDate calcDate = (LocalDate) row[2];
-      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
-        return true;
-      }
+    if (timeframe == Timeframe.DAILY) {
+      return dailyChartPatternRepository.hasPendingDailyChartPatterns();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return weeklyChartPatternRepository.hasPendingWeeklyChartPatterns();
+    } else {
+      log.error("Unsupported timeframe for chart pattern shouldRun: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    return false;
   }
 
   @Override
@@ -90,14 +91,17 @@ public class ChartPatternCalculator implements PipelineJob {
   }
 
   public void computeChartPatterns(Timeframe timeframe) {
+    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+      log.error("Unsupported timeframe for chart pattern computation: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
     log.info("Computing {} classical chart patterns...", timeframe);
-    List<Object[]> syncStates = loadSyncStates(timeframe);
-    log.info("Found {} active tickers to process for {} chart patterns.", syncStates.size(), timeframe);
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info("Found {} active tickers to process for {} chart patterns.", activeTickers.size(), timeframe);
 
     ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
-    for (Object[] row : syncStates) {
-      Ticker ticker = (Ticker) row[0];
+    for (Ticker ticker : activeTickers) {
       try {
         proxy.computeChartPatternsForTicker(ticker, timeframe);
       } catch (Exception exception) {
@@ -110,17 +114,6 @@ public class ChartPatternCalculator implements PipelineJob {
       }
     }
     log.info("{} chart patterns computation completed.", timeframe);
-  }
-
-  private List<Object[]> loadSyncStates(Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return dailyChartPatternRepository.findSyncStatesForActiveTickers();
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return weeklyChartPatternRepository.findSyncStatesForActiveTickers();
-    } else {
-      log.error("Unsupported timeframe for loading chart pattern sync states: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-    }
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

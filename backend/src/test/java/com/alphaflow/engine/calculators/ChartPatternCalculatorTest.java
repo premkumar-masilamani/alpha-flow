@@ -16,6 +16,7 @@ import com.alphaflow.persistence.enums.ChartPatternType;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyChartPatternRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyChartPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +38,7 @@ class ChartPatternCalculatorTest {
   private WeeklyPriceRepository weeklyPriceRepository;
   private DailyChartPatternRepository dailyChartPatternRepository;
   private WeeklyChartPatternRepository weeklyChartPatternRepository;
+  private TickerRepository tickerRepository;
   private ChartPatternCalculator calculator;
   private Ticker ticker;
 
@@ -46,13 +48,15 @@ class ChartPatternCalculatorTest {
     weeklyPriceRepository = mock(WeeklyPriceRepository.class);
     dailyChartPatternRepository = mock(DailyChartPatternRepository.class);
     weeklyChartPatternRepository = mock(WeeklyChartPatternRepository.class);
+    tickerRepository = mock(TickerRepository.class);
 
     calculator =
         new ChartPatternCalculator(
             dailyPriceRepository,
             weeklyPriceRepository,
             dailyChartPatternRepository,
-            weeklyChartPatternRepository);
+            weeklyChartPatternRepository,
+            tickerRepository);
 
     ticker =
         Ticker.builder()
@@ -75,34 +79,19 @@ class ChartPatternCalculatorTest {
 
   @Test
   void testComputeChartPatternsAllUpToDateShortCircuitsDailyAndWeekly() {
-    Ticker noSourceTicker =
-        Ticker.builder()
-            .tickerId(2L)
-            .tickerSymbol("NOSRC")
-            .country(Country.US)
-            .isActive(true)
-            .build();
-
-    when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)},
-                new Object[] {noSourceTicker, null, null}));
-    when(weeklyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
-                new Object[] {noSourceTicker, null, null}));
+    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(false);
+    when(weeklyChartPatternRepository.hasPendingWeeklyChartPatterns()).thenReturn(false);
 
     assertFalse(calculator.shouldRun(Timeframe.DAILY));
     assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
 
-    verify(dailyChartPatternRepository).findSyncStatesForActiveTickers();
-    verify(weeklyChartPatternRepository).findSyncStatesForActiveTickers();
+    verify(dailyChartPatternRepository).hasPendingDailyChartPatterns();
+    verify(weeklyChartPatternRepository).hasPendingWeeklyChartPatterns();
   }
 
   @Test
   void testComputeChartPatternsUnsupportedTimeframeThrows() {
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
     assertThrows(IllegalArgumentException.class, () -> calculator.computeChartPatterns(null));
   }
 
@@ -123,13 +112,8 @@ class ChartPatternCalculatorTest {
             .isActive(true)
             .build();
 
-    when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 9)},
-                new Object[] {failingTicker, LocalDate.of(2025, 1, 10), null},
-                new Object[] {
-                    upToDateTicker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)}));
+    when(tickerRepository.findByIsActiveTrue())
+        .thenReturn(List.of(ticker, failingTicker, upToDateTicker));
 
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(upToDateTicker)).thenReturn(List.of());
@@ -146,13 +130,6 @@ class ChartPatternCalculatorTest {
     java.lang.reflect.Field selfField = ChartPatternCalculator.class.getDeclaredField("selfProxy");
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
-
-    when(weeklyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, HISTORICAL_MONDAY, null},
-                new Object[] {failingTicker, HISTORICAL_MONDAY, null},
-                new Object[] {upToDateTicker, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
 
     calculator.computeChartPatterns(Timeframe.WEEKLY);
 
@@ -797,15 +774,13 @@ class ChartPatternCalculatorTest {
   void testPipelineJobMethods() {
     assertEquals("CALCULATE_CHART_PATTERN", calculator.getJobName());
 
-    LocalDate base = LocalDate.of(2026, 1, 1);
-    when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, base, base}));
+    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(false);
     assertFalse(calculator.shouldRun(Timeframe.DAILY));
 
-    when(dailyChartPatternRepository.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, base.plusDays(1), base}));
+    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(true);
     assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of());
     calculator.execute(Timeframe.DAILY);
   }
 }

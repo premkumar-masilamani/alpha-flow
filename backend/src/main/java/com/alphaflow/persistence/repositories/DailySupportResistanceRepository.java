@@ -16,13 +16,20 @@ public interface DailySupportResistanceRepository
 
   @Query(
       """
-      SELECT tk,
-          (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
-          (SELECT MAX(dsr.priceDate) FROM DailySupportResistance dsr WHERE dsr.ticker = tk)
+      SELECT CASE WHEN COUNT(tk) > 0 THEN true ELSE false END
       FROM Ticker tk
       WHERE tk.isActive = true
+        AND EXISTS (SELECT 1 FROM DailyPrice dp WHERE dp.ticker = tk)
+        AND (
+          NOT EXISTS (SELECT 1 FROM DailySupportResistance dsr WHERE dsr.ticker = tk)
+          OR (SELECT MAX(dsr.priceDate) FROM DailySupportResistance dsr WHERE dsr.ticker = tk) <
+             (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk)
+        )
       """)
-  List<Object[]> findSyncStatesForActiveTickers();
+  boolean hasPendingDailySupportResistance();
+
+  @Query("SELECT MAX(dsr.priceDate) FROM DailySupportResistance dsr WHERE dsr.ticker = :ticker")
+  LocalDate findLatestPriceDateByTicker(@Param("ticker") Ticker ticker);
 
   List<DailySupportResistance> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
 

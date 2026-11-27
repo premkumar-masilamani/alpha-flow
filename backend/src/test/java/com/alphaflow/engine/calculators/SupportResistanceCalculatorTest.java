@@ -26,6 +26,7 @@ import com.alphaflow.persistence.entities.WeeklySupportResistance;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.DailySupportResistanceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.lang.reflect.Field;
@@ -48,6 +49,7 @@ class SupportResistanceCalculatorTest {
   private WeeklyPriceRepository weeklyPriceRepo;
   private DailySupportResistanceRepository dailySrRepo;
   private WeeklySupportResistanceRepository weeklySrRepo;
+  private TickerRepository tickerRepo;
   private SupportResistanceCalculator calculator;
   private Ticker ticker;
 
@@ -57,10 +59,11 @@ class SupportResistanceCalculatorTest {
     weeklyPriceRepo = mock(WeeklyPriceRepository.class);
     dailySrRepo = mock(DailySupportResistanceRepository.class);
     weeklySrRepo = mock(WeeklySupportResistanceRepository.class);
+    tickerRepo = mock(TickerRepository.class);
 
     calculator =
         new SupportResistanceCalculator(
-            dailyPriceRepo, weeklyPriceRepo, dailySrRepo, weeklySrRepo, new DowAtrSwingDetector());
+            dailyPriceRepo, weeklyPriceRepo, dailySrRepo, weeklySrRepo, tickerRepo, new DowAtrSwingDetector());
 
     ticker =
         Ticker.builder()
@@ -147,30 +150,14 @@ class SupportResistanceCalculatorTest {
 
   @Test
   void testComputeSupportResistancesAllUpToDateShortCircuitsDailyAndWeekly() {
-    Ticker noSourceTicker =
-        Ticker.builder()
-            .tickerId(2L)
-            .tickerSymbol("NOSRC")
-            .country(Country.US)
-            .isActive(true)
-            .build();
-
-    when(dailySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, EPOCH, EPOCH},
-                new Object[] {noSourceTicker, null, null}));
-    when(weeklySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
-                new Object[] {noSourceTicker, null, null}));
+    when(dailySrRepo.hasPendingDailySupportResistance()).thenReturn(false);
+    when(weeklySrRepo.hasPendingWeeklySupportResistance()).thenReturn(false);
 
     assertFalse(calculator.shouldRun(Timeframe.DAILY));
     assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
 
-    verify(dailySrRepo).findSyncStatesForActiveTickers();
-    verify(weeklySrRepo).findSyncStatesForActiveTickers();
+    verify(dailySrRepo).hasPendingDailySupportResistance();
+    verify(weeklySrRepo).hasPendingWeeklySupportResistance();
   }
 
   @Test
@@ -197,12 +184,8 @@ class SupportResistanceCalculatorTest {
             .isActive(true)
             .build();
 
-    when(dailySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(
-            List.of(
-                new Object[] {okTicker, EPOCH, EPOCH.minusDays(1)},
-                new Object[] {failingTicker, EPOCH, null},
-                new Object[] {upToDateTicker, EPOCH, EPOCH}));
+    when(tickerRepo.findByIsActiveTrue())
+        .thenReturn(List.of(okTicker, failingTicker, upToDateTicker));
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(okTicker)).thenReturn(List.of());
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(upToDateTicker)).thenReturn(List.of());
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
@@ -222,16 +205,16 @@ class SupportResistanceCalculatorTest {
     selfField.setAccessible(true);
     selfField.set(calculator, mockSelf);
 
-    when(weeklySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, HISTORICAL_MONDAY, null}));
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
 
     calculator.computeSupportResistances(Timeframe.WEEKLY);
 
-    verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, null);
+    verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
   }
 
   @Test
   void testComputeSupportResistancesUnsupportedTimeframeThrows() {
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
     assertThrows(
         IllegalArgumentException.class, () -> calculator.computeSupportResistances(null));
   }
@@ -530,14 +513,13 @@ class SupportResistanceCalculatorTest {
   void testPipelineJobMethods() {
     assertEquals("CALCULATE_SUPPORT_RESISTANCE", calculator.getJobName());
 
-    when(dailySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, EPOCH, EPOCH}));
+    when(dailySrRepo.hasPendingDailySupportResistance()).thenReturn(false);
     assertFalse(calculator.shouldRun(Timeframe.DAILY));
 
-    when(dailySrRepo.findSyncStatesForActiveTickers())
-        .thenReturn(List.<Object[]>of(new Object[] {ticker, EPOCH.plusDays(1), EPOCH}));
+    when(dailySrRepo.hasPendingDailySupportResistance()).thenReturn(true);
     assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
+    when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of());
     calculator.execute(Timeframe.DAILY);
   }
 }

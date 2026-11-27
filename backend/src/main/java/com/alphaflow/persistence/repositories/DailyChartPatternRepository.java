@@ -19,13 +19,17 @@ public interface DailyChartPatternRepository extends JpaRepository<DailyChartPat
 
   @Query(
       """
-      SELECT tk,
-          (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),
-          (SELECT MAX(dcp.endDate) FROM DailyChartPattern dcp WHERE dcp.ticker = tk)
+      SELECT CASE WHEN COUNT(tk) > 0 THEN true ELSE false END
       FROM Ticker tk
       WHERE tk.isActive = true
+        AND EXISTS (SELECT 1 FROM DailyPrice dp WHERE dp.ticker = tk)
+        AND (
+          NOT EXISTS (SELECT 1 FROM DailyChartPattern dcp WHERE dcp.ticker = tk)
+          OR (SELECT MAX(dcp.endDate) FROM DailyChartPattern dcp WHERE dcp.ticker = tk) <
+             (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk)
+        )
       """)
-  List<Object[]> findSyncStatesForActiveTickers();
+  boolean hasPendingDailyChartPatterns();
 
   Page<DailyChartPattern> findByTickerAndStatusInOrderByEndDateDesc(
       Ticker ticker, Collection<ChartPatternStatus> statuses, Pageable pageable);

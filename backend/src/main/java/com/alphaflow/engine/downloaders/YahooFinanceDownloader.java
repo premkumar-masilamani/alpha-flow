@@ -8,6 +8,7 @@ import com.alphaflow.engine.downloaders.yahoofinance.YahooFinanceClient;
 import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
+import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -43,19 +44,10 @@ public class YahooFinanceDownloader implements PipelineJob {
 
   @Override
   public boolean shouldRun(Timeframe timeframe) {
-    Map<Ticker, LocalDate> latestSavedDates =
-        dailyPriceRepository.findLatestPriceDatesForActiveTickers();
     Instant now = Instant.now();
-    for (Map.Entry<Ticker, LocalDate> entry : latestSavedDates.entrySet()) {
-      Ticker ticker = entry.getKey();
-      LocalDate latestSavedDate = entry.getValue();
-      LocalDate expectedTradingDate =
-          PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
-      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
-        return true;
-      }
-    }
-    return false;
+    LocalDate usExpected = PipelineGating.getLatestExpectedTradingDate(Country.US, now);
+    LocalDate inExpected = PipelineGating.getLatestExpectedTradingDate(Country.IN, now);
+    return dailyPriceRepository.hasPendingDailyPrices(usExpected, inExpected);
   }
 
   @Override
