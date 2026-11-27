@@ -1,12 +1,12 @@
 package com.alphaflow.persistence.repositories;
 
 import com.alphaflow.persistence.entities.DailyIndicator;
-import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -57,4 +57,8 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
       """)
   List<DailyIndicator> findSeriesBetween(
       Ticker ticker, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
+
+  @Modifying
+  @Query("DELETE FROM DailyIndicator di WHERE di.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

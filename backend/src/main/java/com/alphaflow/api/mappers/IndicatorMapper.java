@@ -16,10 +16,6 @@ import java.util.Map;
 
 public class IndicatorMapper {
 
-  private IndicatorMapper() {
-    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-  }
-
   public static IndicatorConfigDto toConfigDto(
       Timeframe timeframe, IndicatorDefinition definition) {
     IndicatorParams params = IndicatorParams.of(definition.getParams());

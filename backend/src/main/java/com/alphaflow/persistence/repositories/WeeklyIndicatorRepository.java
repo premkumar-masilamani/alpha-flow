@@ -85,4 +85,8 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
       """)
   List<WeeklyIndicator> findSeriesBetween(
       Ticker ticker, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
+
+  @Modifying
+  @Query("DELETE FROM WeeklyIndicator wi WHERE wi.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

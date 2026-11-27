@@ -17,10 +17,6 @@ public final class IndicatorMath {
 
   public static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
-  private IndicatorMath() {
-    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
-  }
-
   public static BigDecimal internal(BigDecimal value) {
     return value.setScale(INTERNAL_SCALE, ROUNDING);
   }

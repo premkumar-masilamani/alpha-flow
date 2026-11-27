@@ -13,6 +13,7 @@ export interface Ticker {
     name: string;
     type?: TickerType;
     country?: Country;
+    isStale?: boolean;
 }
 
 export interface DailyCandleData {
@@ -27,6 +28,20 @@ export interface DailyCandleData {
 export const getTickers = async (): Promise<Ticker[]> => {
     const response = await axios.get(`${API_BASE_URL}/tickers`);
     return response.data;
+};
+
+export const invalidateCandleCache = (symbol: string): void => {
+    const prefix = `${symbol}:`;
+    for (const key of Array.from(candleDataCache.keys())) {
+        if (key.startsWith(prefix)) {
+            candleDataCache.delete(key);
+        }
+    }
+};
+
+export const deleteTickerData = async (symbol: string): Promise<void> => {
+    await axios.delete(`${API_BASE_URL}/tickers/${encodeURIComponent(symbol)}/data`);
+    invalidateCandleCache(symbol);
 };
 
 // The backend re-syncs prices hourly, so cache for at most an hour to avoid serving stale data.

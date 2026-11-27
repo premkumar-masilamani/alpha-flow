@@ -10,16 +10,20 @@ import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
+import com.alphaflow.persistence.repositories.TickerRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,13 +32,17 @@ public class YahooFinanceDownloader implements PipelineJob {
 
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
+  private final TickerRepository tickerRepository;
   private final AtomicLong nextAllowedTimeMs = new AtomicLong(0);
 
   @Autowired
   public YahooFinanceDownloader(
-      YahooFinanceClient yahooFinanceClient, DailyPriceRepository dailyPriceRepository) {
+      YahooFinanceClient yahooFinanceClient,
+      DailyPriceRepository dailyPriceRepository,
+      TickerRepository tickerRepository) {
     this.yahooFinanceClient = yahooFinanceClient;
     this.dailyPriceRepository = dailyPriceRepository;
+    this.tickerRepository = tickerRepository;
   }
 
   @Override
@@ -101,7 +109,14 @@ public class YahooFinanceDownloader implements PipelineJob {
       Ticker ticker, LocalDate latestSavedDate, LocalDate expectedTradingDate) {
     LocalDate actualLatestDate =
         (latestSavedDate != null) ? latestSavedDate : YahooFinanceConfig.BACKFILL_START_DATE;
-    LocalDate startDate = actualLatestDate.plusDays(1);
+
+    List<DailyPrice> recentStoredBars =
+        dailyPriceRepository.findLatestByTickerAndEndDate(
+            ticker, actualLatestDate, PageRequest.of(0, YahooFinanceConfig.OVERLAP_BARS));
+    LocalDate startDate =
+        recentStoredBars.isEmpty()
+            ? actualLatestDate.plusDays(1)
+            : recentStoredBars.getLast().getPriceDate();
 
     long startTs = startDate.atStartOfDay(ZoneOffset.UTC).toEpochSecond();
     long endTs =
@@ -118,21 +133,30 @@ public class YahooFinanceDownloader implements PipelineJob {
 
     List<DailyPrice> dailyPriceList = yahooFinanceClient.fetchDailyPrices(ticker, startTs, endTs);
     if (!dailyPriceList.isEmpty()) {
-      List<DailyPrice> newDailyPriceData =
-          dailyPriceList.stream()
-              .filter(candle -> candle.getPriceDate().isAfter(actualLatestDate))
-              .collect(Collectors.toList());
+      if (!hasPriceDrift(ticker, recentStoredBars, dailyPriceList)) {
+        List<DailyPrice> newDailyPriceData =
+            dailyPriceList.stream()
+                .filter(candle -> candle.getPriceDate().isAfter(actualLatestDate))
+                .collect(Collectors.toList());
 
-      if (!newDailyPriceData.isEmpty()) {
-        dailyPriceRepository.saveAll(newDailyPriceData);
-        log.info(
-            "Successfully synced {} rows for {}",
-            newDailyPriceData.size(),
-            ticker.getTickerSymbol());
-        return newDailyPriceData.size();
+        if (!newDailyPriceData.isEmpty()) {
+          dailyPriceRepository.saveAll(newDailyPriceData);
+          log.info(
+              "Successfully synced {} rows for {}",
+              newDailyPriceData.size(),
+              ticker.getTickerSymbol());
+          return newDailyPriceData.size();
+        } else {
+          log.info(
+              "No new data points to save for ticker {} (all downloaded points already exist).",
+              ticker.getTickerSymbol());
+          return 0;
+        }
       } else {
-        log.info(
-            "No new data points to save for ticker {} (all downloaded points already exist).",
+        ticker.setStale(true);
+        tickerRepository.save(ticker);
+        log.warn(
+            "Marked ticker {} as stale due to detected price drift; skipped saving new daily bars.",
             ticker.getTickerSymbol());
         return 0;
       }
@@ -141,5 +165,39 @@ public class YahooFinanceDownloader implements PipelineJob {
           "No price data returned from Yahoo Finance for ticker {}.", ticker.getTickerSymbol());
       return 0;
     }
+  }
+
+  private boolean hasPriceDrift(
+      Ticker ticker, List<DailyPrice> recentStoredBars, List<DailyPrice> fetchedBars) {
+    Map<LocalDate, BigDecimal> storedCloseByDate = new HashMap<>();
+    for (DailyPrice storedBar : recentStoredBars) {
+      storedCloseByDate.put(storedBar.getPriceDate(), storedBar.getPriceClose());
+    }
+
+    for (DailyPrice fetchedBar : fetchedBars) {
+      BigDecimal storedClose = storedCloseByDate.get(fetchedBar.getPriceDate());
+      if (storedClose != null && storedClose.compareTo(BigDecimal.ZERO) > 0) {
+        BigDecimal roundedFetchedClose =
+            fetchedBar
+                .getPriceClose()
+                .setScale(YahooFinanceConfig.PRICE_SCALE, RoundingMode.HALF_UP);
+        BigDecimal relativeDiff =
+            roundedFetchedClose
+                .subtract(storedClose)
+                .abs()
+                .divide(storedClose, YahooFinanceConfig.DRIFT_MATH_CONTEXT);
+        if (relativeDiff.compareTo(YahooFinanceConfig.DRIFT_THRESHOLD) > 0) {
+          log.warn(
+              "Price drift detected for {} on {}: storedClose={}, fetchedClose={}, relativeDiff={}",
+              ticker.getTickerSymbol(),
+              fetchedBar.getPriceDate(),
+              storedClose,
+              roundedFetchedClose,
+              relativeDiff);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

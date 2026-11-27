@@ -53,12 +53,12 @@ public interface DailyCandlestickPatternRepository
 
   @Query(
       """
-        SELECT p FROM DailyCandlestickPattern p
-        WHERE p.ticker = :ticker
-          AND p.priceDate >= :from
-          AND p.priceDate <= :to
-        ORDER BY p.priceDate ASC
-        """)
+      SELECT p FROM DailyCandlestickPattern p
+      WHERE p.ticker = :ticker
+        AND p.priceDate >= :from
+        AND p.priceDate <= :to
+      ORDER BY p.priceDate ASC
+      """)
   List<DailyCandlestickPattern> findSeriesBetween(Ticker ticker, LocalDate from, LocalDate to);
 
   @Modifying(flushAutomatically = true)
@@ -69,4 +69,8 @@ public interface DailyCandlestickPatternRepository
       """)
   void deleteByTickerAndPriceDateGreaterThanEqual(
       @Param("ticker") Ticker ticker, @Param("priceDate") LocalDate priceDate);
+
+  @Modifying
+  @Query("DELETE FROM DailyCandlestickPattern dcp WHERE dcp.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

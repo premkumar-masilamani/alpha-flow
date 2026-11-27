@@ -49,4 +49,8 @@ public interface DailyChartPatternRepository extends JpaRepository<DailyChartPat
       """)
   void deleteByTickerAndPriceDateLessThan(
       @Param("ticker") Ticker ticker, @Param("cutoffDate") LocalDate cutoffDate);
+
+  @Modifying
+  @Query("DELETE FROM DailyChartPattern dcp WHERE dcp.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

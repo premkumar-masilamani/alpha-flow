@@ -67,12 +67,12 @@ public interface WeeklyCandlestickPatternRepository
 
   @Query(
       """
-        SELECT p FROM WeeklyCandlestickPattern p
-        WHERE p.ticker = :ticker
-          AND p.priceDate >= :from
-          AND p.priceDate <= :to
-        ORDER BY p.priceDate ASC
-        """)
+      SELECT p FROM WeeklyCandlestickPattern p
+      WHERE p.ticker = :ticker
+        AND p.priceDate >= :from
+        AND p.priceDate <= :to
+      ORDER BY p.priceDate ASC
+      """)
   List<WeeklyCandlestickPattern> findSeriesBetween(Ticker ticker, LocalDate from, LocalDate to);
 
   @Modifying(flushAutomatically = true)
@@ -83,4 +83,8 @@ public interface WeeklyCandlestickPatternRepository
       """)
   void deleteByTickerAndPriceDateGreaterThanEqual(
       @Param("ticker") Ticker ticker, @Param("priceDate") LocalDate priceDate);
+
+  @Modifying
+  @Query("DELETE FROM WeeklyCandlestickPattern wcp WHERE wcp.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

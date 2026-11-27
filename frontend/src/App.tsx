@@ -7,12 +7,14 @@ import IndicatorControls from "./components/IndicatorControls";
 import PriceSummaryBanner from "./components/PriceSummaryBanner";
 import CandlestickPatternModal from "./components/CandlestickPatternModal";
 import ChartPatternModal from "./components/ChartPatternModal";
+import StaleTickersModal from "./components/StaleTickersModal";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
 import { getChartPatternDetails } from "./config/chartPatterns";
 import { SUPPORT_RESISTANCE_RANGE_PCT, filterSupportResistances } from "./config/supportResistance";
 import {
   type DailyCandleData,
+  deleteTickerData,
   getCandleData,
   getIndicatorConfigs,
   getIndicatorSeries,
@@ -37,6 +39,7 @@ import {
   ChevronRight,
   Info,
   AlertCircle,
+  AlertTriangle,
   TrendingUp,
   TrendingDown,
   BookOpen,
@@ -157,6 +160,32 @@ function App() {
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isCpModalOpen, setIsCpModalOpen] = useState(false);
   const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
+  const [isStaleModalOpen, setIsStaleModalOpen] = useState(false);
+
+  const staleTickers = useMemo(() => {
+    return tickers.filter((ticker) => Boolean(ticker.isStale));
+  }, [tickers]);
+
+  const handleDeleteTickerData = async (symbol: string) => {
+    await deleteTickerData(symbol);
+    setTickers((prev) =>
+      prev.map((ticker) =>
+        ticker.symbol === symbol ? { ...ticker, isStale: false } : ticker,
+      ),
+    );
+    if (selectedTickerRef.current === symbol) {
+      setChartCandleData([]);
+      setChartIndicators([]);
+      setSupportResistances([]);
+      setCandlestickPatterns([]);
+      setChartPatterns([]);
+      setAnalysisData(null);
+      setOverviewPatterns([]);
+      setOverviewChartPatterns([]);
+      setRecentDailyCandles([]);
+      setAnalysisError("stale");
+    }
+  };
 
   const selectedTickerObj = useMemo(() => {
     return tickers.find((t) => t.symbol === selectedTicker);
@@ -1260,9 +1289,21 @@ function App() {
               )}
             </button>
             <div>
-              <h2 className="text-2xl font-bold text-white">
-                {selectedTicker}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-2xl font-bold text-white">
+                  {selectedTicker}
+                </h2>
+                {selectedTickerObj?.isStale && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border border-amber-500/50 bg-amber-950/60 text-amber-300"
+                    title="Corporate action or historical price change detected"
+                    aria-label="Corporate action detected for selected ticker"
+                  >
+                    <AlertTriangle size={12} />
+                    <span>Obsolete Data</span>
+                  </span>
+                )}
+              </div>
               <p className="text-slate-400 text-sm">
                 {selectedTickerName}
               </p>
@@ -1455,7 +1496,10 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 overflow-hidden">
-      <Header />
+      <Header
+        staleTickersCount={staleTickers.length}
+        onOpenStaleModal={() => setIsStaleModalOpen(true)}
+      />
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && (
           <Sidebar
@@ -1477,6 +1521,12 @@ function App() {
         isOpen={isCpModalOpen}
         onClose={() => setIsCpModalOpen(false)}
         initialPatternId={selectedCpId}
+      />
+      <StaleTickersModal
+        isOpen={isStaleModalOpen}
+        staleTickers={staleTickers}
+        onClose={() => setIsStaleModalOpen(false)}
+        onDeleteTickerData={handleDeleteTickerData}
       />
     </div>
   );

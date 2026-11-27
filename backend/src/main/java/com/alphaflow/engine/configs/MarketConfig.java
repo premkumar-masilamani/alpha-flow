@@ -12,6 +12,4 @@ public final class MarketConfig {
 
   public static final LocalTime IN_MARKET_CLOSE_TIME = LocalTime.of(15, 30);
   public static final LocalTime US_MARKET_CLOSE_TIME = LocalTime.of(16, 0);
-
-  private MarketConfig() {}
 }

@@ -11,13 +11,5 @@ public record TickerDto(
     @JsonProperty("symbol") String tickerSymbol,
     @JsonProperty("name") String tickerName,
     @JsonProperty("type") TickerType tickerType,
-    @JsonProperty("country") Country country) {
-
-  public TickerDto(Long tickerId, String tickerSymbol, String tickerName) {
-    this(tickerId, tickerSymbol, tickerName, TickerType.STOCK, Country.US);
-  }
-
-  public TickerDto(Long tickerId, String tickerSymbol, String tickerName, TickerType tickerType) {
-    this(tickerId, tickerSymbol, tickerName, tickerType, Country.US);
-  }
-}
+    @JsonProperty("country") Country country,
+    @JsonProperty("isStale") boolean isStale) {}

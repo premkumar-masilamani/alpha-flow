@@ -43,4 +43,8 @@ public interface DailySupportResistanceRepository
       """)
   void deleteByTickerAndPriceDateLessThan(
       @Param("ticker") Ticker ticker, @Param("cutoffDate") LocalDate cutoffDate);
+
+  @Modifying
+  @Query("DELETE FROM DailySupportResistance dsr WHERE dsr.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }
