@@ -33,6 +33,8 @@ public interface DailySupportResistanceRepository
 
   List<DailySupportResistance> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
 
+  boolean existsByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
+
   @Modifying
   @Query(
       """

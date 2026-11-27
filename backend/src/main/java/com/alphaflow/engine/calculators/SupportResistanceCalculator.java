@@ -146,39 +146,49 @@ public class SupportResistanceCalculator implements PipelineJob {
     List<PriceBar> priceBars = loadBars(ticker, timeframe);
     if (!priceBars.isEmpty()) {
       LocalDate priceDate = priceBars.getLast().date();
-      LocalDate cutoffDate =
-          priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
-      log.debug(
-          "Purging {} S&R records older than {} for ticker {}.",
-          timeframe,
-          cutoffDate,
-          ticker.getTickerSymbol());
-      deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
-
-      if (timeframe == Timeframe.WEEKLY
-          && latestCalculatedDate != null
-          && !latestCalculatedDate.isBefore(priceDate)) {
+      boolean isAlreadyComputedDaily =
+          timeframe == Timeframe.DAILY
+              && dailySupportResistanceRepository.existsByTickerAndPriceDate(ticker, priceDate);
+      if (!isAlreadyComputedDaily) {
+        LocalDate cutoffDate =
+            priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
         log.debug(
-            "Refreshing in-progress weekly S&R zones for ticker {} on {}.",
-            ticker.getTickerSymbol(),
-            priceDate);
-        weeklySupportResistanceRepository.deleteByTickerAndPriceDate(ticker, priceDate);
-      }
-
-      List<Bucket> buckets = computeBuckets(priceBars);
-
-      if (!buckets.isEmpty()) {
-        saveSupportResistances(ticker, buckets, timeframe);
-        log.info(
-            "Saved {} {} S&R zones for ticker {} (priceDate={}).",
-            buckets.size(),
+            "Purging {} S&R records older than {} for ticker {}.",
             timeframe,
-            ticker.getTickerSymbol(),
-            priceDate);
+            cutoffDate,
+            ticker.getTickerSymbol());
+        deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
+
+        if (timeframe == Timeframe.WEEKLY
+            && latestCalculatedDate != null
+            && !latestCalculatedDate.isBefore(priceDate)) {
+          log.debug(
+              "Refreshing in-progress weekly S&R zones for ticker {} on {}.",
+              ticker.getTickerSymbol(),
+              priceDate);
+          weeklySupportResistanceRepository.deleteByTickerAndPriceDate(ticker, priceDate);
+        }
+
+        List<Bucket> buckets = computeBuckets(priceBars);
+
+        if (!buckets.isEmpty()) {
+          saveSupportResistances(ticker, buckets, timeframe);
+          log.info(
+              "Saved {} {} S&R zones for ticker {} (priceDate={}).",
+              buckets.size(),
+              timeframe,
+              ticker.getTickerSymbol(),
+              priceDate);
+        } else {
+          log.debug(
+              "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
+              timeframe,
+              ticker.getTickerSymbol(),
+              priceDate);
+        }
       } else {
         log.debug(
-            "No surviving {} S&R zones computed for ticker {} (priceDate={}).",
-            timeframe,
+            "Ticker {}: DAILY S&R already computed for {}; skipping.",
             ticker.getTickerSymbol(),
             priceDate);
       }
