@@ -31,6 +31,20 @@ public interface DailyChartPatternRepository extends JpaRepository<DailyChartPat
       """)
   boolean hasPendingDailyChartPatterns();
 
+  @Query(
+      """
+      SELECT tk
+      FROM Ticker tk
+      WHERE tk.isActive = true
+        AND EXISTS (SELECT 1 FROM DailyPrice dp WHERE dp.ticker = tk)
+        AND (
+          NOT EXISTS (SELECT 1 FROM DailyChartPattern dcp WHERE dcp.ticker = tk)
+          OR (SELECT MAX(dcp.priceDate) FROM DailyChartPattern dcp WHERE dcp.ticker = tk) <
+             (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk)
+        )
+      """)
+  List<Ticker> findTickersWithPendingDailyChartPatterns();
+
   List<DailyChartPattern> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
 
   Page<DailyChartPattern> findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
@@ -38,8 +52,6 @@ public interface DailyChartPatternRepository extends JpaRepository<DailyChartPat
       LocalDate priceDate,
       Collection<ChartPatternStatus> statuses,
       Pageable pageable);
-
-  boolean existsByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
 
   @Modifying
   @Query(

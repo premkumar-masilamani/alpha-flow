@@ -30,6 +30,20 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
 
   @Query(
       """
+      SELECT DISTINCT tk
+      FROM Ticker tk, IndicatorDefinition idDef
+      WHERE tk.isActive = true
+        AND EXISTS (SELECT 1 FROM DailyPrice dp WHERE dp.ticker = tk)
+        AND (
+          NOT EXISTS (SELECT 1 FROM DailyIndicator di WHERE di.ticker = tk AND di.indicatorDefinition = idDef)
+          OR (SELECT MAX(di.priceDate) FROM DailyIndicator di WHERE di.ticker = tk AND di.indicatorDefinition = idDef) <
+             (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk)
+        )
+      """)
+  List<Ticker> findTickersWithPendingDailyIndicators();
+
+  @Query(
+      """
       SELECT di.ticker, di.indicatorDefinition, MAX(di.priceDate)
       FROM DailyIndicator di
       WHERE di.ticker.isActive = true

@@ -91,22 +91,26 @@ public class CandlestickPatternCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+    List<Ticker> targetTickers;
+    Map<Ticker, LocalDate> latestDates;
+    if (timeframe == Timeframe.DAILY) {
+      targetTickers =
+          dailyCandlestickPatternRepository.findTickersWithPendingDailyCandlestickPatterns();
+      latestDates = dailyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      targetTickers = tickerRepository.findByIsActiveTrue();
+      latestDates = weeklyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers();
+    } else {
       log.error("Unsupported timeframe for candlestick patterns computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    log.info("Computing {} candlestick patterns...", timeframe);
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for {} patterns.", activeTickers.size(), timeframe);
 
-    Map<Ticker, LocalDate> latestDates =
-        (timeframe == Timeframe.DAILY)
-            ? dailyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers()
-            : weeklyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers();
+    log.info("Computing {} candlestick patterns...", timeframe);
+    log.info("Found {} tickers to process for {} patterns.", targetTickers.size(), timeframe);
 
     CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
-    for (Ticker ticker : activeTickers) {
+    for (Ticker ticker : targetTickers) {
       try {
         LocalDate latestCalculatedDate = latestDates.get(ticker);
         proxy.computeCandleStickPatternsForTicker(ticker, timeframe, latestCalculatedDate);

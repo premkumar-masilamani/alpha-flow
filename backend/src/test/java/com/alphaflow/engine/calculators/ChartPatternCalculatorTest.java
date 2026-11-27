@@ -214,14 +214,15 @@ class ChartPatternCalculatorTest {
   @Test
   void testExecuteDailySavesPatternsAndPurgesOlder() {
     List<DailyPrice> prices = createDailyPricesWithDoubleTop();
-    LocalDate latestDate = prices.getLast().getPriceDate();
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(dailyChartPatternRepository.findTickersWithPendingDailyChartPatterns())
+        .thenReturn(List.of(ticker));
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
-    when(dailyChartPatternRepository.existsByTickerAndPriceDate(ticker, latestDate))
-        .thenReturn(false);
 
     calculator.execute(Timeframe.DAILY);
 
+    LocalDate latestDate = prices.getLast().getPriceDate();
+    verify(dailyChartPatternRepository).findTickersWithPendingDailyChartPatterns();
+    verify(tickerRepository, never()).findByIsActiveTrue();
     verify(dailyChartPatternRepository)
         .deleteByTickerAndPriceDateLessThan(
             ticker, latestDate.minusDays(ChartPatternConfig.DAILY_RETENTION_DAYS));
@@ -229,16 +230,15 @@ class ChartPatternCalculatorTest {
   }
 
   @Test
-  void testExecuteDailySkipsWhenAlreadyComputed() {
-    List<DailyPrice> prices = createDailyPricesWithDoubleTop();
-    LocalDate latestDate = prices.getLast().getPriceDate();
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
-    when(dailyChartPatternRepository.existsByTickerAndPriceDate(ticker, latestDate))
-        .thenReturn(true);
+  void testExecuteDailySkipsWhenNoPendingTickers() {
+    when(dailyChartPatternRepository.findTickersWithPendingDailyChartPatterns())
+        .thenReturn(List.of());
 
     calculator.execute(Timeframe.DAILY);
 
+    verify(dailyChartPatternRepository).findTickersWithPendingDailyChartPatterns();
+    verify(tickerRepository, never()).findByIsActiveTrue();
+    verify(dailyPriceRepository, never()).findByTickerOrderByPriceDateAsc(any());
     verify(dailyChartPatternRepository, never()).deleteByTickerAndPriceDateLessThan(any(), any());
     verify(dailyChartPatternRepository, never()).saveAll(anyList());
   }
@@ -304,7 +304,8 @@ class ChartPatternCalculatorTest {
   @Test
   void testExecuteHandlesInsufficientBarsAndPerTickerException() {
     Ticker failingTicker = Ticker.builder().tickerId(2L).tickerSymbol("ERR").isActive(true).build();
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, failingTicker));
+    when(dailyChartPatternRepository.findTickersWithPendingDailyChartPatterns())
+        .thenReturn(List.of(ticker, failingTicker));
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
@@ -765,7 +766,8 @@ class ChartPatternCalculatorTest {
     // Verify selfProxy invocation path
     ChartPatternCalculator mockProxy = mock(ChartPatternCalculator.class);
     ReflectionTestUtils.setField(calculator, "selfProxy", mockProxy);
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(dailyChartPatternRepository.findTickersWithPendingDailyChartPatterns())
+        .thenReturn(List.of(ticker));
     calculator.execute(Timeframe.DAILY);
     verify(mockProxy).computeChartPatternsForTicker(ticker, Timeframe.DAILY, null);
   }

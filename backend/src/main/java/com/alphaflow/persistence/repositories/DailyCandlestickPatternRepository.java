@@ -30,6 +30,20 @@ public interface DailyCandlestickPatternRepository
       """)
   boolean hasPendingDailyCandlestickPatterns();
 
+  @Query(
+      """
+      SELECT tk
+      FROM Ticker tk
+      WHERE tk.isActive = true
+        AND EXISTS (SELECT 1 FROM DailyPrice dp WHERE dp.ticker = tk)
+        AND (
+          NOT EXISTS (SELECT 1 FROM DailyCandlestickPattern dcp WHERE dcp.ticker = tk)
+          OR (SELECT MAX(dcp.priceDate) FROM DailyCandlestickPattern dcp WHERE dcp.ticker = tk) <
+             (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk)
+        )
+      """)
+  List<Ticker> findTickersWithPendingDailyCandlestickPatterns();
+
   @Query("SELECT MAX(dcp.priceDate) FROM DailyCandlestickPattern dcp WHERE dcp.ticker = :ticker")
   LocalDate findLatestPriceDateByTicker(@Param("ticker") Ticker ticker);
 

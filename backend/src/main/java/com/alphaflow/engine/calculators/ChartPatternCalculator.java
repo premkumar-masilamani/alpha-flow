@@ -95,25 +95,26 @@ public class ChartPatternCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+    List<Ticker> targetTickers;
+    Map<Ticker, LocalDate> latestWeeklyDates;
+    if (timeframe == Timeframe.DAILY) {
+      targetTickers = dailyChartPatternRepository.findTickersWithPendingDailyChartPatterns();
+      latestWeeklyDates = Collections.emptyMap();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      targetTickers = tickerRepository.findByIsActiveTrue();
+      latestWeeklyDates = weeklyChartPatternRepository.findLatestPriceDatesForActiveTickers();
+    } else {
       log.error("Unsupported timeframe for chart pattern computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    log.info("Computing {} classical chart patterns...", timeframe);
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info(
-        "Found {} active tickers to process for {} chart patterns.",
-        activeTickers.size(),
-        timeframe);
 
-    Map<Ticker, LocalDate> latestWeeklyDates =
-        (timeframe == Timeframe.WEEKLY)
-            ? weeklyChartPatternRepository.findLatestPriceDatesForActiveTickers()
-            : Collections.emptyMap();
+    log.info("Computing {} classical chart patterns...", timeframe);
+    log.info(
+        "Found {} tickers to process for {} chart patterns.", targetTickers.size(), timeframe);
 
     ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
-    for (Ticker ticker : activeTickers) {
+    for (Ticker ticker : targetTickers) {
       try {
         LocalDate latestCalculatedDate = latestWeeklyDates.get(ticker);
         proxy.computeChartPatternsForTicker(ticker, timeframe, latestCalculatedDate);
@@ -135,44 +136,35 @@ public class ChartPatternCalculator implements PipelineJob {
     List<PriceBar> bars = loadBars(ticker, timeframe);
     if (bars.size() >= ChartPatternConfig.MIN_BARS) {
       LocalDate priceDate = bars.getLast().date();
+      LocalDate cutoffDate =
+          priceDate.minusDays(ChartPatternConfig.getRetentionDaysForTimeframe(timeframe));
+      deleteOlderPatterns(ticker, cutoffDate, timeframe);
 
-      if (timeframe == Timeframe.DAILY
-          && dailyChartPatternRepository.existsByTickerAndPriceDate(ticker, priceDate)) {
+      if (timeframe == Timeframe.WEEKLY
+          && latestCalculatedDate != null
+          && !latestCalculatedDate.isBefore(priceDate)) {
         log.debug(
-            "Ticker {}: DAILY chart patterns already computed for {}; skipping.",
+            "Refreshing in-progress weekly chart patterns for ticker {} on {}.",
+            ticker.getTickerSymbol(),
+            priceDate);
+        weeklyChartPatternRepository.deleteByTickerAndPriceDate(ticker, priceDate);
+      }
+
+      List<ChartPatternMatch> matches = detectAllPatterns(bars);
+      if (!matches.isEmpty()) {
+        savePatterns(ticker, priceDate, timeframe, matches);
+        log.info(
+            "Saved {} {} chart patterns for ticker {} (priceDate={}).",
+            matches.size(),
+            timeframe,
             ticker.getTickerSymbol(),
             priceDate);
       } else {
-        LocalDate cutoffDate =
-            priceDate.minusDays(ChartPatternConfig.getRetentionDaysForTimeframe(timeframe));
-        deleteOlderPatterns(ticker, cutoffDate, timeframe);
-
-        if (timeframe == Timeframe.WEEKLY
-            && latestCalculatedDate != null
-            && !latestCalculatedDate.isBefore(priceDate)) {
-          log.debug(
-              "Refreshing in-progress weekly chart patterns for ticker {} on {}.",
-              ticker.getTickerSymbol(),
-              priceDate);
-          weeklyChartPatternRepository.deleteByTickerAndPriceDate(ticker, priceDate);
-        }
-
-        List<ChartPatternMatch> matches = detectAllPatterns(bars);
-        if (!matches.isEmpty()) {
-          savePatterns(ticker, priceDate, timeframe, matches);
-          log.info(
-              "Saved {} {} chart patterns for ticker {} (priceDate={}).",
-              matches.size(),
-              timeframe,
-              ticker.getTickerSymbol(),
-              priceDate);
-        } else {
-          log.debug(
-              "No {} chart patterns detected for ticker {} (priceDate={}).",
-              timeframe,
-              ticker.getTickerSymbol(),
-              priceDate);
-        }
+        log.debug(
+            "No {} chart patterns detected for ticker {} (priceDate={}).",
+            timeframe,
+            ticker.getTickerSymbol(),
+            priceDate);
       }
     } else {
       log.debug(
