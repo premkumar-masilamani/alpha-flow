@@ -9,7 +9,7 @@ plugins {
     id 'jacoco'
     id 'checkstyle'
     id 'pmd'
-    id 'com.github.spotbugs' version '6.0.28'
+    id 'com.github.spotbugs' version '6.5.15'
     id 'com.diffplug.spotless' version '6.25.0'
 }
 

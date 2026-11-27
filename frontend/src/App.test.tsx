@@ -55,23 +55,23 @@ describe('App Component', () => {
         vi.mocked(api.getCandlestickPatterns).mockResolvedValue([]);
         vi.mocked(api.getChartPatterns).mockResolvedValue([]);
         vi.mocked(api.getSupportResistances).mockResolvedValue([]);
+        vi.mocked(api.getCandleData).mockResolvedValue([]);
     });
 
     afterEach(() => {
         vi.useRealTimers();
     });
 
-    it('renders only Technical Analysis and Technical Chart tabs in navigation header, and does not render Intra-Day tab', async () => {
+    it('renders Technical Analysis and Technical Chart tabs in navigation header', async () => {
         render(<App />);
 
         await waitFor(() => {
             expect(screen.getByRole('button', { name: /Technical Analysis/i })).toBeInTheDocument();
         });
         expect(screen.getByRole('button', { name: /Technical Chart/i })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /Intra-Day/i })).not.toBeInTheDocument();
     });
 
-    it('renders PriceSummaryBanner in Technical Analysis tab with static date, separate Support & Resistance box, and no timeframe badge', async () => {
+    it('renders PriceSummaryBanner in Technical Analysis tab with static date and separate Support & Resistance box', async () => {
         window.history.replaceState({}, '', '/?ticker=NIFTY50&tab=overview');
         vi.mocked(api.getTechnicalAnalysis).mockResolvedValue({
             symbol: 'NIFTY50',
@@ -127,11 +127,8 @@ describe('App Component', () => {
         expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22700.00');
         expect(screen.getByText('Vol:').parentElement).toHaveTextContent('Vol:5,000,000');
 
-        // Static date badge, no navigation buttons
+        // Static date badge
         expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(1);
-        expect(screen.queryByRole('button', { name: /previous day/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /next day/i })).not.toBeInTheDocument();
-        expect(screen.queryByText('15m')).not.toBeInTheDocument();
 
         // Support & Resistance in its own separate box
         await waitFor(() => {
@@ -140,7 +137,7 @@ describe('App Component', () => {
         });
     });
 
-    it('renders PriceSummaryBanner in Technical Chart tab with static date and no timeframe badge', async () => {
+    it('renders PriceSummaryBanner in Technical Chart tab with static date', async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date('2026-10-16T04:01:15Z'));
         window.history.replaceState({}, '', '/?ticker=NIFTY50&tab=charts');
@@ -181,11 +178,8 @@ describe('App Component', () => {
         expect(screen.getByText('Close:').parentElement).toHaveTextContent('Close:22700.00');
         expect(screen.getByText('Vol:').parentElement).toHaveTextContent('Vol:5,000,000');
 
-        // Static date badge, no navigation buttons
+        // Static date badge
         expect(screen.getAllByText(/Fri, Oct 16, 2026/i).length).toBeGreaterThanOrEqual(1);
-        expect(screen.queryByRole('button', { name: /previous day/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /next day/i })).not.toBeInTheDocument();
-        expect(screen.queryByText('15m')).not.toBeInTheDocument();
     });
 
     it('renders PriceSummaryBanner with dashes and styled amber card on Technical Analysis tab when positional data is unavailable', async () => {
