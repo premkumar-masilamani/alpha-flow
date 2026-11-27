@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -98,11 +99,17 @@ public class CandlestickPatternCalculator implements PipelineJob {
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for {} patterns.", activeTickers.size(), timeframe);
 
+    Map<Ticker, LocalDate> latestDates =
+        (timeframe == Timeframe.DAILY)
+            ? dailyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers()
+            : weeklyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers();
+
     CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
     for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeCandleStickPatternsForTicker(ticker, timeframe);
+        LocalDate latestCalculatedDate = latestDates.get(ticker);
+        proxy.computeCandleStickPatternsForTicker(ticker, timeframe, latestCalculatedDate);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} candlestick patterns for ticker {}: {}",
@@ -116,14 +123,6 @@ public class CandlestickPatternCalculator implements PipelineJob {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeCandleStickPatternsForTicker(Ticker ticker, Timeframe timeframe) {
-    LocalDate latestCalculatedDate =
-        (timeframe == Timeframe.DAILY)
-            ? dailyCandlestickPatternRepository.findLatestPriceDateByTicker(ticker)
-            : weeklyCandlestickPatternRepository.findLatestPriceDateByTicker(ticker);
-    computeCandleStickPatternsForTicker(ticker, timeframe, latestCalculatedDate);
-  }
-
   public void computeCandleStickPatternsForTicker(
       Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     List<PriceBar> bars = loadBars(ticker, timeframe);

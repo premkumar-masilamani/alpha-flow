@@ -3,7 +3,9 @@ package com.alphaflow.persistence.repositories;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -33,12 +35,32 @@ public interface DailyCandlestickPatternRepository
 
   @Query(
       """
-      SELECT p FROM DailyCandlestickPattern p
-      WHERE p.ticker = :ticker
-        AND p.priceDate >= :from
-        AND p.priceDate <= :to
-      ORDER BY p.priceDate ASC
+  @Query(
+      """
+      SELECT tk, MAX(dcp.priceDate)
+      FROM Ticker tk
+      LEFT JOIN DailyCandlestickPattern dcp ON dcp.ticker = tk
+      WHERE tk.isActive = true
+      GROUP BY tk
       """)
+  List<Object[]> findLatestPriceDatesForActiveTickersQuery();
+
+  default Map<Ticker, LocalDate> findLatestPriceDatesForActiveTickers() {
+    Map<Ticker, LocalDate> map = new LinkedHashMap<>();
+    for (Object[] row : findLatestPriceDatesForActiveTickersQuery()) {
+      map.put((Ticker) row[0], (LocalDate) row[1]);
+    }
+    return map;
+  }
+
+  @Query(
+      """
+        SELECT p FROM DailyCandlestickPattern p
+        WHERE p.ticker = :ticker
+          AND p.priceDate >= :from
+          AND p.priceDate <= :to
+        ORDER BY p.priceDate ASC
+        """)
   List<DailyCandlestickPattern> findSeriesBetween(Ticker ticker, LocalDate from, LocalDate to);
 
   @Modifying(flushAutomatically = true)

@@ -33,7 +33,9 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -174,22 +176,44 @@ class CandlestickPatternCalculatorTest {
     when(tickerRepository.findByIsActiveTrue())
         .thenReturn(List.of(activeTicker1, activeTicker2, upToDateTicker));
 
+    Map<Ticker, LocalDate> dailyDates = new LinkedHashMap<>();
+    dailyDates.put(activeTicker1, LocalDate.of(2025, 1, 1));
+    dailyDates.put(activeTicker2, null);
+    dailyDates.put(upToDateTicker, LocalDate.of(2025, 1, 2));
+
+    Map<Ticker, LocalDate> weeklyDates = new LinkedHashMap<>();
+    weeklyDates.put(activeTicker1, LocalDate.of(2025, 1, 6));
+    weeklyDates.put(activeTicker2, null);
+    weeklyDates.put(upToDateTicker, LocalDate.of(2025, 1, 13));
+
+    when(dailyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers())
+        .thenReturn(dailyDates);
+    when(weeklyCandlestickPatternRepository.findLatestPriceDatesForActiveTickers())
+        .thenReturn(weeklyDates);
+
     CandlestickPatternCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Calculators fail"))
         .when(calculatorSpy)
-        .computeCandleStickPatternsForTicker(activeTicker1, Timeframe.DAILY);
+        .computeCandleStickPatternsForTicker(
+            activeTicker1, Timeframe.DAILY, LocalDate.of(2025, 1, 1));
     doNothing()
         .when(calculatorSpy)
-        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY);
+        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY, null);
     doNothing()
         .when(calculatorSpy)
-        .computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.DAILY);
+        .computeCandleStickPatternsForTicker(
+            upToDateTicker, Timeframe.DAILY, LocalDate.of(2025, 1, 2));
 
     calculatorSpy.execute(Timeframe.DAILY);
 
-    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.DAILY);
-    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY);
-    verify(calculatorSpy).computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.DAILY);
+    verify(calculatorSpy)
+        .computeCandleStickPatternsForTicker(
+            activeTicker1, Timeframe.DAILY, LocalDate.of(2025, 1, 1));
+    verify(calculatorSpy)
+        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY, null);
+    verify(calculatorSpy)
+        .computeCandleStickPatternsForTicker(
+            upToDateTicker, Timeframe.DAILY, LocalDate.of(2025, 1, 2));
 
     CandlestickPatternCalculator selfMock = mock(CandlestickPatternCalculator.class);
     java.lang.reflect.Field selfField =
@@ -199,9 +223,14 @@ class CandlestickPatternCalculatorTest {
 
     calculator.execute(Timeframe.WEEKLY);
 
-    verify(selfMock).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.WEEKLY);
-    verify(selfMock).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY);
-    verify(selfMock).computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.WEEKLY);
+    verify(selfMock)
+        .computeCandleStickPatternsForTicker(
+            activeTicker1, Timeframe.WEEKLY, LocalDate.of(2025, 1, 6));
+    verify(selfMock)
+        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY, null);
+    verify(selfMock)
+        .computeCandleStickPatternsForTicker(
+            upToDateTicker, Timeframe.WEEKLY, LocalDate.of(2025, 1, 13));
   }
 
   @Test
