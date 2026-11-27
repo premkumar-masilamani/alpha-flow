@@ -17,7 +17,7 @@ import lombok.*;
 public class WeeklyPrice {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "weekly_price_id")
   private Long weeklyPriceId;
 

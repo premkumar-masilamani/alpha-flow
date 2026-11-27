@@ -16,7 +16,7 @@ import lombok.*;
 public class DailyIndicator extends Indicator {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "daily_indicator_id")
   private Long dailyIndicatorId;
 

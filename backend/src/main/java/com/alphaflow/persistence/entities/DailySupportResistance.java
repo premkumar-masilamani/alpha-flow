@@ -17,7 +17,7 @@ import lombok.*;
 public class DailySupportResistance {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "daily_support_resistance_id")
   private Long dailySupportResistanceId;
 

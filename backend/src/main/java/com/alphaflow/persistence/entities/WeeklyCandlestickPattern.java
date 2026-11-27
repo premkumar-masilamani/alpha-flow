@@ -18,7 +18,7 @@ import lombok.*;
 public class WeeklyCandlestickPattern {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "weekly_candlestick_pattern_id")
   private Long weeklyCandlestickPatternId;
 
