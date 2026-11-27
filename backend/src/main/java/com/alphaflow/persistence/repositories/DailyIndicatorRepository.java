@@ -1,6 +1,6 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.persistence.dtos.TickerIndicatorSyncState;
+import com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
@@ -15,7 +15,7 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
 
   @Query(
       """
-      SELECT new com.alphaflow.persistence.dtos.TickerIndicatorSyncState(
+      SELECT new com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState(
           tk,
           idDef,
           (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk),

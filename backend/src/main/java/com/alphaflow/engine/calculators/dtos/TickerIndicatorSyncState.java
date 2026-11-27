@@ -1,4 +1,4 @@
-package com.alphaflow.persistence.dtos;
+package com.alphaflow.engine.calculators.dtos;
 
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;

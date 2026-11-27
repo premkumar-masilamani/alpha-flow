@@ -22,7 +22,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -413,40 +412,30 @@ class YahooFinanceDownloaderTest {
 
     // Test execute delegating to downloadAndPersistDailyPrices
     downloader.execute(null);
-
-    // Back-to-back idempotency: shouldRun returns false on second call because ticker was already checked
-    assertEquals(false, downloader.shouldRun(null));
   }
 
   @Test
-  void testDownloadBackToBackSkipsAlreadyCheckedTickersEvenIfNoNewDataSaved() {
+  void testDownloadUpToDateTickerDirectlyFromDatabase() {
     Ticker ticker = new Ticker();
     ticker.setTickerId(1L);
     ticker.setTickerSymbol("AAPL");
     ticker.setCountry(Country.US);
     ticker.setActive(true);
 
-    LocalDate staleDate = LocalDate.of(2025, 8, 12);
+    LocalDate expectedDate =
+        PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), Instant.now());
     Map<Ticker, LocalDate> latestDates = new LinkedHashMap<>();
-    latestDates.put(ticker, staleDate);
+    latestDates.put(ticker, expectedDate);
 
     DailyPriceRepository dailyRepo = mock(DailyPriceRepository.class);
     when(dailyRepo.findLatestPriceDatesForActiveTickers()).thenReturn(latestDates);
 
     YahooFinanceClient client = mock(YahooFinanceClient.class);
-    when(client.fetchDailyPrices(any(), any(Long.class), any(Long.class))).thenReturn(List.of());
-
     YahooFinanceDownloader downloader = new YahooFinanceDownloader(client, dailyRepo);
 
-    // First run finds ticker stale and queries client
-    int firstRunIngested = downloader.downloadAndPersistDailyPrices();
-    assertEquals(0, firstRunIngested);
-    verify(client, times(1)).fetchDailyPrices(any(), any(Long.class), any(Long.class));
-
-    // Second run back-to-back skips because ticker was already checked for this expected date
     assertEquals(false, downloader.shouldRun(null));
-    int secondRunIngested = downloader.downloadAndPersistDailyPrices();
-    assertEquals(0, secondRunIngested);
-    verify(client, times(1)).fetchDailyPrices(any(), any(Long.class), any(Long.class));
+    int ingested = downloader.downloadAndPersistDailyPrices();
+    assertEquals(0, ingested);
+    verify(client, never()).fetchDailyPrices(any(), any(Long.class), any(Long.class));
   }
 }

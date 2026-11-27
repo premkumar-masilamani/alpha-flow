@@ -2,10 +2,10 @@ package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.PatternMatch;
+import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.engine.pipeline.PipelineJob;
-import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyCandlestickPattern;

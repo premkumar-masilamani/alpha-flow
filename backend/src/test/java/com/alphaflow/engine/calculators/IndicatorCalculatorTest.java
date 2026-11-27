@@ -16,13 +16,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
+import com.alphaflow.engine.calculators.dtos.TickerIndicatorSyncState;
 import com.alphaflow.engine.indicators.EmaIndicator;
 import com.alphaflow.engine.indicators.MacdIndicator;
 import com.alphaflow.engine.indicators.RsiIndicator;
 import com.alphaflow.engine.indicators.SmaIndicator;
 import com.alphaflow.engine.indicators.StochasticIndicator;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
-import com.alphaflow.persistence.dtos.TickerIndicatorSyncState;
 import com.alphaflow.persistence.entities.DailyIndicator;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Indicator;

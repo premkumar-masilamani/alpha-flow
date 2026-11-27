@@ -1,6 +1,6 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.persistence.dtos.TickerSyncState;
+import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyChartPattern;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
@@ -20,7 +20,7 @@ public interface WeeklyChartPatternRepository extends JpaRepository<WeeklyChartP
 
   @Query(
       """
-      SELECT new com.alphaflow.persistence.dtos.TickerSyncState(
+      SELECT new com.alphaflow.engine.calculators.dtos.TickerSyncState(
           tk,
           (SELECT MAX(wp.priceDate) FROM WeeklyPrice wp WHERE wp.ticker = tk),
           (SELECT MAX(wcp.endDate) FROM WeeklyChartPattern wcp WHERE wcp.ticker = tk)

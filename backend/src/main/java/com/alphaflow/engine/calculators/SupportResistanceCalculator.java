@@ -2,6 +2,7 @@ package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.Bucket;
+import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.engine.calculators.enums.LevelType;
 import com.alphaflow.engine.configs.SupportResistanceConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -10,7 +11,6 @@ import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.engine.structure.DowAtrSwingDetector;
 import com.alphaflow.engine.structure.dtos.SwingPoint;
 import com.alphaflow.engine.structure.enums.SwingType;
-import com.alphaflow.persistence.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.DailySupportResistance;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklySupportResistance;

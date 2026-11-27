@@ -15,7 +15,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +28,6 @@ public class YahooFinanceDownloader implements PipelineJob {
   private final YahooFinanceClient yahooFinanceClient;
   private final DailyPriceRepository dailyPriceRepository;
   private final AtomicLong nextAllowedTimeMs = new AtomicLong(0);
-  private final ConcurrentHashMap<String, LocalDate> lastCheckedExpectedDate =
-      new ConcurrentHashMap<>();
 
   @Autowired
   public YahooFinanceDownloader(
@@ -54,10 +51,7 @@ public class YahooFinanceDownloader implements PipelineJob {
       LocalDate latestSavedDate = entry.getValue();
       LocalDate expectedTradingDate =
           PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
-      boolean alreadyChecked =
-          expectedTradingDate.equals(lastCheckedExpectedDate.get(ticker.getTickerSymbol()));
-      if (latestSavedDate == null
-          || (!alreadyChecked && latestSavedDate.isBefore(expectedTradingDate))) {
+      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
         return true;
       }
     }
@@ -82,11 +76,8 @@ public class YahooFinanceDownloader implements PipelineJob {
       LocalDate latestSavedDate = entry.getValue();
       LocalDate expectedTradingDate =
           PipelineGating.getLatestExpectedTradingDate(ticker.getCountry(), now);
-      boolean alreadyChecked =
-          expectedTradingDate.equals(lastCheckedExpectedDate.get(ticker.getTickerSymbol()));
 
-      if (latestSavedDate == null
-          || (!alreadyChecked && latestSavedDate.isBefore(expectedTradingDate))) {
+      if (latestSavedDate == null || latestSavedDate.isBefore(expectedTradingDate)) {
         staleTickers.add(ticker);
       } else {
         log.debug(
@@ -115,7 +106,6 @@ public class YahooFinanceDownloader implements PipelineJob {
         throttle();
         int ingestedRows =
             downloadAndPersistForTicker(ticker, latestSavedDate, expectedTradingDate);
-        lastCheckedExpectedDate.put(ticker.getTickerSymbol(), expectedTradingDate);
         totalNewlyIngestedRows += ingestedRows;
       }
       log.info(

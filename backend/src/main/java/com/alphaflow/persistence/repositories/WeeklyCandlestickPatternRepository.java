@@ -1,6 +1,6 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.persistence.dtos.TickerSyncState;
+import com.alphaflow.engine.calculators.dtos.TickerSyncState;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyCandlestickPattern;
 import java.time.LocalDate;
@@ -17,7 +17,7 @@ public interface WeeklyCandlestickPatternRepository
 
   @Query(
       """
-      SELECT new com.alphaflow.persistence.dtos.TickerSyncState(
+      SELECT new com.alphaflow.engine.calculators.dtos.TickerSyncState(
           tk,
           (SELECT MAX(wp.priceDate) FROM WeeklyPrice wp WHERE wp.ticker = tk),
           (SELECT MAX(wcp.priceDate) FROM WeeklyCandlestickPattern wcp WHERE wcp.ticker = tk)
