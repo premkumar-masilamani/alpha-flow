@@ -75,15 +75,6 @@ public interface DailyCandlestickPatternRepository
       """)
   List<DailyCandlestickPattern> findSeriesBetween(Ticker ticker, LocalDate from, LocalDate to);
 
-  @Modifying(flushAutomatically = true)
-  @Query(
-      """
-      DELETE FROM DailyCandlestickPattern dcp
-      WHERE dcp.ticker = :ticker AND dcp.priceDate >= :priceDate
-      """)
-  void deleteByTickerAndPriceDateGreaterThanEqual(
-      @Param("ticker") Ticker ticker, @Param("priceDate") LocalDate priceDate);
-
   @Modifying
   @Query("DELETE FROM DailyCandlestickPattern dcp WHERE dcp.ticker = :ticker")
   void deleteByTicker(@Param("ticker") Ticker ticker);

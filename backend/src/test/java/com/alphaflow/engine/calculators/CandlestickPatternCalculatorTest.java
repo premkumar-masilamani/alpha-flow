@@ -1,7 +1,6 @@
 package com.alphaflow.engine.calculators;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -15,7 +14,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
-import com.alphaflow.engine.calculators.dtos.PatternMatch;
 import com.alphaflow.persistence.entities.DailyCandlestickPattern;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
@@ -28,8 +26,6 @@ import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyCandlestickPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -45,8 +41,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class CandlestickPatternCalculatorTest {
-
-  private static final LocalDate HISTORICAL_MONDAY = LocalDate.of(2025, 1, 6);
 
   private final Ticker ticker =
       Ticker.builder()
@@ -102,7 +96,8 @@ class CandlestickPatternCalculatorTest {
   @Test
   void testComputePatternsAllUpToDateShortCircuitsDailyAndWeekly() {
     when(dailyCandlestickPatternRepository.hasPendingDailyCandlestickPatterns()).thenReturn(false);
-    when(weeklyCandlestickPatternRepository.hasPendingWeeklyCandlestickPatterns()).thenReturn(false);
+    when(weeklyCandlestickPatternRepository.hasPendingWeeklyCandlestickPatterns())
+        .thenReturn(false);
 
     assertThat(calculator.shouldRun(Timeframe.DAILY)).isFalse();
     assertThat(calculator.shouldRun(Timeframe.WEEKLY)).isFalse();
@@ -112,66 +107,21 @@ class CandlestickPatternCalculatorTest {
   }
 
   @Test
-  void testComputePatternsUnsupportedTimeframeThrows() throws Exception {
+  void testComputePatternsUnsupportedTimeframeThrows() {
+    assertThrows(IllegalArgumentException.class, () -> calculator.execute(null));
     assertThrows(
-        IllegalArgumentException.class, () -> calculator.execute(null));
-
-    Method loadBarsMethod =
-        CandlestickPatternCalculator.class.getDeclaredMethod(
-            "loadBars", Ticker.class, Timeframe.class);
-    loadBarsMethod.setAccessible(true);
-    InvocationTargetException loadException =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> loadBarsMethod.invoke(calculator, ticker, (Timeframe) null));
-    assertInstanceOf(IllegalArgumentException.class, loadException.getCause());
-
-    Method savePatternsMethod =
-        CandlestickPatternCalculator.class.getDeclaredMethod(
-            "savePatterns", Ticker.class, Timeframe.class, List.class, LocalDate.class);
-    savePatternsMethod.setAccessible(true);
-    InvocationTargetException cleanupException =
-        assertThrows(
-            InvocationTargetException.class,
-            () ->
-                savePatternsMethod.invoke(
-                    calculator, ticker, (Timeframe) null, List.of(), HISTORICAL_MONDAY));
-    assertInstanceOf(IllegalArgumentException.class, cleanupException.getCause());
-
-    PatternMatch sampleMatch =
-        new PatternMatch(HISTORICAL_MONDAY, CandlestickPattern.LONG_WHITE_BODY);
-    InvocationTargetException saveException =
-        assertThrows(
-            InvocationTargetException.class,
-            () ->
-                savePatternsMethod.invoke(
-                    calculator, ticker, (Timeframe) null, List.of(sampleMatch), null));
-    assertInstanceOf(IllegalArgumentException.class, saveException.getCause());
+        IllegalArgumentException.class,
+        () -> calculator.computeCandleStickPatternsForTicker(ticker, null, null));
   }
 
   @Test
   void testComputePatternsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
     Ticker activeTicker1 =
-        Ticker.builder()
-            .tickerId(1L)
-            .tickerSymbol("T1")
-            .country(Country.US)
-            .isActive(true)
-            .build();
+        Ticker.builder().tickerId(1L).tickerSymbol("T1").country(Country.US).isActive(true).build();
     Ticker activeTicker2 =
-        Ticker.builder()
-            .tickerId(2L)
-            .tickerSymbol("T2")
-            .country(Country.US)
-            .isActive(true)
-            .build();
+        Ticker.builder().tickerId(2L).tickerSymbol("T2").country(Country.US).isActive(true).build();
     Ticker upToDateTicker =
-        Ticker.builder()
-            .tickerId(3L)
-            .tickerSymbol("T3")
-            .country(Country.US)
-            .isActive(true)
-            .build();
+        Ticker.builder().tickerId(3L).tickerSymbol("T3").country(Country.US).isActive(true).build();
 
     when(dailyCandlestickPatternRepository.findTickersWithPendingDailyCandlestickPatterns())
         .thenReturn(List.of(activeTicker1, activeTicker2));
@@ -207,11 +157,9 @@ class CandlestickPatternCalculatorTest {
     verify(calculatorSpy)
         .computeCandleStickPatternsForTicker(
             activeTicker1, Timeframe.DAILY, LocalDate.of(2025, 1, 1));
-    verify(calculatorSpy)
-        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY, null);
+    verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY, null);
     verify(calculatorSpy, never())
-        .computeCandleStickPatternsForTicker(
-            eq(upToDateTicker), eq(Timeframe.DAILY), any());
+        .computeCandleStickPatternsForTicker(eq(upToDateTicker), eq(Timeframe.DAILY), any());
 
     CandlestickPatternCalculator selfMock = mock(CandlestickPatternCalculator.class);
     java.lang.reflect.Field selfField =
@@ -224,8 +172,7 @@ class CandlestickPatternCalculatorTest {
     verify(selfMock)
         .computeCandleStickPatternsForTicker(
             activeTicker1, Timeframe.WEEKLY, LocalDate.of(2025, 1, 6));
-    verify(selfMock)
-        .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY, null);
+    verify(selfMock).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY, null);
     verify(selfMock)
         .computeCandleStickPatternsForTicker(
             upToDateTicker, Timeframe.WEEKLY, LocalDate.of(2025, 1, 13));
@@ -241,10 +188,19 @@ class CandlestickPatternCalculatorTest {
                 daily(now.plusDays(1), "100", "105", "98", "102"),
                 daily(now.plusDays(2), "100", "105", "98", "102"),
                 daily(now.plusDays(3), "100", "105", "98", "102")));
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker))
+        .thenReturn(
+            List.of(
+                weekly(now, "100", "105", "98", "102"),
+                weekly(now.plusWeeks(1), "100", "105", "98", "102"),
+                weekly(now.plusWeeks(2), "100", "105", "98", "102"),
+                weekly(now.plusWeeks(3), "100", "105", "98", "102")));
 
     calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY, null);
+    calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY, null);
 
     verify(dailyCandlestickPatternRepository, never()).saveAll(any());
+    verify(weeklyCandlestickPatternRepository, never()).saveAll(any());
   }
 
   @Test
@@ -277,8 +233,6 @@ class CandlestickPatternCalculatorTest {
 
     calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY, base.minusDays(5));
 
-    verify(dailyCandlestickPatternRepository, never())
-        .deleteByTickerAndPriceDateGreaterThanEqual(any(), any());
     verify(dailyCandlestickPatternRepository).saveAll(any());
   }
 
@@ -303,7 +257,8 @@ class CandlestickPatternCalculatorTest {
     verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
 
     List<DailyCandlestickPattern> saved = captor.getValue();
-    assertThat(saved).anyMatch(pattern -> pattern.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+    assertThat(saved)
+        .anyMatch(pattern -> pattern.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test
@@ -391,7 +346,8 @@ class CandlestickPatternCalculatorTest {
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
-    assertThat(captor.getValue()).anyMatch(pattern -> pattern.getPattern() == CandlestickPattern.HAMMER);
+    assertThat(captor.getValue())
+        .anyMatch(pattern -> pattern.getPattern() == CandlestickPattern.HAMMER);
   }
 
   @Test
@@ -501,7 +457,7 @@ class CandlestickPatternCalculatorTest {
   }
 
   @Test
-  void testIncrementalCalculationWithLastDate() {
+  void testDailyUpToDateSkipsEvaluationAndWrites() {
     List<DailyPrice> prices = new ArrayList<>();
     LocalDate base = LocalDate.of(2026, 1, 1);
     for (int j = 0; j < 14; j++) {
@@ -513,17 +469,28 @@ class CandlestickPatternCalculatorTest {
 
     calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY, base.plusDays(14));
 
-    verify(dailyCandlestickPatternRepository)
-        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusDays(10));
+    verify(dailyCandlestickPatternRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void testDailyIncrementalAppendsOnlyNewBarsWithoutDeletes() {
+    List<DailyPrice> prices = new ArrayList<>();
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    for (int j = 0; j < 14; j++) {
+      prices.add(daily(base.plusDays(j), "100", "101", "99", "100"));
+    }
+    prices.add(daily(base.plusDays(14), "100", "110", "100", "110"));
+
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+
+    calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY, base.plusDays(13));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<DailyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(dailyCandlestickPatternRepository).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .anyMatch(
-            pattern ->
-                pattern.getPriceDate().equals(base.plusDays(14))
-                    && pattern.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+        .allMatch(pattern -> pattern.getPriceDate().equals(base.plusDays(14)))
+        .anyMatch(pattern -> pattern.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
   }
 
   @Test
@@ -537,21 +504,81 @@ class CandlestickPatternCalculatorTest {
 
     when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
 
-    // Run twice to confirm mid-week refresh idempotency
+    // Run twice to confirm mid-week refresh idempotency (deletes only >= lastWeeklyDate)
     calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY, base.plusDays(14 * 7));
     calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY, base.plusDays(14 * 7));
 
     verify(weeklyCandlestickPatternRepository, times(2))
-        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusDays(10 * 7));
+        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusDays(14 * 7));
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<WeeklyCandlestickPattern>> captor = ArgumentCaptor.forClass(List.class);
     verify(weeklyCandlestickPatternRepository, times(2)).saveAll(captor.capture());
     assertThat(captor.getValue())
-        .anyMatch(
-            pattern ->
-                pattern.getPriceDate().equals(base.plusDays(14 * 7))
-                    && pattern.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+        .allMatch(pattern -> pattern.getPriceDate().equals(base.plusDays(14 * 7)))
+        .anyMatch(pattern -> pattern.getPattern() == CandlestickPattern.LONG_WHITE_BODY);
+  }
+
+  @Test
+  void testWeeklyIncrementalDeletesStalePatternsWhenNoNewMatches() {
+    LocalDate base = LocalDate.of(2026, 1, 5);
+    List<WeeklyPrice> neutralWeeks =
+        List.of(
+            weekly(base, "100", "108", "97", "105"),
+            weekly(base.plusWeeks(1), "103", "111", "100", "108"),
+            weekly(base.plusWeeks(2), "106", "114", "103", "111"),
+            weekly(base.plusWeeks(3), "109", "117", "106", "114"),
+            weekly(base.plusWeeks(4), "112", "116", "105", "108"));
+
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(neutralWeeks);
+
+    calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY, base.plusWeeks(4));
+
+    verify(weeklyCandlestickPatternRepository)
+        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusWeeks(4));
+    verify(weeklyCandlestickPatternRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void testWeeklyInitialBackfillEvaluatesFromLookbackWithoutDelete() {
+    List<WeeklyPrice> prices = new ArrayList<>();
+    LocalDate base = LocalDate.of(2026, 1, 5);
+    for (int j = 0; j < 14; j++) {
+      prices.add(weekly(base.plusWeeks(j), "100", "101", "99", "100"));
+    }
+    prices.add(weekly(base.plusWeeks(14), "100", "110", "100", "110"));
+
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+
+    calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY, null);
+
+    verify(weeklyCandlestickPatternRepository, never())
+        .deleteByTickerAndPriceDateGreaterThanEqual(any(), any());
+    verify(weeklyCandlestickPatternRepository).saveAll(any());
+  }
+
+  @Test
+  void testIncrementalWithEarlyLastDateClampsToLookback() {
+    LocalDate base = LocalDate.of(2026, 1, 1);
+    List<DailyPrice> dailyPrices = new ArrayList<>();
+    List<WeeklyPrice> weeklyPrices = new ArrayList<>();
+    for (int j = 0; j < 5; j++) {
+      dailyPrices.add(daily(base.plusDays(j), "100", "101", "99", "100"));
+      weeklyPrices.add(weekly(base.plusWeeks(j), "100", "101", "99", "100"));
+    }
+    dailyPrices.set(4, daily(base.plusDays(4), "100", "110", "100", "110"));
+    weeklyPrices.set(4, weekly(base.plusWeeks(4), "100", "110", "100", "110"));
+
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
+
+    calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.DAILY, base.plusDays(1));
+    calculator.computeCandleStickPatternsForTicker(ticker, Timeframe.WEEKLY, base.plusWeeks(1));
+
+    verify(dailyCandlestickPatternRepository).saveAll(any());
+    verify(weeklyCandlestickPatternRepository)
+        .deleteByTickerAndPriceDateGreaterThanEqual(ticker, base.plusWeeks(4));
+    verify(weeklyCandlestickPatternRepository).saveAll(any());
   }
 
   @Test
