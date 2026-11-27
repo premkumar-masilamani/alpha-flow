@@ -255,4 +255,25 @@ describe('App Component', () => {
         expect(message).toHaveTextContent('Daily and weekly price data is not available for NIFTY50 (NIFTY 50).');
         expect(screen.getAllByText('NIFTY50').length).toBeGreaterThanOrEqual(3);
     });
+
+    it('renders Obsolete Data badge next to the selected ticker header when ticker is stale', async () => {
+        window.history.replaceState({}, '', '/?ticker=AAPL&tab=charts');
+        vi.mocked(api.getTickers).mockResolvedValue([
+            {
+                id: 1,
+                symbol: 'AAPL',
+                name: 'Apple Inc.',
+                type: 'STOCK',
+                country: 'US',
+                isStale: true,
+            },
+        ]);
+
+        render(<App />);
+
+        await waitFor(() => {
+            expect(screen.getByLabelText('Corporate action detected for selected ticker')).toBeInTheDocument();
+        });
+        expect(screen.getByText('Obsolete Data')).toBeInTheDocument();
+    });
 });

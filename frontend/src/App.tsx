@@ -39,6 +39,7 @@ import {
   ChevronRight,
   Info,
   AlertCircle,
+  AlertTriangle,
   TrendingUp,
   TrendingDown,
   BookOpen,
@@ -1288,9 +1289,21 @@ function App() {
               )}
             </button>
             <div>
-              <h2 className="text-2xl font-bold text-white">
-                {selectedTicker}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-2xl font-bold text-white">
+                  {selectedTicker}
+                </h2>
+                {selectedTickerObj?.isStale && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border border-amber-500/50 bg-amber-950/60 text-amber-300"
+                    title="Corporate action or historical price change detected"
+                    aria-label="Corporate action detected for selected ticker"
+                  >
+                    <AlertTriangle size={12} />
+                    <span>Obsolete Data</span>
+                  </span>
+                )}
+              </div>
               <p className="text-slate-400 text-sm">
                 {selectedTickerName}
               </p>
