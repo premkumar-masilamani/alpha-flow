@@ -3,15 +3,15 @@ package com.alphaflow.persistence.repositories;
 import com.alphaflow.persistence.entities.DailyChartPattern;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
-import com.alphaflow.persistence.enums.ChartPatternType;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -25,15 +25,28 @@ public interface DailyChartPatternRepository extends JpaRepository<DailyChartPat
         AND EXISTS (SELECT 1 FROM DailyPrice dp WHERE dp.ticker = tk)
         AND (
           NOT EXISTS (SELECT 1 FROM DailyChartPattern dcp WHERE dcp.ticker = tk)
-          OR (SELECT MAX(dcp.endDate) FROM DailyChartPattern dcp WHERE dcp.ticker = tk) <
+          OR (SELECT MAX(dcp.priceDate) FROM DailyChartPattern dcp WHERE dcp.ticker = tk) <
              (SELECT MAX(dp.priceDate) FROM DailyPrice dp WHERE dp.ticker = tk)
         )
       """)
   boolean hasPendingDailyChartPatterns();
 
-  Page<DailyChartPattern> findByTickerAndStatusInOrderByEndDateDesc(
-      Ticker ticker, Collection<ChartPatternStatus> statuses, Pageable pageable);
+  List<DailyChartPattern> findByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
 
-  Optional<DailyChartPattern> findByTickerAndPatternTypeAndStartDate(
-      Ticker ticker, ChartPatternType patternType, LocalDate startDate);
+  Page<DailyChartPattern> findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
+      Ticker ticker,
+      LocalDate priceDate,
+      Collection<ChartPatternStatus> statuses,
+      Pageable pageable);
+
+  boolean existsByTickerAndPriceDate(Ticker ticker, LocalDate priceDate);
+
+  @Modifying
+  @Query(
+      """
+      DELETE FROM DailyChartPattern dcp
+      WHERE dcp.ticker = :ticker AND dcp.priceDate < :cutoffDate
+      """)
+  void deleteByTickerAndPriceDateLessThan(
+      @Param("ticker") Ticker ticker, @Param("cutoffDate") LocalDate cutoffDate);
 }

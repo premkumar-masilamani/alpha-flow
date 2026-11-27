@@ -28,6 +28,8 @@ import org.springframework.data.domain.PageRequest;
 
 class ChartPatternServiceTest {
 
+  private static final LocalDate PRICE_DATE = LocalDate.of(2026, 3, 20);
+
   private DailyChartPatternRepository dailyChartPatternRepository;
   private WeeklyChartPatternRepository weeklyChartPatternRepository;
   private ChartPatternService service;
@@ -47,6 +49,7 @@ class ChartPatternServiceTest {
         DailyChartPattern.builder()
             .dailyChartPatternId(10L)
             .ticker(ticker)
+            .priceDate(PRICE_DATE)
             .patternType(ChartPatternType.HEAD_AND_SHOULDERS)
             .sentiment(ChartPatternType.HEAD_AND_SHOULDERS.getSentiment())
             .status(ChartPatternStatus.COMPLETED)
@@ -68,16 +71,21 @@ class ChartPatternServiceTest {
                         .build()))
             .build();
 
-    when(dailyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
-            eq(ticker), eq(List.of(ChartPatternStatus.COMPLETED)), any(PageRequest.class)))
+    when(dailyChartPatternRepository.findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
+            eq(ticker),
+            eq(PRICE_DATE),
+            eq(List.of(ChartPatternStatus.COMPLETED)),
+            any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
     List<ChartPatternDto> result =
-        service.getPatterns(ticker, Timeframe.DAILY, List.of(ChartPatternStatus.COMPLETED), 0, 10);
+        service.getPatterns(
+            ticker, Timeframe.DAILY, PRICE_DATE, List.of(ChartPatternStatus.COMPLETED), 0, 10);
 
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
     assertEquals(10L, dto.id());
+    assertEquals(PRICE_DATE, dto.priceDate());
     assertEquals("HNS", dto.shortName());
     assertEquals("Head and Shoulders", dto.displayName());
     assertEquals(ChartPatternStatus.COMPLETED, dto.status());
@@ -93,6 +101,7 @@ class ChartPatternServiceTest {
         DailyChartPattern.builder()
             .dailyChartPatternId(11L)
             .ticker(ticker)
+            .priceDate(PRICE_DATE)
             .patternType(ChartPatternType.DOUBLE_TOP)
             .sentiment(ChartPatternType.DOUBLE_TOP.getSentiment())
             .status(ChartPatternStatus.IN_PROGRESS)
@@ -103,17 +112,20 @@ class ChartPatternServiceTest {
             .pivotPoints(null)
             .build();
 
-    when(dailyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
+    when(dailyChartPatternRepository.findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
             eq(ticker),
+            eq(PRICE_DATE),
             eq(List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED)),
             any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
-    List<ChartPatternDto> result = service.getPatterns(ticker, Timeframe.DAILY, null, 0, 10);
+    List<ChartPatternDto> result =
+        service.getPatterns(ticker, Timeframe.DAILY, PRICE_DATE, null, 0, 10);
 
     assertEquals(1, result.size());
     ChartPatternDto dto = result.getFirst();
     assertEquals(11L, dto.id());
+    assertEquals(PRICE_DATE, dto.priceDate());
     assertEquals("DTP", dto.shortName());
     assertEquals(new BigDecimal("105.0000"), dto.stopLossPrice());
     assertNotNull(dto.pivotPoints());
@@ -126,6 +138,7 @@ class ChartPatternServiceTest {
         WeeklyChartPattern.builder()
             .weeklyChartPatternId(20L)
             .ticker(ticker)
+            .priceDate(PRICE_DATE)
             .patternType(ChartPatternType.DOUBLE_BOTTOM)
             .sentiment(ChartPatternType.DOUBLE_BOTTOM.getSentiment())
             .status(ChartPatternStatus.TARGET_REACHED)
@@ -142,26 +155,36 @@ class ChartPatternServiceTest {
                         .build()))
             .build();
 
-    when(weeklyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
-            eq(ticker), eq(List.of(ChartPatternStatus.TARGET_REACHED)), any(PageRequest.class)))
+    when(weeklyChartPatternRepository.findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
+            eq(ticker),
+            eq(PRICE_DATE),
+            eq(List.of(ChartPatternStatus.TARGET_REACHED)),
+            any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
     List<ChartPatternDto> result =
         service.getPatterns(
-            ticker, Timeframe.WEEKLY, List.of(ChartPatternStatus.TARGET_REACHED), 0, 10);
+            ticker,
+            Timeframe.WEEKLY,
+            PRICE_DATE,
+            List.of(ChartPatternStatus.TARGET_REACHED),
+            0,
+            10);
 
     assertEquals(1, result.size());
     assertEquals(20L, result.getFirst().id());
+    assertEquals(PRICE_DATE, result.getFirst().priceDate());
     assertEquals("DBM", result.getFirst().shortName());
     assertEquals(new BigDecimal("98.0000"), result.getFirst().stopLossPrice());
   }
 
   @Test
-  void testGetPatternsWeeklyWithoutStatusDefaultsToInProgressAndCompleted() {
+  void testGetPatternsWeeklyEmptyStatusDefaultsToInProgressAndCompleted() {
     WeeklyChartPattern pattern =
         WeeklyChartPattern.builder()
             .weeklyChartPatternId(21L)
             .ticker(ticker)
+            .priceDate(PRICE_DATE)
             .patternType(ChartPatternType.ASCENDING_TRIANGLE)
             .sentiment(ChartPatternType.ASCENDING_TRIANGLE.getSentiment())
             .status(ChartPatternStatus.IN_PROGRESS)
@@ -171,13 +194,15 @@ class ChartPatternServiceTest {
             .pivotPoints(null)
             .build();
 
-    when(weeklyChartPatternRepository.findByTickerAndStatusInOrderByEndDateDesc(
+    when(weeklyChartPatternRepository.findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
             eq(ticker),
+            eq(PRICE_DATE),
             eq(List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED)),
             any(PageRequest.class)))
         .thenReturn(new PageImpl<>(List.of(pattern)));
 
-    List<ChartPatternDto> result = service.getPatterns(ticker, Timeframe.WEEKLY, null, 0, 10);
+    List<ChartPatternDto> result =
+        service.getPatterns(ticker, Timeframe.WEEKLY, PRICE_DATE, List.of(), 0, 10);
 
     assertEquals(1, result.size());
     assertEquals("AST", result.getFirst().shortName());
@@ -188,6 +213,7 @@ class ChartPatternServiceTest {
   @Test
   void testGetPatternsUnsupportedTimeframe() {
     assertThrows(
-        IllegalArgumentException.class, () -> service.getPatterns(ticker, null, null, 0, 10));
+        IllegalArgumentException.class,
+        () -> service.getPatterns(ticker, null, PRICE_DATE, null, 0, 10));
   }
 }

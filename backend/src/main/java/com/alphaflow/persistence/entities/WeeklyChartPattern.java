@@ -33,6 +33,10 @@ public class WeeklyChartPattern {
   private Ticker ticker;
 
   @EqualsAndHashCode.Include
+  @Column(name = "price_date", nullable = false)
+  private LocalDate priceDate;
+
+  @EqualsAndHashCode.Include
   @Enumerated(EnumType.STRING)
   @Column(name = "pattern_type", length = 50, nullable = false)
   private ChartPatternType patternType;

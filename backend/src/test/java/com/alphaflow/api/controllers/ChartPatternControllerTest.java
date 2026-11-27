@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 
 class ChartPatternControllerTest {
 
+  private static final LocalDate PRICE_DATE = LocalDate.of(2026, 5, 22);
+
   @Test
   void testGetChartPatterns() {
     ChartPatternService service = mock(ChartPatternService.class);
@@ -29,6 +31,7 @@ class ChartPatternControllerTest {
     ChartPatternDto dto =
         ChartPatternDto.builder()
             .id(1L)
+            .priceDate(PRICE_DATE)
             .patternType(ChartPatternType.DOUBLE_BOTTOM)
             .shortName("DBM")
             .displayName("Double Bottom")
@@ -40,16 +43,17 @@ class ChartPatternControllerTest {
 
     when(tickerService.getTicker("AAPL")).thenReturn(ticker);
     when(service.getPatterns(
-            ticker, Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), 0, 20))
+            ticker, Timeframe.DAILY, PRICE_DATE, List.of(ChartPatternStatus.IN_PROGRESS), 0, 20))
         .thenReturn(List.of(dto));
 
     ChartPatternController controller = new ChartPatternController(service, tickerService);
 
     List<ChartPatternDto> result =
         controller.getChartPatterns(
-            "AAPL", Timeframe.DAILY, List.of(ChartPatternStatus.IN_PROGRESS), 0, 20);
+            "AAPL", Timeframe.DAILY, PRICE_DATE, List.of(ChartPatternStatus.IN_PROGRESS), 0, 20);
 
     assertEquals(1, result.size());
+    assertEquals(PRICE_DATE, result.getFirst().priceDate());
     assertEquals("DBM", result.getFirst().shortName());
     assertEquals(ChartPatternStatus.IN_PROGRESS, result.getFirst().status());
   }
@@ -62,12 +66,13 @@ class ChartPatternControllerTest {
     Ticker ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").build();
 
     when(tickerService.getTicker("AAPL")).thenReturn(ticker);
-    when(service.getPatterns(ticker, Timeframe.WEEKLY, null, 0, 250)).thenReturn(List.of());
+    when(service.getPatterns(ticker, Timeframe.WEEKLY, PRICE_DATE, null, 0, 250))
+        .thenReturn(List.of());
 
     ChartPatternController controller = new ChartPatternController(service, tickerService);
 
     List<ChartPatternDto> result =
-        controller.getChartPatterns("AAPL", Timeframe.WEEKLY, null, 0, 500);
+        controller.getChartPatterns("AAPL", Timeframe.WEEKLY, PRICE_DATE, null, 0, 500);
 
     assertEquals(0, result.size());
   }
@@ -84,7 +89,7 @@ class ChartPatternControllerTest {
 
     assertThrows(
         ResourceNotFoundException.class,
-        () -> controller.getChartPatterns("UNKNOWN", Timeframe.DAILY, null, 0, 20));
+        () -> controller.getChartPatterns("UNKNOWN", Timeframe.DAILY, PRICE_DATE, null, 0, 20));
   }
 
   @Test
@@ -98,6 +103,7 @@ class ChartPatternControllerTest {
     when(service.getPatterns(
             ticker,
             Timeframe.DAILY,
+            PRICE_DATE,
             List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED),
             0,
             20))
@@ -109,6 +115,7 @@ class ChartPatternControllerTest {
         controller.getChartPatterns(
             "AAPL",
             Timeframe.DAILY,
+            PRICE_DATE,
             List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED),
             0,
             20);

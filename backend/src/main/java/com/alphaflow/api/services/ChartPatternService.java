@@ -10,6 +10,7 @@ import com.alphaflow.persistence.entities.WeeklyChartPattern;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.repositories.DailyChartPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyChartPatternRepository;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -32,7 +33,12 @@ public class ChartPatternService {
   }
 
   public List<ChartPatternDto> getPatterns(
-      Ticker ticker, Timeframe timeframe, List<ChartPatternStatus> statuses, int page, int size) {
+      Ticker ticker,
+      Timeframe timeframe,
+      LocalDate date,
+      List<ChartPatternStatus> statuses,
+      int page,
+      int size) {
     PageRequest pageRequest = PageRequest.of(page, size);
 
     List<ChartPatternStatus> effectiveStatuses =
@@ -41,9 +47,10 @@ public class ChartPatternService {
             : List.of(ChartPatternStatus.IN_PROGRESS, ChartPatternStatus.COMPLETED);
 
     log.debug(
-        "Fetching {} chart patterns for ticker {} (statuses={}, page={}, size={})",
+        "Fetching {} chart patterns for ticker {} (date={}, statuses={}, page={}, size={})",
         timeframe,
         ticker.getTickerSymbol(),
+        date,
         effectiveStatuses,
         page,
         size);
@@ -51,28 +58,32 @@ public class ChartPatternService {
     if (timeframe == Timeframe.DAILY) {
       List<ChartPatternDto> patterns =
           dailyChartPatternRepository
-              .findByTickerAndStatusInOrderByEndDateDesc(ticker, effectiveStatuses, pageRequest)
+              .findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
+                  ticker, date, effectiveStatuses, pageRequest)
               .getContent()
               .stream()
               .map(this::toDto)
               .toList();
       log.debug(
-          "Retrieved {} DAILY chart patterns for ticker {}",
+          "Retrieved {} DAILY chart patterns for ticker {} on {}",
           patterns.size(),
-          ticker.getTickerSymbol());
+          ticker.getTickerSymbol(),
+          date);
       return patterns;
     } else if (timeframe == Timeframe.WEEKLY) {
       List<ChartPatternDto> patterns =
           weeklyChartPatternRepository
-              .findByTickerAndStatusInOrderByEndDateDesc(ticker, effectiveStatuses, pageRequest)
+              .findByTickerAndPriceDateAndStatusInOrderByEndDateDesc(
+                  ticker, date, effectiveStatuses, pageRequest)
               .getContent()
               .stream()
               .map(this::toDto)
               .toList();
       log.debug(
-          "Retrieved {} WEEKLY chart patterns for ticker {}",
+          "Retrieved {} WEEKLY chart patterns for ticker {} on {}",
           patterns.size(),
-          ticker.getTickerSymbol());
+          ticker.getTickerSymbol(),
+          date);
       return patterns;
     } else {
       log.error("Unsupported timeframe for fetching chart patterns: {}", timeframe);
@@ -88,6 +99,7 @@ public class ChartPatternService {
 
     return ChartPatternDto.builder()
         .id(dailyPattern.getDailyChartPatternId())
+        .priceDate(dailyPattern.getPriceDate())
         .patternType(dailyPattern.getPatternType())
         .shortName(dailyPattern.getPatternType().getShortName())
         .displayName(dailyPattern.getPatternType().getDisplayName())
@@ -113,6 +125,7 @@ public class ChartPatternService {
 
     return ChartPatternDto.builder()
         .id(weeklyPattern.getWeeklyChartPatternId())
+        .priceDate(weeklyPattern.getPriceDate())
         .patternType(weeklyPattern.getPatternType())
         .shortName(weeklyPattern.getPatternType().getShortName())
         .displayName(weeklyPattern.getPatternType().getDisplayName())

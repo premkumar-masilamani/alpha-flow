@@ -192,10 +192,11 @@ describe('API Service Layer Tests', () => {
     });
 
     describe('getChartPatterns', () => {
-        it('should fetch chart patterns with default parameters', async () => {
+        it('should fetch chart patterns with required date and default parameters', async () => {
             const mockPatterns = [
                 {
                     id: 1,
+                    priceDate: '2026-06-01',
                     patternType: 'DOUBLE_TOP',
                     shortName: 'DT',
                     displayName: 'Double Top',
@@ -208,31 +209,31 @@ describe('API Service Layer Tests', () => {
             ];
             mockedAxios.get.mockResolvedValueOnce({ data: mockPatterns });
 
-            const result = await getChartPatterns('AAPL');
+            const result = await getChartPatterns('AAPL', 'DAILY', '2026-06-01');
             expect(result).toEqual(mockPatterns);
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
-                { params: { timeframe: 'daily', page: 0 } }
+                { params: { timeframe: 'daily', date: '2026-06-01', page: 0 } }
             );
         });
 
         it('should fetch chart patterns with explicit status and weekly timeframe', async () => {
             mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
-            await getChartPatterns('AAPL', 'WEEKLY', 'IN_PROGRESS', 1);
+            await getChartPatterns('AAPL', 'WEEKLY', '2026-06-01T00:00:00Z', 'IN_PROGRESS', 1);
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
-                { params: { timeframe: 'weekly', page: 1, statuses: 'IN_PROGRESS' } }
+                { params: { timeframe: 'weekly', date: '2026-06-01', page: 1, statuses: 'IN_PROGRESS' } }
             );
         });
 
         it('should fetch chart patterns with array of statuses', async () => {
             mockedAxios.get.mockResolvedValueOnce({ data: [] });
 
-            await getChartPatterns('AAPL', 'DAILY', ['IN_PROGRESS', 'COMPLETED'], 0);
+            await getChartPatterns('AAPL', 'DAILY', '2026-06-01', ['IN_PROGRESS', 'COMPLETED'], 0);
             expect(mockedAxios.get).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
-                { params: { timeframe: 'daily', page: 0, statuses: 'IN_PROGRESS,COMPLETED' } }
+                { params: { timeframe: 'daily', date: '2026-06-01', page: 0, statuses: 'IN_PROGRESS,COMPLETED' } }
             );
         });
     });

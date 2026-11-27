@@ -6,8 +6,10 @@ import com.alphaflow.api.services.TickerService;
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,21 +36,23 @@ public class ChartPatternController {
   public List<ChartPatternDto> getChartPatterns(
       @PathVariable String symbol,
       @RequestParam Timeframe timeframe,
+      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
       @RequestParam(required = false) List<ChartPatternStatus> statuses,
       @RequestParam(defaultValue = "0") int page,
       @RequestParam(defaultValue = "20") int size) {
 
     int finalSize = Math.min(size, MAX_PAGE_SIZE);
     log.info(
-        "Request to get chart patterns for ticker: {}, timeframe: {}, statuses: {}, page: {}, size: {}",
+        "Request to get chart patterns for ticker: {}, timeframe: {}, date: {}, statuses: {}, page: {}, size: {}",
         symbol,
         timeframe,
+        date,
         statuses,
         page,
         finalSize);
 
     Ticker ticker = tickerService.getTicker(symbol);
 
-    return chartPatternService.getPatterns(ticker, timeframe, statuses, page, finalSize);
+    return chartPatternService.getPatterns(ticker, timeframe, date, statuses, page, finalSize);
   }
 }

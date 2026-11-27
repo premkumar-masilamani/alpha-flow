@@ -228,6 +228,7 @@ export interface ChartPatternPivotData {
 
 export interface ChartPatternData {
     id: number;
+    priceDate: string;
     patternType: string;
     shortName: string;
     displayName: string;
@@ -247,11 +248,17 @@ export interface ChartPatternData {
 export const getChartPatterns = async (
     symbol: string,
     timeframe: Timeframe = 'DAILY',
+    date: string,
     statuses?: ChartPatternStatus | ChartPatternStatus[],
     page: number = 0
 ): Promise<ChartPatternData[]> => {
+    const normalizedDate = date.length >= 10 ? date.substring(0, 10) : date;
     const url = `${API_BASE_URL}/tickers/${symbol}/chart-patterns`;
-    const params: Record<string, string | number> = { timeframe: timeframe.toLowerCase(), page };
+    const params: Record<string, string | number> = {
+        timeframe: timeframe.toLowerCase(),
+        date: normalizedDate,
+        page,
+    };
     if (statuses) {
         params.statuses = Array.isArray(statuses) ? statuses.join(',') : statuses;
     }

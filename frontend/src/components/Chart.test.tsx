@@ -484,6 +484,7 @@ describe('Chart Component', () => {
         const mockChartPatterns = [
             {
                 id: 1,
+                priceDate: '2026-06-03',
                 patternType: 'DOUBLE_TOP',
                 shortName: 'DT',
                 displayName: 'Double Top',
@@ -583,6 +584,7 @@ describe('Chart Component', () => {
         const mockChartPatterns = [
             {
                 id: 1,
+                priceDate: '2026-06-03',
                 patternType: 'DOUBLE_BOTTOM',
                 shortName: 'DBM',
                 displayName: 'Double Bottom',
@@ -674,6 +676,7 @@ describe('Chart Component', () => {
         const mockChartPatterns = [
             {
                 id: 2,
+                priceDate: '2026-06-03',
                 patternType: 'HEAD_AND_SHOULDERS',
                 shortName: 'HNS',
                 displayName: 'Head and Shoulders',
@@ -768,6 +771,7 @@ describe('Chart Component', () => {
         const mockChartPatterns = [
             {
                 id: 1,
+                priceDate: '2026-06-03',
                 patternType: 'DOUBLE_BOTTOM',
                 shortName: 'DBM',
                 displayName: 'Double Bottom',
