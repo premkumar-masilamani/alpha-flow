@@ -32,10 +32,8 @@ class RsiIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap ->
-                assertEquals(
-                    0, barMap.get("value").compareTo(bd(100)), "all-gains RSI must be 100"));
+        .forEach(barMap ->
+            assertEquals(0, barMap.get("value").compareTo(bd(100)), "all-gains RSI must be 100"));
   }
 
   @Test
@@ -52,9 +50,8 @@ class RsiIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap ->
-                assertEquals(0, barMap.get("value").compareTo(bd(0)), "all-losses RSI must be 0"));
+        .forEach(barMap ->
+            assertEquals(0, barMap.get("value").compareTo(bd(0)), "all-losses RSI must be 0"));
   }
 
   @Test
@@ -66,14 +63,13 @@ class RsiIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap -> {
-              BigDecimal val = barMap.get("value");
+        .forEach(barMap -> {
+          BigDecimal val = barMap.get("value");
 
-              assertTrue(val.compareTo(BigDecimal.ZERO) >= 0);
+          assertTrue(val.compareTo(BigDecimal.ZERO) >= 0);
 
-              assertTrue(val.compareTo(IndicatorMath.HUNDRED) <= 0);
-            });
+          assertTrue(val.compareTo(IndicatorMath.HUNDRED) <= 0);
+        });
   }
 
   @Test
@@ -91,9 +87,7 @@ class RsiIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap ->
-                assertEquals(
-                    0, barMap.get("value").compareTo(bd(100)), "flat prices RSI must be 100"));
+        .forEach(barMap ->
+            assertEquals(0, barMap.get("value").compareTo(bd(100)), "flat prices RSI must be 100"));
   }
 }

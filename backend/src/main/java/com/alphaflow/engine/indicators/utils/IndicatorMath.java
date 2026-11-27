@@ -62,9 +62,9 @@ public final class IndicatorMath {
   }
 
   /**
-   * Calculates True Range for a single price bar relative to its preceding bar. True Range
-   * captures both intraday spread and overnight gaps as the maximum of {@code high - low},
-   * {@code |high - prevClose|}, and {@code |low - prevClose|}.
+   * Calculates True Range for a single price bar relative to its preceding bar. True Range captures
+   * both intraday spread and overnight gaps as the maximum of {@code high - low}, {@code |high -
+   * prevClose|}, and {@code |low - prevClose|}.
    *
    * @param currentBar bar being evaluated
    * @param previousBar immediately preceding bar, or {@code null} for the first bar in a series

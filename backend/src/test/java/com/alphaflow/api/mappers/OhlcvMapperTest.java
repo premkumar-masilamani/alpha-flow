@@ -10,7 +10,6 @@ import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.Country;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
@@ -62,8 +61,7 @@ class OhlcvMapperTest {
 
     assertNotNull(dto);
     assertEquals(date.atStartOfDay(MarketConfig.EST_ZONE).toOffsetDateTime(), dto.priceDate());
-    assertEquals(
-        date.atStartOfDay(MarketConfig.EST_ZONE).getOffset(), dto.priceDate().getOffset());
+    assertEquals(date.atStartOfDay(MarketConfig.EST_ZONE).getOffset(), dto.priceDate().getOffset());
     assertEquals(new BigDecimal("180.0000"), dto.priceOpen());
   }
 

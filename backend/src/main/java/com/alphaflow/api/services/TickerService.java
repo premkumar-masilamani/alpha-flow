@@ -26,12 +26,11 @@ public class TickerService {
 
     return tickerRepository
         .findByTickerSymbolIgnoreCase(symbol)
-        .orElseThrow(
-            () -> {
-              log.warn("Ticker not found for symbol: {}", symbol);
+        .orElseThrow(() -> {
+          log.warn("Ticker not found for symbol: {}", symbol);
 
-              return new ResourceNotFoundException("Ticker not found: " + symbol);
-            });
+          return new ResourceNotFoundException("Ticker not found: " + symbol);
+        });
   }
 
   public TickerDto getTickerBySymbol(String symbol) {

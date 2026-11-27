@@ -19,13 +19,13 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
 
   @Query(
       """
-            SELECT iv FROM WeeklyIndicator iv
-            WHERE iv.ticker = :ticker
-              AND iv.indicatorDefinition.indicatorDefinitionId IN :indicatorIds
-              AND iv.priceDate >= :from
-              AND iv.priceDate <= :to
-            ORDER BY iv.priceDate ASC
-            """)
+      SELECT iv FROM WeeklyIndicator iv
+      WHERE iv.ticker = :ticker
+        AND iv.indicatorDefinition.indicatorDefinitionId IN :indicatorIds
+        AND iv.priceDate >= :from
+        AND iv.priceDate <= :to
+      ORDER BY iv.priceDate ASC
+      """)
   List<WeeklyIndicator> findSeriesBetween(
       Ticker ticker, Collection<Long> indicatorIds, LocalDate from, LocalDate to);
 }

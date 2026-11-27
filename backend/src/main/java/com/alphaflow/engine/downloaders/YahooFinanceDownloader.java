@@ -49,8 +49,7 @@ public class YahooFinanceDownloader {
 
       if (latestSavedDate == null || latestSavedDate.isBefore(today)) {
         throttle();
-        int ingestedRows =
-            downloadAndPersistForTicker(ticker, latestSavedDate, today, marketZone);
+        int ingestedRows = downloadAndPersistForTicker(ticker, latestSavedDate, today, marketZone);
         totalNewlyIngestedRows += ingestedRows;
       } else {
         log.debug(

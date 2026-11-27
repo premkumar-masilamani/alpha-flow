@@ -21,19 +21,19 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
   @Query(
       """
-            SELECT wp FROM WeeklyPrice wp
-            JOIN FETCH wp.ticker tk
-            WHERE wp.ticker = :ticker
-            ORDER BY wp.priceDate DESC
-          """)
+        SELECT wp FROM WeeklyPrice wp
+        JOIN FETCH wp.ticker tk
+        WHERE wp.ticker = :ticker
+        ORDER BY wp.priceDate DESC
+      """)
   List<WeeklyPrice> findLatestByTicker(Ticker ticker, Pageable pageable);
 
   @Query(
       """
-              SELECT wp.priceDate FROM WeeklyPrice wp
-              WHERE wp.ticker = :ticker
-                AND wp.priceDate <= :endDate
-              ORDER BY wp.priceDate DESC
-            """)
+        SELECT wp.priceDate FROM WeeklyPrice wp
+        WHERE wp.ticker = :ticker
+          AND wp.priceDate <= :endDate
+        ORDER BY wp.priceDate DESC
+      """)
   List<LocalDate> findRecentPriceDatesUpTo(Ticker ticker, LocalDate endDate, Pageable pageable);
 }

@@ -41,11 +41,10 @@ public class EmaIndicator implements Indicator {
       Optional<BigDecimal> ema = acc.next(bar.valueFor(source));
 
       // 3. If the accumulator is seeded, save the published value (4 decimal places)
-      ema.ifPresent(
-          emaVal ->
-              values.put(
-                  bar.date(),
-                  Map.of(IndicatorOutputKey.VALUE.getValue(), IndicatorMath.publish(emaVal))));
+      ema.ifPresent(emaVal ->
+          values.put(
+              bar.date(),
+              Map.of(IndicatorOutputKey.VALUE.getValue(), IndicatorMath.publish(emaVal))));
     }
 
     return values;

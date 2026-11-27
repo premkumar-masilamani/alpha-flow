@@ -16,9 +16,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Scheduled coordinator for daily price ingestion and downstream technical analysis pipelines.
- */
+/** Scheduled coordinator for daily price ingestion and downstream technical analysis pipelines. */
 @Component
 @Slf4j
 @SuppressWarnings("removal")
@@ -29,8 +27,7 @@ public class DailyScheduler {
   private final AtomicBoolean running = new AtomicBoolean(false);
 
   public DailyScheduler(
-      JobLauncher jobLauncher,
-      @Qualifier(PipelineConfig.DAILY_PIPELINE_JOB) Job dailyPipelineJob) {
+      JobLauncher jobLauncher, @Qualifier(PipelineConfig.DAILY_PIPELINE_JOB) Job dailyPipelineJob) {
     this.jobLauncher = jobLauncher;
     this.dailyPipelineJob = dailyPipelineJob;
   }
@@ -48,9 +45,7 @@ public class DailyScheduler {
     run();
   }
 
-  /**
-   * Launches the configured Spring Batch daily and weekly technical analysis pipeline job.
-   */
+  /** Launches the configured Spring Batch daily and weekly technical analysis pipeline job. */
   public void run() {
     if (running.compareAndSet(false, true)) {
       long cycleStart = System.currentTimeMillis();

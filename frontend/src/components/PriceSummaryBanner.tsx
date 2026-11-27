@@ -1,14 +1,5 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-
-export interface PriceSummaryBannerTraversal {
-  canGoPrev: boolean;
-  canGoNext: boolean;
-  onPrev: () => void;
-  onNext: () => void;
-  loadingOlder?: boolean;
-  isAtBoundary?: boolean;
-}
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 export interface PriceSummaryBannerProps {
   ltp: number | null;
@@ -21,7 +12,6 @@ export interface PriceSummaryBannerProps {
   close: number | null;
   volume?: number | null;
   date?: string | null;
-  traversal?: PriceSummaryBannerTraversal;
 }
 
 export const PriceSummaryBanner: React.FC<PriceSummaryBannerProps> = ({
@@ -35,7 +25,6 @@ export const PriceSummaryBanner: React.FC<PriceSummaryBannerProps> = ({
   close,
   volume,
   date,
-  traversal,
 }) => {
   const hasValidChange =
     change !== null &&
@@ -125,39 +114,9 @@ export const PriceSummaryBanner: React.FC<PriceSummaryBannerProps> = ({
           </div>
         )}
         {date && date !== "N/A" && (
-          traversal ? (
-            <div className="flex items-center rounded bg-blue-900/40 border border-blue-800/50 text-blue-400">
-              <button
-                onClick={traversal.onPrev}
-                disabled={!traversal.canGoPrev || (traversal.isAtBoundary && traversal.loadingOlder)}
-                className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-l"
-                title="Previous day"
-                aria-label="Previous day"
-              >
-                {traversal.loadingOlder && traversal.isAtBoundary ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <ChevronLeft size={14} />
-                )}
-              </button>
-              <span className="px-2.5 py-1 text-xs font-bold uppercase select-none border-x border-blue-800/40 font-mono">
-                {date}
-              </span>
-              <button
-                onClick={traversal.onNext}
-                disabled={!traversal.canGoNext || traversal.loadingOlder}
-                className="px-1.5 py-1 hover:text-white hover:bg-blue-800/40 disabled:opacity-25 disabled:cursor-not-allowed transition-colors rounded-r"
-                title="Next day"
-                aria-label="Next day"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          ) : (
-            <span className="px-2.5 py-1 text-xs font-bold uppercase select-none rounded bg-blue-900/40 border border-blue-800/50 text-blue-300 font-mono">
-              {date}
-            </span>
-          )
+          <span className="px-2.5 py-1 text-xs font-bold uppercase select-none rounded bg-blue-900/40 border border-blue-800/50 text-blue-300 font-mono">
+            {date}
+          </span>
         )}
       </div>
     </div>

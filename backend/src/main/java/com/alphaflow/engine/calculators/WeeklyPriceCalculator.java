@@ -142,15 +142,13 @@ public class WeeklyPriceCalculator {
     Map<LocalDate, List<DailyPrice>> dailyPricesByWeek =
         dailyBars.stream()
             .collect(
-                Collectors.groupingBy(
-                    dailyBar ->
-                        dailyBar
-                            .getPriceDate()
-                            .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))));
+                Collectors.groupingBy(dailyBar ->
+                    dailyBar
+                        .getPriceDate()
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))));
 
     List<WeeklyPrice> weeklyPrices = new ArrayList<>();
     for (Map.Entry<LocalDate, List<DailyPrice>> entry : dailyPricesByWeek.entrySet()) {
-      LocalDate weekMonday = entry.getKey();
       List<DailyPrice> weeklyPricesInWeek = entry.getValue();
       // Sort weekly daily prices by date asc to ensure correct open/close
       weeklyPricesInWeek.sort(Comparator.comparing(DailyPrice::getPriceDate));
@@ -175,6 +173,7 @@ public class WeeklyPriceCalculator {
               .map(DailyPrice::getVolume)
               .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+      LocalDate weekMonday = entry.getKey();
       WeeklyPrice weeklyPrice =
           WeeklyPrice.builder()
               .ticker(ticker)

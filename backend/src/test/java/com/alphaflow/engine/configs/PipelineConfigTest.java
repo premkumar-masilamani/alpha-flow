@@ -16,6 +16,7 @@ import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -153,7 +154,7 @@ class PipelineConfigTest {
     Step step3 = pipelineConfig.calculateDailyIndicatorStep(jobRepository);
 
     // Provide steps out-of-order in the TreeMap to verify explicit numeric key sorting (1, 2, 3)
-    TreeMap<Integer, Step> steps = new TreeMap<>();
+    NavigableMap<Integer, Step> steps = new TreeMap<>();
     steps.put(3, step3);
     steps.put(1, step1);
     steps.put(2, step2);
@@ -166,8 +167,7 @@ class PipelineConfigTest {
 
     List<StepExecution> stepExecutions = new ArrayList<>(execution.getStepExecutions());
     assertEquals(3, stepExecutions.size());
-    assertEquals(
-        PipelineConfig.STEP_DOWNLOAD_DAILY_PRICE, stepExecutions.get(0).getStepName());
+    assertEquals(PipelineConfig.STEP_DOWNLOAD_DAILY_PRICE, stepExecutions.get(0).getStepName());
     assertEquals(BatchStatus.COMPLETED, stepExecutions.get(0).getStatus());
     assertEquals(
         PipelineConfig.STEP_CALCULATE_DAILY_SUPPORT_RESISTANCE,

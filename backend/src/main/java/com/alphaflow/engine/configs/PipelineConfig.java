@@ -6,6 +6,7 @@ import com.alphaflow.engine.calculators.IndicatorCalculator;
 import com.alphaflow.engine.calculators.SupportResistanceCalculator;
 import com.alphaflow.engine.calculators.WeeklyPriceCalculator;
 import com.alphaflow.engine.downloaders.YahooFinanceDownloader;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -139,7 +140,7 @@ public class PipelineConfig {
       Step calculateWeeklySupportResistanceStep,
       Step calculateWeeklyCandlestickPatternStep,
       Step calculateWeeklyIndicatorStep) {
-    TreeMap<Integer, Step> steps = new TreeMap<>();
+    NavigableMap<Integer, Step> steps = new TreeMap<>();
     steps.put(1, downloadDailyPriceStep);
     steps.put(2, calculateDailySupportResistanceStep);
     steps.put(3, calculateDailyCandlestickPatternStep);
@@ -152,11 +153,11 @@ public class PipelineConfig {
   }
 
   /**
-   * Chains a TreeMap of steps ordered explicitly by their sequence key with fail-safe .on("*").to(...)
-   * transitions.
+   * Chains a NavigableMap of steps ordered explicitly by their sequence key with fail-safe
+   * .on("*").to(...) transitions.
    */
   public Job buildJob(
-      String jobName, TreeMap<Integer, Step> stepsByOrder, JobRepository jobRepository) {
+      String jobName, NavigableMap<Integer, Step> stepsByOrder, JobRepository jobRepository) {
     if (stepsByOrder != null && !stepsByOrder.isEmpty()) {
       Step firstStep = stepsByOrder.pollFirstEntry().getValue();
       JobFlowBuilder flowBuilder = new JobBuilder(jobName, jobRepository).flow(firstStep);
@@ -169,9 +170,7 @@ public class PipelineConfig {
     }
   }
 
-  /**
-   * Builds an in-memory tasklet step that executes an action and logs timing.
-   */
+  /** Builds an in-memory tasklet step that executes an action and logs timing. */
   public Step buildStep(String stepName, Runnable action, JobRepository jobRepository) {
     return new StepBuilder(stepName, jobRepository)
         .tasklet(

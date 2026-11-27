@@ -9,10 +9,8 @@ import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.entities.DailyChartPattern;
-import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyChartPattern;
-import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.enums.ChartPatternType;
 import com.alphaflow.persistence.repositories.DailyChartPatternRepository;
@@ -70,30 +68,6 @@ class ChartPatternCalculatorTest {
         BigDecimal.valueOf(1000000));
   }
 
-  private DailyPrice dailyPrice(int day, double open, double high, double low, double close) {
-    return DailyPrice.builder()
-        .priceDate(LocalDate.of(2026, 1, 1).plusDays(day))
-        .priceOpen(BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP))
-        .priceHigh(BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP))
-        .priceLow(BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP))
-        .priceClose(BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP))
-        .volume(BigDecimal.valueOf(1000000))
-        .ticker(ticker)
-        .build();
-  }
-
-  private WeeklyPrice weeklyPrice(int week, double open, double high, double low, double close) {
-    return WeeklyPrice.builder()
-        .priceDate(LocalDate.of(2026, 1, 1).plusWeeks(week))
-        .priceOpen(BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP))
-        .priceHigh(BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP))
-        .priceLow(BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP))
-        .priceClose(BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP))
-        .volume(BigDecimal.valueOf(5000000))
-        .ticker(ticker)
-        .build();
-  }
-
   @Test
   void testComputeChartPatternsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
     Ticker ticker2 = Ticker.builder().tickerId(2L).tickerSymbol("FAIL").isActive(true).build();
@@ -109,8 +83,7 @@ class ChartPatternCalculatorTest {
     verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker2);
 
     ChartPatternCalculator selfMock = mock(ChartPatternCalculator.class);
-    java.lang.reflect.Field selfField =
-        ChartPatternCalculator.class.getDeclaredField("selfProxy");
+    java.lang.reflect.Field selfField = ChartPatternCalculator.class.getDeclaredField("selfProxy");
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
 

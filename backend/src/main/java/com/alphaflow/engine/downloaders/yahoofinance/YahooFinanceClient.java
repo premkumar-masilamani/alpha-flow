@@ -28,8 +28,7 @@ public class YahooFinanceClient {
   private final RestClient restClient;
 
   @Autowired
-  public YahooFinanceClient(
-      @Autowired(required = false) RestClient.Builder restClientBuilder) {
+  public YahooFinanceClient(@Autowired(required = false) RestClient.Builder restClientBuilder) {
     this.restClient =
         (restClientBuilder != null ? restClientBuilder : RestClient.builder())
             .defaultHeader(USER_AGENT_HEADER, USER_AGENT_VALUE)

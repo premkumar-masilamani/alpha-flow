@@ -440,8 +440,7 @@ public class SupportResistanceCalculator {
       BigDecimal finalBottom = IndicatorMath.publish(finalCentroid.subtract(halfZone));
       BigDecimal finalTop = IndicatorMath.publish(finalCentroid.add(halfZone));
       PriceBar latestBar = bars.getLast();
-      LevelType finalRole =
-          resolveLevelType(latestBar.close(), finalBottom, finalTop, activeRole);
+      LevelType finalRole = resolveLevelType(latestBar.close(), finalBottom, finalTop, activeRole);
 
       return new Bucket(
           latestBar.date(),
@@ -463,10 +462,7 @@ public class SupportResistanceCalculator {
    * structural role.
    */
   private LevelType resolveLevelType(
-      BigDecimal latestClose,
-      BigDecimal zoneBottom,
-      BigDecimal zoneTop,
-      LevelType activeRole) {
+      BigDecimal latestClose, BigDecimal zoneBottom, BigDecimal zoneTop, LevelType activeRole) {
     if (latestClose.compareTo(zoneTop) > 0) {
       return LevelType.SUPPORT;
     } else if (latestClose.compareTo(zoneBottom) < 0) {
@@ -492,7 +488,9 @@ public class SupportResistanceCalculator {
     }
   }
 
-  /** Checks whether S&amp;R records have already been persisted for the ticker and snapshot date. */
+  /**
+   * Checks whether S&amp;R records have already been persisted for the ticker and snapshot date.
+   */
   private boolean isAlreadyComputed(Ticker ticker, LocalDate priceDate, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return !dailySupportResistanceRepository

@@ -73,10 +73,9 @@ class YahooFinanceClientTest {
   private RestClient.Builder redirectingBuilder(String targetBaseAndPath) {
     SimpleClientHttpRequestFactory delegate = new SimpleClientHttpRequestFactory();
     return RestClient.builder()
-        .requestFactory(
-            (uri, httpMethod) ->
-                delegate.createRequest(
-                    URI.create(targetBaseAndPath + "?" + uri.getRawQuery()), httpMethod));
+        .requestFactory((uri, httpMethod) ->
+            delegate.createRequest(
+                URI.create(targetBaseAndPath + "?" + uri.getRawQuery()), httpMethod));
   }
 
   @Test

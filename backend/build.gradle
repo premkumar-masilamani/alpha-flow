@@ -9,7 +9,7 @@ plugins {
     id 'jacoco'
     id 'checkstyle'
     id 'pmd'
-    id 'com.github.spotbugs' version '6.0.28'
+    id 'com.github.spotbugs' version '6.5.15'
     id 'com.diffplug.spotless' version '6.25.0'
 }
 
@@ -72,12 +72,12 @@ checkstyle {
 spotless {
     java {
         target 'src/*/java/**/*.java'
-        googleJavaFormat('1.27.0')
+        googleJavaFormat('2.0.0')
     }
 }
 
 pmd {
-    toolVersion = '7.21.0'
+    toolVersion = '7.27.0'
     ignoreFailures = false
     consoleOutput = true
     ruleSets = []
@@ -127,6 +127,12 @@ tasks.withType(SpotBugsTask).configureEach {
 
 test {
     useJUnitPlatform()
+    outputs.upToDateWhen { false }
+    addTestOutputListener { descriptor, event ->
+        if (event.message.contains('[INDICATOR-FIXTURE]')) {
+            logger.lifecycle(event.message.trim())
+        }
+    }
     finalizedBy jacocoTestReport
 }
 

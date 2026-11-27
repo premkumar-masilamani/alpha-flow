@@ -30,16 +30,14 @@ class StochasticIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap ->
-                barMap
-                    .values()
-                    .forEach(
-                        val -> {
-                          assertTrue(val.compareTo(BigDecimal.ZERO) >= 0);
+        .forEach(barMap ->
+            barMap
+                .values()
+                .forEach(val -> {
+                  assertTrue(val.compareTo(BigDecimal.ZERO) >= 0);
 
-                          assertTrue(val.compareTo(IndicatorMath.HUNDRED) <= 0);
-                        }));
+                  assertTrue(val.compareTo(IndicatorMath.HUNDRED) <= 0);
+                }));
   }
 
   @Test
@@ -61,15 +59,11 @@ class StochasticIndicatorTest {
 
     result
         .values()
-        .forEach(
-            barMap ->
-                barMap
-                    .values()
-                    .forEach(
-                        val ->
-                            assertEquals(
-                                0,
-                                val.compareTo(bd(0)),
-                                "Stochastic on flat prices must output 0")));
+        .forEach(barMap ->
+            barMap
+                .values()
+                .forEach(val ->
+                    assertEquals(
+                        0, val.compareTo(bd(0)), "Stochastic on flat prices must output 0")));
   }
 }

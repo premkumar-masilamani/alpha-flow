@@ -25,8 +25,7 @@ class IndicatorMathTest {
         assertThrows(InvocationTargetException.class, constructor::newInstance);
     assertTrue(exception.getCause() instanceof UnsupportedOperationException);
     assertEquals(
-        "This is a utility class and cannot be instantiated",
-        exception.getCause().getMessage());
+        "This is a utility class and cannot be instantiated", exception.getCause().getMessage());
   }
 
   @Test
