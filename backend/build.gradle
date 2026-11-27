@@ -161,7 +161,6 @@ jacocoTestCoverageVerification {
             excludes = [
                     'com.alphaflow.api.dtos.*',
                     'com.alphaflow.api.mappers.*',
-                    'com.alphaflow.engine.calculators.dtos.*',
                     'com.alphaflow.persistence.entities.*',
                     'com.alphaflow.persistence.enums.*',
                     'com.alphaflow.persistence.exceptions.*',

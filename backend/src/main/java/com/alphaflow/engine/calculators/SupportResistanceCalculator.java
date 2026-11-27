@@ -21,6 +21,7 @@ import com.alphaflow.persistence.repositories.WeeklySupportResistanceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -105,12 +106,18 @@ public class SupportResistanceCalculator implements PipelineJob {
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for {} S&R.", activeTickers.size(), timeframe);
 
+    Map<Ticker, LocalDate> latestWeeklyDates =
+        (timeframe == Timeframe.WEEKLY)
+            ? weeklySupportResistanceRepository.findLatestPriceDatesForActiveTickers()
+            : Collections.emptyMap();
+
     // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
     SupportResistanceCalculator proxy = (self != null) ? self : this;
 
     for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeSupportResistancesForTicker(ticker, timeframe);
+        LocalDate latestCalculatedDate = latestWeeklyDates.get(ticker);
+        proxy.computeSupportResistancesForTicker(ticker, timeframe, latestCalculatedDate);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} S&R for ticker {}: {}",
@@ -130,25 +137,9 @@ public class SupportResistanceCalculator implements PipelineJob {
    *
    * @param ticker target ticker entity
    * @param timeframe target market timeframe
-   */
-  @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeSupportResistancesForTicker(Ticker ticker, Timeframe timeframe) {
-    LocalDate latestCalculatedDate =
-        (timeframe == Timeframe.WEEKLY)
-            ? weeklySupportResistanceRepository.findLatestPriceDateByTicker(ticker)
-            : null;
-    computeSupportResistancesForTicker(ticker, timeframe, latestCalculatedDate);
-  }
-
-  /**
-   * Computes and persists the latest S&amp;R snapshot for a single ticker within an isolated
-   * transaction. Replaces existing weekly snapshot rows idempotently during mid-week refreshes and
-   * purges expired snapshots beyond the configured timeframe retention window.
-   *
-   * @param ticker target ticker entity
-   * @param timeframe target market timeframe
    * @param latestCalculatedDate latest persisted snapshot date from the bulk sync query (nullable)
    */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeSupportResistancesForTicker(
       Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     log.debug("Computing S&R for ticker {} and timeframe {}", ticker.getTickerSymbol(), timeframe);

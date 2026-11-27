@@ -190,13 +190,12 @@ class IndicatorCalculatorTest {
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, upToDateTicker));
     when(indicatorDefinitionRepository.findAll())
         .thenReturn(List.of(emaDefinition, smaVolumeDefinition));
-    when(dailyIndicatorRepo.findLatestDatesGroupedByDefinition(ticker))
-        .thenReturn(List.<Object[]>of(new Object[] {emaDefinition, date(11)}));
-    when(dailyIndicatorRepo.findLatestDatesGroupedByDefinition(upToDateTicker))
+    when(dailyIndicatorRepo.findLatestDatesGroupedByTickerAndDefinition())
         .thenReturn(
             List.<Object[]>of(
-                new Object[] {emaDefinition, date(11)},
-                new Object[] {smaVolumeDefinition, date(11)}));
+                new Object[] {ticker, emaDefinition, date(11)},
+                new Object[] {upToDateTicker, emaDefinition, date(11)},
+                new Object[] {upToDateTicker, smaVolumeDefinition, date(11)}));
     when(dailyRepo.findByTickerOrderByPriceDateAsc(upToDateTicker))
         .thenReturn(dailyBars(upToDateTicker));
 
@@ -230,21 +229,23 @@ class IndicatorCalculatorTest {
 
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(failingTicker, healthyTicker));
     when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(emaDefinition));
+    when(dailyIndicatorRepo.findLatestDatesGroupedByTickerAndDefinition()).thenReturn(List.of());
+    when(weeklyIndicatorRepo.findLatestDatesGroupedByTickerAndDefinition()).thenReturn(List.of());
 
     IndicatorCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
         .when(calculatorSpy)
-        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(emaDefinition));
+        .computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.DAILY), any(Map.class));
     doNothing()
         .when(calculatorSpy)
-        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(emaDefinition));
+        .computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.DAILY), any(Map.class));
 
     calculatorSpy.execute(Timeframe.DAILY);
 
     verify(calculatorSpy)
-        .computeIndicatorForTicker(failingTicker, Timeframe.DAILY, List.of(emaDefinition));
+        .computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.DAILY), any(Map.class));
     verify(calculatorSpy)
-        .computeIndicatorForTicker(healthyTicker, Timeframe.DAILY, List.of(emaDefinition));
+        .computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.DAILY), any(Map.class));
 
     IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
     Field selfField = IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
@@ -254,9 +255,9 @@ class IndicatorCalculatorTest {
     calculator.execute(Timeframe.WEEKLY);
 
     verify(selfMock)
-        .computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.WEEKLY), any(List.class));
+        .computeIndicatorForTicker(eq(failingTicker), eq(Timeframe.WEEKLY), any(Map.class));
     verify(selfMock)
-        .computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.WEEKLY), any(List.class));
+        .computeIndicatorForTicker(eq(healthyTicker), eq(Timeframe.WEEKLY), any(Map.class));
   }
 
   @Test

@@ -30,6 +30,15 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
 
   @Query(
       """
+      SELECT di.ticker, di.indicatorDefinition, MAX(di.priceDate)
+      FROM DailyIndicator di
+      WHERE di.ticker.isActive = true
+      GROUP BY di.ticker, di.indicatorDefinition
+      """)
+  List<Object[]> findLatestDatesGroupedByTickerAndDefinition();
+
+  @Query(
+      """
       SELECT di.indicatorDefinition, MAX(di.priceDate)
       FROM DailyIndicator di
       WHERE di.ticker = :ticker

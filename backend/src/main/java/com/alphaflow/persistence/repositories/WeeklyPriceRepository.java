@@ -6,7 +6,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -43,6 +45,24 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
 
   @Query("SELECT MAX(wp.priceDate) FROM WeeklyPrice wp WHERE wp.ticker = :ticker")
   LocalDate findLatestPriceDateByTicker(@Param("ticker") Ticker ticker);
+
+  @Query(
+      """
+      SELECT tk, MAX(wp.priceDate)
+      FROM Ticker tk
+      LEFT JOIN WeeklyPrice wp ON wp.ticker = tk
+      WHERE tk.isActive = true
+      GROUP BY tk
+      """)
+  List<Object[]> findLatestPriceDatesForActiveTickersQuery();
+
+  default Map<Ticker, LocalDate> findLatestPriceDatesForActiveTickers() {
+    Map<Ticker, LocalDate> map = new LinkedHashMap<>();
+    for (Object[] row : findLatestPriceDatesForActiveTickersQuery()) {
+      map.put((Ticker) row[0], (LocalDate) row[1]);
+    }
+    return map;
+  }
 
   List<WeeklyPrice> findByTickerAndPriceDateGreaterThanEqual(Ticker ticker, LocalDate priceDate);
 

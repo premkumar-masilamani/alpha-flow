@@ -49,8 +49,6 @@ public interface WeeklyCandlestickPatternRepository
 
   @Query(
       """
-  @Query(
-      """
       SELECT tk, MAX(wcp.priceDate)
       FROM Ticker tk
       LEFT JOIN WeeklyCandlestickPattern wcp ON wcp.ticker = tk

@@ -19,6 +19,7 @@ import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,11 +93,16 @@ public class IndicatorCalculator implements PipelineJob {
 
     log.info("Found {} active tickers to process for {} indicators.", activeTickers.size(), timeframe);
 
+    Map<Ticker, Map<IndicatorDefinition, LocalDate>> latestDatesByTicker =
+        loadLatestDatesInBulk(timeframe, definitions);
+
     IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
 
     for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeIndicatorForTicker(ticker, timeframe, definitions);
+        Map<IndicatorDefinition, LocalDate> tickerDates =
+            latestDatesByTicker.getOrDefault(ticker, Collections.emptyMap());
+        proxy.computeIndicatorForTicker(ticker, timeframe, tickerDates);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} indicators for ticker {}: {}",
@@ -111,13 +117,6 @@ public class IndicatorCalculator implements PipelineJob {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeIndicatorForTicker(
-      Ticker ticker, Timeframe timeframe, List<IndicatorDefinition> definitions) {
-    Map<IndicatorDefinition, LocalDate> latestDates =
-        loadLatestDates(ticker, timeframe, definitions);
-    computeIndicatorForTicker(ticker, timeframe, latestDates);
-  }
-
   public void computeIndicatorForTicker(
       Ticker ticker, Timeframe timeframe, Map<IndicatorDefinition, LocalDate> staleStates) {
     log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
@@ -143,23 +142,33 @@ public class IndicatorCalculator implements PipelineJob {
     }
   }
 
-  private Map<IndicatorDefinition, LocalDate> loadLatestDates(
-      Ticker ticker, Timeframe timeframe, List<IndicatorDefinition> definitions) {
+  private Map<Ticker, Map<IndicatorDefinition, LocalDate>> loadLatestDatesInBulk(
+      Timeframe timeframe, List<IndicatorDefinition> definitions) {
     List<Object[]> rows =
         (timeframe == Timeframe.DAILY)
-            ? dailyIndicatorRepository.findLatestDatesGroupedByDefinition(ticker)
-            : weeklyIndicatorRepository.findLatestDatesGroupedByDefinition(ticker);
+            ? dailyIndicatorRepository.findLatestDatesGroupedByTickerAndDefinition()
+            : weeklyIndicatorRepository.findLatestDatesGroupedByTickerAndDefinition();
 
-    Map<Long, LocalDate> dateByDefId = new LinkedHashMap<>();
+    Map<Ticker, Map<Long, LocalDate>> dateByTickerAndDefId = new LinkedHashMap<>();
     for (Object[] row : rows) {
-      IndicatorDefinition def = (IndicatorDefinition) row[0];
-      LocalDate maxDate = (LocalDate) row[1];
-      dateByDefId.put(def.getIndicatorDefinitionId(), maxDate);
+      Ticker ticker = (Ticker) row[0];
+      IndicatorDefinition def = (IndicatorDefinition) row[1];
+      LocalDate maxDate = (LocalDate) row[2];
+      dateByTickerAndDefId
+          .computeIfAbsent(ticker, k -> new LinkedHashMap<>())
+          .put(def.getIndicatorDefinitionId(), maxDate);
     }
 
-    Map<IndicatorDefinition, LocalDate> result = new LinkedHashMap<>();
-    for (IndicatorDefinition def : definitions) {
-      result.put(def, dateByDefId.get(def.getIndicatorDefinitionId()));
+    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    Map<Ticker, Map<IndicatorDefinition, LocalDate>> result = new LinkedHashMap<>();
+    for (Ticker ticker : activeTickers) {
+      Map<Long, LocalDate> tickerDefDates =
+          dateByTickerAndDefId.getOrDefault(ticker, Collections.emptyMap());
+      Map<IndicatorDefinition, LocalDate> tickerResult = new LinkedHashMap<>();
+      for (IndicatorDefinition def : definitions) {
+        tickerResult.put(def, tickerDefDates.get(def.getIndicatorDefinitionId()));
+      }
+      result.put(ticker, tickerResult);
     }
     return result;
   }

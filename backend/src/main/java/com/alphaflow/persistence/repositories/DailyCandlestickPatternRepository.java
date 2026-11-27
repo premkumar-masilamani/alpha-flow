@@ -35,8 +35,6 @@ public interface DailyCandlestickPatternRepository
 
   @Query(
       """
-  @Query(
-      """
       SELECT tk, MAX(dcp.priceDate)
       FROM Ticker tk
       LEFT JOIN DailyCandlestickPattern dcp ON dcp.ticker = tk

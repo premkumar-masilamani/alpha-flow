@@ -22,6 +22,7 @@ import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -88,19 +89,21 @@ class WeeklyPriceCalculatorTest {
 
     when(tickerRepository.findByIsActiveTrue())
         .thenReturn(List.of(failingTicker, staleTicker, upToDateTicker));
+    when(weeklyPriceRepository.findLatestPriceDatesForActiveTickers())
+        .thenReturn(Map.of(failingTicker, LocalDate.of(2025, 1, 6), staleTicker, LocalDate.of(2025, 1, 6)));
 
     WeeklyPriceCalculator calculatorSpy = spy(calculator);
     doThrow(new RuntimeException("Computation error"))
         .when(calculatorSpy)
-        .processTicker(failingTicker);
-    doNothing().when(calculatorSpy).processTicker(staleTicker);
-    doNothing().when(calculatorSpy).processTicker(upToDateTicker);
+        .processTicker(eq(failingTicker), any());
+    doNothing().when(calculatorSpy).processTicker(eq(staleTicker), any());
+    doNothing().when(calculatorSpy).processTicker(eq(upToDateTicker), any());
 
     calculatorSpy.execute(null);
 
-    verify(calculatorSpy).processTicker(failingTicker);
-    verify(calculatorSpy).processTicker(staleTicker);
-    verify(calculatorSpy).processTicker(upToDateTicker);
+    verify(calculatorSpy).processTicker(eq(failingTicker), any());
+    verify(calculatorSpy).processTicker(eq(staleTicker), any());
+    verify(calculatorSpy).processTicker(eq(upToDateTicker), any());
 
     WeeklyPriceCalculator selfMock = mock(WeeklyPriceCalculator.class);
     Field selfField = WeeklyPriceCalculator.class.getDeclaredField("weeklyPriceCalculator");
@@ -109,9 +112,9 @@ class WeeklyPriceCalculatorTest {
 
     calculator.execute(null);
 
-    verify(selfMock).processTicker(failingTicker);
-    verify(selfMock).processTicker(staleTicker);
-    verify(selfMock).processTicker(upToDateTicker);
+    verify(selfMock).processTicker(eq(failingTicker), any());
+    verify(selfMock).processTicker(eq(staleTicker), any());
+    verify(selfMock).processTicker(eq(upToDateTicker), any());
   }
 
   @Test
@@ -239,8 +242,9 @@ class WeeklyPriceCalculatorTest {
     when(weeklyPriceRepository.hasPendingWeeklyPrices()).thenReturn(true);
     assertThat(calculator.shouldRun(null)).isTrue();
 
-    // Test execute delegating to computeWeeklyPrices
+    // Test execute
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of());
+    when(weeklyPriceRepository.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
     calculator.execute(null);
   }
 }

@@ -18,8 +18,6 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
 
   @Query(
       """
-  @Query(
-      """
       SELECT CASE WHEN COUNT(tk) > 0 THEN true ELSE false END
       FROM Ticker tk
       WHERE tk.isActive = true

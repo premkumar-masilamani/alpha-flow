@@ -36,6 +36,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -206,10 +207,13 @@ class SupportResistanceCalculatorTest {
     selfField.set(calculator, mockSelf);
 
     when(tickerRepo.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(weeklySrRepo.findLatestPriceDatesForActiveTickers())
+        .thenReturn(Map.of(ticker, LocalDate.of(2025, 1, 6)));
 
     calculator.execute(Timeframe.WEEKLY);
 
-    verify(mockSelf).computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY);
+    verify(mockSelf)
+        .computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, LocalDate.of(2025, 1, 6));
   }
 
   @Test

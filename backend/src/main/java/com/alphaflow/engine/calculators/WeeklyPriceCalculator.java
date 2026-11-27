@@ -62,11 +62,15 @@ public class WeeklyPriceCalculator implements PipelineJob {
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
     log.info("Found {} active tickers to process for weekly prices.", activeTickers.size());
 
+    Map<Ticker, LocalDate> latestDates =
+        weeklyPriceRepository.findLatestPriceDatesForActiveTickers();
+
     WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
 
     for (Ticker ticker : activeTickers) {
       try {
-        proxy.processTicker(ticker);
+        LocalDate latestCalculatedDate = latestDates.get(ticker);
+        proxy.processTicker(ticker, latestCalculatedDate);
       } catch (Exception exception) {
         log.error(
             "Failed to compute weekly prices for ticker {}: {}",
@@ -80,11 +84,6 @@ public class WeeklyPriceCalculator implements PipelineJob {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void processTicker(Ticker ticker) {
-    LocalDate latestCalculatedDate = weeklyPriceRepository.findLatestPriceDateByTicker(ticker);
-    processTicker(ticker, latestCalculatedDate);
-  }
-
   public void processTicker(Ticker ticker, LocalDate latestCalculatedDate) {
     List<DailyPrice> dailyBars = loadDailyBars(ticker, latestCalculatedDate);
     if (!dailyBars.isEmpty()) {

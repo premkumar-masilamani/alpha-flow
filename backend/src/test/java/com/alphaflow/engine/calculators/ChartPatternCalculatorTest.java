@@ -9,8 +9,10 @@ import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
 import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.entities.DailyChartPattern;
+import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyChartPattern;
+import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.enums.ChartPatternType;
 import com.alphaflow.persistence.enums.Country;
@@ -75,6 +77,30 @@ class ChartPatternCalculatorTest {
         BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP),
         BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP),
         BigDecimal.valueOf(1000000));
+  }
+
+  private DailyPrice dailyPrice(int day, double open, double high, double low, double close) {
+    return DailyPrice.builder()
+        .ticker(ticker)
+        .priceDate(LocalDate.of(2026, 1, 1).plusDays(day))
+        .priceOpen(BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP))
+        .priceHigh(BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP))
+        .priceLow(BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP))
+        .priceClose(BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP))
+        .volume(BigDecimal.valueOf(1000000))
+        .build();
+  }
+
+  private WeeklyPrice weeklyPrice(int day, double open, double high, double low, double close) {
+    return WeeklyPrice.builder()
+        .ticker(ticker)
+        .priceDate(LocalDate.of(2026, 1, 1).plusDays(day * 7L))
+        .priceOpen(BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP))
+        .priceHigh(BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP))
+        .priceLow(BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP))
+        .priceClose(BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP))
+        .volume(BigDecimal.valueOf(1000000))
+        .build();
   }
 
   @Test

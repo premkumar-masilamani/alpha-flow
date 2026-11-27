@@ -45,6 +45,15 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
 
   @Query(
       """
+      SELECT wi.ticker, wi.indicatorDefinition, MAX(wi.priceDate)
+      FROM WeeklyIndicator wi
+      WHERE wi.ticker.isActive = true
+      GROUP BY wi.ticker, wi.indicatorDefinition
+      """)
+  List<Object[]> findLatestDatesGroupedByTickerAndDefinition();
+
+  @Query(
+      """
       SELECT wi.indicatorDefinition, MAX(wi.priceDate)
       FROM WeeklyIndicator wi
       WHERE wi.ticker = :ticker
