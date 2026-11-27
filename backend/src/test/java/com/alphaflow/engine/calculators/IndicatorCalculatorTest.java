@@ -179,6 +179,14 @@ class IndicatorCalculatorTest {
 
   @Test
   void testComputeIndicatorsOnlyComputesNewlyAddedOrStaleDefinitions() {
+    when(dailyIndicatorRepo.findTickersWithPendingDailyIndicators()).thenReturn(List.of(ticker));
+    when(indicatorDefinitionRepository.findAll())
+        .thenReturn(List.of(emaDefinition, smaVolumeDefinition));
+    when(dailyIndicatorRepo.findLatestDatesGroupedByTickerAndDefinition())
+        .thenReturn(List.<Object[]>of(new Object[] {ticker, emaDefinition, date(11)}));
+
+    calculator.execute(Timeframe.DAILY);
+
     Ticker upToDateTicker =
         Ticker.builder()
             .tickerId(2L)
@@ -186,23 +194,10 @@ class IndicatorCalculatorTest {
             .country(Country.US)
             .isActive(true)
             .build();
-
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, upToDateTicker));
-    when(indicatorDefinitionRepository.findAll())
-        .thenReturn(List.of(emaDefinition, smaVolumeDefinition));
-    when(dailyIndicatorRepo.findLatestDatesGroupedByTickerAndDefinition())
-        .thenReturn(
-            List.<Object[]>of(
-                new Object[] {ticker, emaDefinition, date(11)},
-                new Object[] {upToDateTicker, emaDefinition, date(11)},
-                new Object[] {upToDateTicker, smaVolumeDefinition, date(11)}));
-    when(dailyRepo.findByTickerOrderByPriceDateAsc(upToDateTicker))
-        .thenReturn(dailyBars(upToDateTicker));
-
-    calculator.execute(Timeframe.DAILY);
-
+    verify(dailyIndicatorRepo).findTickersWithPendingDailyIndicators();
+    verify(tickerRepository, never()).findByIsActiveTrue();
     verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(ticker);
-    verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(upToDateTicker);
+    verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
 
     List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
     List<? extends Indicator> smaValues = capturedValues(IndicatorType.SMA);
@@ -227,6 +222,8 @@ class IndicatorCalculatorTest {
             .isActive(true)
             .build();
 
+    when(dailyIndicatorRepo.findTickersWithPendingDailyIndicators())
+        .thenReturn(List.of(failingTicker, healthyTicker));
     when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(failingTicker, healthyTicker));
     when(indicatorDefinitionRepository.findAll()).thenReturn(List.of(emaDefinition));
     when(dailyIndicatorRepo.findLatestDatesGroupedByTickerAndDefinition()).thenReturn(List.of());
@@ -483,7 +480,7 @@ class IndicatorCalculatorTest {
     when(dailyIndicatorRepo.hasPendingDailyIndicators()).thenReturn(true);
     org.junit.jupiter.api.Assertions.assertTrue(calculator.shouldRun(Timeframe.DAILY));
 
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of());
+    when(dailyIndicatorRepo.findTickersWithPendingDailyIndicators()).thenReturn(List.of());
     when(indicatorDefinitionRepository.findAll()).thenReturn(List.of());
     calculator.execute(Timeframe.DAILY);
   }

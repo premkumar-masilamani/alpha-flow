@@ -82,23 +82,27 @@ public class IndicatorCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    if (timeframe != Timeframe.DAILY && timeframe != Timeframe.WEEKLY) {
+    List<Ticker> targetTickers;
+    if (timeframe == Timeframe.DAILY) {
+      targetTickers = dailyIndicatorRepository.findTickersWithPendingDailyIndicators();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      targetTickers = tickerRepository.findByIsActiveTrue();
+    } else {
       log.error("Unsupported timeframe for indicator computation: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
-    log.info("Computing {} indicators...", timeframe);
 
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
+    log.info("Computing {} indicators...", timeframe);
     List<IndicatorDefinition> definitions = indicatorDefinitionRepository.findAll();
 
-    log.info("Found {} active tickers to process for {} indicators.", activeTickers.size(), timeframe);
+    log.info("Found {} tickers to process for {} indicators.", targetTickers.size(), timeframe);
 
     Map<Ticker, Map<IndicatorDefinition, LocalDate>> latestDatesByTicker =
-        loadLatestDatesByTicker(timeframe, definitions);
+        loadLatestDatesByTicker(timeframe, targetTickers, definitions);
 
     IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
 
-    for (Ticker ticker : activeTickers) {
+    for (Ticker ticker : targetTickers) {
       try {
         Map<IndicatorDefinition, LocalDate> tickerDates =
             latestDatesByTicker.getOrDefault(ticker, Collections.emptyMap());
@@ -143,7 +147,7 @@ public class IndicatorCalculator implements PipelineJob {
   }
 
   private Map<Ticker, Map<IndicatorDefinition, LocalDate>> loadLatestDatesByTicker(
-      Timeframe timeframe, List<IndicatorDefinition> definitions) {
+      Timeframe timeframe, List<Ticker> targetTickers, List<IndicatorDefinition> definitions) {
     List<Object[]> rows =
         (timeframe == Timeframe.DAILY)
             ? dailyIndicatorRepository.findLatestDatesGroupedByTickerAndDefinition()
@@ -159,9 +163,8 @@ public class IndicatorCalculator implements PipelineJob {
           .put(def.getIndicatorDefinitionId(), maxDate);
     }
 
-    List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
     Map<Ticker, Map<IndicatorDefinition, LocalDate>> result = new LinkedHashMap<>();
-    for (Ticker ticker : activeTickers) {
+    for (Ticker ticker : targetTickers) {
       Map<Long, LocalDate> tickerDefDates =
           dateByTickerAndDefId.getOrDefault(ticker, Collections.emptyMap());
       Map<IndicatorDefinition, LocalDate> tickerResult = new LinkedHashMap<>();
