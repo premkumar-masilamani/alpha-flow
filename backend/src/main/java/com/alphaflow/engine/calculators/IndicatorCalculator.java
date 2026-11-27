@@ -94,7 +94,7 @@ public class IndicatorCalculator implements PipelineJob {
     log.info("Found {} active tickers to process for {} indicators.", activeTickers.size(), timeframe);
 
     Map<Ticker, Map<IndicatorDefinition, LocalDate>> latestDatesByTicker =
-        loadLatestDatesInBulk(timeframe, definitions);
+        loadLatestDatesByTicker(timeframe, definitions);
 
     IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
 
@@ -142,7 +142,7 @@ public class IndicatorCalculator implements PipelineJob {
     }
   }
 
-  private Map<Ticker, Map<IndicatorDefinition, LocalDate>> loadLatestDatesInBulk(
+  private Map<Ticker, Map<IndicatorDefinition, LocalDate>> loadLatestDatesByTicker(
       Timeframe timeframe, List<IndicatorDefinition> definitions) {
     List<Object[]> rows =
         (timeframe == Timeframe.DAILY)

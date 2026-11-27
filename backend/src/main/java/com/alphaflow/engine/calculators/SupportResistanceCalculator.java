@@ -137,7 +137,7 @@ public class SupportResistanceCalculator implements PipelineJob {
    *
    * @param ticker target ticker entity
    * @param timeframe target market timeframe
-   * @param latestCalculatedDate latest persisted snapshot date from the bulk sync query (nullable)
+   * @param latestCalculatedDate latest persisted snapshot date for the ticker (nullable)
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeSupportResistancesForTicker(
