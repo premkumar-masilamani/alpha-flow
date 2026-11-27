@@ -23,11 +23,7 @@ import org.hibernate.type.SqlTypes;
 public class DailyChartPattern {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "daily_chart_patterns_seq_gen")
-  @SequenceGenerator(
-      name = "daily_chart_patterns_seq_gen",
-      sequenceName = "daily_chart_patterns_daily_chart_pattern_id_seq",
-      allocationSize = 50)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "daily_chart_pattern_id")
   private Long dailyChartPatternId;
 

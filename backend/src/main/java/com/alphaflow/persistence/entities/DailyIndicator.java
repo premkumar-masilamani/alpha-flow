@@ -16,11 +16,7 @@ import lombok.*;
 public class DailyIndicator extends Indicator {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "daily_indicators_seq_gen")
-  @SequenceGenerator(
-      name = "daily_indicators_seq_gen",
-      sequenceName = "daily_indicators_daily_indicator_id_seq",
-      allocationSize = 50)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "daily_indicator_id")
   private Long dailyIndicatorId;
 

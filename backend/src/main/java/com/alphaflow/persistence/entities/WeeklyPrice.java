@@ -17,11 +17,7 @@ import lombok.*;
 public class WeeklyPrice {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "weekly_prices_seq_gen")
-  @SequenceGenerator(
-      name = "weekly_prices_seq_gen",
-      sequenceName = "weekly_prices_weekly_price_id_seq",
-      allocationSize = 50)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "weekly_price_id")
   private Long weeklyPriceId;
 

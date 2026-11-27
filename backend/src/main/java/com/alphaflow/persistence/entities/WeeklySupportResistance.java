@@ -17,13 +17,7 @@ import lombok.*;
 public class WeeklySupportResistance {
 
   @Id
-  @GeneratedValue(
-      strategy = GenerationType.SEQUENCE,
-      generator = "weekly_support_resistances_seq_gen")
-  @SequenceGenerator(
-      name = "weekly_support_resistances_seq_gen",
-      sequenceName = "weekly_support_resistances_weekly_support_resistance_id_seq",
-      allocationSize = 50)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "weekly_support_resistance_id")
   private Long weeklySupportResistanceId;
 

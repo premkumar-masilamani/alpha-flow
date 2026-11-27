@@ -16,11 +16,7 @@ import lombok.*;
 public class WeeklyIndicator extends Indicator {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "weekly_indicators_seq_gen")
-  @SequenceGenerator(
-      name = "weekly_indicators_seq_gen",
-      sequenceName = "weekly_indicators_weekly_indicator_id_seq",
-      allocationSize = 50)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE)
   @Column(name = "weekly_indicator_id")
   private Long weeklyIndicatorId;
 
