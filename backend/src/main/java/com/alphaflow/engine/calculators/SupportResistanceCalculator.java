@@ -109,58 +109,26 @@ public class SupportResistanceCalculator implements PipelineJob {
   public void computeSupportResistances(Timeframe timeframe) {
     log.info("Computing {} support and resistances...", timeframe);
     List<Object[]> syncStates = loadSyncStates(timeframe);
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    List<Object[]> staleStates = new ArrayList<>();
+    log.info("Found {} active tickers to process for {} S&R.", syncStates.size(), timeframe);
+
+    // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
+    SupportResistanceCalculator proxy = (self != null) ? self : this;
+
     for (Object[] row : syncStates) {
       Ticker ticker = (Ticker) row[0];
-      LocalDate sourceDate = (LocalDate) row[1];
       LocalDate calcDate = (LocalDate) row[2];
-      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
-        staleStates.add(row);
-      } else {
-        log.debug(
-            "{}: up to date (source={}, calculated={}). Skipping.",
+      try {
+        proxy.computeSupportResistancesForTicker(ticker, timeframe, calcDate);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} S&R for ticker {}: {}",
+            timeframe,
             ticker.getTickerSymbol(),
-            sourceDate,
-            calcDate);
+            exception.getMessage(),
+            exception);
       }
     }
-
-    int totalActiveTickers = syncStates.size();
-    int staleCount = staleStates.size();
-    if (staleCount > 0) {
-      log.info(
-          "{} S&R computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
-          timeframe,
-          staleCount,
-          totalActiveTickers,
-          totalActiveTickers - staleCount);
-
-      // Invoke via Spring proxy so each ticker runs in its own REQUIRES_NEW transaction boundary.
-      SupportResistanceCalculator proxy = (self != null) ? self : this;
-
-      for (Object[] row : staleStates) {
-        Ticker ticker = (Ticker) row[0];
-        LocalDate calcDate = (LocalDate) row[2];
-        try {
-          proxy.computeSupportResistancesForTicker(
-              ticker, timeframe, calcDate);
-        } catch (Exception exception) {
-          log.error(
-              "Failed to compute {} S&R for ticker {}: {}",
-              timeframe,
-              ticker.getTickerSymbol(),
-              exception.getMessage(),
-              exception);
-        }
-      }
-      log.info("{} support and resistances computed.", timeframe);
-    } else {
-      log.info(
-          "{} S&R computation: 0 of {} active tickers require processing; skipping step.",
-          timeframe,
-          totalActiveTickers);
-    }
+    log.info("{} support and resistances computed.", timeframe);
   }
 
   /**

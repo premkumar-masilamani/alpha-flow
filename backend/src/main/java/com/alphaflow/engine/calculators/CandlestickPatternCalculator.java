@@ -95,57 +95,25 @@ public class CandlestickPatternCalculator implements PipelineJob {
   public void computeCandleStickPatterns(Timeframe timeframe) {
     log.info("Computing {} candlestick patterns...", timeframe);
     List<Object[]> syncStates = loadSyncStates(timeframe);
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    List<Object[]> staleStates = new ArrayList<>();
+    log.info("Found {} active tickers to process for {} patterns.", syncStates.size(), timeframe);
+
+    CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
+
     for (Object[] row : syncStates) {
       Ticker ticker = (Ticker) row[0];
-      LocalDate sourceDate = (LocalDate) row[1];
       LocalDate calcDate = (LocalDate) row[2];
-      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
-        staleStates.add(row);
-      } else {
-        log.debug(
-            "{}: up to date (source={}, calculated={}). Skipping.",
+      try {
+        proxy.computeCandleStickPatternsForTicker(ticker, timeframe, calcDate);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} candlestick patterns for ticker {}: {}",
+            timeframe,
             ticker.getTickerSymbol(),
-            sourceDate,
-            calcDate);
+            exception.getMessage(),
+            exception);
       }
     }
-
-    int totalActiveTickers = syncStates.size();
-    int staleCount = staleStates.size();
-    if (staleCount > 0) {
-      log.info(
-          "{} candlestick pattern computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
-          timeframe,
-          staleCount,
-          totalActiveTickers,
-          totalActiveTickers - staleCount);
-
-      CandlestickPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-      for (Object[] row : staleStates) {
-        Ticker ticker = (Ticker) row[0];
-        LocalDate calcDate = (LocalDate) row[2];
-        try {
-          proxy.computeCandleStickPatternsForTicker(
-              ticker, timeframe, calcDate);
-        } catch (Exception exception) {
-          log.error(
-              "Failed to compute {} candlestick patterns for ticker {}: {}",
-              timeframe,
-              ticker.getTickerSymbol(),
-              exception.getMessage(),
-              exception);
-        }
-      }
-      log.info("{} candlestick patterns computed.", timeframe);
-    } else {
-      log.info(
-          "{} candlestick pattern computation: 0 of {} active tickers require processing; skipping step.",
-          timeframe,
-          totalActiveTickers);
-    }
+    log.info("{} candlestick patterns computed.", timeframe);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

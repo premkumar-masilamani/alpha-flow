@@ -94,13 +94,11 @@ class ChartPatternCalculatorTest {
                 new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
                 new Object[] {noSourceTicker, null, null}));
 
-    calculator.computeChartPatterns(Timeframe.DAILY);
-    calculator.computeChartPatterns(Timeframe.WEEKLY);
+    assertFalse(calculator.shouldRun(Timeframe.DAILY));
+    assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
 
-    verify(dailyPriceRepository, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(weeklyPriceRepository, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailyChartPatternRepository, never()).save(any());
-    verify(weeklyChartPatternRepository, never()).save(any());
+    verify(dailyChartPatternRepository).findSyncStatesForActiveTickers();
+    verify(weeklyChartPatternRepository).findSyncStatesForActiveTickers();
   }
 
   @Test
@@ -134,6 +132,7 @@ class ChartPatternCalculatorTest {
                     upToDateTicker, LocalDate.of(2025, 1, 10), LocalDate.of(2025, 1, 10)}));
 
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(upToDateTicker)).thenReturn(List.of());
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
@@ -141,7 +140,7 @@ class ChartPatternCalculatorTest {
 
     verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
     verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(failingTicker);
-    verify(dailyPriceRepository, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
+    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(upToDateTicker);
 
     ChartPatternCalculator selfMock = mock(ChartPatternCalculator.class);
     java.lang.reflect.Field selfField = ChartPatternCalculator.class.getDeclaredField("selfProxy");
@@ -159,7 +158,7 @@ class ChartPatternCalculatorTest {
 
     verify(selfMock).computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
     verify(selfMock).computeChartPatternsForTicker(failingTicker, Timeframe.WEEKLY);
-    verify(selfMock, never()).computeChartPatternsForTicker(upToDateTicker, Timeframe.WEEKLY);
+    verify(selfMock).computeChartPatternsForTicker(upToDateTicker, Timeframe.WEEKLY);
   }
 
   @Test

@@ -166,15 +166,11 @@ class SupportResistanceCalculatorTest {
                 new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
                 new Object[] {noSourceTicker, null, null}));
 
-    calculator.computeSupportResistances(Timeframe.DAILY);
-    calculator.computeSupportResistances(Timeframe.WEEKLY);
+    assertFalse(calculator.shouldRun(Timeframe.DAILY));
+    assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
 
     verify(dailySrRepo).findSyncStatesForActiveTickers();
     verify(weeklySrRepo).findSyncStatesForActiveTickers();
-    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(weeklyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailySrRepo, never()).saveAll(any());
-    verify(weeklySrRepo, never()).saveAll(any());
   }
 
   @Test
@@ -208,6 +204,7 @@ class SupportResistanceCalculatorTest {
                 new Object[] {failingTicker, EPOCH, null},
                 new Object[] {upToDateTicker, EPOCH, EPOCH}));
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(okTicker)).thenReturn(List.of());
+    when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(upToDateTicker)).thenReturn(List.of());
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
@@ -215,7 +212,7 @@ class SupportResistanceCalculatorTest {
 
     verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(okTicker);
     verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(failingTicker);
-    verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
+    verify(dailyPriceRepo).findByTickerOrderByPriceDateAsc(upToDateTicker);
   }
 
   @Test

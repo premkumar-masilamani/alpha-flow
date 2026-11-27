@@ -69,54 +69,25 @@ public class WeeklyPriceCalculator implements PipelineJob {
     log.info("Starting weekly price computation...");
 
     List<Object[]> syncStates = weeklyPriceRepository.findSyncStatesForActiveTickers();
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    List<Object[]> staleStates = new ArrayList<>();
+    log.info("Found {} active tickers to process for weekly prices.", syncStates.size());
+
+    WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
+
     for (Object[] row : syncStates) {
       Ticker ticker = (Ticker) row[0];
-      LocalDate sourceDate = (LocalDate) row[1];
       LocalDate calcDate = (LocalDate) row[2];
-      if (PipelineGating.requiresWeeklyPriceUpdate(sourceDate, calcDate, todayUtc)) {
-        staleStates.add(row);
-      } else {
-        log.debug(
-            "{}: up to date (source={}, calculated={}). Skipping.",
+      try {
+        proxy.processTicker(ticker, calcDate);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute weekly prices for ticker {}: {}",
             ticker.getTickerSymbol(),
-            sourceDate,
-            calcDate);
+            exception.getMessage(),
+            exception);
       }
     }
 
-    int totalActiveTickers = syncStates.size();
-    int staleCount = staleStates.size();
-    if (staleCount > 0) {
-      log.info(
-          "Weekly price computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
-          staleCount,
-          totalActiveTickers,
-          totalActiveTickers - staleCount);
-
-      WeeklyPriceCalculator proxy = (weeklyPriceCalculator != null) ? weeklyPriceCalculator : this;
-
-      for (Object[] row : staleStates) {
-        Ticker ticker = (Ticker) row[0];
-        LocalDate calcDate = (LocalDate) row[2];
-        try {
-          proxy.processTicker(ticker, calcDate);
-        } catch (Exception exception) {
-          log.error(
-              "Failed to compute weekly prices for ticker {}: {}",
-              ticker.getTickerSymbol(),
-              exception.getMessage(),
-              exception);
-        }
-      }
-
-      log.info("Weekly price computation completed.");
-    } else {
-      log.info(
-          "Weekly price computation: 0 of {} active tickers require processing; skipping step.",
-          totalActiveTickers);
-    }
+    log.info("Weekly price computation completed.");
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

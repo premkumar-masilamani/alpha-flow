@@ -83,70 +83,35 @@ public class IndicatorCalculator implements PipelineJob {
     log.info("Computing {} indicators...", timeframe);
 
     List<Object[]> syncStates = loadSyncStates(timeframe);
-    Map<Ticker, List<Object[]>> statesByTicker = new LinkedHashMap<>();
+    Map<Ticker, Map<IndicatorDefinition, LocalDate>> definitionsByTicker = new LinkedHashMap<>();
     for (Object[] row : syncStates) {
       Ticker ticker = (Ticker) row[0];
-      statesByTicker
-          .computeIfAbsent(ticker, ignoredTicker -> new ArrayList<>())
-          .add(row);
+      IndicatorDefinition definition = (IndicatorDefinition) row[1];
+      LocalDate calcDate = (LocalDate) row[3];
+      definitionsByTicker
+          .computeIfAbsent(ticker, ignoredTicker -> new LinkedHashMap<>())
+          .put(definition, calcDate);
     }
 
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    Map<Ticker, Map<IndicatorDefinition, LocalDate>> staleByTicker = new LinkedHashMap<>();
-    for (Map.Entry<Ticker, List<Object[]>> entry : statesByTicker.entrySet()) {
+    log.info("Found {} active tickers to process for {} indicators.", definitionsByTicker.size(), timeframe);
+
+    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
+
+    for (Map.Entry<Ticker, Map<IndicatorDefinition, LocalDate>> entry : definitionsByTicker.entrySet()) {
       Ticker ticker = entry.getKey();
-      Map<IndicatorDefinition, LocalDate> staleDefinitions = new LinkedHashMap<>();
-      for (Object[] row : entry.getValue()) {
-        IndicatorDefinition definition = (IndicatorDefinition) row[1];
-        LocalDate sourceDate = (LocalDate) row[2];
-        LocalDate calcDate = (LocalDate) row[3];
-        if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
-          staleDefinitions.put(definition, calcDate);
-        }
-      }
-      if (!staleDefinitions.isEmpty()) {
-        staleByTicker.put(ticker, staleDefinitions);
-      } else {
-        log.debug(
-            "{}: up to date across all {} indicator definitions. Skipping.",
+      try {
+        proxy.computeIndicatorForTicker(ticker, timeframe, entry.getValue());
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} indicators for ticker {}: {}",
+            timeframe,
             ticker.getTickerSymbol(),
-            entry.getValue().size());
+            exception.getMessage(),
+            exception);
       }
     }
 
-    int totalActiveTickers = statesByTicker.size();
-    int staleTickerCount = staleByTicker.size();
-    if (staleTickerCount > 0) {
-      log.info(
-          "{} indicator computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
-          timeframe,
-          staleTickerCount,
-          totalActiveTickers,
-          totalActiveTickers - staleTickerCount);
-
-      IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
-
-      for (Map.Entry<Ticker, Map<IndicatorDefinition, LocalDate>> entry : staleByTicker.entrySet()) {
-        Ticker ticker = entry.getKey();
-        try {
-          proxy.computeIndicatorForTicker(ticker, timeframe, entry.getValue());
-        } catch (Exception exception) {
-          log.error(
-              "Failed to compute {} indicators for ticker {}: {}",
-              timeframe,
-              ticker.getTickerSymbol(),
-              exception.getMessage(),
-              exception);
-        }
-      }
-
-      log.info("{} indicators computed.", timeframe);
-    } else {
-      log.info(
-          "{} indicator computation: 0 of {} active tickers require processing; skipping step.",
-          timeframe,
-          totalActiveTickers);
-    }
+    log.info("{} indicators computed.", timeframe);
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)

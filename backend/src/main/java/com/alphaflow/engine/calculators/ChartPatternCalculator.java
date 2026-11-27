@@ -92,55 +92,24 @@ public class ChartPatternCalculator implements PipelineJob {
   public void computeChartPatterns(Timeframe timeframe) {
     log.info("Computing {} classical chart patterns...", timeframe);
     List<Object[]> syncStates = loadSyncStates(timeframe);
-    LocalDate todayUtc = LocalDate.now(ZoneOffset.UTC);
-    List<Object[]> staleStates = new ArrayList<>();
+    log.info("Found {} active tickers to process for {} chart patterns.", syncStates.size(), timeframe);
+
+    ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
+
     for (Object[] row : syncStates) {
       Ticker ticker = (Ticker) row[0];
-      LocalDate sourceDate = (LocalDate) row[1];
-      LocalDate calcDate = (LocalDate) row[2];
-      if (PipelineGating.requiresUpdate(timeframe, sourceDate, calcDate, todayUtc)) {
-        staleStates.add(row);
-      } else {
-        log.debug(
-            "{}: up to date (source={}, calculated={}). Skipping.",
+      try {
+        proxy.computeChartPatternsForTicker(ticker, timeframe);
+      } catch (Exception exception) {
+        log.error(
+            "Failed to compute {} chart patterns for ticker {}: {}",
+            timeframe,
             ticker.getTickerSymbol(),
-            sourceDate,
-            calcDate);
+            exception.getMessage(),
+            exception);
       }
     }
-
-    int totalActiveTickers = syncStates.size();
-    int staleCount = staleStates.size();
-    if (staleCount > 0) {
-      log.info(
-          "{} chart pattern computation: {} of {} active tickers require processing (skipping {} up-to-date tickers).",
-          timeframe,
-          staleCount,
-          totalActiveTickers,
-          totalActiveTickers - staleCount);
-
-      ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
-
-      for (Object[] row : staleStates) {
-        Ticker ticker = (Ticker) row[0];
-        try {
-          proxy.computeChartPatternsForTicker(ticker, timeframe);
-        } catch (Exception exception) {
-          log.error(
-              "Failed to compute {} chart patterns for ticker {}: {}",
-              timeframe,
-              ticker.getTickerSymbol(),
-              exception.getMessage(),
-              exception);
-        }
-      }
-      log.info("{} chart patterns computation completed.", timeframe);
-    } else {
-      log.info(
-          "{} chart pattern computation: 0 of {} active tickers require processing; skipping step.",
-          timeframe,
-          totalActiveTickers);
-    }
+    log.info("{} chart patterns computation completed.", timeframe);
   }
 
   private List<Object[]> loadSyncStates(Timeframe timeframe) {

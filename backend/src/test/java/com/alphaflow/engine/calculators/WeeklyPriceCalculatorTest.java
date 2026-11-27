@@ -79,13 +79,8 @@ class WeeklyPriceCalculatorTest {
                 new Object[] {upToDateTicker, HISTORICAL_FRIDAY, HISTORICAL_MONDAY},
                 new Object[] {noSourceTicker, null, null}));
 
-    calculator.computeWeeklyPrices();
-
+    assertThat(calculator.shouldRun(null)).isFalse();
     verify(weeklyPriceRepository).findSyncStatesForActiveTickers();
-    verify(dailyPriceRepository, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailyPriceRepository, never())
-        .findByTickerAndPriceDateGreaterThanEqualOrderByPriceDateAsc(any(), any());
-    verify(weeklyPriceRepository, never()).saveAll(any());
   }
 
   @Test
@@ -110,12 +105,13 @@ class WeeklyPriceCalculatorTest {
         .when(calculatorSpy)
         .processTicker(failingTicker, null);
     doNothing().when(calculatorSpy).processTicker(staleTicker, previousMonday);
+    doNothing().when(calculatorSpy).processTicker(upToDateTicker, HISTORICAL_MONDAY);
 
     calculatorSpy.computeWeeklyPrices();
 
     verify(calculatorSpy).processTicker(failingTicker, null);
     verify(calculatorSpy).processTicker(staleTicker, previousMonday);
-    verify(calculatorSpy, never()).processTicker(eq(upToDateTicker), any());
+    verify(calculatorSpy).processTicker(upToDateTicker, HISTORICAL_MONDAY);
 
     WeeklyPriceCalculator selfMock = mock(WeeklyPriceCalculator.class);
     Field selfField = WeeklyPriceCalculator.class.getDeclaredField("weeklyPriceCalculator");
@@ -126,7 +122,7 @@ class WeeklyPriceCalculatorTest {
 
     verify(selfMock).processTicker(failingTicker, null);
     verify(selfMock).processTicker(staleTicker, previousMonday);
-    verify(selfMock, never()).processTicker(eq(upToDateTicker), any());
+    verify(selfMock).processTicker(upToDateTicker, HISTORICAL_MONDAY);
   }
 
   @Test

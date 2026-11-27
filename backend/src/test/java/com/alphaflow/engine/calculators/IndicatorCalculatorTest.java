@@ -174,17 +174,12 @@ class IndicatorCalculatorTest {
                 new Object[] {
                     ticker, emaDefinition, HISTORICAL_MONDAY, HISTORICAL_MONDAY}));
 
-    calculator.computeIndicators(Timeframe.DAILY);
-    calculator.computeIndicators(Timeframe.WEEKLY);
+    org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
+    org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
 
     // Empty indicator_definitions table returns empty bulk state list
     when(dailyIndicatorRepo.findSyncStatesForActiveTickers()).thenReturn(List.of());
-    calculator.computeIndicators(Timeframe.DAILY);
-
-    verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(weeklyRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailyIndicatorRepo, never()).saveAll(any());
-    verify(weeklyIndicatorRepo, never()).saveAll(any());
+    org.junit.jupiter.api.Assertions.assertFalse(calculator.shouldRun(Timeframe.DAILY));
   }
 
   @Test
@@ -211,7 +206,7 @@ class IndicatorCalculatorTest {
     calculator.computeIndicators(Timeframe.DAILY);
 
     verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(ticker);
-    verify(dailyRepo, never()).findByTickerOrderByPriceDateAsc(upToDateTicker);
+    verify(dailyRepo, times(1)).findByTickerOrderByPriceDateAsc(upToDateTicker);
 
     List<? extends Indicator> emaValues = capturedValues(IndicatorType.EMA);
     List<? extends Indicator> smaValues = capturedValues(IndicatorType.SMA);

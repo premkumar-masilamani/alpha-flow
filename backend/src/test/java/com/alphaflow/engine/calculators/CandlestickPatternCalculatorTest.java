@@ -115,13 +115,11 @@ class CandlestickPatternCalculatorTest {
                 new Object[] {ticker, HISTORICAL_MONDAY, HISTORICAL_MONDAY},
                 new Object[] {noSourceTicker, null, null}));
 
-    calculator.computeCandleStickPatterns(Timeframe.DAILY);
-    calculator.computeCandleStickPatterns(Timeframe.WEEKLY);
+    assertThat(calculator.shouldRun(Timeframe.DAILY)).isFalse();
+    assertThat(calculator.shouldRun(Timeframe.WEEKLY)).isFalse();
 
-    verify(dailyPriceRepository, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(weeklyPriceRepository, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailyCandlestickPatternRepository, never()).saveAll(any());
-    verify(weeklyCandlestickPatternRepository, never()).saveAll(any());
+    verify(dailyCandlestickPatternRepository).findSyncStatesForActiveTickers();
+    verify(weeklyCandlestickPatternRepository).findSyncStatesForActiveTickers();
   }
 
   @Test
@@ -202,14 +200,17 @@ class CandlestickPatternCalculatorTest {
     doNothing()
         .when(calculatorSpy)
         .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY, priorDate);
+    doNothing()
+        .when(calculatorSpy)
+        .computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.DAILY, sourceDate);
 
     calculatorSpy.computeCandleStickPatterns(Timeframe.DAILY);
 
     verify(calculatorSpy).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.DAILY, null);
     verify(calculatorSpy)
         .computeCandleStickPatternsForTicker(activeTicker2, Timeframe.DAILY, priorDate);
-    verify(calculatorSpy, never())
-        .computeCandleStickPatternsForTicker(eq(upToDateTicker), any(), any());
+    verify(calculatorSpy)
+        .computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.DAILY, sourceDate);
 
     CandlestickPatternCalculator selfMock = mock(CandlestickPatternCalculator.class);
     java.lang.reflect.Field selfField =
@@ -228,8 +229,8 @@ class CandlestickPatternCalculatorTest {
 
     verify(selfMock).computeCandleStickPatternsForTicker(activeTicker1, Timeframe.WEEKLY, null);
     verify(selfMock).computeCandleStickPatternsForTicker(activeTicker2, Timeframe.WEEKLY, null);
-    verify(selfMock, never())
-        .computeCandleStickPatternsForTicker(eq(upToDateTicker), any(), any());
+    verify(selfMock)
+        .computeCandleStickPatternsForTicker(upToDateTicker, Timeframe.WEEKLY, HISTORICAL_MONDAY);
   }
 
   @Test
