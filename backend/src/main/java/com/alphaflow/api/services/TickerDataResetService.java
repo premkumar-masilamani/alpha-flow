@@ -1,6 +1,5 @@
 package com.alphaflow.api.services;
 
-import com.alphaflow.api.dtos.TickerDataResetResponseDto;
 import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository;
@@ -21,11 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 public class TickerDataResetService {
-
-  public static final String MESSAGE_CLEARED =
-      "Ticker data cleared. Restart the application or wait for the next scheduled sync to repopulate.";
-  public static final String MESSAGE_UP_TO_DATE =
-      "Ticker data is already up to date; no reset needed.";
 
   private final TickerRepository tickerRepository;
   private final DailyPriceRepository dailyPriceRepository;
@@ -65,7 +59,7 @@ public class TickerDataResetService {
   }
 
   @Transactional
-  public TickerDataResetResponseDto resetTickerData(String symbol) {
+  public void resetTickerData(String symbol) {
     Ticker ticker =
         tickerRepository
             .findByTickerSymbolIgnoreCase(symbol)
@@ -90,11 +84,11 @@ public class TickerDataResetService {
 
       ticker.setStale(false);
       tickerRepository.save(ticker);
-
-      return new TickerDataResetResponseDto(ticker.getTickerSymbol(), true, MESSAGE_CLEARED);
+      log.info(
+          "Successfully cleared all data and reset stale flag for ticker {}",
+          ticker.getTickerSymbol());
     } else {
       log.info("No data reset needed for ticker {}: already up to date.", ticker.getTickerSymbol());
-      return new TickerDataResetResponseDto(ticker.getTickerSymbol(), false, MESSAGE_UP_TO_DATE);
     }
   }
 }

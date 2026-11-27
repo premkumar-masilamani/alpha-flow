@@ -3,14 +3,16 @@ package com.alphaflow.api.controllers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.TickerDataResetResponseDto;
 import com.alphaflow.api.dtos.TickerDto;
 import com.alphaflow.api.services.TickerDataResetService;
 import com.alphaflow.api.services.TickerService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 class TickerControllerTest {
 
@@ -75,17 +77,12 @@ class TickerControllerTest {
   void testDeleteTickerData() {
     TickerService service = mock(TickerService.class);
     TickerDataResetService resetService = mock(TickerDataResetService.class);
-    TickerDataResetResponseDto expected =
-        new TickerDataResetResponseDto("AAPL", true, TickerDataResetService.MESSAGE_CLEARED);
-
-    when(resetService.resetTickerData("AAPL")).thenReturn(expected);
 
     TickerController controller = new TickerController(service, resetService);
 
-    TickerDataResetResponseDto res = controller.deleteTickerData("AAPL");
+    ResponseEntity<Void> res = controller.deleteTickerData("AAPL");
 
-    assertEquals("AAPL", res.symbol());
-    assertTrue(res.cleared());
-    assertEquals(TickerDataResetService.MESSAGE_CLEARED, res.message());
+    assertEquals(HttpStatus.OK, res.getStatusCode());
+    verify(resetService).resetTickerData("AAPL");
   }
 }

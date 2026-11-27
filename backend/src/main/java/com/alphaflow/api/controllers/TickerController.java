@@ -1,11 +1,11 @@
 package com.alphaflow.api.controllers;
 
-import com.alphaflow.api.dtos.TickerDataResetResponseDto;
 import com.alphaflow.api.dtos.TickerDto;
 import com.alphaflow.api.services.TickerDataResetService;
 import com.alphaflow.api.services.TickerService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,8 +39,9 @@ public class TickerController {
   }
 
   @DeleteMapping("/tickers/{symbol}/data")
-  public TickerDataResetResponseDto deleteTickerData(@PathVariable String symbol) {
+  public ResponseEntity<Void> deleteTickerData(@PathVariable String symbol) {
     log.info("Request to clear data for ticker: {}", symbol);
-    return tickerDataResetService.resetTickerData(symbol);
+    tickerDataResetService.resetTickerData(symbol);
+    return ResponseEntity.ok().build();
   }
 }

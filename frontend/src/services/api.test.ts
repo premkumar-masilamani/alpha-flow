@@ -248,15 +248,9 @@ describe('API Service Layer Tests', () => {
             await getCandleData('CACHE_TEST', 'DAILY', 0, 250);
             expect(mockedAxios.get).toHaveBeenCalledTimes(1);
 
-            const resetResponse = {
-                symbol: 'CACHE_TEST',
-                cleared: true,
-                message: 'Ticker data cleared.'
-            };
-            mockedAxios.delete.mockResolvedValueOnce({ data: resetResponse });
+            mockedAxios.delete.mockResolvedValueOnce({ status: 200 });
 
-            const result = await deleteTickerData('CACHE_TEST');
-            expect(result).toEqual(resetResponse);
+            await deleteTickerData('CACHE_TEST');
             expect(mockedAxios.delete).toHaveBeenCalledWith(
                 expect.stringContaining('/tickers/CACHE_TEST/data')
             );

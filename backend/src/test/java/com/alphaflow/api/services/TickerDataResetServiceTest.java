@@ -1,16 +1,13 @@
 package com.alphaflow.api.services;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.alphaflow.api.dtos.TickerDataResetResponseDto;
 import com.alphaflow.common.exceptions.ResourceNotFoundException;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.repositories.DailyCandlestickPatternRepository;
@@ -84,11 +81,8 @@ class TickerDataResetServiceTest {
             .build();
     when(tickerRepository.findByTickerSymbolIgnoreCase("aapl")).thenReturn(Optional.of(ticker));
 
-    TickerDataResetResponseDto response = service.resetTickerData("aapl");
+    service.resetTickerData("aapl");
 
-    assertEquals("AAPL", response.symbol());
-    assertTrue(response.cleared());
-    assertEquals(TickerDataResetService.MESSAGE_CLEARED, response.message());
     assertFalse(ticker.isStale());
 
     verify(dailyChartPatternRepository).deleteByTicker(ticker);
@@ -116,10 +110,8 @@ class TickerDataResetServiceTest {
             .build();
     when(tickerRepository.findByTickerSymbolIgnoreCase("OLD")).thenReturn(Optional.of(ticker));
 
-    TickerDataResetResponseDto response = service.resetTickerData("OLD");
+    service.resetTickerData("OLD");
 
-    assertEquals("OLD", response.symbol());
-    assertTrue(response.cleared());
     assertFalse(ticker.isStale());
     verify(dailyPriceRepository).deleteByTicker(ticker);
     verify(tickerRepository).save(ticker);
@@ -137,11 +129,8 @@ class TickerDataResetServiceTest {
             .build();
     when(tickerRepository.findByTickerSymbolIgnoreCase("MSFT")).thenReturn(Optional.of(ticker));
 
-    TickerDataResetResponseDto response = service.resetTickerData("MSFT");
+    service.resetTickerData("MSFT");
 
-    assertEquals("MSFT", response.symbol());
-    assertFalse(response.cleared());
-    assertEquals(TickerDataResetService.MESSAGE_UP_TO_DATE, response.message());
     verify(dailyPriceRepository, never()).deleteByTicker(any());
     verify(weeklyPriceRepository, never()).deleteByTicker(any());
     verify(tickerRepository, never()).save(any());
