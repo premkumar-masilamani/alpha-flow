@@ -1,14 +1,11 @@
 package com.alphaflow.engine.configs;
 
-import com.alphaflow.common.enums.Timeframe;
 import java.math.BigDecimal;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Central configuration constants governing Dow-ATR swing detection, support/resistance zone
- * sizing, historical lifecycle validation, and persisted snapshot retention.
+ * sizing, and historical lifecycle validation.
  */
-@Slf4j
 public final class SupportResistanceConfig {
 
   /** Wilder smoothing period used to compute the rolling Average True Range (ATR) series. */
@@ -43,28 +40,4 @@ public final class SupportResistanceConfig {
 
   /** Minimum number of surviving confirmed swing points required for a zone to be valid. */
   public static final int MIN_TOUCH_COUNT = 2;
-
-  /** Retention window in calendar days for persisted daily support/resistance snapshots. */
-  public static final int DAILY_RETENTION_DAYS = 30;
-
-  /** Retention window in calendar days for persisted weekly support/resistance snapshots. */
-  public static final int WEEKLY_RETENTION_DAYS = 180;
-
-  /**
-   * Resolves the snapshot retention window in days for the given timeframe.
-   *
-   * @param timeframe target market timeframe
-   * @return number of calendar days to retain historical S&amp;R snapshots
-   * @throws IllegalArgumentException if {@code timeframe} is null or unsupported
-   */
-  public static int getRetentionDaysForTimeframe(Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      return DAILY_RETENTION_DAYS;
-    } else if (timeframe == Timeframe.WEEKLY) {
-      return WEEKLY_RETENTION_DAYS;
-    } else {
-      log.error("Unsupported timeframe for retention lookup: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-    }
-  }
 }

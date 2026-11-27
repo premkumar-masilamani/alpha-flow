@@ -136,8 +136,7 @@ public class SupportResistanceCalculator implements PipelineJob {
 
   /**
    * Computes and persists the latest S&amp;R snapshot for a single ticker within an isolated
-   * transaction. Replaces existing weekly snapshot rows idempotently during mid-week refreshes and
-   * purges expired snapshots beyond the configured timeframe retention window.
+   * transaction. Replaces existing weekly snapshot rows idempotently during mid-week refreshes.
    *
    * @param ticker target ticker entity
    * @param timeframe target market timeframe
@@ -150,14 +149,6 @@ public class SupportResistanceCalculator implements PipelineJob {
     List<PriceBar> priceBars = loadBars(ticker, timeframe);
     if (!priceBars.isEmpty()) {
       LocalDate priceDate = priceBars.getLast().date();
-      LocalDate cutoffDate =
-          priceDate.minusDays(SupportResistanceConfig.getRetentionDaysForTimeframe(timeframe));
-      log.debug(
-          "Purging {} S&R records older than {} for ticker {}.",
-          timeframe,
-          cutoffDate,
-          ticker.getTickerSymbol());
-      deleteOlderSupportResistances(ticker, cutoffDate, timeframe);
 
       if (timeframe == Timeframe.WEEKLY
           && latestCalculatedDate != null
@@ -514,19 +505,6 @@ public class SupportResistanceCalculator implements PipelineJob {
           .toList();
     } else {
       log.error("Unsupported timeframe for loading S&R bars: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
-    }
-  }
-
-  /** Deletes persisted S&amp;R snapshots older than the retention cutoff date. */
-  private void deleteOlderSupportResistances(
-      Ticker ticker, LocalDate cutoffDate, Timeframe timeframe) {
-    if (timeframe == Timeframe.DAILY) {
-      dailySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(ticker, cutoffDate);
-    } else if (timeframe == Timeframe.WEEKLY) {
-      weeklySupportResistanceRepository.deleteByTickerAndPriceDateLessThan(ticker, cutoffDate);
-    } else {
-      log.error("Unsupported timeframe for S&R retention cleanup: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
   }

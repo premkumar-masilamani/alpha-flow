@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -239,9 +238,6 @@ class SupportResistanceCalculatorTest {
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, null);
 
-    LocalDate latestDate = bars.getLast().date();
-    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(ticker, latestDate.minusDays(30));
-    verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(ticker, latestDate.minusDays(180));
     verify(weeklySrRepo, never()).deleteByTickerAndPriceDate(any(), any());
 
     @SuppressWarnings("unchecked")
@@ -291,7 +287,6 @@ class SupportResistanceCalculatorTest {
     verify(dailySrRepo).findTickersWithPendingDailySupportResistance();
     verify(tickerRepo, never()).findByIsActiveTrue();
     verify(dailyPriceRepo, never()).findByTickerOrderByPriceDateAsc(any());
-    verify(dailySrRepo, never()).deleteByTickerAndPriceDateLessThan(any(), any());
     verify(dailySrRepo, never()).saveAll(any());
   }
 
@@ -305,7 +300,6 @@ class SupportResistanceCalculatorTest {
 
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.WEEKLY, latestDate);
 
-    verify(weeklySrRepo).deleteByTickerAndPriceDateLessThan(eq(ticker), any());
     verify(weeklySrRepo).deleteByTickerAndPriceDate(ticker, latestDate);
     verify(weeklySrRepo, never()).saveAll(any());
   }
@@ -314,7 +308,6 @@ class SupportResistanceCalculatorTest {
   void testDoesNotSaveWhenNoPriceBarsOrNoBucketsComputed() {
     when(dailyPriceRepo.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
-    verify(dailySrRepo, never()).deleteByTickerAndPriceDateLessThan(any(), any());
     verify(dailySrRepo, never()).saveAll(any());
 
     List<PriceBar> flatBars = List.of(bar(0, 100, 105, 95, 100));
@@ -323,7 +316,6 @@ class SupportResistanceCalculatorTest {
 
     calculator.computeSupportResistancesForTicker(ticker, Timeframe.DAILY, null);
 
-    verify(dailySrRepo).deleteByTickerAndPriceDateLessThan(eq(ticker), any());
     verify(dailySrRepo, never()).saveAll(any());
   }
 
@@ -514,16 +506,6 @@ class SupportResistanceCalculatorTest {
             InvocationTargetException.class,
             () -> loadBarsMethod.invoke(calculator, ticker, (Timeframe) null));
     assertTrue(loadException.getCause() instanceof IllegalArgumentException);
-
-    Method deleteMethod =
-        SupportResistanceCalculator.class.getDeclaredMethod(
-            "deleteOlderSupportResistances", Ticker.class, LocalDate.class, Timeframe.class);
-    deleteMethod.setAccessible(true);
-    InvocationTargetException deleteException =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> deleteMethod.invoke(calculator, ticker, EPOCH, (Timeframe) null));
-    assertTrue(deleteException.getCause() instanceof IllegalArgumentException);
 
     Method saveMethod =
         SupportResistanceCalculator.class.getDeclaredMethod(
