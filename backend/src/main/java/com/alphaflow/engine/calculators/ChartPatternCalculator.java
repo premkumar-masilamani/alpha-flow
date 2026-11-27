@@ -2,9 +2,15 @@ package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
-import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
+import com.alphaflow.engine.configs.ChartPatternConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
+import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.engine.pipeline.PipelineJob;
+import com.alphaflow.engine.structure.DowAtrSwingDetector;
+import com.alphaflow.engine.structure.DowTrendClassifier;
+import com.alphaflow.engine.structure.dtos.SwingPoint;
+import com.alphaflow.engine.structure.enums.DowTrend;
+import com.alphaflow.engine.structure.enums.SwingType;
 import com.alphaflow.persistence.entities.ChartPatternPivot;
 import com.alphaflow.persistence.entities.DailyChartPattern;
 import com.alphaflow.persistence.entities.Ticker;
@@ -17,12 +23,12 @@ import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyChartPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -30,28 +36,25 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Computes and persists classical chart pattern snapshots across daily and weekly timeframes using
+ * confirmed Dow-ATR swing pivots and Dow Theory prior-trend classification.
+ */
 @Component
 @Slf4j
 public class ChartPatternCalculator implements PipelineJob {
 
   public static final String JOB_NAME = "CALCULATE_CHART_PATTERN";
 
-  private static final MathContext MATH_CONTEXT = new MathContext(18, RoundingMode.HALF_UP);
-  private static final int PRICE_SCALE = 4;
-  private static final int MIN_BARS = 15;
-  private static final int SWING_WINDOW = 2;
-  private static final BigDecimal TWO = new BigDecimal("2");
-  private static final BigDecimal THREE = new BigDecimal("3");
-  private static final BigDecimal TOLERANCE_3_PERCENT = new BigDecimal("0.035");
-  private static final BigDecimal TOLERANCE_4_PERCENT = new BigDecimal("0.040");
-  private static final BigDecimal TOLERANCE_5_PERCENT = new BigDecimal("0.050");
-  private static final BigDecimal MIN_DEPTH_RATIO = new BigDecimal("0.015");
+  private static final int MIN_PIVOTS_FOR_PATTERNS = 3;
 
   private final DailyPriceRepository dailyPriceRepository;
   private final WeeklyPriceRepository weeklyPriceRepository;
   private final DailyChartPatternRepository dailyChartPatternRepository;
   private final WeeklyChartPatternRepository weeklyChartPatternRepository;
   private final TickerRepository tickerRepository;
+  private final DowAtrSwingDetector dowAtrSwingDetector;
+  private final DowTrendClassifier dowTrendClassifier;
 
   @Autowired @Lazy private ChartPatternCalculator selfProxy;
 
@@ -60,12 +63,16 @@ public class ChartPatternCalculator implements PipelineJob {
       WeeklyPriceRepository weeklyPriceRepository,
       DailyChartPatternRepository dailyChartPatternRepository,
       WeeklyChartPatternRepository weeklyChartPatternRepository,
-      TickerRepository tickerRepository) {
+      TickerRepository tickerRepository,
+      DowAtrSwingDetector dowAtrSwingDetector,
+      DowTrendClassifier dowTrendClassifier) {
     this.dailyPriceRepository = dailyPriceRepository;
     this.weeklyPriceRepository = weeklyPriceRepository;
     this.dailyChartPatternRepository = dailyChartPatternRepository;
     this.weeklyChartPatternRepository = weeklyChartPatternRepository;
     this.tickerRepository = tickerRepository;
+    this.dowAtrSwingDetector = dowAtrSwingDetector;
+    this.dowTrendClassifier = dowTrendClassifier;
   }
 
   @Override
@@ -93,13 +100,22 @@ public class ChartPatternCalculator implements PipelineJob {
     }
     log.info("Computing {} classical chart patterns...", timeframe);
     List<Ticker> activeTickers = tickerRepository.findByIsActiveTrue();
-    log.info("Found {} active tickers to process for {} chart patterns.", activeTickers.size(), timeframe);
+    log.info(
+        "Found {} active tickers to process for {} chart patterns.",
+        activeTickers.size(),
+        timeframe);
+
+    Map<Ticker, LocalDate> latestWeeklyDates =
+        (timeframe == Timeframe.WEEKLY)
+            ? weeklyChartPatternRepository.findLatestPriceDatesForActiveTickers()
+            : Collections.emptyMap();
 
     ChartPatternCalculator proxy = (selfProxy != null) ? selfProxy : this;
 
     for (Ticker ticker : activeTickers) {
       try {
-        proxy.computeChartPatternsForTicker(ticker, timeframe);
+        LocalDate latestCalculatedDate = latestWeeklyDates.get(ticker);
+        proxy.computeChartPatternsForTicker(ticker, timeframe, latestCalculatedDate);
       } catch (Exception exception) {
         log.error(
             "Failed to compute {} chart patterns for ticker {}: {}",
@@ -113,20 +129,55 @@ public class ChartPatternCalculator implements PipelineJob {
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public void computeChartPatternsForTicker(Ticker ticker, Timeframe timeframe) {
+  public void computeChartPatternsForTicker(
+      Ticker ticker, Timeframe timeframe, LocalDate latestCalculatedDate) {
     List<PriceBar> bars = loadBars(ticker, timeframe);
-    if (bars.size() >= MIN_BARS) {
-      log.info(
-          "Ticker {}: Timeframe {} - Computing chart patterns...",
-          ticker.getTickerSymbol(),
-          timeframe);
-      List<ChartPatternMatch> matches = detectAllPatterns(bars);
-      savePatterns(ticker, timeframe, matches);
+    if (bars.size() >= ChartPatternConfig.MIN_BARS) {
+      LocalDate priceDate = bars.getLast().date();
+
+      if (timeframe == Timeframe.DAILY
+          && dailyChartPatternRepository.existsByTickerAndPriceDate(ticker, priceDate)) {
+        log.debug(
+            "Ticker {}: DAILY chart patterns already computed for {}; skipping.",
+            ticker.getTickerSymbol(),
+            priceDate);
+      } else {
+        LocalDate cutoffDate =
+            priceDate.minusDays(ChartPatternConfig.getRetentionDaysForTimeframe(timeframe));
+        deleteOlderPatterns(ticker, cutoffDate, timeframe);
+
+        if (timeframe == Timeframe.WEEKLY
+            && latestCalculatedDate != null
+            && !latestCalculatedDate.isBefore(priceDate)) {
+          log.debug(
+              "Refreshing in-progress weekly chart patterns for ticker {} on {}.",
+              ticker.getTickerSymbol(),
+              priceDate);
+          weeklyChartPatternRepository.deleteByTickerAndPriceDate(ticker, priceDate);
+        }
+
+        List<ChartPatternMatch> matches = detectAllPatterns(bars);
+        if (!matches.isEmpty()) {
+          savePatterns(ticker, priceDate, timeframe, matches);
+          log.info(
+              "Saved {} {} chart patterns for ticker {} (priceDate={}).",
+              matches.size(),
+              timeframe,
+              ticker.getTickerSymbol(),
+              priceDate);
+        } else {
+          log.debug(
+              "No {} chart patterns detected for ticker {} (priceDate={}).",
+              timeframe,
+              ticker.getTickerSymbol(),
+              priceDate);
+        }
+      }
     } else {
       log.debug(
           "Ticker {}: Insufficient {} bars ({}) for chart patterns.",
           ticker.getTickerSymbol(),
-          timeframe.name().toLowerCase(),
+          timeframe,
           bars.size());
     }
   }
@@ -146,677 +197,502 @@ public class ChartPatternCalculator implements PipelineJob {
     }
   }
 
-  private void savePatterns(
-      Ticker ticker, Timeframe timeframe, List<ChartPatternMatch> patternMatches) {
+  private void deleteOlderPatterns(Ticker ticker, LocalDate cutoffDate, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
-      for (ChartPatternMatch match : patternMatches) {
-        Optional<DailyChartPattern> existingRecord =
-            dailyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
-                ticker, match.patternType(), match.startDate());
-        if (existingRecord.isPresent()) {
-          DailyChartPattern pattern = existingRecord.get();
-          pattern.setStatus(match.status());
-          pattern.setEndDate(match.endDate());
-          pattern.setBreakoutDate(match.breakoutDate());
-          pattern.setNecklinePrice(match.necklinePrice());
-          pattern.setNecklineSlope(match.necklineSlope());
-          pattern.setTargetPrice(match.targetPrice());
-          pattern.setStopLossPrice(match.stopLossPrice());
-          pattern.setInvalidationPrice(match.invalidationPrice());
-          pattern.setPivotPoints(match.pivotPoints());
-          dailyChartPatternRepository.save(pattern);
-        } else {
-          DailyChartPattern newPattern =
-              DailyChartPattern.builder()
-                  .ticker(ticker)
-                  .patternType(match.patternType())
-                  .sentiment(match.sentiment())
-                  .status(match.status())
-                  .startDate(match.startDate())
-                  .endDate(match.endDate())
-                  .breakoutDate(match.breakoutDate())
-                  .necklineSlope(match.necklineSlope())
-                  .necklinePrice(match.necklinePrice())
-                  .targetPrice(match.targetPrice())
-                  .stopLossPrice(match.stopLossPrice())
-                  .invalidationPrice(match.invalidationPrice())
-                  .pivotPoints(match.pivotPoints())
-                  .build();
-          dailyChartPatternRepository.save(newPattern);
-        }
-      }
-    } else if (timeframe == Timeframe.WEEKLY) {
-      for (ChartPatternMatch match : patternMatches) {
-        Optional<WeeklyChartPattern> existingRecord =
-            weeklyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
-                ticker, match.patternType(), match.startDate());
-        if (existingRecord.isPresent()) {
-          WeeklyChartPattern pattern = existingRecord.get();
-          pattern.setStatus(match.status());
-          pattern.setEndDate(match.endDate());
-          pattern.setBreakoutDate(match.breakoutDate());
-          pattern.setNecklinePrice(match.necklinePrice());
-          pattern.setNecklineSlope(match.necklineSlope());
-          pattern.setTargetPrice(match.targetPrice());
-          pattern.setStopLossPrice(match.stopLossPrice());
-          pattern.setInvalidationPrice(match.invalidationPrice());
-          pattern.setPivotPoints(match.pivotPoints());
-          weeklyChartPatternRepository.save(pattern);
-        } else {
-          WeeklyChartPattern newPattern =
-              WeeklyChartPattern.builder()
-                  .ticker(ticker)
-                  .patternType(match.patternType())
-                  .sentiment(match.sentiment())
-                  .status(match.status())
-                  .startDate(match.startDate())
-                  .endDate(match.endDate())
-                  .breakoutDate(match.breakoutDate())
-                  .necklineSlope(match.necklineSlope())
-                  .necklinePrice(match.necklinePrice())
-                  .targetPrice(match.targetPrice())
-                  .stopLossPrice(match.stopLossPrice())
-                  .invalidationPrice(match.invalidationPrice())
-                  .pivotPoints(match.pivotPoints())
-                  .build();
-          weeklyChartPatternRepository.save(newPattern);
-        }
-      }
+      dailyChartPatternRepository.deleteByTickerAndPriceDateLessThan(ticker, cutoffDate);
     } else {
-      log.error("Unsupported timeframe for saving chart patterns: {}", timeframe);
-      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+      weeklyChartPatternRepository.deleteByTickerAndPriceDateLessThan(ticker, cutoffDate);
+    }
+  }
+
+  private void savePatterns(
+      Ticker ticker,
+      LocalDate priceDate,
+      Timeframe timeframe,
+      List<ChartPatternMatch> patternMatches) {
+    if (timeframe == Timeframe.DAILY) {
+      List<DailyChartPattern> entities =
+          patternMatches.stream()
+              .map(match ->
+                  DailyChartPattern.builder()
+                      .ticker(ticker)
+                      .priceDate(priceDate)
+                      .patternType(match.patternType())
+                      .sentiment(match.sentiment())
+                      .status(match.status())
+                      .startDate(match.startDate())
+                      .endDate(match.endDate())
+                      .breakoutDate(match.breakoutDate())
+                      .necklineSlope(match.necklineSlope())
+                      .necklinePrice(match.necklinePrice())
+                      .targetPrice(match.targetPrice())
+                      .stopLossPrice(match.stopLossPrice())
+                      .invalidationPrice(match.invalidationPrice())
+                      .pivotPoints(match.pivotPoints())
+                      .build())
+              .toList();
+      dailyChartPatternRepository.saveAll(entities);
+    } else {
+      List<WeeklyChartPattern> entities =
+          patternMatches.stream()
+              .map(match ->
+                  WeeklyChartPattern.builder()
+                      .ticker(ticker)
+                      .priceDate(priceDate)
+                      .patternType(match.patternType())
+                      .sentiment(match.sentiment())
+                      .status(match.status())
+                      .startDate(match.startDate())
+                      .endDate(match.endDate())
+                      .breakoutDate(match.breakoutDate())
+                      .necklineSlope(match.necklineSlope())
+                      .necklinePrice(match.necklinePrice())
+                      .targetPrice(match.targetPrice())
+                      .stopLossPrice(match.stopLossPrice())
+                      .invalidationPrice(match.invalidationPrice())
+                      .pivotPoints(match.pivotPoints())
+                      .build())
+              .toList();
+      weeklyChartPatternRepository.saveAll(entities);
     }
   }
 
   public List<ChartPatternMatch> detectAllPatterns(List<PriceBar> priceBars) {
-    if (priceBars.size() < MIN_BARS) {
+    if (priceBars.size() >= ChartPatternConfig.MIN_BARS) {
+      List<BigDecimal> atrSeries =
+          IndicatorMath.calculateWilderAtrSeries(priceBars, ChartPatternConfig.ATR_PERIOD);
+      List<SwingPoint> swings =
+          dowAtrSwingDetector.detectSwings(
+              priceBars,
+              atrSeries,
+              ChartPatternConfig.ATR_PERIOD,
+              ChartPatternConfig.SWING_ATR_MULTIPLIER);
+      return detectPatternsFromSwings(priceBars, swings);
+    } else {
       return List.of();
     }
-    List<ExtremaPoint> rawExtrema = identifySwingPoints(priceBars);
-    List<ExtremaPoint> alternatingPivots = filterAlternatingExtrema(rawExtrema);
-    if (alternatingPivots.size() < 3) {
-      return List.of();
-    }
-
-    List<ChartPatternMatch> matches = new ArrayList<>();
-    detectDoubleFormations(priceBars, alternatingPivots, matches);
-    detectTripleFormations(priceBars, alternatingPivots, matches);
-    detectHeadAndShoulders(priceBars, alternatingPivots, matches);
-    detectTriangles(priceBars, alternatingPivots, matches);
-    detectWedges(priceBars, alternatingPivots, matches);
-    detectCupAndHandle(priceBars, alternatingPivots, matches);
-    return matches;
   }
 
-  public List<ExtremaPoint> identifySwingPoints(List<PriceBar> priceBars) {
-    List<ExtremaPoint> extremaPoints = new ArrayList<>();
-    for (int index = SWING_WINDOW; index < priceBars.size() - SWING_WINDOW; index++) {
-      PriceBar currentBar = priceBars.get(index);
-      boolean isSwingHigh = true;
-      boolean isSwingLow = true;
-
-      for (int step = 1; step <= SWING_WINDOW; step++) {
-        PriceBar leftBar = priceBars.get(index - step);
-        PriceBar rightBar = priceBars.get(index + step);
-        if (currentBar.high().compareTo(leftBar.high()) < 0
-            || currentBar.high().compareTo(rightBar.high()) < 0) {
-          isSwingHigh = false;
-        }
-        if (currentBar.low().compareTo(leftBar.low()) > 0
-            || currentBar.low().compareTo(rightBar.low()) > 0) {
-          isSwingLow = false;
-        }
-      }
-
-      if (isSwingHigh && !isSwingLow) {
-        extremaPoints.add(new ExtremaPoint(index, currentBar.date(), currentBar.high(), true));
-      } else if (isSwingLow && !isSwingHigh) {
-        extremaPoints.add(new ExtremaPoint(index, currentBar.date(), currentBar.low(), false));
-      }
-    }
-    return extremaPoints;
-  }
-
-  public List<ExtremaPoint> filterAlternatingExtrema(List<ExtremaPoint> rawExtrema) {
-    if (rawExtrema.isEmpty()) {
+  public List<ChartPatternMatch> detectPatternsFromSwings(
+      List<PriceBar> priceBars, List<SwingPoint> swings) {
+    if (swings.size() >= MIN_PIVOTS_FOR_PATTERNS) {
+      List<ChartPatternMatch> matches = new ArrayList<>();
+      detectDoubleFormations(priceBars, swings, matches);
+      detectTripleFormations(priceBars, swings, matches);
+      detectHeadAndShoulders(priceBars, swings, matches);
+      detectTriangles(priceBars, swings, matches);
+      detectWedges(priceBars, swings, matches);
+      detectCupAndHandle(priceBars, swings, matches);
+      return matches;
+    } else {
       return List.of();
     }
-    List<ExtremaPoint> filtered = new ArrayList<>();
-    ExtremaPoint currentExtrema = rawExtrema.getFirst();
-
-    for (int index = 1; index < rawExtrema.size(); index++) {
-      ExtremaPoint nextExtrema = rawExtrema.get(index);
-      if (currentExtrema.isHigh() == nextExtrema.isHigh()) {
-        if (currentExtrema.isHigh()) {
-          if (nextExtrema.price().compareTo(currentExtrema.price()) > 0) {
-            currentExtrema = nextExtrema;
-          }
-        } else {
-          if (nextExtrema.price().compareTo(currentExtrema.price()) < 0) {
-            currentExtrema = nextExtrema;
-          }
-        }
-      } else {
-        filtered.add(currentExtrema);
-        currentExtrema = nextExtrema;
-      }
-    }
-    filtered.add(currentExtrema);
-    return filtered;
   }
 
   private void detectDoubleFormations(
-      List<PriceBar> priceBars, List<ExtremaPoint> pivots, List<ChartPatternMatch> matches) {
-    for (int index = 0; index <= pivots.size() - 3; index++) {
-      ExtremaPoint pivot1 = pivots.get(index);
-      ExtremaPoint pivot2 = pivots.get(index + 1);
-      ExtremaPoint pivot3 = pivots.get(index + 2);
+      List<PriceBar> priceBars, List<SwingPoint> swings, List<ChartPatternMatch> matches) {
+    for (int i = 0; i <= swings.size() - 3; i++) {
+      SwingPoint pivot1 = swings.get(i);
+      SwingPoint pivot2 = swings.get(i + 1);
+      SwingPoint pivot3 = swings.get(i + 2);
+      DowTrend priorTrend = dowTrendClassifier.classifyPriorTrend(swings, i);
 
-      // Double Top: High, Low, High
-      if (pivot1.isHigh() && !pivot2.isHigh() && pivot3.isHigh()) {
-        BigDecimal diff = pivot1.price().subtract(pivot3.price()).abs();
-        BigDecimal maxHigh = pivot1.price().max(pivot3.price());
-        BigDecimal ratio = diff.divide(maxHigh, MATH_CONTEXT);
+      if (pivot1.type() == SwingType.HIGH) {
+        if (priorTrend == DowTrend.UPTREND) {
+          BigDecimal diff = pivot1.price().subtract(pivot3.price()).abs();
+          BigDecimal maxHigh = pivot1.price().max(pivot3.price());
+          BigDecimal ratio = diff.divide(maxHigh, ChartPatternConfig.MATH_CONTEXT);
+          BigDecimal depth = maxHigh.subtract(pivot2.price());
+          BigDecimal depthRatio = depth.divide(maxHigh, ChartPatternConfig.MATH_CONTEXT);
 
-        BigDecimal depth = maxHigh.subtract(pivot2.price());
-        BigDecimal depthRatio = depth.divide(maxHigh, MATH_CONTEXT);
-
-        if (ratio.compareTo(TOLERANCE_3_PERCENT) <= 0
-            && depthRatio.compareTo(MIN_DEPTH_RATIO) >= 0) {
-          BigDecimal neckline = pivot2.price();
-          BigDecimal target = neckline.subtract(depth).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = maxHigh.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = pivot3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, pivot3.index(), neckline, target, invalidation, false);
-
-          LocalDate breakoutDate = findBreakoutDate(priceBars, pivot3.index(), neckline, false);
-
-          List<ChartPatternPivot> patternPivots =
-              List.of(
-                  new ChartPatternPivot(pivot1.date(), pivot1.price(), "HIGH", "PEAK_1"),
-                  new ChartPatternPivot(pivot2.date(), pivot2.price(), "LOW", "NECKLINE"),
-                  new ChartPatternPivot(pivot3.date(), pivot3.price(), "HIGH", "PEAK_2"));
-
-          matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.DOUBLE_TOP)
-                  .sentiment(ChartPatternType.DOUBLE_TOP.getSentiment())
-                  .status(status)
-                  .startDate(pivot1.date())
-                  .endDate(pivot3.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+          if (ratio.compareTo(ChartPatternConfig.TOLERANCE_3_PERCENT) <= 0
+              && depthRatio.compareTo(ChartPatternConfig.MIN_DEPTH_RATIO) >= 0) {
+            BigDecimal neckline = pivot2.price();
+            BigDecimal target = scalePrice(neckline.subtract(depth));
+            BigDecimal invalidation = scalePrice(maxHigh);
+            BigDecimal stopLoss = scalePrice(pivot3.price());
+            List<ChartPatternPivot> patternPivots =
+                List.of(
+                    toPivot(pivot1, "PEAK_1"),
+                    toPivot(pivot2, "NECKLINE"),
+                    toPivot(pivot3, "PEAK_2"));
+            matches.add(
+                buildMatch(
+                    ChartPatternType.DOUBLE_TOP,
+                    priceBars,
+                    pivot1.date(),
+                    pivot3,
+                    neckline,
+                    target,
+                    stopLoss,
+                    invalidation,
+                    false,
+                    patternPivots));
+          }
         }
-      }
-
-      // Double Bottom: Low, High, Low
-      if (!pivot1.isHigh() && pivot2.isHigh() && !pivot3.isHigh()) {
+      } else if (priorTrend == DowTrend.DOWNTREND) {
         BigDecimal diff = pivot1.price().subtract(pivot3.price()).abs();
         BigDecimal maxLow = pivot1.price().max(pivot3.price());
-        BigDecimal ratio = diff.divide(maxLow, MATH_CONTEXT);
+        BigDecimal ratio = diff.divide(maxLow, ChartPatternConfig.MATH_CONTEXT);
+        BigDecimal minLow = pivot1.price().min(pivot3.price());
+        BigDecimal height = pivot2.price().subtract(minLow);
+        BigDecimal heightRatio = height.divide(pivot2.price(), ChartPatternConfig.MATH_CONTEXT);
 
-        BigDecimal height = pivot2.price().subtract(pivot1.price().min(pivot3.price()));
-        BigDecimal heightRatio = height.divide(pivot2.price(), MATH_CONTEXT);
-
-        if (ratio.compareTo(TOLERANCE_3_PERCENT) <= 0
-            && heightRatio.compareTo(MIN_DEPTH_RATIO) >= 0) {
+        if (ratio.compareTo(ChartPatternConfig.TOLERANCE_3_PERCENT) <= 0
+            && heightRatio.compareTo(ChartPatternConfig.MIN_DEPTH_RATIO) >= 0) {
           BigDecimal neckline = pivot2.price();
-          BigDecimal target = neckline.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation =
-              pivot1.price().min(pivot3.price()).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = pivot3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, pivot3.index(), neckline, target, invalidation, true);
-
-          LocalDate breakoutDate = findBreakoutDate(priceBars, pivot3.index(), neckline, true);
-
+          BigDecimal target = scalePrice(neckline.add(height));
+          BigDecimal invalidation = scalePrice(minLow);
+          BigDecimal stopLoss = scalePrice(pivot3.price());
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(pivot1.date(), pivot1.price(), "LOW", "TROUGH_1"),
-                  new ChartPatternPivot(pivot2.date(), pivot2.price(), "HIGH", "NECKLINE"),
-                  new ChartPatternPivot(pivot3.date(), pivot3.price(), "LOW", "TROUGH_2"));
-
+                  toPivot(pivot1, "TROUGH_1"),
+                  toPivot(pivot2, "NECKLINE"),
+                  toPivot(pivot3, "TROUGH_2"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.DOUBLE_BOTTOM)
-                  .sentiment(ChartPatternType.DOUBLE_BOTTOM.getSentiment())
-                  .status(status)
-                  .startDate(pivot1.date())
-                  .endDate(pivot3.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.DOUBLE_BOTTOM,
+                  priceBars,
+                  pivot1.date(),
+                  pivot3,
+                  neckline,
+                  target,
+                  stopLoss,
+                  invalidation,
+                  true,
+                  patternPivots));
         }
       }
     }
   }
 
   private void detectTripleFormations(
-      List<PriceBar> priceBars, List<ExtremaPoint> pivots, List<ChartPatternMatch> matches) {
-    for (int index = 0; index <= pivots.size() - 5; index++) {
-      ExtremaPoint p1 = pivots.get(index);
-      ExtremaPoint p2 = pivots.get(index + 1);
-      ExtremaPoint p3 = pivots.get(index + 2);
-      ExtremaPoint p4 = pivots.get(index + 3);
-      ExtremaPoint p5 = pivots.get(index + 4);
+      List<PriceBar> priceBars, List<SwingPoint> swings, List<ChartPatternMatch> matches) {
+    for (int i = 0; i <= swings.size() - 5; i++) {
+      SwingPoint pivot1 = swings.get(i);
+      SwingPoint pivot2 = swings.get(i + 1);
+      SwingPoint pivot3 = swings.get(i + 2);
+      SwingPoint pivot4 = swings.get(i + 3);
+      SwingPoint pivot5 = swings.get(i + 4);
+      DowTrend priorTrend = dowTrendClassifier.classifyPriorTrend(swings, i);
 
-      // Triple Top: High, Low, High, Low, High
-      if (p1.isHigh() && !p2.isHigh() && p3.isHigh() && !p4.isHigh() && p5.isHigh()) {
-        BigDecimal maxHigh = p1.price().max(p3.price()).max(p5.price());
-        BigDecimal minHigh = p1.price().min(p3.price()).min(p5.price());
-        BigDecimal spread = maxHigh.subtract(minHigh).divide(maxHigh, MATH_CONTEXT);
+      if (pivot1.type() == SwingType.HIGH) {
+        if (priorTrend == DowTrend.UPTREND) {
+          BigDecimal maxHigh = pivot1.price().max(pivot3.price()).max(pivot5.price());
+          BigDecimal minHigh = pivot1.price().min(pivot3.price()).min(pivot5.price());
+          BigDecimal spread =
+              maxHigh.subtract(minHigh).divide(maxHigh, ChartPatternConfig.MATH_CONTEXT);
+          BigDecimal neckline = pivot2.price().min(pivot4.price());
+          BigDecimal height = maxHigh.subtract(neckline);
 
-        BigDecimal neckline = p2.price().min(p4.price());
-        BigDecimal height = maxHigh.subtract(neckline);
-
-        if (spread.compareTo(TOLERANCE_4_PERCENT) <= 0
-            && height.divide(maxHigh, MATH_CONTEXT).compareTo(MIN_DEPTH_RATIO) >= 0) {
-          BigDecimal target = neckline.subtract(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = maxHigh.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, false);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p5.index(), neckline, false);
-
-          List<ChartPatternPivot> patternPivots =
-              List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "HIGH", "PEAK_1"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "LOW", "TROUGH_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "HIGH", "PEAK_2"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "LOW", "TROUGH_2"),
-                  new ChartPatternPivot(p5.date(), p5.price(), "HIGH", "PEAK_3"));
-
-          matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.TRIPLE_TOP)
-                  .sentiment(ChartPatternType.TRIPLE_TOP.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p5.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+          if (spread.compareTo(ChartPatternConfig.TOLERANCE_4_PERCENT) <= 0
+              && height
+                      .divide(maxHigh, ChartPatternConfig.MATH_CONTEXT)
+                      .compareTo(ChartPatternConfig.MIN_DEPTH_RATIO)
+                  >= 0) {
+            BigDecimal target = scalePrice(neckline.subtract(height));
+            BigDecimal invalidation = scalePrice(maxHigh);
+            BigDecimal stopLoss = scalePrice(pivot5.price());
+            List<ChartPatternPivot> patternPivots =
+                List.of(
+                    toPivot(pivot1, "PEAK_1"),
+                    toPivot(pivot2, "TROUGH_1"),
+                    toPivot(pivot3, "PEAK_2"),
+                    toPivot(pivot4, "TROUGH_2"),
+                    toPivot(pivot5, "PEAK_3"));
+            matches.add(
+                buildMatch(
+                    ChartPatternType.TRIPLE_TOP,
+                    priceBars,
+                    pivot1.date(),
+                    pivot5,
+                    neckline,
+                    target,
+                    stopLoss,
+                    invalidation,
+                    false,
+                    patternPivots));
+          }
         }
-      }
-
-      // Triple Bottom: Low, High, Low, High, Low
-      if (!p1.isHigh() && p2.isHigh() && !p3.isHigh() && p4.isHigh() && !p5.isHigh()) {
-        BigDecimal maxLow = p1.price().max(p3.price()).max(p5.price());
-        BigDecimal minLow = p1.price().min(p3.price()).min(p5.price());
-        BigDecimal spread = maxLow.subtract(minLow).divide(maxLow, MATH_CONTEXT);
-
-        BigDecimal neckline = p2.price().max(p4.price());
+      } else if (priorTrend == DowTrend.DOWNTREND) {
+        BigDecimal maxLow = pivot1.price().max(pivot3.price()).max(pivot5.price());
+        BigDecimal minLow = pivot1.price().min(pivot3.price()).min(pivot5.price());
+        BigDecimal spread = maxLow.subtract(minLow).divide(maxLow, ChartPatternConfig.MATH_CONTEXT);
+        BigDecimal neckline = pivot2.price().max(pivot4.price());
         BigDecimal height = neckline.subtract(minLow);
 
-        if (spread.compareTo(TOLERANCE_4_PERCENT) <= 0
-            && height.divide(neckline, MATH_CONTEXT).compareTo(MIN_DEPTH_RATIO) >= 0) {
-          BigDecimal target = neckline.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = minLow.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, true);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p5.index(), neckline, true);
-
+        if (spread.compareTo(ChartPatternConfig.TOLERANCE_4_PERCENT) <= 0
+            && height
+                    .divide(neckline, ChartPatternConfig.MATH_CONTEXT)
+                    .compareTo(ChartPatternConfig.MIN_DEPTH_RATIO)
+                >= 0) {
+          BigDecimal target = scalePrice(neckline.add(height));
+          BigDecimal invalidation = scalePrice(minLow);
+          BigDecimal stopLoss = scalePrice(pivot5.price());
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "LOW", "TROUGH_1"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "HIGH", "PEAK_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "LOW", "TROUGH_2"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "HIGH", "PEAK_2"),
-                  new ChartPatternPivot(p5.date(), p5.price(), "LOW", "TROUGH_3"));
-
+                  toPivot(pivot1, "TROUGH_1"),
+                  toPivot(pivot2, "PEAK_1"),
+                  toPivot(pivot3, "TROUGH_2"),
+                  toPivot(pivot4, "PEAK_2"),
+                  toPivot(pivot5, "TROUGH_3"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.TRIPLE_BOTTOM)
-                  .sentiment(ChartPatternType.TRIPLE_BOTTOM.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p5.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.TRIPLE_BOTTOM,
+                  priceBars,
+                  pivot1.date(),
+                  pivot5,
+                  neckline,
+                  target,
+                  stopLoss,
+                  invalidation,
+                  true,
+                  patternPivots));
         }
       }
     }
   }
 
   private void detectHeadAndShoulders(
-      List<PriceBar> priceBars, List<ExtremaPoint> pivots, List<ChartPatternMatch> matches) {
-    for (int index = 0; index <= pivots.size() - 5; index++) {
-      ExtremaPoint p1 = pivots.get(index);
-      ExtremaPoint p2 = pivots.get(index + 1);
-      ExtremaPoint p3 = pivots.get(index + 2);
-      ExtremaPoint p4 = pivots.get(index + 3);
-      ExtremaPoint p5 = pivots.get(index + 4);
+      List<PriceBar> priceBars, List<SwingPoint> swings, List<ChartPatternMatch> matches) {
+    for (int i = 0; i <= swings.size() - 5; i++) {
+      SwingPoint pivot1 = swings.get(i);
+      SwingPoint pivot2 = swings.get(i + 1);
+      SwingPoint pivot3 = swings.get(i + 2);
+      SwingPoint pivot4 = swings.get(i + 3);
+      SwingPoint pivot5 = swings.get(i + 4);
+      DowTrend priorTrend = dowTrendClassifier.classifyPriorTrend(swings, i);
 
-      // Standard Head and Shoulders: High (LS), Low (T1), High (Head), Low (T2), High (RS)
-      if (p1.isHigh() && !p2.isHigh() && p3.isHigh() && !p4.isHigh() && p5.isHigh()) {
-        boolean headHigher =
-            p3.price().compareTo(p1.price()) > 0 && p3.price().compareTo(p5.price()) > 0;
-        BigDecimal shoulderDiff = p1.price().subtract(p5.price()).abs();
-        BigDecimal shoulderRatio = shoulderDiff.divide(p1.price().max(p5.price()), MATH_CONTEXT);
+      if (pivot1.type() == SwingType.HIGH) {
+        if (priorTrend == DowTrend.UPTREND) {
+          boolean headHigher =
+              pivot3.price().compareTo(pivot1.price()) > 0
+                  && pivot3.price().compareTo(pivot5.price()) > 0;
+          BigDecimal shoulderDiff = pivot1.price().subtract(pivot5.price()).abs();
+          BigDecimal shoulderRatio =
+              shoulderDiff.divide(
+                  pivot1.price().max(pivot5.price()), ChartPatternConfig.MATH_CONTEXT);
 
-        if (headHigher && shoulderRatio.compareTo(TOLERANCE_5_PERCENT) <= 0) {
-          BigDecimal neckline = p2.price().min(p4.price());
-          BigDecimal height = p3.price().subtract(neckline);
-          BigDecimal target = neckline.subtract(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, false);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p5.index(), neckline, false);
-
-          List<ChartPatternPivot> patternPivots =
-              List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "HIGH", "LEFT_SHOULDER"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "LOW", "TROUGH_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "HIGH", "HEAD"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "LOW", "TROUGH_2"),
-                  new ChartPatternPivot(p5.date(), p5.price(), "HIGH", "RIGHT_SHOULDER"));
-
-          matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.HEAD_AND_SHOULDERS)
-                  .sentiment(ChartPatternType.HEAD_AND_SHOULDERS.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p5.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+          if (headHigher && shoulderRatio.compareTo(ChartPatternConfig.TOLERANCE_5_PERCENT) <= 0) {
+            BigDecimal neckline = pivot2.price().min(pivot4.price());
+            BigDecimal height = pivot3.price().subtract(neckline);
+            BigDecimal target = scalePrice(neckline.subtract(height));
+            BigDecimal invalidation = scalePrice(pivot3.price());
+            BigDecimal stopLoss = scalePrice(pivot5.price());
+            List<ChartPatternPivot> patternPivots =
+                List.of(
+                    toPivot(pivot1, "LEFT_SHOULDER"),
+                    toPivot(pivot2, "TROUGH_1"),
+                    toPivot(pivot3, "HEAD"),
+                    toPivot(pivot4, "TROUGH_2"),
+                    toPivot(pivot5, "RIGHT_SHOULDER"));
+            matches.add(
+                buildMatch(
+                    ChartPatternType.HEAD_AND_SHOULDERS,
+                    priceBars,
+                    pivot1.date(),
+                    pivot5,
+                    neckline,
+                    target,
+                    stopLoss,
+                    invalidation,
+                    false,
+                    patternPivots));
+          }
         }
-      }
-
-      // Inverse Head and Shoulders: Low (LS), High (P1), Low (Head), High (P2), Low (RS)
-      if (!p1.isHigh() && p2.isHigh() && !p3.isHigh() && p4.isHigh() && !p5.isHigh()) {
+      } else if (priorTrend == DowTrend.DOWNTREND) {
         boolean headLower =
-            p3.price().compareTo(p1.price()) < 0 && p3.price().compareTo(p5.price()) < 0;
-        BigDecimal shoulderDiff = p1.price().subtract(p5.price()).abs();
-        BigDecimal shoulderRatio = shoulderDiff.divide(p1.price().max(p5.price()), MATH_CONTEXT);
+            pivot3.price().compareTo(pivot1.price()) < 0
+                && pivot3.price().compareTo(pivot5.price()) < 0;
+        BigDecimal shoulderDiff = pivot1.price().subtract(pivot5.price()).abs();
+        BigDecimal shoulderRatio =
+            shoulderDiff.divide(
+                pivot1.price().max(pivot5.price()), ChartPatternConfig.MATH_CONTEXT);
 
-        if (headLower && shoulderRatio.compareTo(TOLERANCE_5_PERCENT) <= 0) {
-          BigDecimal neckline = p2.price().max(p4.price());
-          BigDecimal height = neckline.subtract(p3.price());
-          BigDecimal target = neckline.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p3.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p5.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p5.index(), neckline, target, invalidation, true);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p5.index(), neckline, true);
-
+        if (headLower && shoulderRatio.compareTo(ChartPatternConfig.TOLERANCE_5_PERCENT) <= 0) {
+          BigDecimal neckline = pivot2.price().max(pivot4.price());
+          BigDecimal height = neckline.subtract(pivot3.price());
+          BigDecimal target = scalePrice(neckline.add(height));
+          BigDecimal invalidation = scalePrice(pivot3.price());
+          BigDecimal stopLoss = scalePrice(pivot5.price());
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "LOW", "LEFT_SHOULDER"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "HIGH", "PEAK_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "LOW", "HEAD"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "HIGH", "PEAK_2"),
-                  new ChartPatternPivot(p5.date(), p5.price(), "LOW", "RIGHT_SHOULDER"));
-
+                  toPivot(pivot1, "LEFT_SHOULDER"),
+                  toPivot(pivot2, "PEAK_1"),
+                  toPivot(pivot3, "HEAD"),
+                  toPivot(pivot4, "PEAK_2"),
+                  toPivot(pivot5, "RIGHT_SHOULDER"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.INVERSE_HEAD_AND_SHOULDERS)
-                  .sentiment(ChartPatternType.INVERSE_HEAD_AND_SHOULDERS.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p5.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(neckline.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.INVERSE_HEAD_AND_SHOULDERS,
+                  priceBars,
+                  pivot1.date(),
+                  pivot5,
+                  neckline,
+                  target,
+                  stopLoss,
+                  invalidation,
+                  true,
+                  patternPivots));
         }
       }
     }
   }
 
   private void detectTriangles(
-      List<PriceBar> priceBars, List<ExtremaPoint> pivots, List<ChartPatternMatch> matches) {
-    for (int index = 0; index <= pivots.size() - 4; index++) {
-      ExtremaPoint p1 = pivots.get(index);
-      ExtremaPoint p2 = pivots.get(index + 1);
-      ExtremaPoint p3 = pivots.get(index + 2);
-      ExtremaPoint p4 = pivots.get(index + 3);
+      List<PriceBar> priceBars, List<SwingPoint> swings, List<ChartPatternMatch> matches) {
+    for (int i = 0; i <= swings.size() - 4; i++) {
+      SwingPoint pivot1 = swings.get(i);
+      SwingPoint pivot2 = swings.get(i + 1);
+      SwingPoint pivot3 = swings.get(i + 2);
+      SwingPoint pivot4 = swings.get(i + 3);
 
-      // Starting with High: p1=H1, p2=L1, p3=H2, p4=L2
-      if (p1.isHigh() && !p2.isHigh() && p3.isHigh() && !p4.isHigh()) {
-        BigDecimal highDiff = p1.price().subtract(p3.price()).abs();
-        BigDecimal highSpread = highDiff.divide(p1.price().max(p3.price()), MATH_CONTEXT);
+      if (pivot1.type() == SwingType.HIGH) {
+        BigDecimal highDiff = pivot1.price().subtract(pivot3.price()).abs();
+        BigDecimal highSpread =
+            highDiff.divide(pivot1.price().max(pivot3.price()), ChartPatternConfig.MATH_CONTEXT);
 
-        // Ascending Triangle: H1 ~ H2 (flat resistance), L2 > L1 (higher low)
-        if (highSpread.compareTo(TOLERANCE_3_PERCENT) <= 0
-            && p4.price().compareTo(p2.price()) > 0) {
-          BigDecimal resistance = p1.price().max(p3.price());
-          BigDecimal height = resistance.subtract(p2.price());
-          BigDecimal target = resistance.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p2.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p4.index(), resistance, target, invalidation, true);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p4.index(), resistance, true);
-
+        if (highSpread.compareTo(ChartPatternConfig.TOLERANCE_3_PERCENT) <= 0
+            && pivot4.price().compareTo(pivot2.price()) > 0) {
+          BigDecimal resistance = pivot1.price().max(pivot3.price());
+          BigDecimal height = resistance.subtract(pivot2.price());
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "HIGH", "RESISTANCE_1"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "LOW", "SUPPORT_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "HIGH", "RESISTANCE_2"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "LOW", "SUPPORT_2"));
-
+                  toPivot(pivot1, "RESISTANCE_1"),
+                  toPivot(pivot2, "SUPPORT_1"),
+                  toPivot(pivot3, "RESISTANCE_2"),
+                  toPivot(pivot4, "SUPPORT_2"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.ASCENDING_TRIANGLE)
-                  .sentiment(ChartPatternType.ASCENDING_TRIANGLE.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p4.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(resistance.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.ASCENDING_TRIANGLE,
+                  priceBars,
+                  pivot1.date(),
+                  pivot4,
+                  resistance,
+                  scalePrice(resistance.add(height)),
+                  scalePrice(pivot4.price()),
+                  scalePrice(pivot2.price()),
+                  true,
+                  patternPivots));
         }
 
-        // Symmetrical Triangle: H2 < H1 (lower high), L2 > L1 (higher low)
-        if (p3.price().compareTo(p1.price()) < 0 && p4.price().compareTo(p2.price()) > 0) {
-          BigDecimal height = p1.price().subtract(p2.price());
-          BigDecimal trigger = p3.price();
-          BigDecimal target = trigger.add(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p2.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p4.index(), trigger, target, invalidation, true);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p4.index(), trigger, true);
-
+        if (pivot3.price().compareTo(pivot1.price()) < 0
+            && pivot4.price().compareTo(pivot2.price()) > 0) {
+          BigDecimal height = pivot1.price().subtract(pivot2.price());
+          BigDecimal trigger = pivot3.price();
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "HIGH", "PEAK_1"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "LOW", "TROUGH_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "HIGH", "PEAK_2"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "LOW", "TROUGH_2"));
-
+                  toPivot(pivot1, "PEAK_1"),
+                  toPivot(pivot2, "TROUGH_1"),
+                  toPivot(pivot3, "PEAK_2"),
+                  toPivot(pivot4, "TROUGH_2"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.SYMMETRICAL_TRIANGLE)
-                  .sentiment(ChartPatternType.SYMMETRICAL_TRIANGLE.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p4.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(trigger.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.SYMMETRICAL_TRIANGLE,
+                  priceBars,
+                  pivot1.date(),
+                  pivot4,
+                  trigger,
+                  scalePrice(trigger.add(height)),
+                  scalePrice(pivot4.price()),
+                  scalePrice(pivot2.price()),
+                  true,
+                  patternPivots));
         }
-      }
+      } else {
+        BigDecimal lowDiff = pivot1.price().subtract(pivot3.price()).abs();
+        BigDecimal lowSpread =
+            lowDiff.divide(pivot1.price().max(pivot3.price()), ChartPatternConfig.MATH_CONTEXT);
 
-      // Starting with Low: p1=L1, p2=H1, p3=L2, p4=H2
-      if (!p1.isHigh() && p2.isHigh() && !p3.isHigh() && p4.isHigh()) {
-        BigDecimal lowDiff = p1.price().subtract(p3.price()).abs();
-        BigDecimal lowSpread = lowDiff.divide(p1.price().max(p3.price()), MATH_CONTEXT);
-
-        // Descending Triangle: L1 ~ L2 (flat support), H2 < H1 (lower high)
-        if (lowSpread.compareTo(TOLERANCE_3_PERCENT) <= 0 && p4.price().compareTo(p2.price()) < 0) {
-          BigDecimal support = p1.price().min(p3.price());
-          BigDecimal height = p2.price().subtract(support);
-          BigDecimal target = support.subtract(height).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p2.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p4.index(), support, target, invalidation, false);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p4.index(), support, false);
-
+        if (lowSpread.compareTo(ChartPatternConfig.TOLERANCE_3_PERCENT) <= 0
+            && pivot4.price().compareTo(pivot2.price()) < 0) {
+          BigDecimal support = pivot1.price().min(pivot3.price());
+          BigDecimal height = pivot2.price().subtract(support);
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "LOW", "SUPPORT_1"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "HIGH", "RESISTANCE_1"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "LOW", "SUPPORT_2"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "HIGH", "RESISTANCE_2"));
-
+                  toPivot(pivot1, "SUPPORT_1"),
+                  toPivot(pivot2, "RESISTANCE_1"),
+                  toPivot(pivot3, "SUPPORT_2"),
+                  toPivot(pivot4, "RESISTANCE_2"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.DESCENDING_TRIANGLE)
-                  .sentiment(ChartPatternType.DESCENDING_TRIANGLE.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p4.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(support.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.DESCENDING_TRIANGLE,
+                  priceBars,
+                  pivot1.date(),
+                  pivot4,
+                  support,
+                  scalePrice(support.subtract(height)),
+                  scalePrice(pivot4.price()),
+                  scalePrice(pivot2.price()),
+                  false,
+                  patternPivots));
         }
       }
     }
   }
 
   private void detectWedges(
-      List<PriceBar> priceBars, List<ExtremaPoint> pivots, List<ChartPatternMatch> matches) {
-    for (int index = 0; index <= pivots.size() - 4; index++) {
-      ExtremaPoint p1 = pivots.get(index);
-      ExtremaPoint p2 = pivots.get(index + 1);
-      ExtremaPoint p3 = pivots.get(index + 2);
-      ExtremaPoint p4 = pivots.get(index + 3);
+      List<PriceBar> priceBars, List<SwingPoint> swings, List<ChartPatternMatch> matches) {
+    for (int i = 0; i <= swings.size() - 4; i++) {
+      SwingPoint pivot1 = swings.get(i);
+      SwingPoint pivot2 = swings.get(i + 1);
+      SwingPoint pivot3 = swings.get(i + 2);
+      SwingPoint pivot4 = swings.get(i + 3);
 
-      // Rising Wedge: Low1, High1, Low2, High2 with High2 > High1 and Low2 > Low1 (converging
-      // upward)
-      if (!p1.isHigh() && p2.isHigh() && !p3.isHigh() && p4.isHigh()) {
-        if (p4.price().compareTo(p2.price()) > 0 && p3.price().compareTo(p1.price()) > 0) {
-          BigDecimal highDiff = p4.price().subtract(p2.price());
-          BigDecimal lowDiff = p3.price().subtract(p1.price());
+      if (pivot1.type() == SwingType.LOW) {
+        if (pivot4.price().compareTo(pivot2.price()) > 0
+            && pivot3.price().compareTo(pivot1.price()) > 0) {
+          BigDecimal highDiff = pivot4.price().subtract(pivot2.price());
+          BigDecimal lowDiff = pivot3.price().subtract(pivot1.price());
 
-          // Slopes converging (lows rising faster than highs)
           if (lowDiff.compareTo(highDiff) > 0) {
-            BigDecimal trigger = p3.price();
-            BigDecimal target = p1.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-            BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-            BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-            ChartPatternStatus status =
-                evaluateStatus(priceBars, p4.index(), trigger, target, invalidation, false);
-            LocalDate breakoutDate = findBreakoutDate(priceBars, p4.index(), trigger, false);
-
+            BigDecimal trigger = pivot3.price();
             List<ChartPatternPivot> patternPivots =
                 List.of(
-                    new ChartPatternPivot(p1.date(), p1.price(), "LOW", "SUPPORT_1"),
-                    new ChartPatternPivot(p2.date(), p2.price(), "HIGH", "RESISTANCE_1"),
-                    new ChartPatternPivot(p3.date(), p3.price(), "LOW", "SUPPORT_2"),
-                    new ChartPatternPivot(p4.date(), p4.price(), "HIGH", "RESISTANCE_2"));
-
+                    toPivot(pivot1, "SUPPORT_1"),
+                    toPivot(pivot2, "RESISTANCE_1"),
+                    toPivot(pivot3, "SUPPORT_2"),
+                    toPivot(pivot4, "RESISTANCE_2"));
             matches.add(
-                ChartPatternMatch.builder()
-                    .patternType(ChartPatternType.RISING_WEDGE)
-                    .sentiment(ChartPatternType.RISING_WEDGE.getSentiment())
-                    .status(status)
-                    .startDate(p1.date())
-                    .endDate(p4.date())
-                    .breakoutDate(breakoutDate)
-                    .necklinePrice(trigger.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                    .targetPrice(target)
-                    .stopLossPrice(stopLoss)
-                    .invalidationPrice(invalidation)
-                    .pivotPoints(patternPivots)
-                    .build());
+                buildMatch(
+                    ChartPatternType.RISING_WEDGE,
+                    priceBars,
+                    pivot1.date(),
+                    pivot4,
+                    trigger,
+                    scalePrice(pivot1.price()),
+                    scalePrice(pivot4.price()),
+                    scalePrice(pivot4.price()),
+                    false,
+                    patternPivots));
           }
         }
-      }
+      } else {
+        if (pivot3.price().compareTo(pivot1.price()) < 0
+            && pivot4.price().compareTo(pivot2.price()) < 0) {
+          BigDecimal highDiff = pivot1.price().subtract(pivot3.price());
+          BigDecimal lowDiff = pivot2.price().subtract(pivot4.price());
 
-      // Falling Wedge: High1, Low1, High2, Low2 with High2 < High1 and Low2 < Low1 (converging
-      // downward)
-      if (p1.isHigh() && !p2.isHigh() && p3.isHigh() && !p4.isHigh()) {
-        if (p3.price().compareTo(p1.price()) < 0 && p4.price().compareTo(p2.price()) < 0) {
-          BigDecimal highDiff = p1.price().subtract(p3.price());
-          BigDecimal lowDiff = p2.price().subtract(p4.price());
-
-          // Highs falling faster than lows
           if (highDiff.compareTo(lowDiff) > 0) {
-            BigDecimal trigger = p3.price();
-            BigDecimal target = p1.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-            BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-            BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-            ChartPatternStatus status =
-                evaluateStatus(priceBars, p4.index(), trigger, target, invalidation, true);
-            LocalDate breakoutDate = findBreakoutDate(priceBars, p4.index(), trigger, true);
-
+            BigDecimal trigger = pivot3.price();
             List<ChartPatternPivot> patternPivots =
                 List.of(
-                    new ChartPatternPivot(p1.date(), p1.price(), "HIGH", "RESISTANCE_1"),
-                    new ChartPatternPivot(p2.date(), p2.price(), "LOW", "SUPPORT_1"),
-                    new ChartPatternPivot(p3.date(), p3.price(), "HIGH", "RESISTANCE_2"),
-                    new ChartPatternPivot(p4.date(), p4.price(), "LOW", "SUPPORT_2"));
-
+                    toPivot(pivot1, "RESISTANCE_1"),
+                    toPivot(pivot2, "SUPPORT_1"),
+                    toPivot(pivot3, "RESISTANCE_2"),
+                    toPivot(pivot4, "SUPPORT_2"));
             matches.add(
-                ChartPatternMatch.builder()
-                    .patternType(ChartPatternType.FALLING_WEDGE)
-                    .sentiment(ChartPatternType.FALLING_WEDGE.getSentiment())
-                    .status(status)
-                    .startDate(p1.date())
-                    .endDate(p4.date())
-                    .breakoutDate(breakoutDate)
-                    .necklinePrice(trigger.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                    .targetPrice(target)
-                    .stopLossPrice(stopLoss)
-                    .invalidationPrice(invalidation)
-                    .pivotPoints(patternPivots)
-                    .build());
+                buildMatch(
+                    ChartPatternType.FALLING_WEDGE,
+                    priceBars,
+                    pivot1.date(),
+                    pivot4,
+                    trigger,
+                    scalePrice(pivot1.price()),
+                    scalePrice(pivot4.price()),
+                    scalePrice(pivot4.price()),
+                    true,
+                    patternPivots));
           }
         }
       }
@@ -824,59 +700,97 @@ public class ChartPatternCalculator implements PipelineJob {
   }
 
   private void detectCupAndHandle(
-      List<PriceBar> priceBars, List<ExtremaPoint> pivots, List<ChartPatternMatch> matches) {
-    for (int index = 0; index <= pivots.size() - 4; index++) {
-      ExtremaPoint p1 = pivots.get(index);
-      ExtremaPoint p2 = pivots.get(index + 1);
-      ExtremaPoint p3 = pivots.get(index + 2);
-      ExtremaPoint p4 = pivots.get(index + 3);
+      List<PriceBar> priceBars, List<SwingPoint> swings, List<ChartPatternMatch> matches) {
+    for (int i = 0; i <= swings.size() - 4; i++) {
+      SwingPoint pivot1 = swings.get(i);
+      SwingPoint pivot2 = swings.get(i + 1);
+      SwingPoint pivot3 = swings.get(i + 2);
+      SwingPoint pivot4 = swings.get(i + 3);
 
-      // p1=High (Left Rim), p2=Low (Cup Bottom), p3=High (Right Rim), p4=Low (Handle Trough)
-      if (p1.isHigh() && !p2.isHigh() && p3.isHigh() && !p4.isHigh()) {
-        BigDecimal rimDiff = p1.price().subtract(p3.price()).abs();
-        BigDecimal rimRatio = rimDiff.divide(p1.price().max(p3.price()), MATH_CONTEXT);
+      if (pivot1.type() == SwingType.HIGH) {
+        BigDecimal rimDiff = pivot1.price().subtract(pivot3.price()).abs();
+        BigDecimal rimRatio =
+            rimDiff.divide(pivot1.price().max(pivot3.price()), ChartPatternConfig.MATH_CONTEXT);
+        BigDecimal cupDepth = pivot1.price().max(pivot3.price()).subtract(pivot2.price());
+        BigDecimal handlePullback = pivot3.price().subtract(pivot4.price());
 
-        BigDecimal cupDepth = p1.price().max(p3.price()).subtract(p2.price());
-        BigDecimal handlePullback = p3.price().subtract(p4.price());
-
-        // Rim tops close, cup has depth, handle is shallow (less than half cup depth)
-        if (rimRatio.compareTo(TOLERANCE_4_PERCENT) <= 0
-            && cupDepth.divide(p1.price(), MATH_CONTEXT).compareTo(new BigDecimal("0.04")) >= 0
-            && p4.price().compareTo(p2.price()) > 0
-            && handlePullback.compareTo(cupDepth.divide(TWO, MATH_CONTEXT)) <= 0) {
-          BigDecimal resistance = p3.price();
-          BigDecimal target = resistance.add(cupDepth).setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal invalidation = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-          BigDecimal stopLoss = p4.price().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
-
-          ChartPatternStatus status =
-              evaluateStatus(priceBars, p4.index(), resistance, target, invalidation, true);
-          LocalDate breakoutDate = findBreakoutDate(priceBars, p4.index(), resistance, true);
-
+        if (rimRatio.compareTo(ChartPatternConfig.TOLERANCE_4_PERCENT) <= 0
+            && cupDepth
+                    .divide(pivot1.price(), ChartPatternConfig.MATH_CONTEXT)
+                    .compareTo(ChartPatternConfig.CUP_MIN_DEPTH_RATIO)
+                >= 0
+            && pivot4.price().compareTo(pivot2.price()) > 0
+            && handlePullback.compareTo(
+                    cupDepth.divide(ChartPatternConfig.TWO, ChartPatternConfig.MATH_CONTEXT))
+                <= 0) {
+          BigDecimal resistance = pivot3.price();
           List<ChartPatternPivot> patternPivots =
               List.of(
-                  new ChartPatternPivot(p1.date(), p1.price(), "HIGH", "LEFT_RIM"),
-                  new ChartPatternPivot(p2.date(), p2.price(), "LOW", "CUP_BOTTOM"),
-                  new ChartPatternPivot(p3.date(), p3.price(), "HIGH", "RIGHT_RIM"),
-                  new ChartPatternPivot(p4.date(), p4.price(), "LOW", "HANDLE_TROUGH"));
-
+                  toPivot(pivot1, "LEFT_RIM"),
+                  toPivot(pivot2, "CUP_BOTTOM"),
+                  toPivot(pivot3, "RIGHT_RIM"),
+                  toPivot(pivot4, "HANDLE_TROUGH"));
           matches.add(
-              ChartPatternMatch.builder()
-                  .patternType(ChartPatternType.CUP_AND_HANDLE)
-                  .sentiment(ChartPatternType.CUP_AND_HANDLE.getSentiment())
-                  .status(status)
-                  .startDate(p1.date())
-                  .endDate(p4.date())
-                  .breakoutDate(breakoutDate)
-                  .necklinePrice(resistance.setScale(PRICE_SCALE, RoundingMode.HALF_UP))
-                  .targetPrice(target)
-                  .stopLossPrice(stopLoss)
-                  .invalidationPrice(invalidation)
-                  .pivotPoints(patternPivots)
-                  .build());
+              buildMatch(
+                  ChartPatternType.CUP_AND_HANDLE,
+                  priceBars,
+                  pivot1.date(),
+                  pivot4,
+                  resistance,
+                  scalePrice(resistance.add(cupDepth)),
+                  scalePrice(pivot4.price()),
+                  scalePrice(pivot4.price()),
+                  true,
+                  patternPivots));
         }
       }
     }
+  }
+
+  private ChartPatternMatch buildMatch(
+      ChartPatternType patternType,
+      List<PriceBar> priceBars,
+      LocalDate startDate,
+      SwingPoint lastPivot,
+      BigDecimal triggerPrice,
+      BigDecimal targetPrice,
+      BigDecimal stopLossPrice,
+      BigDecimal invalidationPrice,
+      boolean isBullish,
+      List<ChartPatternPivot> patternPivots) {
+    ChartPatternStatus status =
+        evaluateStatus(
+            priceBars,
+            lastPivot.barIndex(),
+            triggerPrice,
+            targetPrice,
+            invalidationPrice,
+            isBullish);
+    LocalDate breakoutDate =
+        findBreakoutDate(priceBars, lastPivot.barIndex(), triggerPrice, isBullish);
+
+    return ChartPatternMatch.builder()
+        .patternType(patternType)
+        .sentiment(patternType.getSentiment())
+        .status(status)
+        .startDate(startDate)
+        .endDate(lastPivot.date())
+        .breakoutDate(breakoutDate)
+        .necklinePrice(scalePrice(triggerPrice))
+        .targetPrice(targetPrice)
+        .stopLossPrice(stopLossPrice)
+        .invalidationPrice(invalidationPrice)
+        .pivotPoints(patternPivots)
+        .build();
+  }
+
+  private ChartPatternPivot toPivot(SwingPoint swingPoint, String role) {
+    return new ChartPatternPivot(
+        swingPoint.date(), swingPoint.price(), swingPoint.type().name(), role);
+  }
+
+  private BigDecimal scalePrice(BigDecimal price) {
+    return price.setScale(ChartPatternConfig.PRICE_SCALE, RoundingMode.HALF_UP);
   }
 
   private ChartPatternStatus evaluateStatus(
@@ -886,50 +800,50 @@ public class ChartPatternCalculator implements PipelineJob {
       BigDecimal targetPrice,
       BigDecimal invalidationPrice,
       boolean isBullish) {
-    if (lastPivotIndex >= priceBars.size() - 1) {
-      return ChartPatternStatus.IN_PROGRESS;
-    }
-
-    boolean brokenOut = false;
-    for (int index = lastPivotIndex + 1; index < priceBars.size(); index++) {
-      PriceBar bar = priceBars.get(index);
-      if (isBullish) {
-        if (!brokenOut) {
-          if (bar.close().compareTo(triggerPrice) > 0) {
-            brokenOut = true;
-          } else if (bar.close().compareTo(invalidationPrice) < 0) {
-            return ChartPatternStatus.INVALIDATED;
+    if (lastPivotIndex < priceBars.size() - 1) {
+      boolean brokenOut = false;
+      for (int i = lastPivotIndex + 1; i < priceBars.size(); i++) {
+        PriceBar bar = priceBars.get(i);
+        if (isBullish) {
+          if (!brokenOut) {
+            if (bar.close().compareTo(triggerPrice) > 0) {
+              brokenOut = true;
+            } else if (bar.close().compareTo(invalidationPrice) < 0) {
+              return ChartPatternStatus.INVALIDATED;
+            }
           }
-        }
-        if (brokenOut) {
-          if (bar.high().compareTo(targetPrice) >= 0) {
-            return ChartPatternStatus.TARGET_REACHED;
+          if (brokenOut) {
+            if (bar.high().compareTo(targetPrice) >= 0) {
+              return ChartPatternStatus.TARGET_REACHED;
+            }
+            if (bar.close().compareTo(invalidationPrice) < 0) {
+              return ChartPatternStatus.INVALIDATED;
+            }
           }
-          if (bar.close().compareTo(invalidationPrice) < 0) {
-            return ChartPatternStatus.INVALIDATED;
+        } else {
+          if (!brokenOut) {
+            if (bar.close().compareTo(triggerPrice) < 0) {
+              brokenOut = true;
+            } else if (bar.close().compareTo(invalidationPrice) > 0) {
+              return ChartPatternStatus.INVALIDATED;
+            }
           }
-        }
-      } else {
-        if (!brokenOut) {
-          if (bar.close().compareTo(triggerPrice) < 0) {
-            brokenOut = true;
-          } else if (bar.close().compareTo(invalidationPrice) > 0) {
-            return ChartPatternStatus.INVALIDATED;
-          }
-        }
-        if (brokenOut) {
-          if (bar.low().compareTo(targetPrice) <= 0) {
-            return ChartPatternStatus.TARGET_REACHED;
-          }
-          if (bar.close().compareTo(invalidationPrice) > 0) {
-            return ChartPatternStatus.INVALIDATED;
+          if (brokenOut) {
+            if (bar.low().compareTo(targetPrice) <= 0) {
+              return ChartPatternStatus.TARGET_REACHED;
+            }
+            if (bar.close().compareTo(invalidationPrice) > 0) {
+              return ChartPatternStatus.INVALIDATED;
+            }
           }
         }
       }
-    }
 
-    if (brokenOut) {
-      return ChartPatternStatus.COMPLETED;
+      if (brokenOut) {
+        return ChartPatternStatus.COMPLETED;
+      } else {
+        return ChartPatternStatus.IN_PROGRESS;
+      }
     } else {
       return ChartPatternStatus.IN_PROGRESS;
     }
@@ -937,8 +851,8 @@ public class ChartPatternCalculator implements PipelineJob {
 
   private LocalDate findBreakoutDate(
       List<PriceBar> priceBars, int lastPivotIndex, BigDecimal triggerPrice, boolean isBullish) {
-    for (int index = lastPivotIndex + 1; index < priceBars.size(); index++) {
-      PriceBar bar = priceBars.get(index);
+    for (int i = lastPivotIndex + 1; i < priceBars.size(); i++) {
+      PriceBar bar = priceBars.get(i);
       if (isBullish && bar.close().compareTo(triggerPrice) > 0) {
         return bar.date();
       } else if (!isBullish && bar.close().compareTo(triggerPrice) < 0) {

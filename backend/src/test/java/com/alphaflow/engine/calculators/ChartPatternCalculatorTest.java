@@ -1,46 +1,54 @@
 package com.alphaflow.engine.calculators;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.calculators.dtos.ChartPatternMatch;
-import com.alphaflow.engine.calculators.dtos.ExtremaPoint;
+import com.alphaflow.engine.configs.ChartPatternConfig;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
-import com.alphaflow.persistence.entities.DailyChartPattern;
+import com.alphaflow.engine.structure.DowAtrSwingDetector;
+import com.alphaflow.engine.structure.DowTrendClassifier;
+import com.alphaflow.engine.structure.dtos.SwingPoint;
+import com.alphaflow.engine.structure.enums.SwingType;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
-import com.alphaflow.persistence.entities.WeeklyChartPattern;
 import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.enums.ChartPatternStatus;
 import com.alphaflow.persistence.enums.ChartPatternType;
-import com.alphaflow.persistence.enums.Country;
 import com.alphaflow.persistence.repositories.DailyChartPatternRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.TickerRepository;
 import com.alphaflow.persistence.repositories.WeeklyChartPatternRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class ChartPatternCalculatorTest {
-
-  private static final LocalDate HISTORICAL_MONDAY = LocalDate.of(2025, 1, 6);
 
   private DailyPriceRepository dailyPriceRepository;
   private WeeklyPriceRepository weeklyPriceRepository;
   private DailyChartPatternRepository dailyChartPatternRepository;
   private WeeklyChartPatternRepository weeklyChartPatternRepository;
   private TickerRepository tickerRepository;
+  private DowAtrSwingDetector dowAtrSwingDetector;
+  private DowTrendClassifier dowTrendClassifier;
   private ChartPatternCalculator calculator;
   private Ticker ticker;
 
@@ -51,6 +59,8 @@ class ChartPatternCalculatorTest {
     dailyChartPatternRepository = mock(DailyChartPatternRepository.class);
     weeklyChartPatternRepository = mock(WeeklyChartPatternRepository.class);
     tickerRepository = mock(TickerRepository.class);
+    dowAtrSwingDetector = new DowAtrSwingDetector();
+    dowTrendClassifier = new DowTrendClassifier();
 
     calculator =
         new ChartPatternCalculator(
@@ -58,755 +68,698 @@ class ChartPatternCalculatorTest {
             weeklyPriceRepository,
             dailyChartPatternRepository,
             weeklyChartPatternRepository,
-            tickerRepository);
+            tickerRepository,
+            dowAtrSwingDetector,
+            dowTrendClassifier);
 
-    ticker =
-        Ticker.builder()
-            .tickerId(1L)
-            .tickerSymbol("AAPL")
-            .country(Country.US)
-            .isActive(true)
-            .build();
+    ticker = Ticker.builder().tickerId(1L).tickerSymbol("AAPL").isActive(true).build();
   }
 
-  private PriceBar bar(int day, double open, double high, double low, double close) {
+  private PriceBar bar(int dayOffset, double open, double high, double low, double close) {
     return new PriceBar(
-        LocalDate.of(2026, 1, 1).plusDays(day),
-        BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP),
-        BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP),
-        BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP),
-        BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP),
-        BigDecimal.valueOf(1000000));
+        LocalDate.of(2026, 1, 1).plusDays(dayOffset),
+        BigDecimal.valueOf(open),
+        BigDecimal.valueOf(high),
+        BigDecimal.valueOf(low),
+        BigDecimal.valueOf(close),
+        BigDecimal.valueOf(1000));
   }
 
-  private DailyPrice dailyPrice(int day, double open, double high, double low, double close) {
-    return DailyPrice.builder()
-        .ticker(ticker)
-        .priceDate(LocalDate.of(2026, 1, 1).plusDays(day))
-        .priceOpen(BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP))
-        .priceHigh(BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP))
-        .priceLow(BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP))
-        .priceClose(BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP))
-        .volume(BigDecimal.valueOf(1000000))
-        .build();
+  private SwingPoint swing(int barIndex, double price, SwingType type) {
+    return new SwingPoint(
+        barIndex,
+        LocalDate.of(2026, 1, 1).plusDays(barIndex),
+        BigDecimal.valueOf(price),
+        type,
+        BigDecimal.valueOf(2.0));
   }
 
-  private WeeklyPrice weeklyPrice(int day, double open, double high, double low, double close) {
-    return WeeklyPrice.builder()
-        .ticker(ticker)
-        .priceDate(LocalDate.of(2026, 1, 1).plusDays(day * 7L))
-        .priceOpen(BigDecimal.valueOf(open).setScale(4, RoundingMode.HALF_UP))
-        .priceHigh(BigDecimal.valueOf(high).setScale(4, RoundingMode.HALF_UP))
-        .priceLow(BigDecimal.valueOf(low).setScale(4, RoundingMode.HALF_UP))
-        .priceClose(BigDecimal.valueOf(close).setScale(4, RoundingMode.HALF_UP))
-        .volume(BigDecimal.valueOf(1000000))
-        .build();
+  private List<PriceBar> flatBars(int count, double price) {
+    List<PriceBar> bars = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      bars.add(bar(i, price, price + 1.0, price - 1.0, price));
+    }
+    return bars;
+  }
+
+  private List<SwingPoint> uptrendPrefixStartingHigh() {
+    return List.of(
+        swing(0, 80, SwingType.HIGH),
+        swing(2, 70, SwingType.LOW),
+        swing(4, 92, SwingType.HIGH),
+        swing(6, 82, SwingType.LOW));
+  }
+
+  private List<SwingPoint> downtrendPrefixStartingLow() {
+    return List.of(
+        swing(0, 130, SwingType.LOW),
+        swing(2, 140, SwingType.HIGH),
+        swing(4, 118, SwingType.LOW),
+        swing(6, 128, SwingType.HIGH));
+  }
+
+  private List<DailyPrice> createDailyPricesWithDoubleTop() {
+    // 14 warm-up bars + HH/HL uptrend + Double Top swings clearly exceeding 2*ATR
+    double[] closes = {
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80,
+      80, // 0..13 seed
+      82,
+      85,
+      88,
+      92,
+      96, // rally to 96
+      90,
+      84, // pull back to 84
+      92,
+      100,
+      108, // HH to 108
+      100,
+      92, // HL to 92
+      102,
+      112,
+      120, // Peak 1 at 120
+      110,
+      102, // Neckline at 102
+      112,
+      119, // Peak 2 at 119
+      108,
+      98, // Breakout below 102
+      94,
+      82 // Target reached
+    };
+    List<DailyPrice> prices = new ArrayList<>();
+    for (int i = 0; i < closes.length; i++) {
+      BigDecimal close = BigDecimal.valueOf(closes[i]);
+      prices.add(
+          DailyPrice.builder()
+              .ticker(ticker)
+              .priceDate(LocalDate.of(2026, 1, 1).plusDays(i))
+              .priceOpen(close)
+              .priceHigh(close.add(BigDecimal.ONE))
+              .priceLow(close.subtract(BigDecimal.ONE))
+              .priceClose(close)
+              .volume(BigDecimal.valueOf(1000))
+              .build());
+    }
+    return prices;
+  }
+
+  private List<WeeklyPrice> createWeeklyPricesWithDoubleTop() {
+    List<DailyPrice> daily = createDailyPricesWithDoubleTop();
+    List<WeeklyPrice> weekly = new ArrayList<>();
+    for (int i = 0; i < daily.size(); i++) {
+      DailyPrice dailyPrice = daily.get(i);
+      weekly.add(
+          WeeklyPrice.builder()
+              .ticker(ticker)
+              .priceDate(LocalDate.of(2025, 1, 6).plusWeeks(i))
+              .priceOpen(dailyPrice.getPriceOpen())
+              .priceHigh(dailyPrice.getPriceHigh())
+              .priceLow(dailyPrice.getPriceLow())
+              .priceClose(dailyPrice.getPriceClose())
+              .volume(dailyPrice.getVolume())
+              .build());
+    }
+    return weekly;
   }
 
   @Test
-  void testComputeChartPatternsAllUpToDateShortCircuitsDailyAndWeekly() {
-    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(false);
+  void testGetJobNameAndShouldRun() {
+    assertEquals(ChartPatternCalculator.JOB_NAME, calculator.getJobName());
+
+    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(true);
     when(weeklyChartPatternRepository.hasPendingWeeklyChartPatterns()).thenReturn(false);
 
-    assertFalse(calculator.shouldRun(Timeframe.DAILY));
+    assertTrue(calculator.shouldRun(Timeframe.DAILY));
     assertFalse(calculator.shouldRun(Timeframe.WEEKLY));
-
-    verify(dailyChartPatternRepository).hasPendingDailyChartPatterns();
-    verify(weeklyChartPatternRepository).hasPendingWeeklyChartPatterns();
+    assertThrows(IllegalArgumentException.class, () -> calculator.shouldRun(null));
   }
 
   @Test
-  void testComputeChartPatternsUnsupportedTimeframeThrows() {
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+  void testExecuteUnsupportedTimeframeThrows() {
     assertThrows(IllegalArgumentException.class, () -> calculator.execute(null));
   }
 
   @Test
-  void testComputeChartPatternsForTimeframeSuccessErrorAndSelfProxy() throws Exception {
-    Ticker failingTicker =
-        Ticker.builder()
-            .tickerId(2L)
-            .tickerSymbol("FAIL")
-            .country(Country.US)
-            .isActive(true)
-            .build();
-    Ticker upToDateTicker =
-        Ticker.builder()
-            .tickerId(3L)
-            .tickerSymbol("MSFT")
-            .country(Country.US)
-            .isActive(true)
-            .build();
+  void testExecuteDailySavesPatternsAndPurgesOlder() {
+    List<DailyPrice> prices = createDailyPricesWithDoubleTop();
+    LocalDate latestDate = prices.getLast().getPriceDate();
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+    when(dailyChartPatternRepository.existsByTickerAndPriceDate(ticker, latestDate))
+        .thenReturn(false);
 
-    when(tickerRepository.findByIsActiveTrue())
-        .thenReturn(List.of(ticker, failingTicker, upToDateTicker));
+    calculator.execute(Timeframe.DAILY);
 
+    verify(dailyChartPatternRepository)
+        .deleteByTickerAndPriceDateLessThan(
+            ticker, latestDate.minusDays(ChartPatternConfig.DAILY_RETENTION_DAYS));
+    verify(dailyChartPatternRepository).saveAll(anyList());
+  }
+
+  @Test
+  void testExecuteDailySkipsWhenAlreadyComputed() {
+    List<DailyPrice> prices = createDailyPricesWithDoubleTop();
+    LocalDate latestDate = prices.getLast().getPriceDate();
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+    when(dailyChartPatternRepository.existsByTickerAndPriceDate(ticker, latestDate))
+        .thenReturn(true);
+
+    calculator.execute(Timeframe.DAILY);
+
+    verify(dailyChartPatternRepository, never()).deleteByTickerAndPriceDateLessThan(any(), any());
+    verify(dailyChartPatternRepository, never()).saveAll(anyList());
+  }
+
+  @Test
+  void testExecuteWeeklyRefreshesInProgressWeekAndPurgesOlder() {
+    List<WeeklyPrice> prices = createWeeklyPricesWithDoubleTop();
+    LocalDate latestDate = prices.getLast().getPriceDate();
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(weeklyChartPatternRepository.findLatestPriceDatesForActiveTickers())
+        .thenReturn(Map.of(ticker, latestDate));
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+
+    calculator.execute(Timeframe.WEEKLY);
+
+    verify(weeklyChartPatternRepository)
+        .deleteByTickerAndPriceDateLessThan(
+            ticker, latestDate.minusDays(ChartPatternConfig.WEEKLY_RETENTION_DAYS));
+    verify(weeklyChartPatternRepository).deleteByTickerAndPriceDate(ticker, latestDate);
+    verify(weeklyChartPatternRepository).saveAll(anyList());
+  }
+
+  @Test
+  void testExecuteWeeklyNewWeekDoesNotDeleteCurrentDate() {
+    List<WeeklyPrice> prices = createWeeklyPricesWithDoubleTop();
+    LocalDate latestDate = prices.getLast().getPriceDate();
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(weeklyChartPatternRepository.findLatestPriceDatesForActiveTickers())
+        .thenReturn(Map.of(ticker, latestDate.minusWeeks(1)));
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(prices);
+
+    calculator.execute(Timeframe.WEEKLY);
+
+    verify(weeklyChartPatternRepository, never()).deleteByTickerAndPriceDate(any(), any());
+    verify(weeklyChartPatternRepository).saveAll(anyList());
+  }
+
+  @Test
+  void testExecuteWeeklyNoPriorDateAndNoPatternsDetected() {
+    List<WeeklyPrice> flatWeekly = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      flatWeekly.add(
+          WeeklyPrice.builder()
+              .ticker(ticker)
+              .priceDate(LocalDate.of(2026, 1, 5).plusWeeks(i))
+              .priceOpen(BigDecimal.valueOf(100))
+              .priceHigh(BigDecimal.valueOf(101))
+              .priceLow(BigDecimal.valueOf(99))
+              .priceClose(BigDecimal.valueOf(100))
+              .volume(BigDecimal.valueOf(1000))
+              .build());
+    }
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
+    when(weeklyChartPatternRepository.findLatestPriceDatesForActiveTickers()).thenReturn(Map.of());
+    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(flatWeekly);
+
+    calculator.execute(Timeframe.WEEKLY);
+
+    verify(weeklyChartPatternRepository, never()).deleteByTickerAndPriceDate(any(), any());
+    verify(weeklyChartPatternRepository, never()).saveAll(anyList());
+  }
+
+  @Test
+  void testExecuteHandlesInsufficientBarsAndPerTickerException() {
+    Ticker failingTicker = Ticker.builder().tickerId(2L).tickerSymbol("ERR").isActive(true).build();
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker, failingTicker));
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(upToDateTicker)).thenReturn(List.of());
     when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(failingTicker))
         .thenThrow(new RuntimeException("DB error"));
 
     calculator.execute(Timeframe.DAILY);
 
-    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(ticker);
-    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(failingTicker);
-    verify(dailyPriceRepository, times(1)).findByTickerOrderByPriceDateAsc(upToDateTicker);
-
-    ChartPatternCalculator selfMock = mock(ChartPatternCalculator.class);
-    java.lang.reflect.Field selfField = ChartPatternCalculator.class.getDeclaredField("selfProxy");
-    selfField.setAccessible(true);
-    selfField.set(calculator, selfMock);
-
-    calculator.execute(Timeframe.WEEKLY);
-
-    verify(selfMock).computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
-    verify(selfMock).computeChartPatternsForTicker(failingTicker, Timeframe.WEEKLY);
-    verify(selfMock).computeChartPatternsForTicker(upToDateTicker, Timeframe.WEEKLY);
+    verify(dailyChartPatternRepository, never()).saveAll(anyList());
   }
 
   @Test
-  void testComputeChartPatternsForTickerWithInsufficientData() {
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(List.of());
-
-    calculator.computeChartPatternsForTicker(ticker, Timeframe.DAILY);
-
-    verify(dailyChartPatternRepository, never()).save(any());
+  void testComputeChartPatternsForTickerUnsupportedTimeframeThrows() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> calculator.computeChartPatternsForTicker(ticker, null, null));
   }
 
   @Test
-  void testComputeChartPatternsForTickerDailyAndWeeklyEndToEnd() {
-    List<DailyPrice> dailyPrices = new ArrayList<>();
-    List<WeeklyPrice> weeklyPrices = new ArrayList<>();
-    for (int i = 0; i < 16; i++) {
-      dailyPrices.add(dailyPrice(i, 100, 101, 99, 100));
-      weeklyPrices.add(weeklyPrice(i, 100, 101, 99, 100));
-    }
-
-    when(dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(dailyPrices);
-    when(weeklyPriceRepository.findByTickerOrderByPriceDateAsc(ticker)).thenReturn(weeklyPrices);
-
-    calculator.computeChartPatternsForTicker(ticker, Timeframe.DAILY);
-    calculator.computeChartPatternsForTicker(ticker, Timeframe.WEEKLY);
-
-    verify(dailyPriceRepository).findByTickerOrderByPriceDateAsc(ticker);
-    verify(weeklyPriceRepository).findByTickerOrderByPriceDateAsc(ticker);
+  void testDetectAllPatternsInsufficientBarsAndInsufficientSwings() {
+    assertTrue(calculator.detectAllPatterns(flatBars(10, 100)).isEmpty());
+    assertTrue(
+        calculator
+            .detectPatternsFromSwings(
+                flatBars(20, 100),
+                List.of(swing(1, 100, SwingType.HIGH), swing(3, 90, SwingType.LOW)))
+            .isEmpty());
   }
 
   @Test
-  void testLoadBarsUnsupportedTimeframe() throws Exception {
-    Method loadBarsMethod =
-        ChartPatternCalculator.class.getDeclaredMethod("loadBars", Ticker.class, Timeframe.class);
-    loadBarsMethod.setAccessible(true);
+  void testDoubleTopRequiresUptrendAndEvaluatesStatuses() {
+    List<PriceBar> bars = new ArrayList<>(flatBars(15, 100));
+    bars.set(11, bar(11, 100, 101, 88, 89)); // breakout below neckline 90
+    bars.set(12, bar(12, 89, 90, 75, 76)); // target 80 reached
 
-    InvocationTargetException ex =
-        assertThrows(
-            InvocationTargetException.class, () -> loadBarsMethod.invoke(calculator, ticker, null));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
+    List<SwingPoint> swings = new ArrayList<>(uptrendPrefixStartingHigh());
+    swings.add(swing(8, 100, SwingType.HIGH));
+    swings.add(swing(9, 90, SwingType.LOW));
+    swings.add(swing(10, 99, SwingType.HIGH));
 
-  @Test
-  void testSavePatternsUnsupportedTimeframe() throws Exception {
-    Method savePatternsMethod =
-        ChartPatternCalculator.class.getDeclaredMethod(
-            "savePatterns", Ticker.class, Timeframe.class, List.class);
-    savePatternsMethod.setAccessible(true);
-
-    InvocationTargetException ex =
-        assertThrows(
-            InvocationTargetException.class,
-            () -> savePatternsMethod.invoke(calculator, ticker, null, List.of()));
-    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
-  }
-
-  @Test
-  void testSavePatternsDailyAndWeeklyUpsert() throws Exception {
-    Method savePatternsMethod =
-        ChartPatternCalculator.class.getDeclaredMethod(
-            "savePatterns", Ticker.class, Timeframe.class, List.class);
-    savePatternsMethod.setAccessible(true);
-
-    ChartPatternMatch match =
-        ChartPatternMatch.builder()
-            .patternType(ChartPatternType.DOUBLE_TOP)
-            .sentiment(ChartPatternType.DOUBLE_TOP.getSentiment())
-            .status(ChartPatternStatus.COMPLETED)
-            .startDate(LocalDate.of(2026, 1, 1))
-            .endDate(LocalDate.of(2026, 1, 10))
-            .breakoutDate(LocalDate.of(2026, 1, 12))
-            .necklinePrice(new BigDecimal("90.0000"))
-            .necklineSlope(new BigDecimal("0.0000"))
-            .targetPrice(new BigDecimal("80.0000"))
-            .stopLossPrice(new BigDecimal("99.0000"))
-            .invalidationPrice(new BigDecimal("100.0000"))
-            .pivotPoints(List.of())
-            .build();
-
-    // 1. Daily new insert
-    when(dailyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
-            ticker, ChartPatternType.DOUBLE_TOP, LocalDate.of(2026, 1, 1)))
-        .thenReturn(Optional.empty());
-    savePatternsMethod.invoke(calculator, ticker, Timeframe.DAILY, List.of(match));
-    verify(dailyChartPatternRepository, times(1)).save(any(DailyChartPattern.class));
-
-    // 2. Daily update existing
-    DailyChartPattern existingDaily =
-        DailyChartPattern.builder()
-            .dailyChartPatternId(1L)
-            .ticker(ticker)
-            .patternType(ChartPatternType.DOUBLE_TOP)
-            .status(ChartPatternStatus.IN_PROGRESS)
-            .startDate(LocalDate.of(2026, 1, 1))
-            .build();
-    when(dailyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
-            ticker, ChartPatternType.DOUBLE_TOP, LocalDate.of(2026, 1, 1)))
-        .thenReturn(Optional.of(existingDaily));
-    savePatternsMethod.invoke(calculator, ticker, Timeframe.DAILY, List.of(match));
-    assertEquals(ChartPatternStatus.COMPLETED, existingDaily.getStatus());
-    assertEquals(new BigDecimal("99.0000"), existingDaily.getStopLossPrice());
-
-    // 3. Weekly new insert
-    when(weeklyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
-            ticker, ChartPatternType.DOUBLE_TOP, LocalDate.of(2026, 1, 1)))
-        .thenReturn(Optional.empty());
-    savePatternsMethod.invoke(calculator, ticker, Timeframe.WEEKLY, List.of(match));
-    verify(weeklyChartPatternRepository, times(1)).save(any(WeeklyChartPattern.class));
-
-    // 4. Weekly update existing
-    WeeklyChartPattern existingWeekly =
-        WeeklyChartPattern.builder()
-            .weeklyChartPatternId(2L)
-            .ticker(ticker)
-            .patternType(ChartPatternType.DOUBLE_TOP)
-            .status(ChartPatternStatus.IN_PROGRESS)
-            .startDate(LocalDate.of(2026, 1, 1))
-            .build();
-    when(weeklyChartPatternRepository.findByTickerAndPatternTypeAndStartDate(
-            ticker, ChartPatternType.DOUBLE_TOP, LocalDate.of(2026, 1, 1)))
-        .thenReturn(Optional.of(existingWeekly));
-    savePatternsMethod.invoke(calculator, ticker, Timeframe.WEEKLY, List.of(match));
-    assertEquals(ChartPatternStatus.COMPLETED, existingWeekly.getStatus());
-    assertEquals(new BigDecimal("99.0000"), existingWeekly.getStopLossPrice());
-  }
-
-  @Test
-  void testDetectAllPatternsUnderMinBarsOrPivots() {
-    assertTrue(calculator.detectAllPatterns(List.of()).isEmpty());
-
-    List<PriceBar> flatBars = new ArrayList<>();
-    for (int i = 0; i < 20; i++) {
-      flatBars.add(bar(i, 100, 100, 100, 100));
-    }
-    assertTrue(calculator.detectAllPatterns(flatBars).isEmpty());
-  }
-
-  @Test
-  void testFilterAlternatingExtremaConsecutiveConsolidation() {
-    assertTrue(calculator.filterAlternatingExtrema(List.of()).isEmpty());
-
-    List<ExtremaPoint> raw =
-        List.of(
-            new ExtremaPoint(0, LocalDate.now(), new BigDecimal("100"), true),
-            new ExtremaPoint(1, LocalDate.now(), new BigDecimal("105"), true), // Higher high
-            new ExtremaPoint(2, LocalDate.now(), new BigDecimal("90"), false),
-            new ExtremaPoint(3, LocalDate.now(), new BigDecimal("85"), false), // Lower low
-            new ExtremaPoint(4, LocalDate.now(), new BigDecimal("110"), true));
-
-    List<ExtremaPoint> filtered = calculator.filterAlternatingExtrema(raw);
-    assertEquals(3, filtered.size());
-    assertEquals(new BigDecimal("105"), filtered.get(0).price());
-    assertEquals(new BigDecimal("85"), filtered.get(1).price());
-    assertEquals(new BigDecimal("110"), filtered.get(2).price());
-  }
-
-  @Test
-  void testDoubleTopDetectionAndStatuses() {
-    // Construct Double Top: H1 at 100, Trough at 90, H2 at 100
-    // Window = 2, so peaks need 2 bars on each side
-    List<PriceBar> bars = new ArrayList<>();
-    // Left padding
-    bars.add(bar(0, 80, 81, 79, 80));
-    bars.add(bar(1, 85, 86, 84, 85));
-    // Peak 1 at index 2
-    bars.add(bar(2, 98, 100, 97, 99)); // High 100
-    // Trough at index 5
-    bars.add(bar(3, 95, 96, 94, 95));
-    bars.add(bar(4, 91, 92, 90, 91));
-    bars.add(bar(5, 89, 91, 88, 90)); // Low 88
-    bars.add(bar(6, 92, 93, 91, 92));
-    bars.add(bar(7, 95, 96, 94, 95));
-    // Peak 2 at index 8
-    bars.add(bar(8, 98, 100, 97, 99)); // High 100
-    // Right padding for peak 2
-    bars.add(bar(9, 95, 96, 94, 95));
-    bars.add(bar(10, 92, 93, 91, 92));
-    // Additional bars to test breakout, target, invalidation
-    bars.add(bar(11, 90, 91, 89, 90));
-    bars.add(bar(12, 88, 89, 87, 88));
-    bars.add(bar(13, 86, 87, 85, 86));
-    bars.add(bar(14, 84, 85, 83, 84));
-    bars.add(bar(15, 80, 81, 75, 76)); // Hits target <= 88 - (100 - 88) = 76!
-
-    List<ChartPatternMatch> matches = calculator.detectAllPatterns(bars);
-    boolean found = matches.stream().anyMatch(m -> m.patternType() == ChartPatternType.DOUBLE_TOP);
-    assertTrue(found);
-    ChartPatternMatch dtMatch =
+    List<ChartPatternMatch> matches = calculator.detectPatternsFromSwings(bars, swings);
+    ChartPatternMatch doubleTop =
         matches.stream()
-            .filter(m -> m.patternType() == ChartPatternType.DOUBLE_TOP)
+            .filter(match -> match.patternType() == ChartPatternType.DOUBLE_TOP)
             .findFirst()
             .orElseThrow();
-    assertNotNull(dtMatch.stopLossPrice());
-    assertNotNull(dtMatch.targetPrice());
-  }
 
-  @Test
-  void testDoubleBottomDetection() {
-    List<PriceBar> bars = new ArrayList<>();
-    bars.add(bar(0, 120, 121, 119, 120));
-    bars.add(bar(1, 115, 116, 114, 115));
-    // Trough 1 at index 2 (Low 100)
-    bars.add(bar(2, 102, 103, 100, 101));
-    bars.add(bar(3, 105, 106, 104, 105));
-    bars.add(bar(4, 109, 110, 108, 109));
-    // Peak at index 5 (High 112)
-    bars.add(bar(5, 111, 112, 110, 111));
-    bars.add(bar(6, 108, 109, 107, 108));
-    bars.add(bar(7, 104, 105, 103, 104));
-    // Trough 2 at index 8 (Low 100)
-    bars.add(bar(8, 102, 103, 100, 101));
-    bars.add(bar(9, 105, 106, 104, 105));
-    bars.add(bar(10, 108, 109, 107, 108));
-    bars.add(bar(11, 110, 111, 109, 110));
-    bars.add(bar(12, 113, 114, 112, 113)); // Breakout > 112
-    bars.add(bar(13, 115, 116, 114, 115));
-    bars.add(bar(14, 120, 125, 119, 124)); // Hits target >= 112 + 12 = 124
+    assertEquals(ChartPatternStatus.TARGET_REACHED, doubleTop.status());
+    assertEquals(bars.get(11).date(), doubleTop.breakoutDate());
+    assertEquals(3, doubleTop.pivotPoints().size());
 
-    List<ChartPatternMatch> matches = calculator.detectAllPatterns(bars);
-    boolean found =
-        matches.stream().anyMatch(m -> m.patternType() == ChartPatternType.DOUBLE_BOTTOM);
-    assertTrue(found);
-  }
-
-  @Test
-  void testTripleTopAndTripleBottom() {
-    // Triple Top: H1(100), L1(90), H2(100), L2(90), H3(100)
-    List<PriceBar> bars = new ArrayList<>();
-    bars.add(bar(0, 80, 81, 79, 80));
-    bars.add(bar(1, 85, 86, 84, 85));
-    bars.add(bar(2, 98, 100, 97, 99)); // H1 (index 2)
-    bars.add(bar(3, 95, 96, 94, 95));
-    bars.add(bar(4, 91, 92, 90, 91)); // L1 (index 4)
-    bars.add(bar(5, 94, 95, 93, 94));
-    bars.add(bar(6, 98, 100, 97, 99)); // H2 (index 6)
-    bars.add(bar(7, 95, 96, 94, 95));
-    bars.add(bar(8, 91, 92, 90, 91)); // L2 (index 8)
-    bars.add(bar(9, 94, 95, 93, 94));
-    bars.add(bar(10, 98, 100, 97, 99)); // H3 (index 10)
-    bars.add(bar(11, 95, 96, 94, 95));
-    bars.add(bar(12, 93, 94, 92, 93));
-    bars.add(bar(13, 89, 90, 88, 89)); // Breakout < 90
-    bars.add(bar(14, 88, 89, 87, 88));
-    bars.add(bar(15, 87, 88, 86, 87));
-
-    List<ChartPatternMatch> matches = calculator.detectAllPatterns(bars);
-    boolean found = matches.stream().anyMatch(m -> m.patternType() == ChartPatternType.TRIPLE_TOP);
-    assertTrue(found);
-
-    // Triple Bottom: L1(100), H1(110), L2(100), H2(110), L3(100)
-    List<PriceBar> bottomBars = new ArrayList<>();
-    bottomBars.add(bar(0, 120, 121, 119, 120));
-    bottomBars.add(bar(1, 115, 116, 114, 115));
-    bottomBars.add(bar(2, 102, 103, 100, 101)); // L1
-    bottomBars.add(bar(3, 105, 106, 104, 105));
-    bottomBars.add(bar(4, 109, 110, 108, 109)); // H1
-    bottomBars.add(bar(5, 106, 107, 105, 106));
-    bottomBars.add(bar(6, 102, 103, 100, 101)); // L2
-    bottomBars.add(bar(7, 105, 106, 104, 105));
-    bottomBars.add(bar(8, 109, 110, 108, 109)); // H2
-    bottomBars.add(bar(9, 106, 107, 105, 106));
-    bottomBars.add(bar(10, 102, 103, 100, 101)); // L3
-    bottomBars.add(bar(11, 105, 106, 104, 105));
-    bottomBars.add(bar(12, 107, 108, 106, 107));
-    bottomBars.add(bar(13, 111, 112, 110, 111)); // Breakout > 110
-    bottomBars.add(bar(14, 112, 113, 111, 112));
-    bottomBars.add(bar(15, 113, 114, 112, 113));
-
-    List<ChartPatternMatch> bottomMatches = calculator.detectAllPatterns(bottomBars);
-    boolean foundBottom =
-        bottomMatches.stream().anyMatch(m -> m.patternType() == ChartPatternType.TRIPLE_BOTTOM);
-    assertTrue(foundBottom);
-  }
-
-  @Test
-  void testHeadAndShouldersAndInverse() {
-    // H&S: LS(100), T1(90), Head(110), T2(90), RS(100)
-    List<PriceBar> bars = new ArrayList<>();
-    bars.add(bar(0, 80, 81, 79, 80));
-    bars.add(bar(1, 85, 86, 84, 85));
-    bars.add(bar(2, 98, 100, 97, 99)); // LS (index 2)
-    bars.add(bar(3, 95, 96, 94, 95));
-    bars.add(bar(4, 91, 92, 90, 91)); // T1 (index 4)
-    bars.add(bar(5, 98, 100, 97, 99));
-    bars.add(bar(6, 108, 110, 107, 109)); // Head (index 6)
-    bars.add(bar(7, 98, 100, 97, 99));
-    bars.add(bar(8, 91, 92, 90, 91)); // T2 (index 8)
-    bars.add(bar(9, 95, 96, 94, 95));
-    bars.add(bar(10, 98, 100, 97, 99)); // RS (index 10)
-    bars.add(bar(11, 95, 96, 94, 95));
-    bars.add(bar(12, 92, 93, 91, 92));
-    bars.add(bar(13, 88, 89, 87, 88)); // Breakout < 90
-    bars.add(bar(14, 87, 88, 86, 87));
-    bars.add(bar(15, 86, 87, 85, 86));
-
-    List<ChartPatternMatch> matches = calculator.detectAllPatterns(bars);
-    boolean found =
-        matches.stream().anyMatch(m -> m.patternType() == ChartPatternType.HEAD_AND_SHOULDERS);
-    assertTrue(found);
-
-    // Inverse H&S: LS(100), P1(110), Head(90), P2(110), RS(100)
-    List<PriceBar> invBars = new ArrayList<>();
-    invBars.add(bar(0, 120, 121, 119, 120));
-    invBars.add(bar(1, 115, 116, 114, 115));
-    invBars.add(bar(2, 102, 103, 100, 101)); // LS (index 2)
-    invBars.add(bar(3, 105, 106, 104, 105));
-    invBars.add(bar(4, 109, 110, 108, 109)); // P1 (index 4)
-    invBars.add(bar(5, 102, 103, 101, 102));
-    invBars.add(bar(6, 92, 93, 90, 91)); // Head (index 6)
-    invBars.add(bar(7, 102, 103, 101, 102));
-    invBars.add(bar(8, 109, 110, 108, 109)); // P2 (index 8)
-    invBars.add(bar(9, 105, 106, 104, 105));
-    invBars.add(bar(10, 102, 103, 100, 101)); // RS (index 10)
-    invBars.add(bar(11, 105, 106, 104, 105));
-    invBars.add(bar(12, 108, 109, 107, 108));
-    invBars.add(bar(13, 111, 112, 110, 111)); // Breakout > 110
-    invBars.add(bar(14, 112, 113, 111, 112));
-    invBars.add(bar(15, 113, 114, 112, 113));
-
-    List<ChartPatternMatch> invMatches = calculator.detectAllPatterns(invBars);
-    boolean foundInv =
-        invMatches.stream()
-            .anyMatch(m -> m.patternType() == ChartPatternType.INVERSE_HEAD_AND_SHOULDERS);
-    assertTrue(foundInv);
-  }
-
-  @Test
-  void testTriangles() {
-    // Ascending: H1(100), L1(80), H2(100), L2(85)
-    List<PriceBar> ascBars = new ArrayList<>();
-    ascBars.add(bar(0, 70, 71, 69, 70));
-    ascBars.add(bar(1, 80, 81, 79, 80));
-    ascBars.add(bar(2, 98, 100, 97, 99)); // H1
-    ascBars.add(bar(3, 90, 91, 89, 90));
-    ascBars.add(bar(4, 82, 83, 80, 81)); // L1
-    ascBars.add(bar(5, 90, 91, 89, 90));
-    ascBars.add(bar(6, 98, 100, 97, 99)); // H2
-    ascBars.add(bar(7, 92, 93, 91, 92));
-    ascBars.add(bar(8, 87, 88, 85, 86)); // L2 (higher low)
-    ascBars.add(bar(9, 90, 91, 89, 90));
-    ascBars.add(bar(10, 95, 96, 94, 95));
-    ascBars.add(bar(11, 98, 99, 97, 98));
-    ascBars.add(bar(12, 101, 102, 100, 101)); // Breakout > 100
-    ascBars.add(bar(13, 102, 103, 101, 102));
-    ascBars.add(bar(14, 103, 104, 102, 103));
-    ascBars.add(bar(15, 104, 105, 103, 104));
-
-    List<ChartPatternMatch> ascMatches = calculator.detectAllPatterns(ascBars);
+    // Without prior uptrend, Double Top is rejected
+    List<SwingPoint> noTrendSwings =
+        List.of(
+            swing(8, 100, SwingType.HIGH),
+            swing(9, 90, SwingType.LOW),
+            swing(10, 99, SwingType.HIGH));
     assertTrue(
-        ascMatches.stream().anyMatch(m -> m.patternType() == ChartPatternType.ASCENDING_TRIANGLE));
-
-    // Descending: L1(80), H1(100), L2(80), H2(95)
-    List<PriceBar> descBars = new ArrayList<>();
-    descBars.add(bar(0, 110, 111, 109, 110));
-    descBars.add(bar(1, 95, 96, 94, 95));
-    descBars.add(bar(2, 82, 83, 80, 81)); // L1
-    descBars.add(bar(3, 90, 91, 89, 90));
-    descBars.add(bar(4, 98, 100, 97, 99)); // H1
-    descBars.add(bar(5, 90, 91, 89, 90));
-    descBars.add(bar(6, 82, 83, 80, 81)); // L2
-    descBars.add(bar(7, 88, 89, 87, 88));
-    descBars.add(bar(8, 94, 95, 93, 94)); // H2 (lower high)
-    descBars.add(bar(9, 90, 91, 89, 90));
-    descBars.add(bar(10, 85, 86, 84, 85));
-    descBars.add(bar(11, 82, 83, 81, 82));
-    descBars.add(bar(12, 78, 79, 77, 78)); // Breakout < 80
-    descBars.add(bar(13, 77, 78, 76, 77));
-    descBars.add(bar(14, 76, 77, 75, 76));
-    descBars.add(bar(15, 75, 76, 74, 75));
-
-    List<ChartPatternMatch> descMatches = calculator.detectAllPatterns(descBars);
-    assertTrue(
-        descMatches.stream()
-            .anyMatch(m -> m.patternType() == ChartPatternType.DESCENDING_TRIANGLE));
-
-    // Symmetrical: H1(100), L1(70), H2(90), L2(80)
-    List<PriceBar> symBars = new ArrayList<>();
-    symBars.add(bar(0, 60, 61, 59, 60));
-    symBars.add(bar(1, 80, 81, 79, 80));
-    symBars.add(bar(2, 98, 100, 97, 99)); // H1
-    symBars.add(bar(3, 85, 86, 84, 85));
-    symBars.add(bar(4, 72, 73, 70, 71)); // L1
-    symBars.add(bar(5, 80, 81, 79, 80));
-    symBars.add(bar(6, 88, 90, 87, 89)); // H2 (lower high)
-    symBars.add(bar(7, 85, 86, 84, 85));
-    symBars.add(bar(8, 82, 83, 80, 81)); // L2 (higher low)
-    symBars.add(bar(9, 85, 86, 84, 85));
-    symBars.add(bar(10, 88, 89, 87, 88));
-    symBars.add(bar(11, 91, 92, 90, 91)); // Breakout > 90
-    symBars.add(bar(12, 92, 93, 91, 92));
-    symBars.add(bar(13, 93, 94, 92, 93));
-    symBars.add(bar(14, 94, 95, 93, 94));
-    symBars.add(bar(15, 95, 96, 94, 95));
-
-    List<ChartPatternMatch> symMatches = calculator.detectAllPatterns(symBars);
-    assertTrue(
-        symMatches.stream()
-            .anyMatch(m -> m.patternType() == ChartPatternType.SYMMETRICAL_TRIANGLE));
+        calculator.detectPatternsFromSwings(bars, noTrendSwings).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.DOUBLE_TOP));
   }
 
   @Test
-  void testWedgesAndCupAndHandle() {
-    // Rising Wedge: L1(70), H1(90), L2(80), H2(95) -> Highs rise 5, lows rise 10 (lows rise faster)
-    List<PriceBar> rwBars = new ArrayList<>();
-    rwBars.add(bar(0, 79, 81, 78, 80));
-    rwBars.add(bar(1, 77, 78, 74, 75));
-    rwBars.add(bar(2, 74, 75, 70, 71)); // L1
-    rwBars.add(bar(3, 75, 86, 74, 85));
-    rwBars.add(bar(4, 85, 90, 84, 88)); // H1
-    rwBars.add(bar(5, 87, 86, 84, 85));
-    rwBars.add(bar(6, 84, 85, 80, 82)); // L2
-    rwBars.add(bar(7, 82, 91, 83, 90));
-    rwBars.add(bar(8, 90, 95, 88, 94)); // H2
-    rwBars.add(bar(9, 93, 90, 86, 88));
-    rwBars.add(bar(10, 88, 85, 82, 84));
-    rwBars.add(bar(11, 84, 84, 78, 78)); // Breakout < 80
-    rwBars.add(bar(12, 78, 78, 74, 75));
-    rwBars.add(bar(13, 75, 75, 70, 70));
-    rwBars.add(bar(14, 70, 71, 69, 70));
-    rwBars.add(bar(15, 70, 71, 69, 70));
+  void testDoubleBottomRequiresDowntrendAndEvaluatesStatuses() {
+    List<PriceBar> bars = new ArrayList<>(flatBars(15, 100));
+    bars.set(11, bar(11, 110, 115, 109, 114)); // breakout above neckline 110
+    bars.set(12, bar(12, 114, 125, 113, 124)); // target 120 reached
 
-    List<ChartPatternMatch> rwMatches = calculator.detectAllPatterns(rwBars);
-    assertTrue(rwMatches.stream().anyMatch(m -> m.patternType() == ChartPatternType.RISING_WEDGE));
+    List<SwingPoint> swings = new ArrayList<>(downtrendPrefixStartingLow());
+    swings.add(swing(8, 100, SwingType.LOW));
+    swings.add(swing(9, 110, SwingType.HIGH));
+    swings.add(swing(10, 101, SwingType.LOW));
 
-    // Falling Wedge: H1(100), L1(80), H2(90), L2(75) -> Highs fall 10, lows fall 5 (highs fall
-    // faster)
-    List<PriceBar> fwBars = new ArrayList<>();
-    fwBars.add(bar(0, 92, 94, 90, 93));
-    fwBars.add(bar(1, 94, 96, 92, 95));
-    fwBars.add(bar(2, 96, 100, 95, 99)); // H1
-    fwBars.add(bar(3, 94, 94, 84, 86));
-    fwBars.add(bar(4, 85, 86, 80, 82)); // L1
-    fwBars.add(bar(5, 83, 86, 83, 85));
-    fwBars.add(bar(6, 86, 90, 84, 88)); // H2
-    fwBars.add(bar(7, 87, 85, 80, 82));
-    fwBars.add(bar(8, 81, 82, 75, 77)); // L2
-    fwBars.add(bar(9, 78, 84, 78, 82));
-    fwBars.add(bar(10, 82, 88, 82, 86));
-    fwBars.add(bar(11, 87, 92, 86, 91)); // Breakout > 90
-    fwBars.add(bar(12, 91, 95, 90, 94));
-    fwBars.add(bar(13, 94, 98, 93, 97));
-    fwBars.add(bar(14, 97, 100, 96, 99));
-    fwBars.add(bar(15, 99, 102, 98, 101));
+    List<ChartPatternMatch> matches = calculator.detectPatternsFromSwings(bars, swings);
+    ChartPatternMatch doubleBottom =
+        matches.stream()
+            .filter(match -> match.patternType() == ChartPatternType.DOUBLE_BOTTOM)
+            .findFirst()
+            .orElseThrow();
 
-    List<ChartPatternMatch> fwMatches = calculator.detectAllPatterns(fwBars);
-    assertTrue(fwMatches.stream().anyMatch(m -> m.patternType() == ChartPatternType.FALLING_WEDGE));
+    assertEquals(ChartPatternStatus.TARGET_REACHED, doubleBottom.status());
+    assertEquals(bars.get(11).date(), doubleBottom.breakoutDate());
+    assertEquals(3, doubleBottom.pivotPoints().size());
 
-    // Cup and Handle: Left Rim 100, Cup Bottom 80, Right Rim 100, Handle 94
-    List<PriceBar> chBars = new ArrayList<>();
-    chBars.add(bar(0, 92, 94, 90, 93));
-    chBars.add(bar(1, 94, 96, 92, 95));
-    chBars.add(bar(2, 96, 100, 95, 99)); // Left Rim (index 2, H=100)
-    chBars.add(bar(3, 94, 94, 84, 86));
-    chBars.add(bar(4, 85, 86, 80, 82)); // Cup Bottom (index 4, L=80)
-    chBars.add(bar(5, 86, 94, 84, 92));
-    chBars.add(bar(6, 98, 100, 97, 99)); // Right Rim (index 6, H=100, L=97)
-    chBars.add(bar(7, 97, 98, 96, 97));
-    chBars.add(bar(8, 95, 96, 94, 95)); // Handle Trough (index 8, L=94)
-    chBars.add(bar(9, 96, 98, 96, 97));
-    chBars.add(bar(10, 98, 99, 97, 98));
-    chBars.add(bar(11, 99, 102, 98, 101)); // Breakout > 100
-    chBars.add(bar(12, 102, 108, 101, 106));
-    chBars.add(bar(13, 106, 112, 105, 110));
-    chBars.add(bar(14, 110, 118, 109, 116));
-    chBars.add(bar(15, 116, 122, 115, 121));
-
-    List<ChartPatternMatch> chMatches = calculator.detectAllPatterns(chBars);
+    // Reject when spread exceeds tolerance or depth too shallow
+    List<SwingPoint> rejectedSwings = new ArrayList<>(downtrendPrefixStartingLow());
+    rejectedSwings.add(swing(8, 100, SwingType.LOW));
+    rejectedSwings.add(swing(9, 100.5, SwingType.HIGH)); // shallow depth
+    rejectedSwings.add(swing(10, 100, SwingType.LOW));
     assertTrue(
-        chMatches.stream().anyMatch(m -> m.patternType() == ChartPatternType.CUP_AND_HANDLE));
+        calculator.detectPatternsFromSwings(bars, rejectedSwings).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.DOUBLE_BOTTOM));
   }
 
   @Test
-  void testEvaluateStatusAndBreakoutBranches() throws Exception {
-    Method evaluateStatusMethod =
-        ChartPatternCalculator.class.getDeclaredMethod(
-            "evaluateStatus",
-            List.class,
-            int.class,
-            BigDecimal.class,
-            BigDecimal.class,
-            BigDecimal.class,
-            boolean.class);
-    evaluateStatusMethod.setAccessible(true);
+  void testDoubleTopRejectedOnWideSpreadAndShallowDepth() {
+    List<SwingPoint> wideSpread = new ArrayList<>(uptrendPrefixStartingHigh());
+    wideSpread.add(swing(8, 120, SwingType.HIGH));
+    wideSpread.add(swing(9, 100, SwingType.LOW));
+    wideSpread.add(swing(10, 105, SwingType.HIGH));
+    List<PriceBar> bars = flatBars(15, 100);
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, wideSpread).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.DOUBLE_TOP));
 
-    Method findBreakoutDateMethod =
-        ChartPatternCalculator.class.getDeclaredMethod(
-            "findBreakoutDate", List.class, int.class, BigDecimal.class, boolean.class);
-    findBreakoutDateMethod.setAccessible(true);
-
-    List<PriceBar> testBars =
-        List.of(bar(0, 100, 101, 99, 100), bar(1, 100, 101, 99, 100), bar(2, 100, 101, 99, 100));
-
-    // 1. lastPivotIndex >= priceBars.size() - 1 => IN_PROGRESS
-    ChartPatternStatus statusInProgress =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                testBars,
-                2,
-                new BigDecimal("110"),
-                new BigDecimal("120"),
-                new BigDecimal("90"),
-                true);
-    assertEquals(ChartPatternStatus.IN_PROGRESS, statusInProgress);
-
-    // 2. Bullish invalidation before breakout
-    List<PriceBar> invalidBeforeBreakoutBars =
-        List.of(bar(0, 100, 101, 99, 100), bar(1, 88, 89, 87, 88)); // Below invalidation 90
-    ChartPatternStatus statusInvalidBefore =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                invalidBeforeBreakoutBars,
-                0,
-                new BigDecimal("110"),
-                new BigDecimal("120"),
-                new BigDecimal("90"),
-                true);
-    assertEquals(ChartPatternStatus.INVALIDATED, statusInvalidBefore);
-
-    // 3. Bullish invalidation after breakout
-    List<PriceBar> invalidAfterBreakoutBars =
-        List.of(
-            bar(0, 100, 101, 99, 100),
-            bar(1, 112, 113, 111, 112), // Breakout > 110
-            bar(2, 85, 86, 84, 85)); // Invalidation < 90
-    ChartPatternStatus statusInvalidAfter =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                invalidAfterBreakoutBars,
-                0,
-                new BigDecimal("110"),
-                new BigDecimal("120"),
-                new BigDecimal("90"),
-                true);
-    assertEquals(ChartPatternStatus.INVALIDATED, statusInvalidAfter);
-
-    // 4. Bullish completed (broken out, but neither target nor invalidation reached)
-    List<PriceBar> completedBars =
-        List.of(
-            bar(0, 100, 101, 99, 100),
-            bar(1, 112, 113, 111, 112), // Breakout > 110
-            bar(2, 113, 114, 112, 113));
-    ChartPatternStatus statusCompleted =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                completedBars,
-                0,
-                new BigDecimal("110"),
-                new BigDecimal("120"),
-                new BigDecimal("90"),
-                true);
-    assertEquals(ChartPatternStatus.COMPLETED, statusCompleted);
-
-    // 5. Bearish invalidation before breakout
-    List<PriceBar> bearishInvalidBeforeBars =
-        List.of(bar(0, 100, 101, 99, 100), bar(1, 112, 113, 111, 112)); // Above invalidation 110
-    ChartPatternStatus statusBearishInvalidBefore =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                bearishInvalidBeforeBars,
-                0,
-                new BigDecimal("90"),
-                new BigDecimal("80"),
-                new BigDecimal("110"),
-                false);
-    assertEquals(ChartPatternStatus.INVALIDATED, statusBearishInvalidBefore);
-
-    // 6. Bearish invalidation after breakout
-    List<PriceBar> bearishInvalidAfterBars =
-        List.of(
-            bar(0, 100, 101, 99, 100),
-            bar(1, 88, 89, 87, 88), // Breakout < 90
-            bar(2, 115, 116, 114, 115)); // Above invalidation 110
-    ChartPatternStatus statusBearishInvalidAfter =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                bearishInvalidAfterBars,
-                0,
-                new BigDecimal("90"),
-                new BigDecimal("80"),
-                new BigDecimal("110"),
-                false);
-    assertEquals(ChartPatternStatus.INVALIDATED, statusBearishInvalidAfter);
-
-    // 7. Bearish target reached
-    List<PriceBar> bearishTargetBars =
-        List.of(
-            bar(0, 100, 101, 99, 100),
-            bar(1, 88, 89, 87, 88), // Breakout < 90
-            bar(2, 79, 80, 78, 79)); // Hits target <= 80
-    ChartPatternStatus statusBearishTarget =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                bearishTargetBars,
-                0,
-                new BigDecimal("90"),
-                new BigDecimal("80"),
-                new BigDecimal("110"),
-                false);
-    assertEquals(ChartPatternStatus.TARGET_REACHED, statusBearishTarget);
-
-    // 8. Bearish completed (not hit target, not hit invalidation)
-    List<PriceBar> bearishCompletedBars =
-        List.of(
-            bar(0, 100, 101, 99, 100),
-            bar(1, 88, 89, 87, 88), // Breakout < 90
-            bar(2, 85, 86, 84, 85));
-    ChartPatternStatus statusBearishCompleted =
-        (ChartPatternStatus)
-            evaluateStatusMethod.invoke(
-                calculator,
-                bearishCompletedBars,
-                0,
-                new BigDecimal("90"),
-                new BigDecimal("80"),
-                new BigDecimal("110"),
-                false);
-    assertEquals(ChartPatternStatus.COMPLETED, statusBearishCompleted);
-
-    // 9. findBreakoutDate returns null when no breakout occurs
-    List<PriceBar> noBreakoutBars = List.of(bar(0, 100, 101, 99, 100), bar(1, 100, 101, 99, 100));
-    LocalDate breakoutDateNull =
-        (LocalDate)
-            findBreakoutDateMethod.invoke(
-                calculator, noBreakoutBars, 0, new BigDecimal("110"), true);
-    assertNull(breakoutDateNull);
+    List<SwingPoint> shallowDepth = new ArrayList<>(uptrendPrefixStartingHigh());
+    shallowDepth.add(swing(8, 100, SwingType.HIGH));
+    shallowDepth.add(swing(9, 99.5, SwingType.LOW));
+    shallowDepth.add(swing(10, 100, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, shallowDepth).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.DOUBLE_TOP));
   }
 
   @Test
-  void testPipelineJobMethods() {
-    assertEquals("CALCULATE_CHART_PATTERN", calculator.getJobName());
+  void testTripleTopAndTripleBottomWithDowTrendGating() {
+    List<PriceBar> bars = flatBars(20, 100);
 
-    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(false);
-    assertFalse(calculator.shouldRun(Timeframe.DAILY));
+    List<SwingPoint> tripleTopSwings = new ArrayList<>(uptrendPrefixStartingHigh());
+    tripleTopSwings.add(swing(8, 110, SwingType.HIGH));
+    tripleTopSwings.add(swing(9, 95, SwingType.LOW));
+    tripleTopSwings.add(swing(10, 111, SwingType.HIGH));
+    tripleTopSwings.add(swing(11, 96, SwingType.LOW));
+    tripleTopSwings.add(swing(12, 109, SwingType.HIGH));
 
-    when(dailyChartPatternRepository.hasPendingDailyChartPatterns()).thenReturn(true);
-    assertTrue(calculator.shouldRun(Timeframe.DAILY));
+    List<ChartPatternMatch> topMatches = calculator.detectPatternsFromSwings(bars, tripleTopSwings);
+    assertTrue(
+        topMatches.stream().anyMatch(match -> match.patternType() == ChartPatternType.TRIPLE_TOP));
 
-    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of());
+    List<SwingPoint> tripleBottomSwings = new ArrayList<>(downtrendPrefixStartingLow());
+    tripleBottomSwings.add(swing(8, 90, SwingType.LOW));
+    tripleBottomSwings.add(swing(9, 105, SwingType.HIGH));
+    tripleBottomSwings.add(swing(10, 91, SwingType.LOW));
+    tripleBottomSwings.add(swing(11, 104, SwingType.HIGH));
+    tripleBottomSwings.add(swing(12, 89.5, SwingType.LOW));
+
+    List<ChartPatternMatch> bottomMatches =
+        calculator.detectPatternsFromSwings(bars, tripleBottomSwings);
+    assertTrue(
+        bottomMatches.stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.TRIPLE_BOTTOM));
+
+    // Reject shallow depth on triple top and triple bottom
+    List<SwingPoint> shallowTripleTop = new ArrayList<>(uptrendPrefixStartingHigh());
+    shallowTripleTop.add(swing(8, 100, SwingType.HIGH));
+    shallowTripleTop.add(swing(9, 99.5, SwingType.LOW));
+    shallowTripleTop.add(swing(10, 100, SwingType.HIGH));
+    shallowTripleTop.add(swing(11, 99.5, SwingType.LOW));
+    shallowTripleTop.add(swing(12, 100, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, shallowTripleTop).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.TRIPLE_TOP));
+
+    List<SwingPoint> shallowTripleBottom = new ArrayList<>(downtrendPrefixStartingLow());
+    shallowTripleBottom.add(swing(8, 100, SwingType.LOW));
+    shallowTripleBottom.add(swing(9, 100.5, SwingType.HIGH));
+    shallowTripleBottom.add(swing(10, 100, SwingType.LOW));
+    shallowTripleBottom.add(swing(11, 100.5, SwingType.HIGH));
+    shallowTripleBottom.add(swing(12, 100, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, shallowTripleBottom).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.TRIPLE_BOTTOM));
+  }
+
+  @Test
+  void testHeadAndShouldersAndInverseHeadAndShoulders() {
+    List<SwingPoint> hnsSwings = new ArrayList<>(uptrendPrefixStartingHigh());
+    hnsSwings.add(swing(8, 110, SwingType.HIGH));
+    hnsSwings.add(swing(9, 95, SwingType.LOW));
+    hnsSwings.add(swing(10, 125, SwingType.HIGH));
+    hnsSwings.add(swing(11, 96, SwingType.LOW));
+    hnsSwings.add(swing(12, 112, SwingType.HIGH));
+    List<PriceBar> bars = flatBars(20, 100);
+
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, hnsSwings).stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.HEAD_AND_SHOULDERS));
+
+    List<SwingPoint> invHnsSwings = new ArrayList<>(downtrendPrefixStartingLow());
+    invHnsSwings.add(swing(8, 95, SwingType.LOW));
+    invHnsSwings.add(swing(9, 110, SwingType.HIGH));
+    invHnsSwings.add(swing(10, 80, SwingType.LOW));
+    invHnsSwings.add(swing(11, 109, SwingType.HIGH));
+    invHnsSwings.add(swing(12, 93, SwingType.LOW));
+
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, invHnsSwings).stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.INVERSE_HEAD_AND_SHOULDERS));
+
+    // Reject asymmetric shoulders and non-prominent head
+    List<SwingPoint> badShoulders = new ArrayList<>(uptrendPrefixStartingHigh());
+    badShoulders.add(swing(8, 100, SwingType.HIGH));
+    badShoulders.add(swing(9, 90, SwingType.LOW));
+    badShoulders.add(swing(10, 125, SwingType.HIGH));
+    badShoulders.add(swing(11, 90, SwingType.LOW));
+    badShoulders.add(swing(12, 120, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, badShoulders).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.HEAD_AND_SHOULDERS));
+
+    List<SwingPoint> badInverseShoulders = new ArrayList<>(downtrendPrefixStartingLow());
+    badInverseShoulders.add(swing(8, 100, SwingType.LOW));
+    badInverseShoulders.add(swing(9, 110, SwingType.HIGH));
+    badInverseShoulders.add(swing(10, 80, SwingType.LOW));
+    badInverseShoulders.add(swing(11, 110, SwingType.HIGH));
+    badInverseShoulders.add(swing(12, 85, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, badInverseShoulders).stream()
+            .noneMatch(
+                match -> match.patternType() == ChartPatternType.INVERSE_HEAD_AND_SHOULDERS));
+  }
+
+  @Test
+  void testTrianglesWedgesAndCupAndHandle() {
+    List<PriceBar> bars = flatBars(20, 100);
+
+    // Ascending Triangle + Symmetrical Triangle + Cup & Handle
+    List<SwingPoint> ascAndCupSwings =
+        List.of(
+            swing(2, 120, SwingType.HIGH),
+            swing(4, 100, SwingType.LOW),
+            swing(6, 118, SwingType.HIGH),
+            swing(8, 112, SwingType.LOW));
+    List<ChartPatternMatch> ascMatches = calculator.detectPatternsFromSwings(bars, ascAndCupSwings);
+    assertTrue(
+        ascMatches.stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE));
+    assertTrue(
+        ascMatches.stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.SYMMETRICAL_TRIANGLE));
+    assertTrue(
+        ascMatches.stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.CUP_AND_HANDLE));
+
+    // Descending Triangle
+    List<SwingPoint> descSwings =
+        List.of(
+            swing(2, 100, SwingType.LOW),
+            swing(4, 120, SwingType.HIGH),
+            swing(6, 101, SwingType.LOW),
+            swing(8, 112, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, descSwings).stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.DESCENDING_TRIANGLE));
+
+    // Rising Wedge
+    List<SwingPoint> risingWedgeSwings =
+        List.of(
+            swing(2, 100, SwingType.LOW),
+            swing(4, 115, SwingType.HIGH),
+            swing(6, 110, SwingType.LOW),
+            swing(8, 120, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, risingWedgeSwings).stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.RISING_WEDGE));
+
+    // Non-converging rising channel (rejected as rising wedge)
+    List<SwingPoint> risingChannel =
+        List.of(
+            swing(2, 100, SwingType.LOW),
+            swing(4, 110, SwingType.HIGH),
+            swing(6, 105, SwingType.LOW),
+            swing(8, 125, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, risingChannel).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.RISING_WEDGE));
+
+    // Falling Wedge
+    List<SwingPoint> fallingWedgeSwings =
+        List.of(
+            swing(2, 120, SwingType.HIGH),
+            swing(4, 100, SwingType.LOW),
+            swing(6, 108, SwingType.HIGH),
+            swing(8, 95, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, fallingWedgeSwings).stream()
+            .anyMatch(match -> match.patternType() == ChartPatternType.FALLING_WEDGE));
+
+    // Non-converging falling channel (rejected as falling wedge)
+    List<SwingPoint> fallingChannel =
+        List.of(
+            swing(2, 120, SwingType.HIGH),
+            swing(4, 105, SwingType.LOW),
+            swing(6, 115, SwingType.HIGH),
+            swing(8, 90, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, fallingChannel).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.FALLING_WEDGE));
+  }
+
+  @Test
+  void testCupAndHandleRejectionBranches() {
+    List<PriceBar> bars = flatBars(15, 100);
+    // Shallow cup (< 4%)
+    List<SwingPoint> shallowCup =
+        List.of(
+            swing(1, 100, SwingType.HIGH),
+            swing(2, 98, SwingType.LOW),
+            swing(3, 100, SwingType.HIGH),
+            swing(4, 99, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, shallowCup).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.CUP_AND_HANDLE));
+
+    // Handle deeper than half of cup
+    List<SwingPoint> deepHandle =
+        List.of(
+            swing(1, 120, SwingType.HIGH),
+            swing(2, 100, SwingType.LOW),
+            swing(3, 120, SwingType.HIGH),
+            swing(4, 105, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, deepHandle).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.CUP_AND_HANDLE));
+  }
+
+  @Test
+  void testStatusEvaluationAllBranchesBullishAndBearish() {
+    // Bullish: IN_PROGRESS when last pivot is last bar
+    List<PriceBar> lastBarList = flatBars(9, 105);
+    List<SwingPoint> bullishSwings =
+        List.of(
+            swing(2, 120, SwingType.HIGH),
+            swing(4, 100, SwingType.LOW),
+            swing(6, 119, SwingType.HIGH),
+            swing(8, 110, SwingType.LOW));
+    ChartPatternMatch atLastBar =
+        calculator.detectPatternsFromSwings(lastBarList, bullishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.IN_PROGRESS, atLastBar.status());
+    assertNull(atLastBar.breakoutDate());
+
+    // Bullish: IN_PROGRESS with subsequent bars inside range
+    List<PriceBar> inRangeBars = new ArrayList<>(flatBars(11, 110));
+    ChartPatternMatch inProgress =
+        calculator.detectPatternsFromSwings(inRangeBars, bullishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.IN_PROGRESS, inProgress.status());
+
+    // Bullish: INVALIDATED before breakout
+    List<PriceBar> invalidatedPreBars = new ArrayList<>(flatBars(11, 110));
+    invalidatedPreBars.set(9, bar(9, 100, 101, 95, 96));
+    ChartPatternMatch invPre =
+        calculator.detectPatternsFromSwings(invalidatedPreBars, bullishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.INVALIDATED, invPre.status());
+
+    // Bullish: COMPLETED (broken out, neither target nor invalidation hit)
+    List<PriceBar> completedBars = new ArrayList<>(flatBars(11, 110));
+    completedBars.set(9, bar(9, 120, 125, 119, 123));
+    completedBars.set(10, bar(10, 123, 126, 121, 124));
+    ChartPatternMatch completed =
+        calculator.detectPatternsFromSwings(completedBars, bullishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.COMPLETED, completed.status());
+    assertNotNull(completed.breakoutDate());
+
+    // Bullish: INVALIDATED after breakout
+    List<PriceBar> invalidatedPostBars = new ArrayList<>(flatBars(11, 110));
+    invalidatedPostBars.set(9, bar(9, 120, 125, 119, 123));
+    invalidatedPostBars.set(10, bar(10, 123, 124, 95, 96));
+    ChartPatternMatch invPost =
+        calculator.detectPatternsFromSwings(invalidatedPostBars, bullishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.ASCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.INVALIDATED, invPost.status());
+
+    // Bearish: INVALIDATED before breakout & after breakout & COMPLETED
+    List<SwingPoint> bearishSwings =
+        List.of(
+            swing(2, 100, SwingType.LOW),
+            swing(4, 120, SwingType.HIGH),
+            swing(6, 101, SwingType.LOW),
+            swing(8, 112, SwingType.HIGH));
+
+    List<PriceBar> bearInvPre = new ArrayList<>(flatBars(11, 110));
+    bearInvPre.set(9, bar(9, 118, 125, 117, 123));
+    ChartPatternMatch bearishInvPre =
+        calculator.detectPatternsFromSwings(bearInvPre, bearishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.DESCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.INVALIDATED, bearishInvPre.status());
+
+    List<PriceBar> bearCompleted = new ArrayList<>(flatBars(11, 110));
+    bearCompleted.set(9, bar(9, 100, 101, 95, 96));
+    bearCompleted.set(10, bar(10, 96, 98, 92, 94));
+    ChartPatternMatch bearishCompleted =
+        calculator.detectPatternsFromSwings(bearCompleted, bearishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.DESCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.COMPLETED, bearishCompleted.status());
+
+    List<PriceBar> bearInvPost = new ArrayList<>(flatBars(11, 110));
+    bearInvPost.set(9, bar(9, 100, 101, 95, 96));
+    bearInvPost.set(10, bar(10, 96, 125, 95, 123));
+    ChartPatternMatch bearishInvPost =
+        calculator.detectPatternsFromSwings(bearInvPost, bearishSwings).stream()
+            .filter(match -> match.patternType() == ChartPatternType.DESCENDING_TRIANGLE)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(ChartPatternStatus.INVALIDATED, bearishInvPost.status());
+  }
+
+  @Test
+  void testRemainingHeadAndShouldersWedgeAndSelfProxyBranches() {
+    // H&S where head > leftShoulder but head <= rightShoulder
+    List<SwingPoint> higherRightShoulder = new ArrayList<>(uptrendPrefixStartingHigh());
+    higherRightShoulder.add(swing(8, 100, SwingType.HIGH));
+    higherRightShoulder.add(swing(9, 90, SwingType.LOW));
+    higherRightShoulder.add(swing(10, 115, SwingType.HIGH));
+    higherRightShoulder.add(swing(11, 92, SwingType.LOW));
+    higherRightShoulder.add(swing(12, 120, SwingType.HIGH));
+    List<PriceBar> bars = flatBars(20, 100);
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, higherRightShoulder).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.HEAD_AND_SHOULDERS));
+
+    // Inverse H&S where head < leftShoulder but head >= rightShoulder
+    List<SwingPoint> lowerRightShoulder = new ArrayList<>(downtrendPrefixStartingLow());
+    lowerRightShoulder.add(swing(8, 100, SwingType.LOW));
+    lowerRightShoulder.add(swing(9, 110, SwingType.HIGH));
+    lowerRightShoulder.add(swing(10, 85, SwingType.LOW));
+    lowerRightShoulder.add(swing(11, 108, SwingType.HIGH));
+    lowerRightShoulder.add(swing(12, 80, SwingType.LOW));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, lowerRightShoulder).stream()
+            .noneMatch(
+                match -> match.patternType() == ChartPatternType.INVERSE_HEAD_AND_SHOULDERS));
+
+    // Rising wedge rejected when H2 > H1 but L2 <= L1
+    List<SwingPoint> expandingLow =
+        List.of(
+            swing(2, 100, SwingType.LOW),
+            swing(4, 115, SwingType.HIGH),
+            swing(6, 98, SwingType.LOW),
+            swing(8, 120, SwingType.HIGH));
+    assertTrue(
+        calculator.detectPatternsFromSwings(bars, expandingLow).stream()
+            .noneMatch(match -> match.patternType() == ChartPatternType.RISING_WEDGE));
+
+    // Verify selfProxy invocation path
+    ChartPatternCalculator mockProxy = mock(ChartPatternCalculator.class);
+    ReflectionTestUtils.setField(calculator, "selfProxy", mockProxy);
+    when(tickerRepository.findByIsActiveTrue()).thenReturn(List.of(ticker));
     calculator.execute(Timeframe.DAILY);
+    verify(mockProxy).computeChartPatternsForTicker(ticker, Timeframe.DAILY, null);
   }
 }

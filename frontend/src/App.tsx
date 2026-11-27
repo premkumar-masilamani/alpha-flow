@@ -318,15 +318,23 @@ function App() {
         setRecentDailyCandles([]);
 
         try {
-          const [analysis, patterns, candles, chartPatternsList] = await Promise.all([
+          const [analysis, patterns, candles] = await Promise.all([
             getTechnicalAnalysis(selectedTicker),
             getCandlestickPatterns(selectedTicker, "DAILY", 0),
             getCandleData(selectedTicker, "DAILY", 0, 100),
-            getChartPatterns(selectedTicker, "DAILY", ["IN_PROGRESS", "COMPLETED"]).catch((err) => {
+          ]);
+          let chartPatternsList: ChartPatternData[] = [];
+          if (candles.length > 0) {
+            const rawDate = candles[candles.length - 1].date;
+            const latestDate = rawDate.length >= 10 ? rawDate.substring(0, 10) : rawDate;
+            chartPatternsList = await getChartPatterns(selectedTicker, "DAILY", latestDate, [
+              "IN_PROGRESS",
+              "COMPLETED",
+            ]).catch((err) => {
               console.error("Failed to fetch overview chart patterns:", err);
               return [];
-            }),
-          ]);
+            });
+          }
           if (active) {
             setAnalysisData(analysis);
             setOverviewPatterns(patterns);
@@ -443,16 +451,18 @@ function App() {
     };
   }, [selectedTicker, timeframe, showCandlestickPatterns]);
 
-  // Fetch chart patterns when selectedTicker, timeframe, or showChartPatterns changes
+  // Fetch chart patterns when selectedTicker, timeframe, showChartPatterns, or active candles change
   useEffect(() => {
     let active = true;
     const fetchChartPatterns = async () => {
-      if (!selectedTicker || !showChartPatterns) {
+      if (!selectedTicker || !showChartPatterns || chartCandleData.length === 0) {
         setChartPatterns([]);
         return;
       }
       try {
-        const patterns = await getChartPatterns(selectedTicker, timeframe);
+        const rawDate = chartCandleData[chartCandleData.length - 1].date;
+        const latestDate = rawDate.length >= 10 ? rawDate.substring(0, 10) : rawDate;
+        const patterns = await getChartPatterns(selectedTicker, timeframe, latestDate);
         if (active) {
           setChartPatterns(patterns);
         }
@@ -464,7 +474,7 @@ function App() {
     return () => {
       active = false;
     };
-  }, [selectedTicker, timeframe, showChartPatterns]);
+  }, [selectedTicker, timeframe, showChartPatterns, chartCandleData]);
 
   const handleLoadOlderData = async () => {
     if (loadingOlder || !hasMore || !loadedSymbol) return;

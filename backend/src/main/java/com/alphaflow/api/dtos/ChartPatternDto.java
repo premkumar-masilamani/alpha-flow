@@ -12,6 +12,7 @@ import lombok.Builder;
 @Builder
 public record ChartPatternDto(
     @JsonProperty("id") Long id,
+    @JsonProperty("priceDate") LocalDate priceDate,
     @JsonProperty("patternType") ChartPatternType patternType,
     @JsonProperty("shortName") String shortName,
     @JsonProperty("displayName") String displayName,
