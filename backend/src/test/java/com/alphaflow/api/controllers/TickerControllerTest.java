@@ -55,7 +55,8 @@ class TickerControllerTest {
             "^NSEI",
             "NIFTY 50",
             com.alphaflow.persistence.enums.TickerType.INDEX,
-            com.alphaflow.persistence.enums.Country.IN);
+            com.alphaflow.persistence.enums.Country.IN,
+            false);
 
     when(service.getTickerBySymbol("^NSEI")).thenReturn(dto);
 

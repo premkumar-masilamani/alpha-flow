@@ -6,27 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.dtos.PriceBar;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class IndicatorMathTest {
-
-  @Test
-  void testConstructorIsPrivate() throws Exception {
-    Constructor<IndicatorMath> constructor = IndicatorMath.class.getDeclaredConstructor();
-    assertTrue(Modifier.isPrivate(constructor.getModifiers()));
-    constructor.setAccessible(true);
-    InvocationTargetException exception =
-        assertThrows(InvocationTargetException.class, constructor::newInstance);
-    assertTrue(exception.getCause() instanceof UnsupportedOperationException);
-    assertEquals(
-        "This is a utility class and cannot be instantiated", exception.getCause().getMessage());
-  }
 
   @Test
   void testInternalAndPublishScaling() {

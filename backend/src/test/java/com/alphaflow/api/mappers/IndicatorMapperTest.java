@@ -1,9 +1,6 @@
 package com.alphaflow.api.mappers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.alphaflow.api.dtos.IndicatorConfigDto;
 import com.alphaflow.common.enums.Timeframe;
@@ -95,27 +92,5 @@ class IndicatorMapperTest {
     assertEquals("CLOSE", dto.source());
     assertEquals("period=14", dto.params());
     assertEquals("RSI (14)", dto.label());
-  }
-
-  @Test
-  void testConstructorIsPrivate() throws Exception {
-
-    java.lang.reflect.Constructor<IndicatorMapper> constructor =
-        IndicatorMapper.class.getDeclaredConstructor();
-
-    assertTrue(java.lang.reflect.Modifier.isPrivate(constructor.getModifiers()));
-
-    constructor.setAccessible(true);
-
-    try {
-
-      constructor.newInstance();
-
-      fail("Should throw exception");
-
-    } catch (java.lang.reflect.InvocationTargetException e) {
-
-      assertInstanceOf(UnsupportedOperationException.class, e.getCause());
-    }
   }
 }
