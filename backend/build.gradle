@@ -127,7 +127,8 @@ tasks.withType(SpotBugsTask).configureEach {
 
 test {
     useJUnitPlatform()
-    onOutput { descriptor, event ->
+    outputs.upToDateWhen { false }
+    addTestOutputListener { descriptor, event ->
         if (event.message.contains('[INDICATOR-FIXTURE]')) {
             logger.lifecycle(event.message.trim())
         }
