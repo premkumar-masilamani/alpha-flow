@@ -18,7 +18,13 @@ import lombok.*;
 public class DailyCandlestickPattern {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(
+      strategy = GenerationType.SEQUENCE,
+      generator = "daily_candlestick_patterns_seq_gen")
+  @SequenceGenerator(
+      name = "daily_candlestick_patterns_seq_gen",
+      sequenceName = "daily_candlestick_patterns_daily_candlestick_pattern_id_seq",
+      allocationSize = 50)
   @Column(name = "daily_candlestick_pattern_id")
   private Long dailyCandlestickPatternId;
 

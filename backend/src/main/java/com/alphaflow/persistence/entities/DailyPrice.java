@@ -17,7 +17,11 @@ import lombok.*;
 public class DailyPrice {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "daily_prices_seq_gen")
+  @SequenceGenerator(
+      name = "daily_prices_seq_gen",
+      sequenceName = "daily_prices_daily_price_id_seq",
+      allocationSize = 50)
   @Column(name = "daily_price_id")
   private Long dailyPriceId;
 
