@@ -12,12 +12,18 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public final class YahooResponseParser {
+@UtilityClass
+public class YahooResponseParser {
+
+  private static final ObjectMapper OBJECT_MAPPER =
+      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   public static List<DailyPrice> parse(String jsonString, Ticker ticker) throws IOException {
     log.debug("Parsing Yahoo Finance JSON response for ticker: {}", ticker.getTickerSymbol());
@@ -27,9 +33,7 @@ public final class YahooResponseParser {
       return List.of();
     }
 
-    ObjectMapper objectMapper =
-        new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    YahooResponse response = objectMapper.readValue(jsonString, YahooResponse.class);
+    YahooResponse response = OBJECT_MAPPER.readValue(jsonString, YahooResponse.class);
 
     if (response == null
         || response.chart() == null
@@ -72,7 +76,7 @@ public final class YahooResponseParser {
                 Math.min(
                     quote.low().size(), Math.min(quote.close().size(), quote.volume().size()))));
 
-    List<DailyPrice> list = new ArrayList<>();
+    Map<LocalDate, DailyPrice> dailyPriceByDate = new LinkedHashMap<>();
     for (int i = 0; i < count; i++) {
       BigDecimal open = quote.open().get(i);
       BigDecimal high = quote.high().get(i);
@@ -108,7 +112,8 @@ public final class YahooResponseParser {
       LocalDate date =
           Instant.ofEpochSecond(result.timestamp().get(i)).atZone(ZoneOffset.UTC).toLocalDate();
 
-      list.add(
+      dailyPriceByDate.put(
+          date,
           DailyPrice.builder()
               .ticker(ticker)
               .priceDate(date)
@@ -120,10 +125,11 @@ public final class YahooResponseParser {
               .build());
     }
 
+    List<DailyPrice> dailyPrices = List.copyOf(dailyPriceByDate.values());
     log.info(
         "Successfully parsed {} daily price records for ticker {}",
-        list.size(),
+        dailyPrices.size(),
         ticker.getTickerSymbol());
-    return list;
+    return dailyPrices;
   }
 }
