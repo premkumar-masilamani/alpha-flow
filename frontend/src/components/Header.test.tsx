@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import Header from './Header';
 
 describe('Header Component', () => {
@@ -15,5 +15,18 @@ describe('Header Component', () => {
 
         const nyseBadge = screen.getByText(/NYSE:/i);
         expect(nyseBadge).toBeInTheDocument();
+
+        expect(screen.queryByText(/Stale Data/i)).not.toBeInTheDocument();
+    });
+
+    it('renders a prominent clickable stale data badge when staleTickersCount > 0', () => {
+        const handleOpenModal = vi.fn();
+        render(<Header staleTickersCount={3} onOpenStaleModal={handleOpenModal} />);
+
+        const staleBadge = screen.getByRole('button', { name: /Stale Data \(3\)/i });
+        expect(staleBadge).toBeInTheDocument();
+
+        fireEvent.click(staleBadge);
+        expect(handleOpenModal).toHaveBeenCalledTimes(1);
     });
 });

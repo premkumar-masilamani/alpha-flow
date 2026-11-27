@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
     getTickers,
     getCandleData,
+    deleteTickerData,
     getIndicatorConfigs,
     getIndicatorSeries,
     getTechnicalAnalysis,
@@ -235,6 +236,36 @@ describe('API Service Layer Tests', () => {
                 expect.stringContaining('/tickers/AAPL/chart-patterns'),
                 { params: { timeframe: 'daily', date: '2026-06-01', page: 0, statuses: 'IN_PROGRESS,COMPLETED' } }
             );
+        });
+    });
+
+    describe('deleteTickerData', () => {
+        it('should call DELETE endpoint and invalidate cached candles for that symbol', async () => {
+            const cachedCandles: DailyCandleData[] = [
+                { date: '2026-06-01', open: 100, high: 105, low: 99, close: 102, vol: 1000 }
+            ];
+            mockedAxios.get.mockResolvedValueOnce({ data: cachedCandles });
+            await getCandleData('CACHE_TEST', 'DAILY', 0, 250);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+
+            const resetResponse = {
+                symbol: 'CACHE_TEST',
+                cleared: true,
+                message: 'Ticker data cleared.'
+            };
+            mockedAxios.delete.mockResolvedValueOnce({ data: resetResponse });
+
+            const result = await deleteTickerData('CACHE_TEST');
+            expect(result).toEqual(resetResponse);
+            expect(mockedAxios.delete).toHaveBeenCalledWith(
+                expect.stringContaining('/tickers/CACHE_TEST/data')
+            );
+
+            // Cache should be evicted so subsequent fetch hits network again
+            mockedAxios.get.mockResolvedValueOnce({ data: [] });
+            const freshCandles = await getCandleData('CACHE_TEST', 'DAILY', 0, 250);
+            expect(freshCandles).toEqual([]);
+            expect(mockedAxios.get).toHaveBeenCalledTimes(2);
         });
     });
 });

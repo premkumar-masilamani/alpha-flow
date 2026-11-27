@@ -92,4 +92,8 @@ public interface WeeklyChartPatternRepository extends JpaRepository<WeeklyChartP
       """)
   void deleteByTickerAndPriceDateLessThan(
       @Param("ticker") Ticker ticker, @Param("cutoffDate") LocalDate cutoffDate);
+
+  @Modifying
+  @Query("DELETE FROM WeeklyChartPattern wcp WHERE wcp.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

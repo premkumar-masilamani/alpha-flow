@@ -12,6 +12,7 @@ public class TickerMapper {
         .tickerName(tickerEntity.getTickerName())
         .tickerType(tickerEntity.getTickerType())
         .country(tickerEntity.getCountry())
+        .isStale(tickerEntity.isStale())
         .build();
   }
 }

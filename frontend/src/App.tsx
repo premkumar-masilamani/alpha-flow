@@ -7,12 +7,14 @@ import IndicatorControls from "./components/IndicatorControls";
 import PriceSummaryBanner from "./components/PriceSummaryBanner";
 import CandlestickPatternModal from "./components/CandlestickPatternModal";
 import ChartPatternModal from "./components/ChartPatternModal";
+import StaleTickersModal from "./components/StaleTickersModal";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { getCandlestickPatternDetails } from "./config/candlestickPatterns";
 import { getChartPatternDetails } from "./config/chartPatterns";
 import { SUPPORT_RESISTANCE_RANGE_PCT, filterSupportResistances } from "./config/supportResistance";
 import {
   type DailyCandleData,
+  deleteTickerData,
   getCandleData,
   getIndicatorConfigs,
   getIndicatorSeries,
@@ -157,6 +159,32 @@ function App() {
   const [selectedPatternId, setSelectedPatternId] = useState<string | null>(null);
   const [isCpModalOpen, setIsCpModalOpen] = useState(false);
   const [selectedCpId, setSelectedCpId] = useState<string | null>(null);
+  const [isStaleModalOpen, setIsStaleModalOpen] = useState(false);
+
+  const staleTickers = useMemo(() => {
+    return tickers.filter((ticker) => Boolean(ticker.isStale));
+  }, [tickers]);
+
+  const handleDeleteTickerData = async (symbol: string) => {
+    await deleteTickerData(symbol);
+    setTickers((prev) =>
+      prev.map((ticker) =>
+        ticker.symbol === symbol ? { ...ticker, isStale: false } : ticker,
+      ),
+    );
+    if (selectedTickerRef.current === symbol) {
+      setChartCandleData([]);
+      setChartIndicators([]);
+      setSupportResistances([]);
+      setCandlestickPatterns([]);
+      setChartPatterns([]);
+      setAnalysisData(null);
+      setOverviewPatterns([]);
+      setOverviewChartPatterns([]);
+      setRecentDailyCandles([]);
+      setAnalysisError("stale");
+    }
+  };
 
   const selectedTickerObj = useMemo(() => {
     return tickers.find((t) => t.symbol === selectedTicker);
@@ -1455,7 +1483,10 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 overflow-hidden">
-      <Header />
+      <Header
+        staleTickersCount={staleTickers.length}
+        onOpenStaleModal={() => setIsStaleModalOpen(true)}
+      />
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && (
           <Sidebar
@@ -1477,6 +1508,12 @@ function App() {
         isOpen={isCpModalOpen}
         onClose={() => setIsCpModalOpen(false)}
         initialPatternId={selectedCpId}
+      />
+      <StaleTickersModal
+        isOpen={isStaleModalOpen}
+        staleTickers={staleTickers}
+        onClose={() => setIsStaleModalOpen(false)}
+        onDeleteTickerData={handleDeleteTickerData}
       />
     </div>
   );

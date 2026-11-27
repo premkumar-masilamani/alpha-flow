@@ -111,4 +111,29 @@ describe('Sidebar Component', () => {
         fireEvent.click(aaplButton!);
         expect(handleSelectTicker).toHaveBeenCalledWith('AAPL');
     });
+
+    it('renders a non-clickable stale indicator icon next to stale tickers only', () => {
+        const handleSelectTicker = vi.fn();
+        const tickersWithStale: Ticker[] = [
+            { id: 1, symbol: 'NVDA', name: 'NVIDIA Corp', type: 'STOCK', country: 'US', isStale: true },
+            { id: 2, symbol: 'AAPL', name: 'Apple Inc.', type: 'STOCK', country: 'US', isStale: false }
+        ];
+
+        render(
+            <Sidebar
+                tickers={tickersWithStale}
+                selectedTicker={null}
+                onSelectTicker={handleSelectTicker}
+            />
+        );
+
+        const staleIcons = screen.getAllByLabelText('Stale data detected');
+        expect(staleIcons).toHaveLength(1);
+        expect(staleIcons[0].tagName).toBe('SPAN');
+        expect(staleIcons[0]).toHaveClass('pointer-events-none');
+
+        const nvdaButton = screen.getByText('NVDA').closest('button');
+        fireEvent.click(nvdaButton!);
+        expect(handleSelectTicker).toHaveBeenCalledWith('NVDA');
+    });
 });

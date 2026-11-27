@@ -41,4 +41,8 @@ public class Ticker {
   @Column(name = "is_active", nullable = false)
   @Builder.Default
   private boolean isActive = true;
+
+  @Column(name = "is_stale", nullable = false)
+  @Builder.Default
+  private boolean isStale = false;
 }

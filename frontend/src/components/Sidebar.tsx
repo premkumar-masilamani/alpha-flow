@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import type { Ticker, TickerType, Country } from '../services/api';
 
 interface SidebarProps {
@@ -75,7 +75,18 @@ const Sidebar: React.FC<SidebarProps> = ({ tickers, selectedTicker, onSelectTick
                                 selectedTicker === ticker.symbol ? 'bg-slate-700 text-white border-l-4 border-blue-500' : 'pl-5'
                             }`}
                         >
-                            <span className="font-medium text-sm">{ticker.symbol}</span>
+                            <span className="font-medium text-sm flex items-center justify-between w-full gap-1.5">
+                                <span className="truncate">{ticker.symbol}</span>
+                                {ticker.isStale && (
+                                    <span
+                                        className="inline-flex items-center text-amber-400 shrink-0 pointer-events-none"
+                                        title="Stale data detected (corporate action)"
+                                        aria-label="Stale data detected"
+                                    >
+                                        <AlertTriangle size={13} />
+                                    </span>
+                                )}
+                            </span>
                             <span className="text-[10px] text-slate-500 truncate w-full">{ticker.name}</span>
                         </button>
                     </li>

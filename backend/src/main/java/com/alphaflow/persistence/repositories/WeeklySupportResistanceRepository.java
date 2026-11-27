@@ -84,4 +84,8 @@ public interface WeeklySupportResistanceRepository
       """)
   void deleteByTickerAndPriceDateLessThan(
       @Param("ticker") Ticker ticker, @Param("cutoffDate") LocalDate cutoffDate);
+
+  @Modifying
+  @Query("DELETE FROM WeeklySupportResistance wsr WHERE wsr.ticker = :ticker")
+  void deleteByTicker(@Param("ticker") Ticker ticker);
 }

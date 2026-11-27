@@ -1,9 +1,12 @@
 package com.alphaflow.api.controllers;
 
+import com.alphaflow.api.dtos.TickerDataResetResponseDto;
 import com.alphaflow.api.dtos.TickerDto;
+import com.alphaflow.api.services.TickerDataResetService;
 import com.alphaflow.api.services.TickerService;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,9 +18,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class TickerController {
 
   private final TickerService tickerService;
+  private final TickerDataResetService tickerDataResetService;
 
-  public TickerController(TickerService tickerService) {
+  public TickerController(
+      TickerService tickerService, TickerDataResetService tickerDataResetService) {
     this.tickerService = tickerService;
+    this.tickerDataResetService = tickerDataResetService;
   }
 
   @GetMapping("/tickers")
@@ -30,5 +36,11 @@ public class TickerController {
   public TickerDto getTickerBySymbol(@PathVariable String symbol) {
     log.debug("Request to get ticker by symbol: {}", symbol);
     return tickerService.getTickerBySymbol(symbol);
+  }
+
+  @DeleteMapping("/tickers/{symbol}/data")
+  public TickerDataResetResponseDto deleteTickerData(@PathVariable String symbol) {
+    log.info("Request to clear data for ticker: {}", symbol);
+    return tickerDataResetService.resetTickerData(symbol);
   }
 }

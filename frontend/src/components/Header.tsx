@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Clock, Calendar } from 'lucide-react';
+import { TrendingUp, Clock, Calendar, AlertTriangle } from 'lucide-react';
 import { getMarketStatus } from '../utils/marketStatus';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+    staleTickersCount?: number;
+    onOpenStaleModal?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ staleTickersCount = 0, onOpenStaleModal }) => {
     const [currentTime, setCurrentTime] = useState(new Date());
 
     useEffect(() => {
@@ -69,6 +74,19 @@ const Header: React.FC = () => {
                     />
                     <span>🇺🇸 NYSE: {usStatus.displayMessage}</span>
                 </div>
+
+                {staleTickersCount > 0 && (
+                    <button
+                        type="button"
+                        id="stale-tickers-badge"
+                        onClick={onOpenStaleModal}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-amber-500/60 bg-amber-950/60 text-amber-300 hover:bg-amber-900/70 hover:border-amber-400 transition-colors cursor-pointer shadow-sm"
+                    >
+                        <span className="w-2 h-2 rounded-full inline-block bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] animate-pulse" />
+                        <AlertTriangle size={13} />
+                        <span>Stale Data ({staleTickersCount})</span>
+                    </button>
+                )}
             </div>
 
             <div className="flex items-center gap-3 bg-slate-950/70 border border-slate-800 px-3 py-1.5 rounded-lg shadow-inner">

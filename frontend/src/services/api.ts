@@ -13,6 +13,13 @@ export interface Ticker {
     name: string;
     type?: TickerType;
     country?: Country;
+    isStale?: boolean;
+}
+
+export interface TickerDataResetResponse {
+    symbol: string;
+    cleared: boolean;
+    message: string;
 }
 
 export interface DailyCandleData {
@@ -26,6 +33,21 @@ export interface DailyCandleData {
 
 export const getTickers = async (): Promise<Ticker[]> => {
     const response = await axios.get(`${API_BASE_URL}/tickers`);
+    return response.data;
+};
+
+export const invalidateCandleCache = (symbol: string): void => {
+    const prefix = `${symbol}:`;
+    for (const key of Array.from(candleDataCache.keys())) {
+        if (key.startsWith(prefix)) {
+            candleDataCache.delete(key);
+        }
+    }
+};
+
+export const deleteTickerData = async (symbol: string): Promise<TickerDataResetResponse> => {
+    const response = await axios.delete(`${API_BASE_URL}/tickers/${encodeURIComponent(symbol)}/data`);
+    invalidateCandleCache(symbol);
     return response.data;
 };
 
