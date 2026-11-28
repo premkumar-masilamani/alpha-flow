@@ -8,12 +8,16 @@ import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.wa
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.MacdIndicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorComputationPoint;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -80,5 +84,48 @@ class MacdIndicatorTest {
             .compute(walk(50), IndicatorParams.parse("fast=12,slow=26"), PriceSource.CLOSE);
 
     assertFalse(result.isEmpty());
+  }
+
+  @Test
+  void macdStatefulResumeMatchesFullPassBitForBit() {
+    MacdIndicator indicator = new MacdIndicator();
+    IndicatorParams params = IndicatorParams.parse("fast=12,slow=26,signal=9");
+
+    assertTrue(indicator.isStateful());
+    assertEquals(34, indicator.requiredLookback(params));
+    assertFalse(indicator.hasCompleteState(null));
+    assertFalse(indicator.hasCompleteState(Map.of()));
+    assertFalse(indicator.hasCompleteState(Map.of(MacdIndicator.STATE_FAST_EMA, BigDecimal.ONE)));
+    assertFalse(
+        indicator.hasCompleteState(
+            Map.of(
+                MacdIndicator.STATE_FAST_EMA,
+                BigDecimal.ONE,
+                MacdIndicator.STATE_SLOW_EMA,
+                BigDecimal.ONE)));
+
+    List<PriceBar> bars = walk(100);
+    Map<LocalDate, IndicatorComputationPoint> fullPass =
+        indicator.computeStateful(bars, params, PriceSource.CLOSE, null);
+
+    // Warm-up bar before signal is seeded has incomplete state
+    Map<String, BigDecimal> warmupState = fullPass.get(bars.get(25).date()).state();
+    assertFalse(indicator.hasCompleteState(warmupState));
+
+    Map<LocalDate, IndicatorComputationPoint> firstHalf =
+        indicator.computeStateful(bars.subList(0, 50), params, PriceSource.CLOSE, null);
+    Map<String, BigDecimal> state = firstHalf.get(bars.get(49).date()).state();
+    assertTrue(indicator.hasCompleteState(state));
+
+    for (int i = 50; i < bars.size(); i++) {
+      PriceBar bar = bars.get(i);
+      Map<LocalDate, IndicatorComputationPoint> incremental =
+          indicator.computeStateful(List.of(bar), params, PriceSource.CLOSE, state);
+      IndicatorComputationPoint expected = fullPass.get(bar.date());
+      IndicatorComputationPoint actual = incremental.get(bar.date());
+      assertEquals(expected.values(), actual.values());
+      assertEquals(expected.state(), actual.state());
+      state = actual.state();
+    }
   }
 }

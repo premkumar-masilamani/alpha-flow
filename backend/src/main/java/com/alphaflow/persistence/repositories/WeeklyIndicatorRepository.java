@@ -1,6 +1,5 @@
 package com.alphaflow.persistence.repositories;
 
-import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
 import java.time.DayOfWeek;
@@ -44,35 +43,24 @@ public interface WeeklyIndicatorRepository extends JpaRepository<WeeklyIndicator
   }
 
   @Query(
-      """
-      SELECT wi.ticker, wi.indicatorDefinition, MAX(wi.priceDate)
-      FROM WeeklyIndicator wi
-      WHERE wi.ticker.isActive = true
-      GROUP BY wi.ticker, wi.indicatorDefinition
-      """)
-  List<Object[]> findLatestDatesGroupedByTickerAndDefinition();
-
-  @Query(
-      """
-      SELECT wi.indicatorDefinition, MAX(wi.priceDate)
-      FROM WeeklyIndicator wi
-      WHERE wi.ticker = :ticker
-      GROUP BY wi.indicatorDefinition
-      """)
-  List<Object[]> findLatestDatesGroupedByDefinition(@Param("ticker") Ticker ticker);
-
-  @Modifying(flushAutomatically = true)
-  @Query(
-      """
-      DELETE FROM WeeklyIndicator wi
-      WHERE wi.ticker = :ticker
-        AND wi.indicatorDefinition = :indicatorDefinition
-        AND wi.priceDate >= :priceDate
-      """)
-  void deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(
-      @Param("ticker") Ticker ticker,
-      @Param("indicatorDefinition") IndicatorDefinition indicatorDefinition,
-      @Param("priceDate") LocalDate priceDate);
+      value =
+          """
+          SELECT wi.*
+          FROM (
+              SELECT w.*,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY w.ticker_id, w.indicator_definition_id
+                         ORDER BY w.price_date DESC
+                     ) AS rn
+              FROM weekly_indicators w
+              JOIN tickers t ON t.ticker_id = w.ticker_id
+              WHERE t.is_active = true
+          ) wi
+          WHERE wi.rn <= 2
+          ORDER BY wi.ticker_id, wi.indicator_definition_id, wi.price_date DESC
+          """,
+      nativeQuery = true)
+  List<WeeklyIndicator> findTop2LatestForActiveTickers();
 
   @Query(
       """

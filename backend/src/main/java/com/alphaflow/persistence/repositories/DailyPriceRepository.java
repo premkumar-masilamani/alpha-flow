@@ -3,6 +3,7 @@ package com.alphaflow.persistence.repositories;
 import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.Ticker;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +85,35 @@ public interface DailyPriceRepository extends JpaRepository<DailyPrice, Long> {
           ORDER BY dp.priceDate DESC
       """)
   List<LocalDate> findRecentPriceDatesUpTo(Ticker ticker, LocalDate endDate, Pageable pageable);
+
+  @Query(
+      """
+      SELECT dp.ticker.tickerId, MAX(dp.priceDate)
+      FROM DailyPrice dp
+      WHERE dp.ticker.isActive = true
+      GROUP BY dp.ticker.tickerId
+      """)
+  List<Object[]> findMaxPriceDatePerActiveTicker();
+
+  @Query(
+      value =
+          """
+          SELECT sub.*
+          FROM (
+              SELECT dp.*,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY dp.ticker_id
+                         ORDER BY dp.price_date DESC
+                     ) AS rn
+              FROM daily_prices dp
+              WHERE dp.ticker_id IN (:tickerIds)
+          ) sub
+          WHERE sub.rn <= :limitPerTicker
+          ORDER BY sub.ticker_id ASC, sub.price_date ASC
+          """,
+      nativeQuery = true)
+  List<DailyPrice> findTailBarsForTickers(
+      @Param("tickerIds") Collection<Long> tickerIds, @Param("limitPerTicker") int limitPerTicker);
 
   @Modifying
   @Query("DELETE FROM DailyPrice dp WHERE dp.ticker = :ticker")

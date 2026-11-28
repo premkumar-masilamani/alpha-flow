@@ -168,4 +168,12 @@ class BollingerBandsIndicatorTest {
             new BollingerBandsIndicator()
                 .compute(List.of(), IndicatorParams.parse("period=0,stdDev=2"), PriceSource.CLOSE));
   }
+
+  @Test
+  void testRequiredLookback() {
+    assertEquals(
+        20,
+        new BollingerBandsIndicator()
+            .requiredLookback(IndicatorParams.parse("period=20,stdDev=2")));
+  }
 }

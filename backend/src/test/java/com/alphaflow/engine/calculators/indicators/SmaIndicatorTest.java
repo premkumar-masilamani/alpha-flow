@@ -5,6 +5,10 @@ import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.bd
 import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.closes;
 import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.plot;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.SmaIndicator;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
@@ -48,5 +52,23 @@ class SmaIndicatorTest {
     assertEquals(0, plot(result, EPOCH.plusDays(1), "value").compareTo(BigDecimal.valueOf(1000.5)));
 
     assertEquals(0, plot(result, EPOCH.plusDays(2), "value").compareTo(BigDecimal.valueOf(1001.5)));
+  }
+
+  @Test
+  void smaLookbackAndDefaultStatefulContract() {
+    SmaIndicator indicator = new SmaIndicator();
+    IndicatorParams params = IndicatorParams.parse("period=20");
+    assertEquals(20, indicator.requiredLookback(params));
+    assertFalse(indicator.isStateful());
+    assertTrue(indicator.hasCompleteState(null));
+    var points =
+        indicator.computeStateful(
+            closes(1, 2, 3), IndicatorParams.parse("period=2"), PriceSource.CLOSE, null);
+    assertEquals(2, points.size());
+    assertNull(points.get(EPOCH.plusDays(1)).state());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            indicator.compute(closes(1, 2), IndicatorParams.parse("period=0"), PriceSource.CLOSE));
   }
 }

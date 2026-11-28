@@ -2,14 +2,17 @@ package com.alphaflow.engine.calculators;
 
 import com.alphaflow.common.enums.Timeframe;
 import com.alphaflow.engine.indicators.Indicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorComputationPoint;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorRegistry;
 import com.alphaflow.engine.pipeline.PipelineJob;
 import com.alphaflow.persistence.entities.DailyIndicator;
+import com.alphaflow.persistence.entities.DailyPrice;
 import com.alphaflow.persistence.entities.IndicatorDefinition;
 import com.alphaflow.persistence.entities.Ticker;
 import com.alphaflow.persistence.entities.WeeklyIndicator;
+import com.alphaflow.persistence.entities.WeeklyPrice;
 import com.alphaflow.persistence.repositories.DailyIndicatorRepository;
 import com.alphaflow.persistence.repositories.DailyPriceRepository;
 import com.alphaflow.persistence.repositories.IndicatorDefinitionRepository;
@@ -18,11 +21,14 @@ import com.alphaflow.persistence.repositories.WeeklyIndicatorRepository;
 import com.alphaflow.persistence.repositories.WeeklyPriceRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -35,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class IndicatorCalculator implements PipelineJob {
 
   public static final String JOB_NAME = "CALCULATE_INDICATOR";
+  public static final int MAX_TAIL_NEW_BARS = 30;
 
   private final IndicatorRegistry indicatorRegistry;
   private final DailyPriceRepository dailyPriceRepository;
@@ -82,101 +89,259 @@ public class IndicatorCalculator implements PipelineJob {
 
   @Override
   public void execute(Timeframe timeframe) {
-    List<Ticker> targetTickers;
-    if (timeframe == Timeframe.DAILY) {
-      targetTickers = dailyIndicatorRepository.findTickersWithPendingDailyIndicators();
-    } else if (timeframe == Timeframe.WEEKLY) {
-      targetTickers = tickerRepository.findByIsActiveTrue();
+    List<Ticker> targetTickers = loadTargetTickers(timeframe);
+    List<IndicatorDefinition> definitions = indicatorDefinitionRepository.findAll();
+
+    if (!targetTickers.isEmpty() && !definitions.isEmpty()) {
+      log.info(
+          "Computing {} indicators for {} tickers and {} definitions...",
+          timeframe,
+          targetTickers.size(),
+          definitions.size());
+
+      IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
+      Map<Long, LocalDate> maxPriceDateByTickerId = loadMaxPriceDates(timeframe);
+      Map<Long, Map<Long, List<com.alphaflow.persistence.entities.Indicator>>> top2ByTickerId =
+          proxy.loadTop2IndicatorsByTickerId(timeframe);
+
+      int maxFiniteLookback = computeMaxFiniteLookback(definitions);
+      List<Ticker> tickersToProcess = new ArrayList<>();
+      List<Long> tailWindowTickerIds = new ArrayList<>();
+
+      for (Ticker ticker : targetTickers) {
+        LocalDate maxPriceDate = maxPriceDateByTickerId.get(ticker.getTickerId());
+        if (maxPriceDate != null) {
+          Map<Long, List<com.alphaflow.persistence.entities.Indicator>> tickerTop2 =
+              top2ByTickerId.getOrDefault(ticker.getTickerId(), Collections.emptyMap());
+          if (!isDailyTickerUpToDate(timeframe, maxPriceDate, definitions, tickerTop2)) {
+            tickersToProcess.add(ticker);
+            if (canUseTailWindow(timeframe, maxPriceDate, definitions, tickerTop2)) {
+              tailWindowTickerIds.add(ticker.getTickerId());
+            }
+          }
+        }
+      }
+
+      Map<Long, List<PriceBar>> tailBarsByTickerId =
+          tailWindowTickerIds.isEmpty()
+              ? Collections.emptyMap()
+              : proxy.loadTailBarsByTickerId(
+                  timeframe, tailWindowTickerIds, maxFiniteLookback + MAX_TAIL_NEW_BARS);
+
+      for (Ticker ticker : tickersToProcess) {
+        try {
+          LocalDate maxPriceDate = maxPriceDateByTickerId.get(ticker.getTickerId());
+          Map<Long, List<com.alphaflow.persistence.entities.Indicator>> tickerTop2 =
+              top2ByTickerId.getOrDefault(ticker.getTickerId(), Collections.emptyMap());
+          List<PriceBar> preloadedTailBars = tailBarsByTickerId.get(ticker.getTickerId());
+          proxy.computeIndicatorForTicker(
+              ticker, timeframe, definitions, tickerTop2, maxPriceDate, preloadedTailBars);
+        } catch (Exception exception) {
+          log.error(
+              "Failed to compute {} indicators for ticker {}: {}",
+              timeframe,
+              ticker.getTickerSymbol(),
+              exception.getMessage(),
+              exception);
+        }
+      }
+
+      log.info("{} indicators computed.", timeframe);
     } else {
-      log.error("Unsupported timeframe for indicator computation: {}", timeframe);
+      log.info(
+          "No tickers ({}) or definitions ({}) to process for {} indicators.",
+          targetTickers.size(),
+          definitions.size(),
+          timeframe);
+    }
+  }
+
+  @Transactional(readOnly = true)
+  public Map<Long, Map<Long, List<com.alphaflow.persistence.entities.Indicator>>>
+      loadTop2IndicatorsByTickerId(Timeframe timeframe) {
+    List<? extends com.alphaflow.persistence.entities.Indicator> rows;
+    if (timeframe == Timeframe.DAILY) {
+      rows = dailyIndicatorRepository.findTop2LatestForActiveTickers();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      rows = weeklyIndicatorRepository.findTop2LatestForActiveTickers();
+    } else {
+      log.error("Unsupported timeframe for loading top-2 indicators: {}", timeframe);
       throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
     }
 
-    log.info("Computing {} indicators...", timeframe);
-    List<IndicatorDefinition> definitions = indicatorDefinitionRepository.findAll();
-
-    log.info("Found {} tickers to process for {} indicators.", targetTickers.size(), timeframe);
-
-    Map<Ticker, Map<IndicatorDefinition, LocalDate>> latestDatesByTicker =
-        loadLatestDatesByTicker(timeframe, targetTickers, definitions);
-
-    IndicatorCalculator proxy = (indicatorCalculator != null) ? indicatorCalculator : this;
-
-    for (Ticker ticker : targetTickers) {
-      try {
-        Map<IndicatorDefinition, LocalDate> tickerDates =
-            latestDatesByTicker.getOrDefault(ticker, Collections.emptyMap());
-        proxy.computeIndicatorForTicker(ticker, timeframe, tickerDates);
-      } catch (Exception exception) {
-        log.error(
-            "Failed to compute {} indicators for ticker {}: {}",
-            timeframe,
-            ticker.getTickerSymbol(),
-            exception.getMessage(),
-            exception);
-      }
+    Map<Long, Map<Long, List<com.alphaflow.persistence.entities.Indicator>>> grouped =
+        new LinkedHashMap<>();
+    for (com.alphaflow.persistence.entities.Indicator row : rows) {
+      Long tickerId = row.getTicker().getTickerId();
+      Long definitionId = row.getIndicatorDefinition().getIndicatorDefinitionId();
+      grouped
+          .computeIfAbsent(tickerId, ignoredTickerId -> new LinkedHashMap<>())
+          .computeIfAbsent(definitionId, ignoredDefId -> new ArrayList<>(2))
+          .add(row);
     }
+    return grouped;
+  }
 
-    log.info("{} indicators computed.", timeframe);
+  @Transactional(readOnly = true)
+  public Map<Long, List<PriceBar>> loadTailBarsByTickerId(
+      Timeframe timeframe, Collection<Long> tickerIds, int limitPerTicker) {
+    Map<Long, List<PriceBar>> barsByTickerId = new LinkedHashMap<>();
+    if (timeframe == Timeframe.DAILY) {
+      for (DailyPrice dailyPrice :
+          dailyPriceRepository.findTailBarsForTickers(tickerIds, limitPerTicker)) {
+        barsByTickerId
+            .computeIfAbsent(dailyPrice.getTicker().getTickerId(), ignored -> new ArrayList<>())
+            .add(PriceBar.from(dailyPrice));
+      }
+    } else if (timeframe == Timeframe.WEEKLY) {
+      for (WeeklyPrice weeklyPrice :
+          weeklyPriceRepository.findTailBarsForTickers(tickerIds, limitPerTicker)) {
+        barsByTickerId
+            .computeIfAbsent(weeklyPrice.getTicker().getTickerId(), ignored -> new ArrayList<>())
+            .add(PriceBar.from(weeklyPrice));
+      }
+    } else {
+      log.error("Unsupported timeframe for loading tail bars: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+    return barsByTickerId;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   public void computeIndicatorForTicker(
-      Ticker ticker, Timeframe timeframe, Map<IndicatorDefinition, LocalDate> staleStates) {
+      Ticker ticker,
+      Timeframe timeframe,
+      List<IndicatorDefinition> definitions,
+      Map<Long, List<com.alphaflow.persistence.entities.Indicator>> top2ByDefId,
+      LocalDate maxPriceDate,
+      List<PriceBar> preloadedTailBars) {
     log.info("{}: Computing {} indicators...", ticker.getTickerSymbol(), timeframe);
-    if (!staleStates.isEmpty()) {
-      List<PriceBar> bars = loadBars(ticker, timeframe);
-      if (!bars.isEmpty()) {
-        int savedCount = computeAndSaveIndicators(ticker, timeframe, bars, staleStates);
-        log.info(
-            "Ticker {}: Saved {} {} indicators.",
-            ticker.getTickerSymbol(),
-            savedCount,
-            timeframe.name().toLowerCase());
-      } else {
-        log.debug(
-            "{}: No {} price bars found. Skipping indicator computation.",
-            ticker.getTickerSymbol(),
-            timeframe.name().toLowerCase());
-      }
-    } else {
+    List<PriceBar> bars =
+        (preloadedTailBars != null) ? preloadedTailBars : loadFullBars(ticker, timeframe);
+    if (!bars.isEmpty()) {
+      int savedCount =
+          computeAndSaveIndicators(ticker, timeframe, definitions, bars, top2ByDefId, maxPriceDate);
       log.info(
-          "{}: No stale indicator definitions found. Skipping computation.",
-          ticker.getTickerSymbol());
+          "Ticker {}: Saved {} {} indicators.",
+          ticker.getTickerSymbol(),
+          savedCount,
+          timeframe.name().toLowerCase());
+    } else {
+      log.debug(
+          "{}: No {} price bars found. Skipping indicator computation.",
+          ticker.getTickerSymbol(),
+          timeframe.name().toLowerCase());
     }
   }
 
-  private Map<Ticker, Map<IndicatorDefinition, LocalDate>> loadLatestDatesByTicker(
-      Timeframe timeframe, List<Ticker> targetTickers, List<IndicatorDefinition> definitions) {
-    List<Object[]> rows =
-        (timeframe == Timeframe.DAILY)
-            ? dailyIndicatorRepository.findLatestDatesGroupedByTickerAndDefinition()
-            : weeklyIndicatorRepository.findLatestDatesGroupedByTickerAndDefinition();
+  private List<Ticker> loadTargetTickers(Timeframe timeframe) {
+    if (timeframe == Timeframe.DAILY) {
+      return dailyIndicatorRepository.findTickersWithPendingDailyIndicators();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      return tickerRepository.findByIsActiveTrue();
+    } else {
+      log.error("Unsupported timeframe for indicator computation: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+  }
 
-    Map<Ticker, Map<Long, LocalDate>> dateByTickerAndDefId = new LinkedHashMap<>();
+  private Map<Long, LocalDate> loadMaxPriceDates(Timeframe timeframe) {
+    List<Object[]> rows;
+    if (timeframe == Timeframe.DAILY) {
+      rows = dailyPriceRepository.findMaxPriceDatePerActiveTicker();
+    } else if (timeframe == Timeframe.WEEKLY) {
+      rows = weeklyPriceRepository.findMaxPriceDatePerActiveTicker();
+    } else {
+      log.error("Unsupported timeframe for loading max price dates: {}", timeframe);
+      throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+    }
+
+    Map<Long, LocalDate> maxDateByTickerId = new LinkedHashMap<>();
     for (Object[] row : rows) {
-      Ticker ticker = (Ticker) row[0];
-      IndicatorDefinition def = (IndicatorDefinition) row[1];
-      LocalDate maxDate = (LocalDate) row[2];
-      dateByTickerAndDefId
-          .computeIfAbsent(ticker, k -> new LinkedHashMap<>())
-          .put(def.getIndicatorDefinitionId(), maxDate);
+      maxDateByTickerId.put((Long) row[0], (LocalDate) row[1]);
     }
-
-    Map<Ticker, Map<IndicatorDefinition, LocalDate>> result = new LinkedHashMap<>();
-    for (Ticker ticker : targetTickers) {
-      Map<Long, LocalDate> tickerDefDates =
-          dateByTickerAndDefId.getOrDefault(ticker, Collections.emptyMap());
-      Map<IndicatorDefinition, LocalDate> tickerResult = new LinkedHashMap<>();
-      for (IndicatorDefinition def : definitions) {
-        tickerResult.put(def, tickerDefDates.get(def.getIndicatorDefinitionId()));
-      }
-      result.put(ticker, tickerResult);
-    }
-    return result;
+    return maxDateByTickerId;
   }
 
-  private List<PriceBar> loadBars(Ticker ticker, Timeframe timeframe) {
+  private int computeMaxFiniteLookback(List<IndicatorDefinition> definitions) {
+    int maxLookback = 1;
+    for (IndicatorDefinition definition : definitions) {
+      Indicator indicator = indicatorRegistry.get(definition.getType());
+      if (!indicator.isStateful()) {
+        int lookback = indicator.requiredLookback(IndicatorParams.of(definition.getParams()));
+        if (lookback > maxLookback) {
+          maxLookback = lookback;
+        }
+      }
+    }
+    return maxLookback;
+  }
+
+  private boolean isDailyTickerUpToDate(
+      Timeframe timeframe,
+      LocalDate maxPriceDate,
+      List<IndicatorDefinition> definitions,
+      Map<Long, List<com.alphaflow.persistence.entities.Indicator>> tickerTop2) {
+    if (timeframe != Timeframe.DAILY) {
+      return false;
+    }
+    for (IndicatorDefinition definition : definitions) {
+      List<com.alphaflow.persistence.entities.Indicator> defRows =
+          tickerTop2.getOrDefault(definition.getIndicatorDefinitionId(), List.of());
+      if (defRows.isEmpty()) {
+        return false;
+      }
+      com.alphaflow.persistence.entities.Indicator lastIndicator = defRows.getFirst();
+      Indicator indicator = indicatorRegistry.get(definition.getType());
+      if (!lastIndicator.getPriceDate().equals(maxPriceDate)
+          || !indicator.hasCompleteState(lastIndicator.getState())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private boolean canUseTailWindow(
+      Timeframe timeframe,
+      LocalDate maxPriceDate,
+      List<IndicatorDefinition> definitions,
+      Map<Long, List<com.alphaflow.persistence.entities.Indicator>> tickerTop2) {
+    for (IndicatorDefinition definition : definitions) {
+      List<com.alphaflow.persistence.entities.Indicator> defRows =
+          tickerTop2.getOrDefault(definition.getIndicatorDefinitionId(), List.of());
+      if (defRows.isEmpty()) {
+        return false;
+      }
+      com.alphaflow.persistence.entities.Indicator lastIndicator = defRows.getFirst();
+      Indicator indicator = indicatorRegistry.get(definition.getType());
+
+      if (timeframe == Timeframe.WEEKLY && lastIndicator.getPriceDate().equals(maxPriceDate)) {
+        if (indicator.isStateful()
+            && (defRows.size() < 2 || !indicator.hasCompleteState(defRows.get(1).getState()))) {
+          return false;
+        }
+      } else {
+        if (indicator.isStateful() && !indicator.hasCompleteState(lastIndicator.getState())) {
+          return false;
+        }
+        long gap;
+        if (timeframe == Timeframe.DAILY) {
+          gap = ChronoUnit.DAYS.between(lastIndicator.getPriceDate(), maxPriceDate);
+        } else if (timeframe == Timeframe.WEEKLY) {
+          gap = ChronoUnit.WEEKS.between(lastIndicator.getPriceDate(), maxPriceDate);
+        } else {
+          log.error("Unsupported timeframe for tail window gap check: {}", timeframe);
+          throw new IllegalArgumentException("Unsupported timeframe: " + timeframe);
+        }
+        if (gap > MAX_TAIL_NEW_BARS) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private List<PriceBar> loadFullBars(Ticker ticker, Timeframe timeframe) {
     if (timeframe == Timeframe.DAILY) {
       return dailyPriceRepository.findByTickerOrderByPriceDateAsc(ticker).stream()
           .map(PriceBar::from)
@@ -194,65 +359,57 @@ public class IndicatorCalculator implements PipelineJob {
   private int computeAndSaveIndicators(
       Ticker ticker,
       Timeframe timeframe,
+      List<IndicatorDefinition> definitions,
       List<PriceBar> bars,
-      Map<IndicatorDefinition, LocalDate> staleStates) {
+      Map<Long, List<com.alphaflow.persistence.entities.Indicator>> top2ByDefId,
+      LocalDate maxPriceDate) {
     if (timeframe == Timeframe.DAILY) {
-      List<DailyIndicator> toInsert = new ArrayList<>();
-      for (Map.Entry<IndicatorDefinition, LocalDate> entry : staleStates.entrySet()) {
-        IndicatorDefinition definition = entry.getKey();
-        LocalDate latestCalculatedDate = entry.getValue();
-        Map<LocalDate, Map<String, BigDecimal>> computed = computeSingleSeries(bars, definition);
-
-        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : computed.entrySet()) {
-          LocalDate date = point.getKey();
-          if (latestCalculatedDate == null || date.isAfter(latestCalculatedDate)) {
-            toInsert.add(
+      List<DailyIndicator> toSave = new ArrayList<>();
+      for (IndicatorDefinition definition : definitions) {
+        collectDefinitionSaves(
+            timeframe,
+            definition,
+            bars,
+            top2ByDefId,
+            maxPriceDate,
+            toSave,
+            (priceDate, point) ->
                 DailyIndicator.builder()
                     .ticker(ticker)
                     .indicatorDefinition(definition)
-                    .priceDate(date)
-                    .values(point.getValue())
+                    .priceDate(priceDate)
+                    .values(point.values())
+                    .state(point.state())
                     .build());
-          }
-        }
       }
-
-      if (!toInsert.isEmpty()) {
-        dailyIndicatorRepository.saveAll(toInsert);
-        return toInsert.size();
+      if (!toSave.isEmpty()) {
+        dailyIndicatorRepository.saveAll(toSave);
+        return toSave.size();
       } else {
         return 0;
       }
     } else if (timeframe == Timeframe.WEEKLY) {
-      List<WeeklyIndicator> toInsert = new ArrayList<>();
-      for (Map.Entry<IndicatorDefinition, LocalDate> entry : staleStates.entrySet()) {
-        IndicatorDefinition definition = entry.getKey();
-        LocalDate latestCalculatedDate = entry.getValue();
-        Map<LocalDate, Map<String, BigDecimal>> computed = computeSingleSeries(bars, definition);
-
-        if (latestCalculatedDate != null) {
-          weeklyIndicatorRepository
-              .deleteByTickerAndIndicatorDefinitionAndPriceDateGreaterThanEqual(
-                  ticker, definition, latestCalculatedDate);
-        }
-
-        for (Map.Entry<LocalDate, Map<String, BigDecimal>> point : computed.entrySet()) {
-          LocalDate date = point.getKey();
-          if (latestCalculatedDate == null || !date.isBefore(latestCalculatedDate)) {
-            toInsert.add(
+      List<WeeklyIndicator> toSave = new ArrayList<>();
+      for (IndicatorDefinition definition : definitions) {
+        collectDefinitionSaves(
+            timeframe,
+            definition,
+            bars,
+            top2ByDefId,
+            maxPriceDate,
+            toSave,
+            (priceDate, point) ->
                 WeeklyIndicator.builder()
                     .ticker(ticker)
                     .indicatorDefinition(definition)
-                    .priceDate(date)
-                    .values(point.getValue())
+                    .priceDate(priceDate)
+                    .values(point.values())
+                    .state(point.state())
                     .build());
-          }
-        }
       }
-
-      if (!toInsert.isEmpty()) {
-        weeklyIndicatorRepository.saveAll(toInsert);
-        return toInsert.size();
+      if (!toSave.isEmpty()) {
+        weeklyIndicatorRepository.saveAll(toSave);
+        return toSave.size();
       } else {
         return 0;
       }
@@ -262,10 +419,164 @@ public class IndicatorCalculator implements PipelineJob {
     }
   }
 
-  private Map<LocalDate, Map<String, BigDecimal>> computeSingleSeries(
-      List<PriceBar> bars, IndicatorDefinition definition) {
+  @SuppressWarnings("unchecked")
+  private <T extends com.alphaflow.persistence.entities.Indicator> void collectDefinitionSaves(
+      Timeframe timeframe,
+      IndicatorDefinition definition,
+      List<PriceBar> bars,
+      Map<Long, List<com.alphaflow.persistence.entities.Indicator>> top2ByDefId,
+      LocalDate maxPriceDate,
+      List<T> toSave,
+      BiFunction<LocalDate, IndicatorComputationPoint, T> entityFactory) {
     Indicator indicator = indicatorRegistry.get(definition.getType());
     IndicatorParams params = IndicatorParams.of(definition.getParams());
-    return indicator.compute(bars, params, definition.getSource());
+    List<com.alphaflow.persistence.entities.Indicator> defRows =
+        top2ByDefId.getOrDefault(definition.getIndicatorDefinitionId(), List.of());
+    com.alphaflow.persistence.entities.Indicator lastIndicator =
+        defRows.isEmpty() ? null : defRows.getFirst();
+    com.alphaflow.persistence.entities.Indicator prevIndicator =
+        defRows.size() > 1 ? defRows.get(1) : null;
+
+    if (lastIndicator == null) {
+      Map<LocalDate, IndicatorComputationPoint> computed =
+          indicator.computeStateful(bars, params, definition.getSource(), null);
+      for (Map.Entry<LocalDate, IndicatorComputationPoint> entry : computed.entrySet()) {
+        toSave.add(entityFactory.apply(entry.getKey(), entry.getValue()));
+      }
+    } else if (timeframe == Timeframe.WEEKLY && lastIndicator.getPriceDate().equals(maxPriceDate)) {
+      handleWeeklyMidWeekUpsert(
+          indicator, params, definition, bars, lastIndicator, prevIndicator, maxPriceDate, toSave);
+    } else if (maxPriceDate.isAfter(lastIndicator.getPriceDate())) {
+      handleIncrementalNewBars(
+          indicator, params, definition, bars, lastIndicator, toSave, entityFactory);
+    } else if (indicator.isStateful() && !indicator.hasCompleteState(lastIndicator.getState())) {
+      Map<LocalDate, IndicatorComputationPoint> computed =
+          indicator.computeStateful(bars, params, definition.getSource(), null);
+      IndicatorComputationPoint anchorPoint = computed.get(lastIndicator.getPriceDate());
+      if (anchorPoint != null) {
+        lastIndicator.setState(anchorPoint.state());
+        toSave.add((T) lastIndicator);
+      }
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T extends com.alphaflow.persistence.entities.Indicator> void handleWeeklyMidWeekUpsert(
+      Indicator indicator,
+      IndicatorParams params,
+      IndicatorDefinition definition,
+      List<PriceBar> bars,
+      com.alphaflow.persistence.entities.Indicator lastIndicator,
+      com.alphaflow.persistence.entities.Indicator prevIndicator,
+      LocalDate maxPriceDate,
+      List<T> toSave) {
+    Map<LocalDate, IndicatorComputationPoint> computed;
+    if (indicator.isStateful()
+        && prevIndicator != null
+        && indicator.hasCompleteState(prevIndicator.getState())) {
+      computed =
+          indicator.computeStateful(
+              List.of(bars.getLast()), params, definition.getSource(), prevIndicator.getState());
+    } else if (!indicator.isStateful()) {
+      List<PriceBar> tailSlice = sliceTail(bars, indicator.requiredLookback(params));
+      computed = indicator.computeStateful(tailSlice, params, definition.getSource(), null);
+    } else {
+      computed = indicator.computeStateful(bars, params, definition.getSource(), null);
+      if (prevIndicator != null && !indicator.hasCompleteState(prevIndicator.getState())) {
+        IndicatorComputationPoint prevPoint = computed.get(prevIndicator.getPriceDate());
+        if (prevPoint != null) {
+          prevIndicator.setState(prevPoint.state());
+          toSave.add((T) prevIndicator);
+        }
+      }
+    }
+
+    IndicatorComputationPoint point = computed.get(maxPriceDate);
+    if (point != null
+        && (!mapsNumericallyEqual(lastIndicator.getValues(), point.values())
+            || !mapsNumericallyEqual(lastIndicator.getState(), point.state()))) {
+      lastIndicator.setValues(point.values());
+      lastIndicator.setState(point.state());
+      toSave.add((T) lastIndicator);
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private <T extends com.alphaflow.persistence.entities.Indicator> void handleIncrementalNewBars(
+      Indicator indicator,
+      IndicatorParams params,
+      IndicatorDefinition definition,
+      List<PriceBar> bars,
+      com.alphaflow.persistence.entities.Indicator lastIndicator,
+      List<T> toSave,
+      BiFunction<LocalDate, IndicatorComputationPoint, T> entityFactory) {
+    LocalDate lastDate = lastIndicator.getPriceDate();
+    Map<LocalDate, IndicatorComputationPoint> computed;
+    if (indicator.isStateful() && indicator.hasCompleteState(lastIndicator.getState())) {
+      List<PriceBar> newBars = barsAfter(bars, lastDate);
+      computed =
+          indicator.computeStateful(
+              newBars, params, definition.getSource(), lastIndicator.getState());
+    } else if (!indicator.isStateful()) {
+      List<PriceBar> windowPlusNew =
+          sliceWindowPlusNew(bars, lastDate, indicator.requiredLookback(params));
+      computed = indicator.computeStateful(windowPlusNew, params, definition.getSource(), null);
+    } else {
+      computed = indicator.computeStateful(bars, params, definition.getSource(), null);
+      IndicatorComputationPoint anchorPoint = computed.get(lastDate);
+      if (anchorPoint != null) {
+        lastIndicator.setState(anchorPoint.state());
+        toSave.add((T) lastIndicator);
+      }
+    }
+
+    for (Map.Entry<LocalDate, IndicatorComputationPoint> entry : computed.entrySet()) {
+      if (entry.getKey().isAfter(lastDate)) {
+        toSave.add(entityFactory.apply(entry.getKey(), entry.getValue()));
+      }
+    }
+  }
+
+  private List<PriceBar> sliceTail(List<PriceBar> bars, int count) {
+    int startIndex = Math.max(0, bars.size() - count);
+    return bars.subList(startIndex, bars.size());
+  }
+
+  private List<PriceBar> barsAfter(List<PriceBar> bars, LocalDate lastDate) {
+    int firstNewIndex = findFirstIndexAfter(bars, lastDate);
+    return bars.subList(firstNewIndex, bars.size());
+  }
+
+  private List<PriceBar> sliceWindowPlusNew(
+      List<PriceBar> bars, LocalDate lastDate, int requiredLookback) {
+    int firstNewIndex = findFirstIndexAfter(bars, lastDate);
+    int startIndex = Math.max(0, firstNewIndex - (requiredLookback - 1));
+    return bars.subList(startIndex, bars.size());
+  }
+
+  private int findFirstIndexAfter(List<PriceBar> bars, LocalDate lastDate) {
+    for (int i = 0; i < bars.size(); i++) {
+      if (bars.get(i).date().isAfter(lastDate)) {
+        return i;
+      }
+    }
+    return bars.size();
+  }
+
+  private boolean mapsNumericallyEqual(
+      Map<String, BigDecimal> left, Map<String, BigDecimal> right) {
+    if (left == null && right == null) {
+      return true;
+    }
+    if (left == null || right == null || left.size() != right.size()) {
+      return false;
+    }
+    for (Map.Entry<String, BigDecimal> entry : left.entrySet()) {
+      BigDecimal rightValue = right.get(entry.getKey());
+      if (rightValue == null || entry.getValue().compareTo(rightValue) != 0) {
+        return false;
+      }
+    }
+    return true;
   }
 }

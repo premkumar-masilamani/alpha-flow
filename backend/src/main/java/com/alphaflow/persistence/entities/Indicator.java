@@ -38,6 +38,18 @@ public abstract class Indicator {
   @Column(name = "values", nullable = false)
   private Map<String, BigDecimal> values;
 
+  @JdbcTypeCode(SqlTypes.JSON)
+  @Column(name = "state")
+  private Map<String, BigDecimal> state;
+
+  public Indicator(
+      Ticker ticker,
+      IndicatorDefinition indicatorDefinition,
+      LocalDate priceDate,
+      Map<String, BigDecimal> values) {
+    this(ticker, indicatorDefinition, priceDate, values, null);
+  }
+
   public IndicatorType getIndicatorType() {
     return indicatorDefinition.getIndicatorType();
   }
