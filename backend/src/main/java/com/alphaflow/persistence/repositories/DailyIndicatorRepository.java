@@ -43,22 +43,24 @@ public interface DailyIndicatorRepository extends JpaRepository<DailyIndicator, 
   List<Ticker> findTickersWithPendingDailyIndicators();
 
   @Query(
-      """
-      SELECT di.ticker, di.indicatorDefinition, MAX(di.priceDate)
-      FROM DailyIndicator di
-      WHERE di.ticker.isActive = true
-      GROUP BY di.ticker, di.indicatorDefinition
-      """)
-  List<Object[]> findLatestDatesGroupedByTickerAndDefinition();
-
-  @Query(
-      """
-      SELECT di.indicatorDefinition, MAX(di.priceDate)
-      FROM DailyIndicator di
-      WHERE di.ticker = :ticker
-      GROUP BY di.indicatorDefinition
-      """)
-  List<Object[]> findLatestDatesGroupedByDefinition(@Param("ticker") Ticker ticker);
+      value =
+          """
+          SELECT di.*
+          FROM (
+              SELECT d.*,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY d.ticker_id, d.indicator_definition_id
+                         ORDER BY d.price_date DESC
+                     ) AS rn
+              FROM daily_indicators d
+              JOIN tickers t ON t.ticker_id = d.ticker_id
+              WHERE t.is_active = true
+          ) di
+          WHERE di.rn <= 2
+          ORDER BY di.ticker_id, di.indicator_definition_id, di.price_date DESC
+          """,
+      nativeQuery = true)
+  List<DailyIndicator> findTop2LatestForActiveTickers();
 
   @Query(
       """

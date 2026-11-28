@@ -1,5 +1,6 @@
 package com.alphaflow.engine.indicators;
 
+import com.alphaflow.engine.indicators.dtos.IndicatorComputationPoint;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.EmaAccumulator;
@@ -21,15 +22,51 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class MacdIndicator implements Indicator {
 
+  public static final String STATE_FAST_EMA = "fastEma";
+  public static final String STATE_SLOW_EMA = "slowEma";
+  public static final String STATE_SIGNAL_EMA = "signalEma";
+
   @Override
   public IndicatorType type() {
     return IndicatorType.MACD;
   }
 
   @Override
+  public boolean isStateful() {
+    return true;
+  }
+
+  @Override
+  public int requiredLookback(IndicatorParams params) {
+    return params.getInt(IndicatorParamKey.SLOW) + params.getInt(IndicatorParamKey.SIGNAL, 9) - 1;
+  }
+
+  @Override
+  public boolean hasCompleteState(Map<String, BigDecimal> state) {
+    return state != null
+        && state.get(STATE_FAST_EMA) != null
+        && state.get(STATE_SLOW_EMA) != null
+        && state.get(STATE_SIGNAL_EMA) != null;
+  }
+
+  @Override
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
-    // 1. Setup and parameter retrieval
+    Map<LocalDate, IndicatorComputationPoint> stateful =
+        computeStateful(bars, params, source, null);
+    Map<LocalDate, Map<String, BigDecimal>> values = new LinkedHashMap<>(stateful.size());
+    for (Map.Entry<LocalDate, IndicatorComputationPoint> entry : stateful.entrySet()) {
+      values.put(entry.getKey(), entry.getValue().values());
+    }
+    return values;
+  }
+
+  @Override
+  public Map<LocalDate, IndicatorComputationPoint> computeStateful(
+      List<PriceBar> bars,
+      IndicatorParams params,
+      PriceSource source,
+      Map<String, BigDecimal> initialState) {
     int fastPeriod = params.getInt(IndicatorParamKey.FAST);
     int slowPeriod = params.getInt(IndicatorParamKey.SLOW);
     int signalPeriod = params.getInt(IndicatorParamKey.SIGNAL, 9);
@@ -42,45 +79,51 @@ public class MacdIndicator implements Indicator {
         signalPeriod,
         source);
 
-    // Create stateful fast, slow, and signal accumulators
-    EmaAccumulator fast = EmaAccumulator.fresh(fastPeriod);
-    EmaAccumulator slow = EmaAccumulator.fresh(slowPeriod);
-    EmaAccumulator signal = EmaAccumulator.fresh(signalPeriod);
+    EmaAccumulator fast;
+    EmaAccumulator slow;
+    EmaAccumulator signal;
+    if (hasCompleteState(initialState)) {
+      fast = EmaAccumulator.seeded(fastPeriod, initialState.get(STATE_FAST_EMA));
+      slow = EmaAccumulator.seeded(slowPeriod, initialState.get(STATE_SLOW_EMA));
+      signal = EmaAccumulator.seeded(signalPeriod, initialState.get(STATE_SIGNAL_EMA));
+    } else {
+      fast = EmaAccumulator.fresh(fastPeriod);
+      slow = EmaAccumulator.fresh(slowPeriod);
+      signal = EmaAccumulator.fresh(signalPeriod);
+    }
 
-    Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
+    Map<LocalDate, IndicatorComputationPoint> points = new LinkedHashMap<>();
 
     for (PriceBar bar : bars) {
       BigDecimal value = bar.valueFor(source);
-      // Feed values to fast and slow EMAs
       fast.next(value);
       slow.next(value);
 
-      // 2. Seeding stage: wait until both fast & slow EMAs are seeded (usually limited by slow
-      // period)
       if (!fast.isSeeded() || !slow.isSeeded()) {
         continue;
       }
 
-      // 3. Calculate MACD Line = Fast EMA - Slow EMA (calculated at 12 decimals internal scale)
       BigDecimal macd = IndicatorMath.internal(fast.current().subtract(slow.current()));
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
       barValues.put(IndicatorOutputKey.MACD.getValue(), IndicatorMath.publish(macd));
 
-      // Feed MACD line value into the signal EMA accumulator
+      Map<String, BigDecimal> barState = new LinkedHashMap<>();
+      barState.put(STATE_FAST_EMA, fast.current());
+      barState.put(STATE_SLOW_EMA, slow.current());
+
       Optional<BigDecimal> signalEma = signal.next(macd);
 
-      // 4. Seeding stage for signal EMA: wait until signal EMA is seeded
       if (signalEma.isPresent()) {
         BigDecimal signalVal = signalEma.get();
         barValues.put(IndicatorOutputKey.SIGNAL.getValue(), IndicatorMath.publish(signalVal));
 
-        // Calculate Histogram = MACD Line - Signal Line
         BigDecimal histogram = IndicatorMath.internal(macd.subtract(signalVal));
         barValues.put(IndicatorOutputKey.HISTOGRAM.getValue(), IndicatorMath.publish(histogram));
+        barState.put(STATE_SIGNAL_EMA, signal.current());
       }
-      values.put(bar.date(), barValues);
+      points.put(bar.date(), IndicatorComputationPoint.stateful(barValues, barState));
     }
 
-    return values;
+    return points;
   }
 }

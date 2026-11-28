@@ -26,6 +26,11 @@ public class SmaIndicator implements Indicator {
   }
 
   @Override
+  public int requiredLookback(IndicatorParams params) {
+    return params.getInt(IndicatorParamKey.PERIOD);
+  }
+
+  @Override
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     // 1. Retrieve & validate the period parameter (e.g., 20 or 50)

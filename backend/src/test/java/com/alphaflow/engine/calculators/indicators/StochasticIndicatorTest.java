@@ -5,6 +5,7 @@ import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.cl
 import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.walk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.StochasticIndicator;
@@ -65,5 +66,30 @@ class StochasticIndicatorTest {
                 .forEach(val ->
                     assertEquals(
                         0, val.compareTo(bd(0)), "Stochastic on flat prices must output 0")));
+  }
+
+  @Test
+  void stochasticLookbackAndStatelessContract() {
+    StochasticIndicator indicator = new StochasticIndicator();
+    IndicatorParams params = IndicatorParams.parse("k=14,kSmooth=3,dSmooth=3");
+    assertFalse(indicator.isStateful());
+    assertTrue(indicator.hasCompleteState(null));
+    assertEquals(18, indicator.requiredLookback(params));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            indicator.compute(
+                walk(5), IndicatorParams.parse("k=0,kSmooth=3,dSmooth=3"), PriceSource.CLOSE));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            indicator.compute(
+                walk(5), IndicatorParams.parse("k=14,kSmooth=0,dSmooth=3"), PriceSource.CLOSE));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            indicator.compute(
+                walk(5), IndicatorParams.parse("k=14,kSmooth=3,dSmooth=0"), PriceSource.CLOSE));
   }
 }

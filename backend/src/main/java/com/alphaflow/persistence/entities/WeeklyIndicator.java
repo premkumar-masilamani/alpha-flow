@@ -26,8 +26,9 @@ public class WeeklyIndicator extends Indicator {
       Ticker ticker,
       IndicatorDefinition indicatorDefinition,
       LocalDate priceDate,
-      Map<String, BigDecimal> values) {
-    super(ticker, indicatorDefinition, priceDate, values);
+      Map<String, BigDecimal> values,
+      Map<String, BigDecimal> state) {
+    super(ticker, indicatorDefinition, priceDate, values, state);
     this.weeklyIndicatorId = weeklyIndicatorId;
   }
 }

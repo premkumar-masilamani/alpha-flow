@@ -6,6 +6,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,35 @@ public interface WeeklyPriceRepository extends JpaRepository<WeeklyPrice, Long> 
         ORDER BY wp.priceDate DESC
       """)
   List<LocalDate> findRecentPriceDatesUpTo(Ticker ticker, LocalDate endDate, Pageable pageable);
+
+  @Query(
+      """
+      SELECT wp.ticker.tickerId, MAX(wp.priceDate)
+      FROM WeeklyPrice wp
+      WHERE wp.ticker.isActive = true
+      GROUP BY wp.ticker.tickerId
+      """)
+  List<Object[]> findMaxPriceDatePerActiveTicker();
+
+  @Query(
+      value =
+          """
+          SELECT sub.*
+          FROM (
+              SELECT wp.*,
+                     ROW_NUMBER() OVER (
+                         PARTITION BY wp.ticker_id
+                         ORDER BY wp.price_date DESC
+                     ) AS rn
+              FROM weekly_prices wp
+              WHERE wp.ticker_id IN (:tickerIds)
+          ) sub
+          WHERE sub.rn <= :limitPerTicker
+          ORDER BY sub.ticker_id ASC, sub.price_date ASC
+          """,
+      nativeQuery = true)
+  List<WeeklyPrice> findTailBarsForTickers(
+      @Param("tickerIds") Collection<Long> tickerIds, @Param("limitPerTicker") int limitPerTicker);
 
   @Modifying
   @Query("DELETE FROM WeeklyPrice wp WHERE wp.ticker = :ticker")

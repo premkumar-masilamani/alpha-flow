@@ -9,6 +9,7 @@ public final class EmaAccumulator {
 
   private final int period;
   private final BigDecimal multiplier;
+  private final BigDecimal oneMinusMultiplier;
   private final List<BigDecimal> seedWindow = new ArrayList<>();
   private BigDecimal ema; // null until seeded
 
@@ -20,11 +21,20 @@ public final class EmaAccumulator {
     // Calculates multiplier: k = 2 / (period + 1)
     // Run at INTERNAL_SCALE (12 decimals) using IndicatorMath.divide(...)
     this.multiplier = IndicatorMath.divide(BigDecimal.valueOf(2), BigDecimal.valueOf(period + 1L));
+    this.oneMinusMultiplier = BigDecimal.ONE.subtract(this.multiplier);
     this.ema = ema;
   }
 
   public static EmaAccumulator fresh(int period) {
     return new EmaAccumulator(period, null);
+  }
+
+  public static EmaAccumulator seeded(int period, BigDecimal initialEma) {
+    if (initialEma != null) {
+      return new EmaAccumulator(period, initialEma);
+    } else {
+      throw new IllegalArgumentException("Initial EMA must not be null");
+    }
   }
 
   public boolean isSeeded() {
@@ -51,8 +61,7 @@ public final class EmaAccumulator {
     }
 
     // Formula: ema_next = value * multiplier + ema_prev * (1 - multiplier)
-    BigDecimal next =
-        value.multiply(multiplier).add(ema.multiply(BigDecimal.ONE.subtract(multiplier)));
+    BigDecimal next = value.multiply(multiplier).add(ema.multiply(oneMinusMultiplier));
 
     // Keep internal precision bounded to 12 decimal places
     ema = IndicatorMath.internal(next);

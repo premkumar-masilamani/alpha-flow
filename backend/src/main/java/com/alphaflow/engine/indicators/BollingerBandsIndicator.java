@@ -32,6 +32,11 @@ public class BollingerBandsIndicator implements Indicator {
   }
 
   @Override
+  public int requiredLookback(IndicatorParams params) {
+    return params.getInt(IndicatorParamKey.PERIOD);
+  }
+
+  @Override
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     int period = params.getInt(IndicatorParamKey.PERIOD);

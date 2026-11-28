@@ -23,6 +23,14 @@ public class StochasticIndicator implements Indicator {
   }
 
   @Override
+  public int requiredLookback(IndicatorParams params) {
+    return params.getInt(IndicatorParamKey.K)
+        + params.getInt(IndicatorParamKey.K_SMOOTH)
+        + params.getInt(IndicatorParamKey.D_SMOOTH)
+        - 2;
+  }
+
+  @Override
   public Map<LocalDate, Map<String, BigDecimal>> compute(
       List<PriceBar> bars, IndicatorParams params, PriceSource source) {
     // 1. Setup and parameter retrieval
@@ -52,8 +60,12 @@ public class StochasticIndicator implements Indicator {
     Deque<BigDecimal> lows = new ArrayDeque<>(k);
     Deque<BigDecimal> rawWindowK = new ArrayDeque<>(smoothK);
     Deque<BigDecimal> windowK = new ArrayDeque<>(smoothD);
+    BigDecimal sumRawK = BigDecimal.ZERO;
+    BigDecimal sumK = BigDecimal.ZERO;
+    BigDecimal divisorK = BigDecimal.valueOf(smoothK);
+    BigDecimal divisorD = BigDecimal.valueOf(smoothD);
 
-    Map<LocalDate, Map<String, BigDecimal>> values = new java.util.LinkedHashMap<>();
+    Map<LocalDate, Map<String, BigDecimal>> values = new LinkedHashMap<>();
 
     // 2. Loop chronologically through all bars
     for (PriceBar bar : bars) {
@@ -79,26 +91,28 @@ public class StochasticIndicator implements Indicator {
                   IndicatorMath.divide(bar.close().subtract(lowestLow), range)
                       .multiply(IndicatorMath.HUNDRED));
 
-      // Step 3: Compute Slow %K (Output `k`) using simple averaging of rawKWindow
+      // Step 3: Compute Slow %K (Output `k`) using O(1) rolling sum of rawWindowK
       rawWindowK.addLast(rawK);
+      sumRawK = sumRawK.add(rawK);
       if (rawWindowK.size() > smoothK) {
-        rawWindowK.removeFirst();
+        sumRawK = sumRawK.subtract(rawWindowK.removeFirst());
       }
       if (rawWindowK.size() < smoothK) {
         continue; // Skip until we have enough rawK values for smoothing
       }
 
-      BigDecimal valueK = IndicatorMath.average(new ArrayList<>(rawWindowK));
+      BigDecimal valueK = IndicatorMath.divide(sumRawK, divisorK);
       Map<String, BigDecimal> barValues = new LinkedHashMap<>();
       barValues.put(IndicatorOutputKey.K.getValue(), IndicatorMath.publish(valueK));
 
-      // Step 4: Compute Slow %D (Output `d`) using simple averaging of kWindow
+      // Step 4: Compute Slow %D (Output `d`) using O(1) rolling sum of windowK
       windowK.addLast(valueK);
+      sumK = sumK.add(valueK);
       if (windowK.size() > smoothD) {
-        windowK.removeFirst();
+        sumK = sumK.subtract(windowK.removeFirst());
       }
       if (windowK.size() == smoothD) {
-        BigDecimal valueD = IndicatorMath.average(new ArrayList<>(windowK));
+        BigDecimal valueD = IndicatorMath.divide(sumK, divisorD);
         barValues.put(IndicatorOutputKey.D.getValue(), IndicatorMath.publish(valueD));
       }
       // Step 5: Save published output mapped to bar date

@@ -5,14 +5,18 @@ import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.cl
 import static com.alphaflow.engine.calculators.indicators.IndicatorTestHelper.walk;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.RsiIndicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorComputationPoint;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
+import com.alphaflow.engine.indicators.dtos.PriceBar;
 import com.alphaflow.engine.indicators.utils.IndicatorMath;
 import com.alphaflow.persistence.enums.PriceSource;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -89,5 +93,47 @@ class RsiIndicatorTest {
         .values()
         .forEach(barMap ->
             assertEquals(0, barMap.get("value").compareTo(bd(100)), "flat prices RSI must be 100"));
+  }
+
+  @Test
+  void rsiStatefulResumeMatchesFullPassBitForBit() {
+    RsiIndicator indicator = new RsiIndicator();
+    IndicatorParams params = IndicatorParams.parse("period=14");
+
+    assertTrue(indicator.isStateful());
+    assertEquals(15, indicator.requiredLookback(params));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> indicator.compute(walk(5), IndicatorParams.parse("period=0"), PriceSource.CLOSE));
+    assertFalse(indicator.hasCompleteState(null));
+    assertFalse(indicator.hasCompleteState(Map.of()));
+    assertFalse(indicator.hasCompleteState(Map.of(RsiIndicator.STATE_AVG_GAIN, BigDecimal.ONE)));
+    assertFalse(
+        indicator.hasCompleteState(
+            Map.of(
+                RsiIndicator.STATE_AVG_GAIN,
+                BigDecimal.ONE,
+                RsiIndicator.STATE_AVG_LOSS,
+                BigDecimal.ONE)));
+
+    List<PriceBar> bars = walk(100);
+    Map<LocalDate, IndicatorComputationPoint> fullPass =
+        indicator.computeStateful(bars, params, PriceSource.CLOSE, null);
+
+    Map<LocalDate, IndicatorComputationPoint> firstHalf =
+        indicator.computeStateful(bars.subList(0, 50), params, PriceSource.CLOSE, null);
+    Map<String, BigDecimal> state = firstHalf.get(bars.get(49).date()).state();
+    assertTrue(indicator.hasCompleteState(state));
+
+    for (int i = 50; i < bars.size(); i++) {
+      PriceBar bar = bars.get(i);
+      Map<LocalDate, IndicatorComputationPoint> incremental =
+          indicator.computeStateful(List.of(bar), params, PriceSource.CLOSE, state);
+      IndicatorComputationPoint expected = fullPass.get(bar.date());
+      IndicatorComputationPoint actual = incremental.get(bar.date());
+      assertEquals(expected.values(), actual.values());
+      assertEquals(expected.state(), actual.state());
+      state = actual.state();
+    }
   }
 }
