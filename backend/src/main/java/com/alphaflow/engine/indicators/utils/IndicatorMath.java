@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Function;
 
 public final class IndicatorMath {
 
@@ -120,6 +121,49 @@ public final class IndicatorMath {
         }
       }
       return atrSeries;
+    } else {
+      return List.of();
+    }
+  }
+
+  /**
+   * Computes a rolling Simple Moving Average (SMA) over the tail slice {@code [startIndex ..
+   * items.size() - 1]} in O(window + tail) time at internal precision.
+   *
+   * <p>Accumulation starts at {@code Math.max(0, startIndex - period + 1)} so incremental runs
+   * evaluating only the latest bar(s) avoid redundant arithmetic over historical entries while
+   * producing values identical to a full-history SMA at every index {@code i >= startIndex}.
+   *
+   * @param items chronologically ordered input series
+   * @param valueExtractor extracts the {@link BigDecimal} value to average from each element
+   * @param period rolling window size (must be positive)
+   * @param startIndex first index in {@code items} for which an SMA output is required
+   * @param <T> element type of the input series
+   * @return SMA values aligned with {@code items[startIndex .. items.size() - 1]}, or empty list
+   *     when inputs are invalid or {@code startIndex >= items.size()}
+   */
+  public static <T> List<BigDecimal> computeSimpleMovingAverage(
+      List<T> items, Function<T, BigDecimal> valueExtractor, int period, int startIndex) {
+    if (items != null
+        && valueExtractor != null
+        && period > 0
+        && startIndex >= 0
+        && startIndex < items.size()) {
+      int windowStart = Math.max(0, startIndex - period + 1);
+      List<BigDecimal> movingAverages = new ArrayList<>(items.size() - startIndex);
+      BigDecimal sum = BigDecimal.ZERO;
+
+      for (int i = windowStart; i < items.size(); i++) {
+        sum = sum.add(valueExtractor.apply(items.get(i)));
+        if (i - windowStart >= period) {
+          sum = sum.subtract(valueExtractor.apply(items.get(i - period)));
+        }
+        if (i >= startIndex) {
+          int count = Math.min(i + 1, period);
+          movingAverages.add(divide(sum, BigDecimal.valueOf(count)));
+        }
+      }
+      return movingAverages;
     } else {
       return List.of();
     }

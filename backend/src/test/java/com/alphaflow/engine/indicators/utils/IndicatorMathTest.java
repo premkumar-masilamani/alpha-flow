@@ -2,13 +2,13 @@ package com.alphaflow.engine.indicators.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.alphaflow.engine.indicators.dtos.PriceBar;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
 class IndicatorMathTest {
@@ -136,5 +136,57 @@ class IndicatorMathTest {
     assertNull(atrSeries.get(1));
     assertEquals(0, new BigDecimal("10").compareTo(atrSeries.get(2)));
     assertEquals(new BigDecimal("14.6667"), IndicatorMath.publish(atrSeries.get(3)));
+  }
+
+  @Test
+  void testComputeSimpleMovingAverageValidationAndFullVsTailParity() {
+    List<BigDecimal> values =
+        List.of(
+            new BigDecimal("2"),
+            new BigDecimal("4"),
+            new BigDecimal("6"),
+            new BigDecimal("8"),
+            new BigDecimal("10"),
+            new BigDecimal("12"));
+
+    assertTrue(IndicatorMath.computeSimpleMovingAverage(null, Function.identity(), 3, 0).isEmpty());
+    assertTrue(IndicatorMath.computeSimpleMovingAverage(values, null, 3, 0).isEmpty());
+    assertTrue(
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 0, 0).isEmpty());
+    assertTrue(
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 3, -1).isEmpty());
+    assertTrue(
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 3, values.size())
+            .isEmpty());
+
+    List<BigDecimal> fullSeries =
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 3, 0);
+    assertEquals(6, fullSeries.size());
+    assertEquals(0, new BigDecimal("2").compareTo(fullSeries.get(0)));
+    assertEquals(0, new BigDecimal("3").compareTo(fullSeries.get(1)));
+    assertEquals(0, new BigDecimal("4").compareTo(fullSeries.get(2)));
+    assertEquals(0, new BigDecimal("6").compareTo(fullSeries.get(3)));
+    assertEquals(0, new BigDecimal("8").compareTo(fullSeries.get(4)));
+    assertEquals(0, new BigDecimal("10").compareTo(fullSeries.get(5)));
+
+    // Tail window starting at index 4 (period 3 -> windowStart = 2) must match fullSeries[4..5]
+    List<BigDecimal> tailTwo =
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 3, 4);
+    assertEquals(2, tailTwo.size());
+    assertEquals(0, fullSeries.get(4).compareTo(tailTwo.get(0)));
+    assertEquals(0, fullSeries.get(5).compareTo(tailTwo.get(1)));
+
+    // Single-element tail at the last index (no subtraction branch executed)
+    List<BigDecimal> tailOne =
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 3, 5);
+    assertEquals(1, tailOne.size());
+    assertEquals(0, fullSeries.get(5).compareTo(tailOne.get(0)));
+
+    // Early startIndex < period - 1 (windowStart clamped to 0)
+    List<BigDecimal> earlyTail =
+        IndicatorMath.computeSimpleMovingAverage(values, Function.identity(), 4, 1);
+    assertEquals(5, earlyTail.size());
+    assertEquals(0, new BigDecimal("3").compareTo(earlyTail.get(0)));
+    assertEquals(0, new BigDecimal("9").compareTo(earlyTail.get(4)));
   }
 }
