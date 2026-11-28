@@ -27,6 +27,7 @@ import com.alphaflow.engine.indicators.MacdIndicator;
 import com.alphaflow.engine.indicators.RsiIndicator;
 import com.alphaflow.engine.indicators.SmaIndicator;
 import com.alphaflow.engine.indicators.StochasticIndicator;
+import com.alphaflow.engine.indicators.dtos.IndicatorAnchor;
 import com.alphaflow.engine.indicators.dtos.IndicatorComputationPoint;
 import com.alphaflow.engine.indicators.dtos.IndicatorParams;
 import com.alphaflow.engine.indicators.dtos.PriceBar;
@@ -72,6 +73,7 @@ class IndicatorCalculatorTest {
   private WeeklyIndicatorRepository weeklyIndicatorRepo;
   private TickerRepository tickerRepository;
   private IndicatorDefinitionRepository indicatorDefinitionRepository;
+  private IndicatorIncrementalPlanner planner;
   private IndicatorCalculator calculator;
   private EmaIndicator emaIndicator;
   private SmaIndicator smaIndicator;
@@ -153,9 +155,10 @@ class IndicatorCalculatorTest {
                 new StochasticIndicator(),
                 new BollingerBandsIndicator()));
 
+    planner = new IndicatorIncrementalPlanner(registry);
     calculator =
         new IndicatorCalculator(
-            registry,
+            planner,
             dailyRepo,
             weeklyRepo,
             dailyIndicatorRepo,
@@ -693,8 +696,7 @@ class IndicatorCalculatorTest {
             eq(noPriceTicker), eq(Timeframe.DAILY), any(), any(), any(), any());
 
     IndicatorCalculator selfMock = mock(IndicatorCalculator.class);
-    when(selfMock.loadTop2IndicatorsByTickerId(Timeframe.WEEKLY))
-        .thenReturn(Collections.emptyMap());
+    when(selfMock.loadAnchorsByTickerId(Timeframe.WEEKLY)).thenReturn(Collections.emptyMap());
     Field selfField = IndicatorCalculator.class.getDeclaredField("indicatorCalculator");
     selfField.setAccessible(true);
     selfField.set(calculator, selfMock);
@@ -751,8 +753,7 @@ class IndicatorCalculatorTest {
   @Test
   void testUnsupportedTimeframesThrowIllegalArgumentException() throws Exception {
     assertThrows(IllegalArgumentException.class, () -> calculator.execute(null));
-    assertThrows(
-        IllegalArgumentException.class, () -> calculator.loadTop2IndicatorsByTickerId(null));
+    assertThrows(IllegalArgumentException.class, () -> calculator.loadAnchorsByTickerId(null));
     assertThrows(
         IllegalArgumentException.class,
         () -> calculator.loadTailBarsByTickerId(null, List.of(1L), 10));
@@ -793,11 +794,7 @@ class IndicatorCalculatorTest {
                     calculator, ticker, (Timeframe) null, List.of(), List.of(), Map.of(), date(0)));
     assertInstanceOf(IllegalArgumentException.class, saveEx.getCause());
 
-    Method canUseTailWindow =
-        IndicatorCalculator.class.getDeclaredMethod(
-            "canUseTailWindow", Timeframe.class, LocalDate.class, List.class, Map.class);
-    canUseTailWindow.setAccessible(true);
-    DailyIndicator anchor =
+    DailyIndicator anchorRow =
         DailyIndicator.builder()
             .dailyIndicatorId(1L)
             .ticker(ticker)
@@ -805,53 +802,36 @@ class IndicatorCalculatorTest {
             .priceDate(date(1))
             .values(Map.of("value", BigDecimal.ONE))
             .build();
-    InvocationTargetException tailEx =
-        assertThrows(
-            InvocationTargetException.class,
-            () ->
-                canUseTailWindow.invoke(
-                    calculator,
-                    null,
-                    date(2),
-                    List.of(smaVolumeDefinition),
-                    Map.of(smaVolumeDefinition.getIndicatorDefinitionId(), List.of(anchor))));
-    assertInstanceOf(IllegalArgumentException.class, tailEx.getCause());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            planner.canUseTailWindow(
+                null,
+                date(2),
+                List.of(smaVolumeDefinition),
+                Map.of(
+                    smaVolumeDefinition.getIndicatorDefinitionId(),
+                    new IndicatorAnchor(anchorRow, null))));
   }
 
   @Test
-  void testMapsNumericallyEqualAndHelperEdgeCases() throws Exception {
-    Method mapsEqual =
-        IndicatorCalculator.class.getDeclaredMethod("mapsNumericallyEqual", Map.class, Map.class);
-    mapsEqual.setAccessible(true);
-
-    assertTrue((Boolean) mapsEqual.invoke(calculator, null, null));
-    assertFalse((Boolean) mapsEqual.invoke(calculator, null, Map.of()));
-    assertFalse((Boolean) mapsEqual.invoke(calculator, Map.of(), null));
+  void testMapsNumericallyEqualAndHelperEdgeCases() {
+    assertTrue(planner.mapsNumericallyEqual(null, null));
+    assertFalse(planner.mapsNumericallyEqual(null, Map.of()));
+    assertFalse(planner.mapsNumericallyEqual(Map.of(), null));
     assertFalse(
-        (Boolean)
-            mapsEqual.invoke(
-                calculator,
-                Map.of("a", BigDecimal.ONE),
-                Map.of("a", BigDecimal.ONE, "b", BigDecimal.TWO)));
+        planner.mapsNumericallyEqual(
+            Map.of("a", BigDecimal.ONE), Map.of("a", BigDecimal.ONE, "b", BigDecimal.TWO)));
     assertFalse(
-        (Boolean)
-            mapsEqual.invoke(calculator, Map.of("a", BigDecimal.ONE), Map.of("b", BigDecimal.ONE)));
+        planner.mapsNumericallyEqual(Map.of("a", BigDecimal.ONE), Map.of("b", BigDecimal.ONE)));
     assertFalse(
-        (Boolean)
-            mapsEqual.invoke(calculator, Map.of("a", BigDecimal.ONE), Map.of("a", BigDecimal.TWO)));
+        planner.mapsNumericallyEqual(Map.of("a", BigDecimal.ONE), Map.of("a", BigDecimal.TWO)));
     assertTrue(
-        (Boolean)
-            mapsEqual.invoke(
-                calculator,
-                Map.of("a", new BigDecimal("10.50")),
-                Map.of("a", new BigDecimal("10.5000"))));
+        planner.mapsNumericallyEqual(
+            Map.of("a", new BigDecimal("10.50")), Map.of("a", new BigDecimal("10.5000"))));
 
-    Method findFirstIndexAfter =
-        IndicatorCalculator.class.getDeclaredMethod(
-            "findFirstIndexAfter", List.class, LocalDate.class);
-    findFirstIndexAfter.setAccessible(true);
     List<PriceBar> bars = dailyBars(ticker, 3).stream().map(PriceBar::from).toList();
-    assertEquals(3, findFirstIndexAfter.invoke(calculator, bars, date(5)));
+    assertEquals(3, planner.findFirstIndexAfter(bars, date(5)));
   }
 
   @SuppressWarnings("unchecked")
